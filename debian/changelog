@@ -1,3 +1,10 @@
+koffice (1:1.3.3-2) unstable; urgency=medium
+
+  * Tightened shlibs files, since the library interface has changed
+    since 1.3.0 (closes: #268366).
+
+ -- Ben Burton <bab@debian.org>  Fri, 22 Oct 2004 08:04:16 +1000
+
 koffice (1:1.3.3-1) unstable; urgency=medium
 
   * New upstream bugfix release.
