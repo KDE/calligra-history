@@ -1,3 +1,12 @@
+koffice (1:1.3.5-3) unstable; urgency=low
+
+  * Included the full GFDL text in debian/copyright, since all of the docbook
+    documentation is under this license.
+  * Removed the build-depends on libmysqlclient-dev, which is no longer
+    necessary.
+
+ -- Ben Burton <bab@debian.org>  Sat, 26 Mar 2005 10:47:17 +1100
+
 koffice (1:1.3.5-2) unstable; urgency=high
 
   * Yet another xpdf security fix.  This time a buffer overflow has been
