@@ -225,6 +225,8 @@ void KChartPart::loadConfig( KConfig *conf )
     //   label_dist = conf->readNumEntry("label_dist", label_dist);
     //   label_line = conf->readBoolEntry("label_line", label_line);
     _params->setChartType( (KDChartParams::ChartType)conf->readNumEntry( "type", _params->chartType() ) );
+
+    _params->setLineMarker(conf->readBoolEntry("lineMarker",_params->lineMarker()));
     //   other_threshold = conf->readNumEntry("other_threshold", other_threshold);
 
     //   backgroundPixmapName = conf->readEntry( "backgroundPixmapName", QString::null );
@@ -323,6 +325,7 @@ void KChartPart::saveConfig( KConfig *conf )
     //   conf->writeEntry( "backgroundPixmapScaled", backgroundPixmapScaled );
     //   conf->writeEntry( "backgroundPixmapCentered", backgroundPixmapCentered );
     //   conf->writeEntry( "backgroundPixmapIntensity", backgroundPixmapIntensity );
+    conf->writeEntry( "lineMarker",(int)_params->lineMarker());
 }
 
 QDomDocument KChartPart::saveXML()
@@ -422,7 +425,7 @@ bool KChartPart::loadData( const QDomDocument& doc, KoChart::Data& currentData )
     QDomNode n = data.firstChild();
     //QArray<int> tmpExp(rows*cols);
     //QArray<bool> tmpMissing(rows*cols);
-    
+
     for (int i=0; i!=rows; i++) {
         for (int j=0; j!=cols; j++) {
             if (n.isNull()) {
@@ -502,7 +505,7 @@ bool KChartPart::loadOldXML( const QDomDocument& doc )
     kdDebug(35001) << "Ok, it is a chart" << endl;
 
     QDomElement chart = doc.documentElement();
-    if ( chart.attribute( "mime" ) != "application/x-kchart" )
+    if ( chart.attribute( "mime" ) != "application/x-kchart" && chart.attribute( "mime" ) != "application/vnd.kde.kchart" )
         return false;
 
     kdDebug(35001) << "Mimetype ok" << endl;
