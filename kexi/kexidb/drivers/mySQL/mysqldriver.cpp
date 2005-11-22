@@ -40,7 +40,7 @@ Boston, MA 02111-1307, USA.
 
 using namespace KexiDB;
 
-KEXIDB_DRIVER_INFO( MySqlDriver, mysql );
+KEXIDB_DRIVER_INFO( MySqlDriver, mysql )
 
 /* TODO: Implement buffered/unbuffered, rather than buffer everything.
    Each MYSQL connection can only handle at most one unbuffered cursor,
