@@ -70,6 +70,7 @@ KexiDataAwareObjectInterface::~KexiDataAwareObjectInterface()
 	delete m_insertItem;
 	delete m_rowEditBuffer;
 	delete m_itemIterator;
+	//we cannot delete m_data here... subclasses should do this
 }
 
 void KexiDataAwareObjectInterface::clearVariables()
