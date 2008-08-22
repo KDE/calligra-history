@@ -372,7 +372,7 @@ QuerySchema* TableSchema::query()
 Field* TableSchema::anyNonPKField()
 {
 	if (!d->anyNonPKField) {
-		Field *f;
+		Field *f = 0;
 		Field::ListIterator it(m_fields);
 		it.toLast(); //from the end (higher chances to find)
 		for (; (f = it.current()); --it) {
