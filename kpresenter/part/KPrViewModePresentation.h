@@ -22,9 +22,6 @@
 
 #include <KoPAViewMode.h>
 #include "KPrAnimationDirector.h"
-#include "KPrDocument.h"
-
-#include <QCloseEvent>
 
 class QWidget;
 class KPrPresentationTool;

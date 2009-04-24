@@ -1,5 +1,10 @@
 /* This file is part of the KDE project
- * Copyright (C) 2007 Thorsten Zachmann <zachmann@kde.org>
+ * Copyright (C) 2007-2009 Thorsten Zachmann <zachmann@kde.org>
+ * Copyright (C) 2008 Jim Courtiau <jeremy.courtiau@gmail.com>
+ * Copyright (C) 2009 Alexia Allanic <alexia_allanic@yahoo.fr>
+ * Copyright (C) 2009 Jean-Nicolas Artaud <jeannicolasartaud@gmail.com>
+ * Copyright (C) 2009 Jérémy Lugagne <jejewindsurf@hotmail.com>
+ * Copyright (C) 2009 Johann Hingue <yoan1703@hotmail.fr>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -20,10 +25,9 @@
 #include "KPrPresentationTool.h"
 
 #include <QtGui/QWidget>
-
 #include <QtGui/QVBoxLayout>
-#include <QKeyEvent>
 #include <QtGui/QPainter>
+#include <QKeyEvent>
 
 #include <KoShape.h>
 #include <KoShapeManager.h>

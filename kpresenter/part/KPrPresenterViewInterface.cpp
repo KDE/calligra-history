@@ -26,12 +26,7 @@
 #include <QtGui/QTextEdit>
 #include <QtGui/QToolButton>
 #include <QTimeEdit>
-#include <QComboBox>
 #include <QTableWidget>
-#include <QFile>
-
-#include <KoOdfReadStore.h>
-#include <kstandarddirs.h>
 
 #include <KDebug>
 #include <KLocale>
@@ -46,13 +41,9 @@
 #include <KoShape.h>
 #include <KoTextShapeData.h>
 
-#include <KoXmlWriter.h>
-
 #include "KPrEndOfSlideShowPage.h"
 #include "KPrNotes.h"
 #include "KPrPage.h"
-
-#include <KoXmlWriter.h>
 
 KPrPresenterViewInterface::KPrPresenterViewInterface( const QList<KoPAPageBase *> &pages, KoPACanvas *canvas, QWidget *parent )
     : KPrPresenterViewBaseInterface( pages, parent )

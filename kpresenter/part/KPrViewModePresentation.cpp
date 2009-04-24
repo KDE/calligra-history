@@ -19,7 +19,6 @@
  */
 
 #include "KPrViewModePresentation.h"
-#include "KPrPresentationTool.h"
 
 #include <QEvent>
 #include <QKeyEvent>
@@ -36,6 +35,7 @@
 #include <KoPAView.h>
 #include <KoZoomHandler.h>
 
+#include "KPrDocument.h"
 #include "KPrPresentationTool.h"
 #include "KPrPresenterViewWidget.h"
 #include "KPrEndOfSlideShowPage.h"
