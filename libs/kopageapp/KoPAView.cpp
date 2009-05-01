@@ -51,7 +51,7 @@
 #include <KoShapeDeleteCommand.h>
 #include <KoCutController.h>
 #include <KoCopyController.h>
-#include "KoFilterManager.h"
+#include <KoFilterManager.h>
 
 #include "KoPADocumentStructureDocker.h"
 #include "KoShapeTraversal.h"
@@ -67,10 +67,7 @@
 #include "commands/KoPAChangeMasterPageCommand.h"
 #include "dialogs/KoPAMasterPageDialog.h"
 
-#include <KoStore.h>
-#include "KoShapeOdfSaveHelper.h"
-#include "KoFileDialog.h"
-
+#include <kfiledialog.h>
 #include <kdebug.h>
 #include <klocale.h>
 #include <kicon.h>
@@ -81,13 +78,6 @@
 #include <kparts/event.h>
 #include <kparts/partmanager.h>
 
-#include <KoXmlNS.h>
-#include <KoOdfReadStore.h>
-#include <KoOdfLoadingContext.h>
-#include "KoPALoadingContext.h"
-#include <QBuffer>
-#include <KoXmlWriter.h>
-#include <KoEmbeddedDocumentSaver.h>
 #include <kio/netaccess.h>
 
 KoPAView::KoPAView( KoPADocument *document, QWidget *parent )
@@ -289,7 +279,7 @@ void KoPAView::initActions()
         actionMenu->addAction(action);
     actionCollection()->addAction("insert_variable", actionMenu);
 
-    KAction * am = new KAction(i18n("Import document"), this);
+    KAction * am = new KAction(i18n("Import Document..."), this);
     actionCollection()->addAction("import_document", am);
     connect(am, SIGNAL(triggered()), this, SLOT(importDocument()));
 
@@ -298,8 +288,6 @@ void KoPAView::initActions()
 
 void KoPAView::importDocument()
 {
-    KoPAPastePage kpapp( m_doc,m_activePage );
-
     KFileDialog *dialog = new KFileDialog( KUrl("kfiledialog:///OpenDialog"),QString(), this );
     dialog->setObjectName( "file dialog" );
     dialog->setMode( KFile::File );
@@ -309,7 +297,12 @@ void KoPAView::importDocument()
     else {
         dialog->setCaption(i18n("Import Document"));
     }
-    const QStringList mimeFilter = KoFilterManager::mimeFilter( KoDocument::readNativeFormatMimeType(), KoFilterManager::Import,                     KoDocument::readExtraNativeMimeTypes() );
+
+    // TODO make it possible to select also other supported types (then the default format) here.
+    // this needs to go via the filters to get the file in the correct format.
+    // For now we only support the native mime type
+    const QStringList mimeFilter = KoFilterManager::mimeFilter( KoDocument::readNativeFormatMimeType(m_doc->componentData()), KoFilterManager::Import /*,
+                                                                KoDocument::readExtraNativeMimeTypes()*/ );
     dialog->setMimeFilter( mimeFilter );
     if (dialog->exec() == QDialog::Accepted) {
         KUrl url(dialog->selectedUrl());
@@ -320,10 +313,12 @@ void KoPAView::importDocument()
             QByteArray ba;
             ba = file.readAll();
 
+            // TODO we need to set the correct mime type as otherwise it does not find the correct tag when loading
             QMimeData data;
-            data.setData( KoOdf::mimeType( KoOdf::Presentation ), ba);
-            KoPAPastePage paste(m_doc,m_activePage);
-            paste.paste( KoOdf::Presentation, &data );
+            data.setData( KoOdf::mimeType( m_doc->documentType() ), ba);
+            KoPAPastePage paste( m_doc,m_activePage );
+            // TODO tz: there should be feedback if there was an error reading the file.
+            paste.paste( m_doc->documentType(), &data );
         }
         else {
             kWarning() << "open document" << url.prettyUrl() << "failed";

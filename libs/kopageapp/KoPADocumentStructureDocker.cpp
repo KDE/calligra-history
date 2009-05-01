@@ -26,6 +26,7 @@
 #include "KoPAView.h"
 #include "KoPAMasterPage.h"
 #include "KoPAPage.h"
+#include "KoPAOdfPageSaveHelper.h"
 #include "commands/KoPAPageInsertCommand.h"
 #include "commands/KoPAPageDeleteCommand.h"
 
@@ -44,9 +45,7 @@
 #include <kactioncollection.h>
 #include <KoShapeOdfSaveHelper.h>
 #include <KoDrag.h>
-#include "KoPAOdfPageSaveHelper.h"
-#include "KoPAPastePage.h"
-#include "KoShapePaste.h"
+#include <KoShapePaste.h>
 
 #include <KMenu>
 #include <klocale.h>
@@ -55,7 +54,6 @@
 #include <kinputdialog.h>
 #include <kmessagebox.h>
 #include <KConfigGroup>
-#include <kdebug.h>
 
 #include <QtGui/QGridLayout>
 #include <QtGui/QToolButton>
@@ -654,23 +652,22 @@ void KoPADocumentStructureDocker::editCopy()
 
     // separate selected layers and selected shapes
     extractSelectedLayersAndShapes( pages, layers, shapes );
-    
+
     foreach ( KoShape* shape, layers ) {
         // Add layers to shapes
         shapes.append(shape);
     }
-    
-    if( !shapes.empty() ) {
+
+    if ( !shapes.empty() ) {
         // Copy Shapes or Layers
         KoShapeOdfSaveHelper saveHelper(shapes);
         KoDrag drag;
         drag.setOdf(KoOdf::mimeType(KoOdf::Text), saveHelper);
         drag.addToClipboard();
-
         return;
     }
-    
-    if( !pages.empty() ) {        
+
+    if ( !pages.empty() ) {
         // Copy Pages
         KoPAOdfPageSaveHelper saveHelper( m_doc, pages );
         KoDrag drag;
@@ -688,8 +685,7 @@ void KoPADocumentStructureDocker::editPaste()
         KoCanvasBase* canvas = KoToolManager::instance()->activeCanvasController()->canvas();
         KoShapeManager * shapeManager = canvas->shapeManager();
         int zIndex = 0;
-        foreach (KoShape *shape, shapeManager->shapes())
-        {
+        foreach (KoShape *shape, shapeManager->shapes()) {
             zIndex = qMax(zIndex, shape->zIndex());
         }
         KoShapePaste paste(canvas, zIndex + 1, shapeManager->selection()->activeLayer());
