@@ -42,6 +42,10 @@
 #include <KDebug>
 #include <QtGui/QPainter>
 #include <QSizeF>
+#include <QLineF>
+
+#include <math.h>
+
 class KoPathShape::Private
 {
 public:
@@ -71,6 +75,30 @@ void KoPathShape::saveOdf(KoShapeSavingContext & context) const
 
     context.xmlWriter().addAttribute("svg:d", toString(QMatrix()));
     context.xmlWriter().addAttribute("koffice:nodeTypes", nodeTypes());
+
+    saveOdfCommonChildElements(context);
+    context.xmlWriter().endElement();
+
+    /* Save the first line end */
+    context.xmlWriter().startElement("draw:path");
+ //   saveOdfAttributes(context, OdfAllAttributes);
+
+    context.xmlWriter().addAttribute("svg:d", d->beginLineEnd.path());
+    context.xmlWriter().addAttribute("svg:viewBox", d->beginLineEnd.viewBox());
+    context.xmlWriter().addAttribute("draw:name", d->beginLineEnd.name());
+    context.xmlWriter().addAttribute("koffice:nodeTypes", "beginLineEnd");
+
+    saveOdfCommonChildElements(context);
+    context.xmlWriter().endElement();
+
+    /* Save the second line end */
+    context.xmlWriter().startElement("draw:path");
+//    saveOdfAttributes(context, OdfAllAttributes);
+
+    context.xmlWriter().addAttribute("svg:d", d->endLineEnd.path());
+    context.xmlWriter().addAttribute("svg:viewBox", d->endLineEnd.viewBox());
+    context.xmlWriter().addAttribute("draw:name", d->endLineEnd.name());
+    context.xmlWriter().addAttribute("koffice:nodeTypes", "endLineEnd");
 
     saveOdfCommonChildElements(context);
     context.xmlWriter().endElement();
@@ -128,6 +156,19 @@ bool KoPathShape::loadOdf(const KoXmlElement & element, KoShapeLoadingContext &c
     }
 
     setPosition(pos);
+
+    if(element.attribute("nodeTypes") == "beginLineEnd"){
+        kDebug() << "load the first line end";
+        d->beginLineEnd = KoLineEnd(element.attribute("name"), element.attribute("d"), element.attribute("viewBox"));
+        d->beginLineEnd.setTransform(element.attribute("transform"));
+    }
+
+    if(element.attribute("nodeTypes") == "endLineEnd"){
+        kDebug() << "load the second line end";
+        d->endLineEnd = KoLineEnd(element.attribute("name"), element.attribute("d"), element.attribute("viewBox"));
+        d->endLineEnd.setTransform(element.attribute("transform"));
+    }
+
 
     loadOdfAttributes(element, context, OdfTransformation);
 
@@ -219,18 +260,29 @@ void KoPathShape::clear()
 void KoPathShape::paint(QPainter &painter, const KoViewConverter &converter)
 {
     applyConversion(painter, converter);
-    QPainterPath path(outline());
-    path.setFillRule(d->fillRule);
-    QSizeF lineEndSize(size().width()*0.05, size().height()*0.05);
-    QPointF beginPoint(m_subpaths.last()->first()->point().x() - lineEndSize.width()/2, m_subpaths.last()->first()->point().y() - lineEndSize.height()/2);
-    QPointF endPoint(m_subpaths.last()->last()->point().x() - lineEndSize.width()/2, m_subpaths.last()->last()->point().y() - lineEndSize.height()/2);
+    QPainterPath pathPainter(outline());
 
-    d->beginLineEnd.paint(painter, QRectF(beginPoint, lineEndSize));
-    d->endLineEnd.paint(painter, QRectF(endPoint, lineEndSize));
+    QPointF vector;
+    QMatrix matrix;
+    map(matrix);
+    KoPathPoint* point = m_subpaths.first()->first();
+    vector = KoLineEnd::computeAngle(point, matrix);
+    vector.setY(vector.y()*-1);
+    QLineF line(QPointF(0,0), vector);
+    float x = point->point().x();
+    float y = point->point().y();
+    d->endLineEnd.paint(painter, QRectF(QPointF(x, y), QPointF(10, 10)), line.angle());
+
+    point = m_subpaths.last()->last();
+    vector = KoLineEnd::computeAngle(point, matrix);
+    vector.setY(vector.y()*-1);
+    line = QLineF(QPointF(0,0), vector);
+    x = point->point().x();
+    y = point->point().y();
+    d->beginLineEnd.paint(painter, QRectF(QPointF(x, y), QPointF(10, 10)), line.angle());
 
     if (background())
-        background()->paint(painter, path);
-    //paintDebug( painter );
+        background()->paint(painter, pathPainter);
 }
 
 #ifndef NDEBUG

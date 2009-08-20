@@ -43,28 +43,34 @@
 class KoShapeBorderModel;
 class KoCanvasController;
 class KoPathShape;
+class KoPathPoint;
 class QPainter;
 class QRectF;
+class QMatrix;
 
 class FLAKE_EXPORT KoLineEnd{
 public:
-    KoLineEnd(QString name, QString path, QString view);
+    KoLineEnd(const QString &name, const QString &path, const QString &view);
     KoLineEnd();
     KoLineEnd(const KoLineEnd &);
     virtual ~KoLineEnd();
-    QIcon drawIcon(QSize size, int proportion);
-    QString name();
-    QString path();
-    QString viewBox();
-    QByteArray generateSVG(QSize size, QString comment = QString());
-    QByteArray getSVG();
-    void paint(QPainter &painter, QRectF rect);
+    QIcon drawIcon(const QSize &size, const int proportion);
+    QString name() const;
+    QString path() const;
+    QString viewBox() const;
+    QString transform() const;
+    void setTransform(const QString &transform);
+    QByteArray generateSVG(const QSize &size, const QString &comment = QString());
+    QByteArray getSVG() const;
+    void paint(QPainter &painter, const QRectF &rect, const float angle);
+    static QPointF computeAngle(const KoPathPoint* point, const QMatrix& matrix);
 
 private:
     QString m_name;
     QString m_path;
     QString m_view;
     QByteArray m_svg;
+    QString m_transform;
 };
 
 Q_DECLARE_METATYPE(KoLineEnd);
