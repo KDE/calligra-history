@@ -92,7 +92,7 @@ KoShapeEndLinesDocker::KoShapeEndLinesDocker()
     m_endEndLineComboBox->addItem(QIcon(qp),"None", beginNone.fromValue( KoLineEnd() ) );
 
     int proportion = 3;
-    QString fileName( KStandardDirs::locate( "data","kpresenter/endLineStyle/endLine.xml" ) );
+    QString fileName( KStandardDirs::locate( "data","koffice/endLineStyle/endLine.xml" ) );
     if ( ! fileName.isEmpty() ) {
         QFile file( fileName );
         QString errorMessage;
@@ -123,13 +123,13 @@ KoShapeEndLinesDocker::KoShapeEndLinesDocker()
     QLabel * beginEndLineLabel = new QLabel( i18n( "Begin :" ), mainWidget );
     mainLayout->addWidget( beginEndLineLabel, 0, 0 );
     mainLayout->addWidget( m_beginEndLineComboBox,0,1,1,3);
-    connect( m_beginEndLineComboBox, SIGNAL(activated( int ) ), this, SLOT( beginEndLineChanged( int ) ) );
+    connect( m_beginEndLineComboBox, SIGNAL( activated( int ) ), this, SLOT( beginEndLineChanged( int ) ) );
 
     // Add End to the docker
     QLabel * endEndLineLabel = new QLabel( i18n( "End :" ), mainWidget );
     mainLayout->addWidget( endEndLineLabel, 1, 0 );
     mainLayout->addWidget( m_endEndLineComboBox,1,1,1,3);
-    connect( m_endEndLineComboBox, SIGNAL(activated( int ) ), this, SLOT( endEndLineChanged( int ) ) );
+    connect( m_endEndLineComboBox, SIGNAL( activated( int ) ), this, SLOT( endEndLineChanged( int ) ) );
 
 
     mainLayout->setRowStretch( 5, 1 );
