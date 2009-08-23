@@ -139,8 +139,9 @@ void KoLineEnd::paint(QPainter &painter, const QRectF &rect, const float angle)
     painter.setBackgroundMode(Qt::OpaqueMode);
     painter.setBackground(QBrush(Qt::red));
     QSvgRenderer endLineRenderer;
-kDebug() << generateSVG(QSize(20, 20));
-    endLineRenderer.load(generateSVG(QSize(20, 20)));
+//kDebug() << generateSVG(QSize(20, 20));
+    QSize endLineSize = QSize(qRound(rect.width()), qRound(rect.height()));
+    endLineRenderer.load(generateSVG(endLineSize));
     endLineRenderer.render(&painter, rect);
 
 }

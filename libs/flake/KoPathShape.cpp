@@ -269,17 +269,17 @@ void KoPathShape::paint(QPainter &painter, const KoViewConverter &converter)
     vector = KoLineEnd::computeAngle(point, matrix);
     vector.setY(vector.y()*-1);
     QLineF line(QPointF(0,0), vector);
-    float x = point->point().x();
-    float y = point->point().y();
-    d->endLineEnd.paint(painter, QRectF(QPointF(x, y), QPointF(10, 10)), line.angle());
+    float x = point->point().x()-KoPathShapeEndLineSize;
+    float y = point->point().y()-KoPathShapeEndLineSize;
+    d->endLineEnd.paint(painter, QRectF(QPointF(x, y), QSizeF(KoPathShapeEndLineSize, KoPathShapeEndLineSize)), ((int)line.angle()+180)%360);
 
     point = m_subpaths.last()->last();
     vector = KoLineEnd::computeAngle(point, matrix);
     vector.setY(vector.y()*-1);
     line = QLineF(QPointF(0,0), vector);
-    x = point->point().x();
-    y = point->point().y();
-    d->beginLineEnd.paint(painter, QRectF(QPointF(x, y), QPointF(10, 10)), line.angle());
+    x = point->point().x()-KoPathShapeEndLineSize;
+    y = point->point().y()-KoPathShapeEndLineSize;
+    d->beginLineEnd.paint(painter, QRectF(QPointF(x, y), QSizeF(KoPathShapeEndLineSize, KoPathShapeEndLineSize)), ((int)line.angle()+180)%360);
 
     if (background())
         background()->paint(painter, pathPainter);

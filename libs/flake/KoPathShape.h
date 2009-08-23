@@ -31,6 +31,7 @@
 #include "KoLineEnd.h"
 
 #define KoPathShapeId "KoPathShape"
+#define KoPathShapeEndLineSize 15
 
 class KoPathShape;
 class KoPointGroup;
