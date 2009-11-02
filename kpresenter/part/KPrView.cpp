@@ -51,6 +51,7 @@
 #include "ui/KPrConfigurePresenterViewDialog.h"
 #include <QDebug>
 #include <QtGui/QDesktopWidget>
+#include <kfiledialog.h>
 
 KPrView::KPrView( KPrDocument *document, QWidget *parent )
   : KoPAView( document, parent )
@@ -279,19 +280,18 @@ void KPrView::configurePresenterView()
 
 void KPrView::exportToHTML()
 {
-    // Try to export to image
-    // KoPADocument::pageThumbnail
+    QString directory = KFileDialog::getExistingDirectory();
     for(int i=0; i < kopaDocument()->pageCount(); i++){
         KoPAPageBase *slide = kopaDocument()->pageByIndex(i,false);
         QPixmap pixmap = kopaDocument()->pageThumbnail(slide,slide->size().toSize());
-        QString nom = "/home/ben/export_test/test-"+QString::number(i)+".png";
+        QString nom = directory+"/"+QString::number(i)+".png";
         pixmap.save(nom, "PNG");
     }
-        //  KPrExportHTMLViewDialog *dialog = new KPrExportHTMLViewDialog();
-    //  if ( dialog->exec() == QDialog::Accepted ) {
-        //Do export
+    /*  KPrExportHTMLViewDialog *dialog = new KPrExportHTMLViewDialog();
+      if ( dialog->exec() == QDialog::Accepted ) {
         
-   // }
-   // delete dialog;
+        
+    }
+    delete dialog;*/
 }
 #include "KPrView.moc"
