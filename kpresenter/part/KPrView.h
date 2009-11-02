@@ -91,6 +91,7 @@ protected slots:
     void dialogCustomSlideShows();
     void configureSlideShow();
     void configurePresenterView();
+    void exportToHTML();
 
 private:
     KActionMenu *m_actionStartPresentation;
@@ -98,6 +99,7 @@ private:
     KAction *m_actionViewModeNormal;
     KAction *m_actionViewModeNotes;
     KAction *m_actionCreateCustomSlideShowsDialog;
+    KAction *m_actionExportHTML;
 
     KPrViewModePresentation *m_presentationMode;
     KoPAViewMode *m_normalMode;

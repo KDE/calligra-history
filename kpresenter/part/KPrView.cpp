@@ -1,7 +1,8 @@
 /* This file is part of the KDE project
    Copyright (C) 2006-2007 Thorsten Zachmann <zachmann@kde.org>
    Copyright (C) 2008 Carlos Licea <carlos.licea@kdemail.org>
-   
+   Copyright (C) 2009 Benjamin <port.benjamin@gmail.com>
+
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
@@ -139,6 +140,10 @@ void KPrView::initActions()
        setXMLFile( "kpresenter.rc" );
 
     // do special kpresenter stuff here
+    m_actionExportHTML = new KAction(i18n("Export as HTML..."), this);
+    actionCollection()->addAction("file_export_html", m_actionExportHTML);
+    connect(m_actionExportHTML, SIGNAL(triggered()), this, SLOT(exportToHTML()));
+    
     m_actionViewModeNormal = new KAction(i18n("Normal"), this);
     m_actionViewModeNormal->setCheckable(true);
     m_actionViewModeNormal->setChecked(true);
@@ -157,7 +162,7 @@ void KPrView::initActions()
     m_actionCreateAnimation = new KAction( i18n( "Create Appear Animation" ), this );
     actionCollection()->addAction( "edit_createanimation", m_actionCreateAnimation );
     connect( m_actionCreateAnimation, SIGNAL( activated() ), this, SLOT( createAnimation() ) );
-
+    
     m_actionCreateCustomSlideShowsDialog = new KAction( i18n( "Edit Custom Slide Shows..." ), this );
     actionCollection()->addAction( "edit_customslideshows", m_actionCreateCustomSlideShowsDialog );
     connect( m_actionCreateCustomSlideShowsDialog, SIGNAL( activated() ), this, SLOT( dialogCustomSlideShows() ) );
@@ -272,4 +277,21 @@ void KPrView::configurePresenterView()
     delete dialog;
 }
 
+void KPrView::exportToHTML()
+{
+    // Try to export to image
+    // KoPADocument::pageThumbnail
+    for(int i=0; i < kopaDocument()->pageCount(); i++){
+        KoPAPageBase *slide = kopaDocument()->pageByIndex(i,false);
+        QPixmap pixmap = kopaDocument()->pageThumbnail(slide,slide->size().toSize());
+        QString nom = "/home/ben/export_test/test-"+QString::number(i)+".png";
+        pixmap.save(nom, "PNG");
+    }
+        //  KPrExportHTMLViewDialog *dialog = new KPrExportHTMLViewDialog();
+    //  if ( dialog->exec() == QDialog::Accepted ) {
+        //Do export
+        
+   // }
+   // delete dialog;
+}
 #include "KPrView.moc"
