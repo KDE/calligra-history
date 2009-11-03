@@ -1,7 +1,7 @@
 /* This file is part of the KDE project
    Copyright (C) 2006-2007 Thorsten Zachmann <zachmann@kde.org>
    Copyright (C) 2008 Carlos Licea <carlos.licea@kdemail.org>
-   Copyright (C) 2009 Benjamin <port.benjamin@gmail.com>
+   Copyright (C) 2009 Benjamin Port <port.benjamin@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -52,6 +52,9 @@
 #include <QDebug>
 #include <QtGui/QDesktopWidget>
 #include <kfiledialog.h>
+#include <ktemporaryfile.h>
+#include <kio/netaccess.h>
+#include <kio/job.h>
 
 KPrView::KPrView( KPrDocument *document, QWidget *parent )
   : KoPAView( document, parent )
@@ -280,18 +283,27 @@ void KPrView::configurePresenterView()
 
 void KPrView::exportToHTML()
 {
-    QString directory = KFileDialog::getExistingDirectory();
-    for(int i=0; i < kopaDocument()->pageCount(); i++){
-        KoPAPageBase *slide = kopaDocument()->pageByIndex(i,false);
-        QPixmap pixmap = kopaDocument()->pageThumbnail(slide,slide->size().toSize());
-        QString nom = directory+"/"+QString::number(i)+".png";
-        pixmap.save(nom, "PNG");
+    int pages = kopaDocument()->pageCount();
+    KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
+    KUrl fileUrl;
+    directoryUrl.adjustPath(KUrl::AddTrailingSlash);
+    QString tmpFileName;
+    
+    for(int i=0; i < pages; i++) {
+        KoPAPageBase *slide = kopaDocument()->pageByIndex(i, false);
+        QPixmap pixmap = kopaDocument()->pageThumbnail(slide, slide->size().toSize());
+        fileUrl = directoryUrl;
+        fileUrl.addPath(QString::number(i) + ".png");
+        if(directoryUrl.isLocalFile()) {
+            pixmap.save(fileUrl.path(), "PNG");
+        } else {
+            KTemporaryFile tmpFile;
+            tmpFile.setAutoRemove(true);
+            tmpFile.open();
+            tmpFileName=tmpFile.fileName();
+            pixmap.save(tmpFileName, "PNG");
+            KIO::NetAccess::upload(tmpFileName, fileUrl, this);
+        }
     }
-    /*  KPrExportHTMLViewDialog *dialog = new KPrExportHTMLViewDialog();
-      if ( dialog->exec() == QDialog::Accepted ) {
-        
-        
-    }
-    delete dialog;*/
 }
 #include "KPrView.moc"
