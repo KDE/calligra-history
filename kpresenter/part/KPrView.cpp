@@ -51,10 +51,9 @@
 #include "ui/KPrConfigurePresenterViewDialog.h"
 #include <QDebug>
 #include <QtGui/QDesktopWidget>
+
 #include <kfiledialog.h>
-#include <ktemporaryfile.h>
-#include <kio/netaccess.h>
-#include <kio/job.h>
+#include "KPrHTMLExport.h"
 
 KPrView::KPrView( KPrDocument *document, QWidget *parent )
   : KoPAView( document, parent )
@@ -283,27 +282,11 @@ void KPrView::configurePresenterView()
 
 void KPrView::exportToHTML()
 {
-    int pages = kopaDocument()->pageCount();
+    // Get the export directory
     KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
-    KUrl fileUrl;
-    directoryUrl.adjustPath(KUrl::AddTrailingSlash);
-    QString tmpFileName;
-    
-    for(int i=0; i < pages; i++) {
-        KoPAPageBase *slide = kopaDocument()->pageByIndex(i, false);
-        QPixmap pixmap = kopaDocument()->pageThumbnail(slide, slide->size().toSize());
-        fileUrl = directoryUrl;
-        fileUrl.addPath(QString::number(i) + ".png");
-        if(directoryUrl.isLocalFile()) {
-            pixmap.save(fileUrl.path(), "PNG");
-        } else {
-            KTemporaryFile tmpFile;
-            tmpFile.setAutoRemove(true);
-            tmpFile.open();
-            tmpFileName=tmpFile.fileName();
-            pixmap.save(tmpFileName, "PNG");
-            KIO::NetAccess::upload(tmpFileName, fileUrl, this);
-        }
+    if(directoryUrl.isValid()){
+        directoryUrl.adjustPath(KUrl::AddTrailingSlash);
+        KPrHTMLExport exportHTML(kopaDocument(), directoryUrl);
     }
 }
 #include "KPrView.moc"
