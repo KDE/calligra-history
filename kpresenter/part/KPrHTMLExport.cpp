@@ -23,6 +23,7 @@
 
 #include <ktemporaryfile.h>
 #include <kio/netaccess.h>
+#include <kfile.h>
 
 KPrHTMLExport::KPrHTMLExport ( KoPADocument* kopaDocument, const KUrl &url ):m_kopaDocument(kopaDocument), m_url(url)
 {
@@ -57,6 +58,29 @@ void KPrHTMLExport::exportImage()
             pixmap.save(tmpFileName, "PNG");
             KIO::NetAccess::upload(tmpFileName, fileUrl, NULL);
         }
-    }
+    }           
 }
 
+void KPrHTMLExport::writeHTMLFile(const QString &fileName, QString *htmlBody)
+{
+    KTemporaryFile tmpFile;
+    QTextStream stream;
+    QFile file;
+    KUrl fileUrl = m_url;
+    fileUrl.addPath(fileName);
+    if(m_url.isLocalFile()) {
+        file.setFileName(fileUrl.path());
+        file.open(QIODevice::WriteOnly);
+        stream.setDevice(&file);
+    } else {
+        tmpFile.open();
+        stream.setDevice(&tmpFile);
+    }
+    stream << *htmlBody;
+    stream.flush();
+    if(!m_url.isLocalFile()) {
+        KIO::NetAccess::upload(tmpFile.fileName(), fileUrl, NULL);            
+    } else {
+        file.close();
+    }
+}
