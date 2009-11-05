@@ -61,7 +61,7 @@ void KPrHTMLExport::exportImage()
     }           
 }
 
-void KPrHTMLExport::writeHTMLFile(const QString &fileName, QString *htmlBody)
+void KPrHTMLExport::writeHTMLFile(const QString &fileName, const QString &htmlBody)
 {
     KTemporaryFile tmpFile;
     QTextStream stream;
@@ -76,7 +76,7 @@ void KPrHTMLExport::writeHTMLFile(const QString &fileName, QString *htmlBody)
         tmpFile.open();
         stream.setDevice(&tmpFile);
     }
-    stream << *htmlBody;
+    stream << htmlBody;
     stream.flush();
     if(!m_url.isLocalFile()) {
         KIO::NetAccess::upload(tmpFile.fileName(), fileUrl, NULL);            

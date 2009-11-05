@@ -34,7 +34,7 @@ class KPrHTMLExport:public QObject
         ~KPrHTMLExport();
     protected:
         void exportImage();
-        void writeHTMLFile(const QString &fileName, QString *htmlBody);
+        void writeHTMLFile(const QString &fileName, const QString &htmlBody);
     private:
         KoPADocument *m_kopaDocument;
         KUrl m_url;
