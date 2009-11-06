@@ -284,13 +284,13 @@ void KPrView::configurePresenterView()
 void KPrView::exportToHTML()
 {
 	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(this);
-    dialog->exec();
-
-    // Get the export directory
-    KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
-    if(directoryUrl.isValid()){
-        directoryUrl.adjustPath(KUrl::AddTrailingSlash);
-        KPrHTMLExport exportHTML(kopaDocument(), directoryUrl);
-    }
+   if ( dialog->exec() == QDialog::Accepted ){
+        // Get the export directory
+        KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
+        if(directoryUrl.isValid()){
+            directoryUrl.adjustPath(KUrl::AddTrailingSlash);
+            KPrHTMLExport exportHTML(kopaDocument(), directoryUrl);
+        }
+   }
 }
 #include "KPrView.moc"

@@ -1,5 +1,6 @@
 /* This file is part of the KDE project
  * Copyright (C) 2009 Yannick Motta <yannick.motta@gmail.com>
+ * Copyright (C) 2009 Benjamin Port <port.benjamin@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -25,12 +26,9 @@
 KPrHtmlExportDialog::KPrHtmlExportDialog(QWidget *parent) : KDialog(parent)
 {
     QWidget *widget = new QWidget( this );
-
     ui.setupUi( widget );
-
     setMainWidget( widget );
-
     setCaption( i18n( "Html Export" ) );
-
-    connect( ui.kPushButton_selectAll, SIGNAL( clicked() ), this, SLOT( selectAllItems() ) );
+    setButtonText(Ok, i18n("Export"));
+    
 }
