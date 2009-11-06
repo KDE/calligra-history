@@ -22,7 +22,7 @@
 #include <KoPADocument.h>
 
 
-class KPrHTMLExport:public QObject
+class KPrHtmlExport:public QObject
 {
     Q_OBJECT
     public:
@@ -30,11 +30,11 @@ class KPrHTMLExport:public QObject
         * @param kopaDocument 
         * @param url The destination url
         */
-        KPrHTMLExport(KoPADocument *kopaDocument, const KUrl &url);
-        ~KPrHTMLExport();
+        KPrHtmlExport(KoPADocument *kopaDocument, const KUrl &url);
+        ~KPrHtmlExport();
     protected:
         void exportImage();
-        void writeHTMLFile(const QString &fileName, const QString &htmlBody);
+        void writeHtmlFile(const QString &fileName, const QString &htmlBody);
     private:
         KoPADocument *m_kopaDocument;
         KUrl m_url;

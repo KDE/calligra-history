@@ -54,7 +54,7 @@ set( kpresenterprivate_LIB_SRCS
      KPrPresentationBlackStrategy.cpp
      KPrPresentationStrategyBase.cpp
      KPrPresentationDrawStrategy.cpp
-     KPrHTMLExport.cpp
+     KPrHtmlExport.cpp
 
      commands/KPrAnimationCreateCommand.cpp
      commands/KPrPageEffectSetCommand.cpp

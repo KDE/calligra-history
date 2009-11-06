@@ -54,7 +54,7 @@
 #include <QtGui/QDesktopWidget>
 
 #include <kfiledialog.h>
-#include "KPrHTMLExport.h"
+#include "KPrHtmlExport.h"
 
 KPrView::KPrView( KPrDocument *document, QWidget *parent )
   : KoPAView( document, parent )
@@ -144,9 +144,9 @@ void KPrView::initActions()
        setXMLFile( "kpresenter.rc" );
 
     // do special kpresenter stuff here
-    m_actionExportHTML = new KAction(i18n("Export as HTML..."), this);
-    actionCollection()->addAction("file_export_html", m_actionExportHTML);
-    connect(m_actionExportHTML, SIGNAL(triggered()), this, SLOT(exportToHTML()));
+    m_actionExportHtml = new KAction(i18n("Export as HTML..."), this);
+    actionCollection()->addAction("file_export_html", m_actionExportHtml);
+    connect(m_actionExportHtml, SIGNAL(triggered()), this, SLOT(exportToHtml()));
     
     m_actionViewModeNormal = new KAction(i18n("Normal"), this);
     m_actionViewModeNormal->setCheckable(true);
@@ -281,16 +281,15 @@ void KPrView::configurePresenterView()
     delete dialog;
 }
 
-void KPrView::exportToHTML()
+void KPrView::exportToHtml()
 {
-	//QList<KoPAPageBase*> slides = kopaDocument()->pages();
 	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),this);
-   if ( dialog->exec() == QDialog::Accepted ){
+    if ( dialog->exec() == QDialog::Accepted ){
         // Get the export directory
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
         if(directoryUrl.isValid()){
             directoryUrl.adjustPath(KUrl::AddTrailingSlash);
-            KPrHTMLExport exportHTML(kopaDocument(), directoryUrl);
+            KPrHtmlExport exportHtml(kopaDocument(), directoryUrl);
         }
    }
 }

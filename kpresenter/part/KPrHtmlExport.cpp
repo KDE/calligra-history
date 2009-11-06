@@ -17,7 +17,7 @@
  * Boston, MA 02110-1301, USA.
 */
 
-#include "KPrHTMLExport.h"
+#include "KPrHtmlExport.h"
 
 #include "KPrPage.h"
 
@@ -25,19 +25,19 @@
 #include <kio/netaccess.h>
 #include <kfile.h>
 
-KPrHTMLExport::KPrHTMLExport ( KoPADocument* kopaDocument, const KUrl &url ):m_kopaDocument(kopaDocument), m_url(url)
+KPrHtmlExport::KPrHtmlExport ( KoPADocument* kopaDocument, const KUrl &url ):m_kopaDocument(kopaDocument), m_url(url)
 {
     exportImage();
 }
 
 
-KPrHTMLExport::~KPrHTMLExport()
+KPrHtmlExport::~KPrHtmlExport()
 {
 
 }
 
 
-void KPrHTMLExport::exportImage()
+void KPrHtmlExport::exportImage()
 {
     // Export slides as image into the export directory
     KUrl fileUrl;
@@ -61,7 +61,7 @@ void KPrHTMLExport::exportImage()
     }           
 }
 
-void KPrHTMLExport::writeHTMLFile(const QString &fileName, const QString &htmlBody)
+void KPrHtmlExport::writeHtmlFile(const QString &fileName, const QString &htmlBody)
 {
     KTemporaryFile tmpFile;
     QTextStream stream;
