@@ -22,13 +22,18 @@
 #define KPRHTMLEXPORTDIALOG_H
 
 #include <KDialog>
+#include <KoPAPageBase.h>
 #include "ui_KPrHtmlExport.h"
 
 class KPrHtmlExportDialog  : public KDialog
 {
     Q_OBJECT
 public:
-    explicit KPrHtmlExportDialog(QWidget *parent=0 );
+    explicit KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *parent=0);
+
+private slots:
+    void checkAllItems();
+    void uncheckAllItems();
 
 private:
     Ui::KPrHtmlExport ui;

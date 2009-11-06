@@ -70,7 +70,7 @@
       <enum>Qt::ScrollBarAlwaysOn</enum>
      </property>
      <property name="selectionMode">
-      <enum>QAbstractItemView::MultiSelection</enum>
+      <enum>QAbstractItemView::NoSelection</enum>
      </property>
     </widget>
    </item>
@@ -94,38 +94,5 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections>
-  <connection>
-   <sender>kPushButton_deselectAll</sender>
-   <signal>clicked()</signal>
-   <receiver>kListBox_slides</receiver>
-   <slot>clearSelection()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>178</x>
-     <y>211</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>189</x>
-     <y>147</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>kPushButton_selectAll</sender>
-   <signal>clicked()</signal>
-   <receiver>kListBox_slides</receiver>
-   <slot>selectAll()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>67</x>
-     <y>217</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>85</x>
-     <y>158</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

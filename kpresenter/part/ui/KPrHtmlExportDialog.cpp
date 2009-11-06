@@ -23,12 +23,38 @@
 #include <KLocale>
 #include <KDebug>
 
-KPrHtmlExportDialog::KPrHtmlExportDialog(QWidget *parent) : KDialog(parent)
+KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *parent) : KDialog(parent)
 {
     QWidget *widget = new QWidget( this );
     ui.setupUi( widget );
     setMainWidget( widget );
-    setCaption( i18n( "Html Export" ) );
+    setCaption( i18n( "Html Export"));
     setButtonText(Ok, i18n("Export"));
-    
+
+    QList<KoPAPageBase*>::iterator it;
+    for(it = slides.begin(); it != slides.end(); ++it){
+      QListWidgetItem *listItem = new  QListWidgetItem((*it)->name());
+      listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
+      listItem->setCheckState(Qt::Checked);
+      ui.kListBox_slides->addItem(listItem);
+    }
+    connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ), this, SLOT( checkAllItems()  ) );
+    connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ), this, SLOT( uncheckAllItems()) );
+}
+
+void KPrHtmlExportDialog::checkAllItems()
+{
+    int countItems = ui.kListBox_slides->count();
+    for(int i = 0; i < countItems; i++){
+	kDebug() << i;
+	ui.kListBox_slides->item(i)->setCheckState(Qt::Checked);
+    }
+}
+
+void KPrHtmlExportDialog::uncheckAllItems()
+{
+    int countItems = ui.kListBox_slides->count();
+    for(int i = 0; i < countItems; i++){
+	ui.kListBox_slides->item(i)->setCheckState(Qt::Unchecked);
+    }
 }

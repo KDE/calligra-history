@@ -283,7 +283,8 @@ void KPrView::configurePresenterView()
 
 void KPrView::exportToHTML()
 {
-	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(this);
+	//QList<KoPAPageBase*> slides = kopaDocument()->pages();
+	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),this);
    if ( dialog->exec() == QDialog::Accepted ){
         // Get the export directory
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
