@@ -49,6 +49,7 @@
 #include "ui/KPrCustomSlideShowsDialog.h"
 #include "ui/KPrConfigureSlideShowDialog.h"
 #include "ui/KPrConfigurePresenterViewDialog.h"
+#include "ui/KPrHtmlExportDialog.h"
 #include <QDebug>
 #include <QtGui/QDesktopWidget>
 
@@ -282,6 +283,9 @@ void KPrView::configurePresenterView()
 
 void KPrView::exportToHTML()
 {
+	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(this);
+    dialog->exec();
+
     // Get the export directory
     KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
     if(directoryUrl.isValid()){
