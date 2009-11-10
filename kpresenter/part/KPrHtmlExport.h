@@ -20,23 +20,29 @@
 #ifndef KPRHTMLEXPORT_H
 #define KPRHTMLEXPORT_H
 #include <KoPADocument.h>
-
+#include "KPrView.h"
 
 class KPrHtmlExport:public QObject
 {
     Q_OBJECT
     public:
         /**
+        * @param kprView
         * @param kopaDocument 
         * @param url The destination url
         */
-        KPrHtmlExport(KoPADocument *kopaDocument, const KUrl &url);
+        KPrHtmlExport(KPrView* kprView, KoPADocument* kopaDocument, const KUrl& url);
         ~KPrHtmlExport();
     protected:
-        void exportImage();
-        void writeHtmlFile(const QString &fileName, const QString &htmlBody);
+        void exportImageToTmpDir();
+        void writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody);
+        void copyFromTmpToDest();
     private:
+        KPrView *m_kprView;
         KoPADocument *m_kopaDocument;
-        KUrl m_url;
+        KUrl m_dest_url;
+        KUrl::List m_fileUrlList;
+        QString m_tmpDirPath;
+
 };
 #endif /* KPRHTMLEXPORT_H */

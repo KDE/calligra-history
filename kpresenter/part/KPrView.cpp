@@ -289,7 +289,7 @@ void KPrView::exportToHtml()
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
         if(directoryUrl.isValid()){
             directoryUrl.adjustPath(KUrl::AddTrailingSlash);
-            KPrHtmlExport exportHtml(kopaDocument(), directoryUrl);
+            KPrHtmlExport exportHtml(this, kopaDocument(), directoryUrl);
         }
    }
 }

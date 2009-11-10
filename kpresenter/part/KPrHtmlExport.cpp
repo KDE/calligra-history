@@ -18,69 +18,55 @@
 */
 
 #include "KPrHtmlExport.h"
-
 #include "KPrPage.h"
+#include <kio/copyjob.h>
+#include <ktempdir.h>
 
-#include <ktemporaryfile.h>
-#include <kio/netaccess.h>
-#include <kfile.h>
-
-KPrHtmlExport::KPrHtmlExport ( KoPADocument* kopaDocument, const KUrl &url ):m_kopaDocument(kopaDocument), m_url(url)
-{
-    exportImage();
+KPrHtmlExport::KPrHtmlExport (KPrView* kprView, KoPADocument* kopaDocument, const KUrl &url ):m_kprView(kprView), m_kopaDocument(kopaDocument), m_dest_url(url)
+{ 
+    // Create a temporary dir
+    KTempDir tmpDir;
+    m_tmpDirPath = tmpDir.name();
+    exportImageToTmpDir();
+    copyFromTmpToDest();
+    KTempDir::removeDir(m_tmpDirPath);
 }
 
 
 KPrHtmlExport::~KPrHtmlExport()
 {
-
 }
 
 
-void KPrHtmlExport::exportImage()
+void KPrHtmlExport::exportImageToTmpDir()
 {
-    // Export slides as image into the export directory
+    // Export slides as image into the temporary export directory
     KUrl fileUrl;
-    QString tmpFileName;
-    int pages = m_kopaDocument->pageCount();
-    for(int i=0; i < pages; i++) {
-        KoPAPageBase *slide = m_kopaDocument->pageByIndex(i, false);
-        QPixmap pixmap = m_kopaDocument->pageThumbnail(slide, slide->size().toSize());
-        fileUrl = m_url;
-        fileUrl.addPath(QString::number(i) + ".png");
-        if(m_url.isLocalFile()) {
-            pixmap.save(fileUrl.path(), "PNG");
-        } else {
-            KTemporaryFile tmpFile;
-            tmpFile.setAutoRemove(true);
-            tmpFile.open();
-            tmpFileName=tmpFile.fileName();
-            pixmap.save(tmpFileName, "PNG");
-            KIO::NetAccess::upload(tmpFileName, fileUrl, NULL);
-        }
-    }           
+    int i=0;
+    foreach(KoPAPageBase* slide, m_kopaDocument->pages()) {
+        fileUrl = m_tmpDirPath;
+        fileUrl.addPath("slide" + QString::number(i) + ".png");
+        m_kprView->exportPageThumbnail(slide,fileUrl, slide->size().toSize(),"PNG",-1);
+        m_fileUrlList.append(fileUrl);
+        i++;
+    }
 }
 
-void KPrHtmlExport::writeHtmlFile(const QString &fileName, const QString &htmlBody)
+void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody)
 {
-    KTemporaryFile tmpFile;
     QTextStream stream;
     QFile file;
-    KUrl fileUrl = m_url;
+    KUrl fileUrl = m_tmpDirPath;
     fileUrl.addPath(fileName);
-    if(m_url.isLocalFile()) {
-        file.setFileName(fileUrl.path());
-        file.open(QIODevice::WriteOnly);
-        stream.setDevice(&file);
-    } else {
-        tmpFile.open();
-        stream.setDevice(&tmpFile);
-    }
+    file.setFileName(fileUrl.toLocalFile());
+    file.open(QIODevice::WriteOnly);
+    stream.setDevice(&file);
     stream << htmlBody;
     stream.flush();
-    if(!m_url.isLocalFile()) {
-        KIO::NetAccess::upload(tmpFile.fileName(), fileUrl, NULL);            
-    } else {
-        file.close();
-    }
+    file.close();
+}
+
+void KPrHtmlExport::copyFromTmpToDest(){
+    KIO::CopyJob* job = KIO::move(m_fileUrlList, m_dest_url);
+    job->exec();
 }
