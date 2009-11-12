@@ -31,17 +31,20 @@ class KPrHtmlExport:public QObject
         * @param kopaDocument 
         * @param url The destination url
         */
-        KPrHtmlExport(KPrView* kprView, KoPADocument* kopaDocument, const KUrl& url);
+        KPrHtmlExport(KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl& url, const QString& author, const QString& title);
         ~KPrHtmlExport();
     private slots:
         void moveResult(KJob *job);
     protected:
+        void generateHtml();
         void exportImageToTmpDir();
         void writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody);
         void copyFromTmpToDest();
     private:
         KPrView *m_kprView;
-        KoPADocument *m_kopaDocument;
+				QList<KoPAPageBase*> m_slides;
+				QString m_title;
+				QString m_author;
         KUrl m_dest_url;
         KUrl::List m_fileUrlList;
         QString m_tmpDirPath;

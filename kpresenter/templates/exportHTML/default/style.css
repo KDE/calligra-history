@@ -1,0 +1,56 @@
+body {
+    text-align: center;
+}
+div#content {
+    margin-left: auto;
+    margin-right: auto;
+    width: 800px;
+}
+.noAlign {
+text-align: left;
+}
+p.footer {
+    font-size: 10px;
+    text-align: center;
+    clear: both;
+}
+#container {
+    width: 500px;
+    margin-top: 10px;
+    margin-left: auto;
+    margin-right: auto;
+}
+#previous {
+    font-size: 12px;
+    float: left;
+    text-align: left;
+    width: 150px;
+}
+#next {
+    font-size: 12px;
+    text-align: right;
+    float: right;
+    width: 150px;
+}
+#menu {
+    font-size: 12px;
+    width: 150px;
+    margin-left:auto;
+    margin-right: auto;
+}
+.slide {
+    border: 2px outset #CECECE;
+}
+.infos {
+    font-size: 12px;
+}
+.infos p#author {
+    text-align: left;
+    width: 50%;
+    float: left;
+}
+.infos p#position {
+    text-align: right;
+    width: 50%;
+    float: right;
+}

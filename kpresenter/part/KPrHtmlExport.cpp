@@ -22,13 +22,14 @@
 #include <kio/copyjob.h>
 #include <ktempdir.h>
 
-KPrHtmlExport::KPrHtmlExport (KPrView* kprView, KoPADocument* kopaDocument, const KUrl &url ):m_kprView(kprView), m_kopaDocument(kopaDocument), m_dest_url(url)
+KPrHtmlExport::KPrHtmlExport (KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl &url, const QString& author, const QString& title):m_kprView(kprView), m_slides(slides), m_dest_url(url), m_author(author), m_title(title)
 { 
     // Create a temporary dir
     KTempDir tmpDir;
     m_tmpDirPath = tmpDir.name();
     tmpDir.setAutoRemove(false);
     exportImageToTmpDir();
+		generateHtml();
     copyFromTmpToDest();
 }
 
@@ -43,10 +44,36 @@ void KPrHtmlExport::exportImageToTmpDir()
     // Export slides as image into the temporary export directory
     KUrl fileUrl;
     int i=0;
-    foreach(KoPAPageBase* slide, m_kopaDocument->pages()) {
+    foreach(KoPAPageBase* slide, m_slides) {
         fileUrl = m_tmpDirPath;
         fileUrl.addPath("slide" + QString::number(i) + ".png");
         m_kprView->exportPageThumbnail(slide,fileUrl, slide->size().toSize(),"PNG",-1);
+        m_fileUrlList.append(fileUrl);
+        i++;
+    }
+}
+
+void KPrHtmlExport::generateHtml()
+{
+    // Export slides as image into the temporary export directory
+    KUrl fileUrl;
+    int i=0;
+//		QFile file;
+//		file.setFileName(KStandardDirs::locate( "data","kpresenter/templates/exportHTML/slides.html" ));
+//		file.open(QIODevice::ReadOnly | );
+
+		QString slideContent = "::TITLE::, ::AUTHOR::, ::TITLE_SLIDE::, ::IMAGE::, ::NUM_SLIDE::";
+    foreach(KoPAPageBase* slide, m_slides) {
+        QString content = slideContent;
+				content.replace("::TITLE::", m_title);
+				content.replace("::AUTHOR::", m_title);
+				content.replace("::IMAGE::", "<img src=\"slide"+QString::number(i)+".png\" />");
+				content.replace("::NUM_SLIDE::", QString::number(i));
+				content.replace("::TITLE_SLIDE::", slide->name());
+
+        fileUrl = m_tmpDirPath;
+        fileUrl.addPath("slide" + QString::number(i) + ".html");
+				writeHtmlFileToTmpDir("slide" + QString::number(i) + ".html", content);
         m_fileUrlList.append(fileUrl);
         i++;
     }
