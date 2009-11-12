@@ -33,6 +33,8 @@ class KPrHtmlExport:public QObject
         */
         KPrHtmlExport(KPrView* kprView, KoPADocument* kopaDocument, const KUrl& url);
         ~KPrHtmlExport();
+    private slots:
+        void moveResult(KJob *job);
     protected:
         void exportImageToTmpDir();
         void writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody);
@@ -43,6 +45,5 @@ class KPrHtmlExport:public QObject
         KUrl m_dest_url;
         KUrl::List m_fileUrlList;
         QString m_tmpDirPath;
-
 };
 #endif /* KPRHTMLEXPORT_H */

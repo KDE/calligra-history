@@ -27,9 +27,9 @@ KPrHtmlExport::KPrHtmlExport (KPrView* kprView, KoPADocument* kopaDocument, cons
     // Create a temporary dir
     KTempDir tmpDir;
     m_tmpDirPath = tmpDir.name();
+    tmpDir.setAutoRemove(false);
     exportImageToTmpDir();
     copyFromTmpToDest();
-    KTempDir::removeDir(m_tmpDirPath);
 }
 
 
@@ -66,7 +66,16 @@ void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString
     file.close();
 }
 
-void KPrHtmlExport::copyFromTmpToDest(){
-    KIO::CopyJob* job = KIO::move(m_fileUrlList, m_dest_url);
+void KPrHtmlExport::copyFromTmpToDest()
+{
+    KIO::CopyJob *job = KIO::move(m_fileUrlList, m_dest_url);
+    connect( job, SIGNAL(result( KJob * )), this, SLOT( moveResult( KJob * ) ) );
     job->exec();
 }
+
+void KPrHtmlExport::moveResult(KJob *job)
+{
+    KTempDir::removeDir(m_tmpDirPath);
+}
+
+#include "KPrHtmlExport.moc"
