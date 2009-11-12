@@ -25,6 +25,7 @@
 
 KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *parent) : KDialog(parent)
 {
+    allSlides = slides;
     QWidget *widget = new QWidget( this );
     ui.setupUi( widget );
     setMainWidget( widget );
@@ -33,21 +34,39 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *p
 
     QList<KoPAPageBase*>::iterator it;
     for(it = slides.begin(); it != slides.end(); ++it){
-      QListWidgetItem *listItem = new  QListWidgetItem((*it)->name());
-      listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
-      listItem->setCheckState(Qt::Checked);
-      ui.kListBox_slides->addItem(listItem);
+        QListWidgetItem *listItem = new  QListWidgetItem((*it)->name());
+        listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
+        listItem->setCheckState(Qt::Checked);
+        ui.kListBox_slides->addItem(listItem);
     }
     connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ), this, SLOT( checkAllItems()  ) );
     connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ), this, SLOT( uncheckAllItems()) );
+}
+
+QList<KoPAPageBase*> KPrHtmlExportDialog::chekedSlides()
+{
+    QList<KoPAPageBase*> qlchekedSlides;
+    int countItems = ui.kListBox_slides->count();
+    for(int i = 0; i < countItems; i++){
+        if (ui.kListBox_slides->item(i)->checkState() == Qt::Checked)
+            qlchekedSlides.append(this->allSlides.at(i));
+    }
+    return qlchekedSlides;
+}
+
+void KPrHtmlExportDialog::renameSlides()
+{
+    int countItems = ui.kListBox_slides->count();
+    for(int i = 0; i < countItems; i++){
+        allSlides.at(i)->setName(ui.kListBox_slides->item(i)->text());
+    }
 }
 
 void KPrHtmlExportDialog::checkAllItems()
 {
     int countItems = ui.kListBox_slides->count();
     for(int i = 0; i < countItems; i++){
-	kDebug() << i;
-	ui.kListBox_slides->item(i)->setCheckState(Qt::Checked);
+        ui.kListBox_slides->item(i)->setCheckState(Qt::Checked);
     }
 }
 
@@ -55,6 +74,6 @@ void KPrHtmlExportDialog::uncheckAllItems()
 {
     int countItems = ui.kListBox_slides->count();
     for(int i = 0; i < countItems; i++){
-	ui.kListBox_slides->item(i)->setCheckState(Qt::Unchecked);
+        ui.kListBox_slides->item(i)->setCheckState(Qt::Unchecked);
     }
 }
