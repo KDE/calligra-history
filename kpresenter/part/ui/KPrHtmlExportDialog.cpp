@@ -33,11 +33,18 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *p
     setButtonText(Ok, i18n("Export"));
 
     QList<KoPAPageBase*>::iterator it;
+    QString slideName = "";
+    int i = 1;
     for(it = slides.begin(); it != slides.end(); ++it){
-        QListWidgetItem *listItem = new  QListWidgetItem((*it)->name());
+        if ((*it)->name() == NULL)
+            slideName = i18n("Slide") + " " + QString::number(i);
+        else
+            slideName = (*it)->name();
+        QListWidgetItem *listItem = new  QListWidgetItem(slideName);
         listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
         listItem->setCheckState(Qt::Checked);
         ui.kListBox_slides->addItem(listItem);
+        i++;
     }
     connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ), this, SLOT( checkAllItems()  ) );
     connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ), this, SLOT( uncheckAllItems()) );
