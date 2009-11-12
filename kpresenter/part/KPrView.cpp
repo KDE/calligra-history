@@ -24,6 +24,7 @@
 #include <ktoggleaction.h>
 #include <kactioncollection.h>
 #include <kactionmenu.h>
+#include <kmessagebox.h>
 
 #include <KoSelection.h>
 #include <KoShapeManager.h>
@@ -285,6 +286,8 @@ void KPrView::exportToHtml()
 {
 	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),this);
     if ( dialog->exec() == QDialog::Accepted ){
+        //Synchronize slides' names
+        dialog->renameSlides();
         // Get the export directory
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
         if(directoryUrl.isValid()){
