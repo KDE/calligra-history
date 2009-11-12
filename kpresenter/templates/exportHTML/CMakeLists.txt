@@ -1,2 +1,2 @@
 add_subdirectory( default )
-install(FILES slides.html DESTINATION ${DATA_INSTALL_DIR}/kpresenter/templates/exportHTML/slides.html)
+install(FILES slides.html DESTINATION ${DATA_INSTALL_DIR}/kpresenter/templates/exportHTML/)
