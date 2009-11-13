@@ -286,8 +286,6 @@ void KPrView::exportToHtml()
 {
 	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),this);
     if ( dialog->exec() == QDialog::Accepted ){
-        //Synchronize slides' names
-        dialog->renameSlides();
         // Get the export directory
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
         if(directoryUrl.isValid()){

@@ -25,27 +25,26 @@
 
 KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *parent) : KDialog(parent)
 {
-    allSlides = slides;
+    m_allSlides = slides;
     QWidget *widget = new QWidget( this );
     ui.setupUi( widget );
     setMainWidget( widget );
     setCaption( i18n( "Html Export"));
     setButtonText(Ok, i18n("Export"));
 
-    QList<KoPAPageBase*>::iterator it;
     QString slideName = "";
-    int i = 1;
-    for(it = slides.begin(); it != slides.end(); ++it){
-        if ((*it)->name() == NULL)
-            slideName = i18n("Slide") + " " + QString::number(i);
-        else
-            slideName = (*it)->name();
+    for(int i = 0; i < slides.count(); i++){
+        if (slides.at(i)->name() == NULL){
+            slideName = i18n("Slide %1", QString::number(i+1));
+        }else{
+            slideName = slides.at(i)->name();
+        }
         QListWidgetItem *listItem = new  QListWidgetItem(slideName);
-        listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
+        listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable);
         listItem->setCheckState(Qt::Checked);
         ui.kListBox_slides->addItem(listItem);
-        i++;
     }
+
     connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ), this, SLOT( checkAllItems()  ) );
     connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ), this, SLOT( uncheckAllItems()) );
 }
@@ -55,18 +54,11 @@ QList<KoPAPageBase*> KPrHtmlExportDialog::chekedSlides()
     QList<KoPAPageBase*> qlchekedSlides;
     int countItems = ui.kListBox_slides->count();
     for(int i = 0; i < countItems; i++){
-        if (ui.kListBox_slides->item(i)->checkState() == Qt::Checked)
-            qlchekedSlides.append(this->allSlides.at(i));
+        if (ui.kListBox_slides->item(i)->checkState() == Qt::Checked){
+            qlchekedSlides.append(this->m_allSlides.at(i));
+        }
     }
     return qlchekedSlides;
-}
-
-void KPrHtmlExportDialog::renameSlides()
-{
-    int countItems = ui.kListBox_slides->count();
-    for(int i = 0; i < countItems; i++){
-        allSlides.at(i)->setName(ui.kListBox_slides->item(i)->text());
-    }
 }
 
 void KPrHtmlExportDialog::checkAllItems()
