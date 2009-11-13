@@ -62,9 +62,8 @@ void KPrHtmlExport::generateHtml()
     QString fileName = KStandardDirs::locate( "data","kpresenter/templates/exportHTML/slides.html" );
     file.setFileName(fileName);
     file.open(QIODevice::ReadOnly);
-    file.close();
-
     QString slideContent = file.readAll();
+    file.close();
     int nbSlides = m_slides.size();
     foreach(KoPAPageBase* slide, m_slides) {
         QString content = slideContent;
@@ -72,26 +71,20 @@ void KPrHtmlExport::generateHtml()
         content.replace("::AUTHOR::", m_author);
         content.replace("::IMAGE_PATH::", "slide"+QString::number(i)+".png");
         content.replace("::SLIDE_NUM::", QString::number(i+1));
-        content.replace("::NB_SLIDES::", QString::number(nbSlides+1));
+        content.replace("::NB_SLIDES::", QString::number(nbSlides));
         content.replace("::TITLE_SLIDE::", slide->name());
         content.replace("::LAST_PATH::", "slide"+QString::number(nbSlides-1)+".html");
         content.replace("::NEXT_PATH::", "slide"+QString::number((((i+1) < nbSlides) ? i+1 : i))+".html");
         content.replace("::PREVIOUS_PATH::", "slide"+QString::number(((i>0) ? i-1 : 0))+".html");
         content.replace("::FIRST_PATH::", "slide"+QString::number(0)+".html");
-
-        fileUrl = m_tmpDirPath;
-        fileUrl.addPath("slide" + QString::number(i) + ".html");
         writeHtmlFileToTmpDir("slide" + QString::number(i) + ".html", content);
-        m_fileUrlList.append(fileUrl);
         i++;
     }
     QString style = KStandardDirs::locate( "data","kpresenter/templates/exportHTML/default/style.css" );
     QFile styleFile;
-		styleFile.setFileName(style);
+    styleFile.setFileName(style);
     styleFile.open(QIODevice::ReadOnly);
-    fileUrl.addPath("style.css");
     writeHtmlFileToTmpDir("style.css", styleFile.readAll());
-    m_fileUrlList.append(fileUrl);
     styleFile.close();
 }
 
@@ -107,6 +100,7 @@ void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString
     stream << htmlBody;
     stream.flush();
     file.close();
+    m_fileUrlList.append(fileUrl);
 }
 
 void KPrHtmlExport::copyFromTmpToDest()
