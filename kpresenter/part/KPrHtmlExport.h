@@ -37,14 +37,15 @@ class KPrHtmlExport:public QObject
         void moveResult(KJob *job);
     protected:
         void generateHtml();
+        void generateToc();
         void exportImageToTmpDir();
         void writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody);
         void copyFromTmpToDest();
     private:
         KPrView *m_kprView;
-				QList<KoPAPageBase*> m_slides;
-				QString m_title;
-				QString m_author;
+        QList<KoPAPageBase*> m_slides;
+        QString m_title;
+        QString m_author;
         KUrl m_dest_url;
         KUrl::List m_fileUrlList;
         QString m_tmpDirPath;

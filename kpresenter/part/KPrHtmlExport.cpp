@@ -31,6 +31,7 @@ KPrHtmlExport::KPrHtmlExport (KPrView* kprView, QList<KoPAPageBase*> slides, con
     tmpDir.setAutoRemove(false);
     exportImageToTmpDir();
     generateHtml();
+    generateToc();
     copyFromTmpToDest();
 }
 
@@ -86,6 +87,31 @@ void KPrHtmlExport::generateHtml()
     styleFile.open(QIODevice::ReadOnly);
     writeHtmlFileToTmpDir("style.css", styleFile.readAll());
     styleFile.close();
+}
+
+void KPrHtmlExport::generateToc()
+{
+    QString toc = "<ul>";
+    int i = 0;
+    foreach(KoPAPageBase* slide, m_slides) {
+        toc.append("<li><a href=\"slide"+QString::number(i)+".html\">"+slide->name()+"</a></li>");
+    }
+    toc.append("</ul>");
+    QString fileName = KStandardDirs::locate( "data","kpresenter/templates/exportHTML/toc.html" );
+    QFile file;
+    file.setFileName(fileName);
+    file.open(QIODevice::ReadOnly);
+    QString content = file.readAll();
+    file.close();
+    int nbSlides = m_slides.size();
+    content.replace("::TITLE::", m_title);
+    content.replace("::AUTHOR::", m_author);
+    content.replace("::SLIDE_NUM::", QString::number(i+1));
+    content.replace("::NB_SLIDES::", QString::number(nbSlides));
+    content.replace("::LAST_PATH::", "slide"+QString::number(nbSlides-1)+".html");
+    content.replace("::NEXT_PATH::", "slide"+QString::number(0)+".html");
+    content.replace("::TOC::", toc);
+    writeHtmlFileToTmpDir("index.html", content);
 }
 
 void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody)
