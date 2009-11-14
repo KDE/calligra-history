@@ -22,6 +22,8 @@
 #include <kio/copyjob.h>
 #include <ktempdir.h>
 #include <kstandarddirs.h>
+#include <kmessagebox.h>
+#include <krun.h>
 
 KPrHtmlExport::KPrHtmlExport (KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl &url, const QString& author, const QString& title):m_kprView(kprView), m_slides(slides), m_dest_url(url), m_author(author), m_title(title)
 { 
@@ -95,6 +97,7 @@ void KPrHtmlExport::generateToc()
     int i = 0;
     foreach(KoPAPageBase* slide, m_slides) {
         toc.append("<li><a href=\"slide"+QString::number(i)+".html\">"+slide->name()+"</a></li>");
+        i++;
     }
     toc.append("</ul>");
     QString fileName = KStandardDirs::locate( "data","kpresenter/templates/exportHTML/toc.html" );
@@ -139,6 +142,15 @@ void KPrHtmlExport::copyFromTmpToDest()
 void KPrHtmlExport::moveResult(KJob *job)
 {
     KTempDir::removeDir(m_tmpDirPath);
+    if(job->error()){
+        KMessageBox::error(m_kprView,job->errorText());
+    } else {
+        if(KMessageBox::questionYesNo(0,i18n("Open in browser"),i18n("Export successfull")) == KMessageBox::Yes){
+            KUrl url = m_dest_url;
+            url.addPath("index.html");
+            KRun::runUrl(url, "text/html", m_kprView);
+        }
+    }
 }
 
 #include "KPrHtmlExport.moc"

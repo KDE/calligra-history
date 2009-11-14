@@ -44,9 +44,9 @@ class KPrHtmlExport:public QObject
     private:
         KPrView *m_kprView;
         QList<KoPAPageBase*> m_slides;
-        QString m_title;
-        QString m_author;
         KUrl m_dest_url;
+        QString m_author;
+        QString m_title;
         KUrl::List m_fileUrlList;
         QString m_tmpDirPath;
 };

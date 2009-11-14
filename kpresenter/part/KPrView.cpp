@@ -56,6 +56,7 @@
 
 #include <kfiledialog.h>
 #include "KPrHtmlExport.h"
+#include <KoDocumentInfo.h>
 
 KPrView::KPrView( KPrDocument *document, QWidget *parent )
   : KoPAView( document, parent )
@@ -290,7 +291,7 @@ void KPrView::exportToHtml()
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
         if(directoryUrl.isValid()){
             directoryUrl.adjustPath(KUrl::AddTrailingSlash);
-            KPrHtmlExport exportHtml(this, dialog->chekedSlides(), directoryUrl, "the author", "the titre");
+            KPrHtmlExport exportHtml(this, dialog->chekedSlides(), directoryUrl, koDocument()->documentInfo()->authorInfo("creator"), koDocument()->documentInfo()->aboutInfo("title"));
         }
    }
 }
