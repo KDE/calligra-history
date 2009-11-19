@@ -222,7 +222,7 @@ void KexiFormManager::createActions(KActionCollection* collection)
     styleAction->setMenuAccelsEnabled(true);
 #endif
 
-    d->lib->addCustomWidgetActions(d->collection);
+//2.0    d->lib->addCustomWidgetActions(d->collection);
 
 #ifdef KEXI_DEBUG_GUI
     KConfigGroup generalGroup(KGlobal::config()->group("General"));
@@ -451,6 +451,8 @@ void KexiFormManager::showFormUICode()
     KexiFormView* formView = activeFormViewWidget();
     if (!formView)
         return;
+    formView->form()->resetInlineEditor();
+
     QString uiCode;
     const int indent = 2;
     if (!KFormDesigner::FormIO::saveFormToString(formView->form(), uiCode, indent)) {
@@ -494,7 +496,7 @@ void KexiFormManager::slotAssignAction()
 {
     KexiFormView* formView = activeFormViewWidget();
     KFormDesigner::Form *form = formView->form();
-    KexiDBForm *dbform;
+    KexiDBForm *dbform = 0;
     if (form->mode() != KFormDesigner::Form::DesignMode
         || !(dbform = dynamic_cast<KexiDBForm*>(form->formWidget())))
     {

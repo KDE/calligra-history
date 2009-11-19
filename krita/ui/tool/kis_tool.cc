@@ -22,7 +22,10 @@
 #include <QWidget>
 
 #include <klocale.h>
+#include <kaction.h>
 
+#include <KoColorSpaceRegistry.h>
+#include <KoColor.h>
 #include <KoCanvasBase.h>
 #include <KoShapeManager.h>
 #include <KoTool.h>
@@ -77,6 +80,10 @@ struct KisTool::Private {
     float currentExposure;
     KisFilterConfiguration * currentGenerator;
     QWidget* optionWidget;
+
+    KAction* toggleFgBg;
+    KAction* resetFgBg;
+
 };
 
 KisTool::KisTool(KoCanvasBase * canvas, const QCursor & cursor)
@@ -84,9 +91,19 @@ KisTool::KisTool(KoCanvasBase * canvas, const QCursor & cursor)
         , d(new Private)
 {
     d->cursor = cursor;
-    m_mode = XOR_MODE;
+    m_outlinePaintMode = XOR_MODE;
 
-    connect(KisConfigNotifier::instance(), SIGNAL(configChanged()), SLOT(slotSelectCursorStyle()) );
+    connect(KisConfigNotifier::instance(), SIGNAL(configChanged()), SLOT(resetCursorStyle()));
+
+    d->toggleFgBg = new KAction(i18n("Swap Foreground and Background Color"), this);
+    d->toggleFgBg->setShortcut(QKeySequence(Qt::Key_X));
+    connect(d->toggleFgBg, SIGNAL(triggered()), this, SLOT(slotToggleFgBg()));
+    addAction("toggle_fg_bg", d->toggleFgBg);
+
+    d->resetFgBg = new KAction(i18n("Reset Foreground and Background Color"), this);
+    d->resetFgBg->setShortcut(QKeySequence(Qt::Key_D));
+    connect(d->resetFgBg, SIGNAL(triggered()), this, SLOT(slotResetFgBg()));
+    addAction("reset_fg_bg", d->resetFgBg);
 
 }
 
@@ -98,7 +115,7 @@ KisTool::~KisTool()
 void KisTool::activate(bool)
 {
 
-    slotSelectCursorStyle();
+    resetCursorStyle();
 
     d->currentFgColor = m_canvas->resourceProvider()->resource(KoCanvasResource::ForegroundColor).value<KoColor>();
     d->currentBgColor = m_canvas->resourceProvider()->resource(KoCanvasResource::BackgroundColor).value<KoColor>();
@@ -360,59 +377,74 @@ QWidget* KisTool::optionWidget()
 
 void KisTool::paintToolOutline(QPainter* painter, QPainterPath &path)
 {
-    switch (m_mode){
-        case XOR_MODE:
-        {
-            painter->setCompositionMode(QPainter::RasterOp_SourceXorDestination);
-            painter->setPen(QColor(128,255,128));
-            painter->drawPath(path);
-            break;
-        }
-        case BW_MODE:
-        {
-            QPen pen = painter->pen();
-            pen.setWidth(3);
-            pen.setColor( QColor(0,0,0,100) );
-            painter->setPen(pen);
-            painter->drawPath(path);
-            pen.setWidth(1);
-            pen.setColor(Qt::white);
-            painter->setPen(pen);
-            painter->drawPath(path);
-            break;
-        }
-        default:
-            break;
+    switch (m_outlinePaintMode) {
+    case XOR_MODE: {
+        painter->setCompositionMode(QPainter::RasterOp_SourceXorDestination);
+        painter->setPen(QColor(128, 255, 128));
+        painter->drawPath(path);
+        break;
+    }
+    case BW_MODE: {
+        QPen pen = painter->pen();
+        pen.setWidth(3);
+        pen.setColor(QColor(0, 0, 0, 100));
+        painter->setPen(pen);
+        painter->drawPath(path);
+        pen.setWidth(1);
+        pen.setColor(Qt::white);
+        painter->setPen(pen);
+        painter->drawPath(path);
+        break;
+    }
+    default:
+        break;
     }
 }
 
 
-void KisTool::slotSelectCursorStyle()
+void KisTool::resetCursorStyle()
 {
-        KisConfig cfg;
-        switch(cfg.cursorStyle()) {
-            case CURSOR_STYLE_TOOLICON:
-                useCursor(d->cursor, true);
-                break;
-            case CURSOR_STYLE_CROSSHAIR:
-                useCursor(KisCursor::crossCursor(), true);
-                break;
-            case CURSOR_STYLE_POINTER:
-                useCursor(KisCursor::upArrowCursor(), true);
-                break;
-            case CURSOR_STYLE_NO_CURSOR:
-    #if defined(HAVE_OPENGL)
-            case CURSOR_STYLE_3D_MODEL:
-    #endif
-                useCursor(KisCursor::blankCursor(), true);
-                break;
-            case CURSOR_STYLE_OUTLINE:
-            default:
-                // use tool cursor as default, if the tool support outline, it will set the cursor to blank and show outline
-                useCursor(d->cursor, true);
-        }
+    KisConfig cfg;
+    switch (cfg.cursorStyle()) {
+    case CURSOR_STYLE_TOOLICON:
+        useCursor(d->cursor, true);
+        break;
+    case CURSOR_STYLE_CROSSHAIR:
+        useCursor(KisCursor::crossCursor(), true);
+        break;
+    case CURSOR_STYLE_POINTER:
+        useCursor(KisCursor::upArrowCursor(), true);
+        break;
+    case CURSOR_STYLE_NO_CURSOR:
+        useCursor(KisCursor::blankCursor(), true);
+        break;
+#if defined(HAVE_OPENGL)
+    case CURSOR_STYLE_3D_MODEL:
+        useCursor(d->cursor, true);
+        break;
+#endif
+    case CURSOR_STYLE_OUTLINE:
+    default:
+        // use tool cursor as default, if the tool support outline, it will set the cursor to blank and show outline
+        useCursor(d->cursor, true);
+    }
 }
 
+
+void KisTool::slotToggleFgBg()
+{
+    KoCanvasResourceProvider* resourceProvider = canvas()->resourceProvider();
+    KoColor c = resourceProvider->foregroundColor();
+    resourceProvider->setForegroundColor(resourceProvider->backgroundColor());
+    resourceProvider->setBackgroundColor(c);
+}
+
+void KisTool::slotResetFgBg()
+{
+    KoCanvasResourceProvider* resourceProvider = canvas()->resourceProvider();
+    resourceProvider->setForegroundColor(KoColor(Qt::black, KoColorSpaceRegistry::instance()->rgb8()));
+    resourceProvider->setBackgroundColor(KoColor(Qt::white, KoColorSpaceRegistry::instance()->rgb8()));
+}
 
 #include "kis_tool.moc"
 

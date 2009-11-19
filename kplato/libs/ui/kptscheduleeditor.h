@@ -34,6 +34,8 @@ class KoDocument;
 
 class QPoint;
 
+class QKeyEvent;
+
 namespace KPlato
 {
 
@@ -150,12 +152,18 @@ public:
     ScheduleManager *scheduleManager() const { return logModel()->manager(); }
     void setScheduleManager( ScheduleManager *manager ) { logModel()->setManager( manager ); }
 
+    void setFilterWildcard( const QString &filter );
+    QRegExp filterRegExp() const;
+
 signals:
     void currentChanged( const QModelIndex& );
     void currentColumnChanged( QModelIndex, QModelIndex );
     void selectionChanged( const QModelIndexList );
 
     void contextMenuRequested( QModelIndex, const QPoint& );
+
+public slots:
+    void slotEditCopy();
 
 protected slots:
     void headerContextMenuRequested( const QPoint &pos );
@@ -191,6 +199,7 @@ public:
 public slots:
     /// Activate/deactivate the gui
     virtual void setGuiActive( bool activate );
+    void slotEditCopy();
 
 protected slots:
     virtual void slotOptions();

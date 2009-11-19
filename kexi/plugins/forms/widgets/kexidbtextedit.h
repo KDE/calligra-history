@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2005 Cedric Pasteur <cedric.pasteur@free.fr>
-   Copyright (C) 2004-2007 Jarosław Staniek <staniek@kde.org>
+   Copyright (C) 2004-2009 Jarosław Staniek <staniek@kde.org>
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,14 +24,17 @@
 #include "kexiformdataiteminterface.h"
 #include "kexidbtextwidgetinterface.h"
 #include "kexidbutils.h"
+#include <formeditor/FormWidgetInterface.h>
 #include <ktextedit.h>
 #include <QPaintEvent>
 
+class DataSourceLabel;
+
 //! @short Multiline edit widget for Kexi forms
-class KEXIFORMUTILS_EXPORT KexiDBTextEdit :
-            public KTextEdit,
-            protected KexiDBTextWidgetInterface,
-            public KexiFormDataItemInterface
+class KEXIFORMUTILS_EXPORT KexiDBTextEdit :  public KTextEdit,
+                                             protected KexiDBTextWidgetInterface,
+                                             public KexiFormDataItemInterface,
+                                             public KFormDesigner::FormWidgetInterface
 {
     Q_OBJECT
     Q_PROPERTY(QString dataSource READ dataSource WRITE setDataSource)
@@ -81,13 +84,17 @@ public:
     //! Windows uses Ctrl+Tab for moving between tabs, so do not steal this shortcut
     virtual void keyPressEvent(QKeyEvent *ke);
 
+    virtual bool event(QEvent *e);
+
+    //! Selects contents of the widget if there is such behaviour set (it is by default).
+//! @todo add option for not selecting the field
+    virtual void selectAllOnFocusIfNeeded();
+
 public slots:
-    inline void setDataSource(const QString &ds) {
-        KexiFormDataItemInterface::setDataSource(ds);
-    }
-    inline void setDataSourcePartClass(const QString &partClass) {
-        KexiFormDataItemInterface::setDataSourcePartClass(partClass);
-    }
+    void setDataSource(const QString &ds);
+
+    void setDataSourcePartClass(const QString &partClass);
+
     virtual void setReadOnly(bool readOnly);
 //Qt4  virtual void setText( const QString & text, const QString & context );
 
@@ -111,12 +118,17 @@ protected:
     virtual void paintEvent(QPaintEvent *);
     virtual void setValueInternal(const QVariant& add, bool removeOld);
     QMenu * createPopupMenu(const QPoint & pos);
+    void updateTextForDataSource();
+    void createDataSourceLabel();
 
+private:
     //! Used for extending context menu
     KexiDBWidgetContextMenuExtender m_menuExtender;
 
     //! Used to disable slotTextChanged()
     bool m_slotTextChanged_enabled : 1;
+
+    DataSourceLabel *m_dataSourceLabel;
 };
 
 #endif

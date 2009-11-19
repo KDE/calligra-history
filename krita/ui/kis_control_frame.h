@@ -30,6 +30,7 @@
 class QWidget;
 class QTabWidget;
 class QTableWidgetItem;
+class QPushButton;
 
 class KToolBar;
 
@@ -57,12 +58,15 @@ public:
     KisControlFrame(KisView2 * view,  const char *name = 0);
     virtual ~KisControlFrame() {}
 
-    KisPaintopBox* paintopBox() { return m_paintopBox; }
+    KisPaintopBox* paintopBox() {
+        return m_paintopBox;
+    }
 
 public slots:
 
     void slotSetPattern(KisPattern * pattern);
     void slotSetGradient(KoAbstractGradient * gradient);
+    void slotSaveToFavouriteBrushes();
 
 private:
 
@@ -86,6 +90,7 @@ private:
     KisGradientChooser * m_gradientChooser;
 
     KisPaintopBox * m_paintopBox;
+    QPushButton* m_paletteButton;
 };
 
 #endif

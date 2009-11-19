@@ -60,12 +60,12 @@ public:
     /**
      * XXX
      */
-    void setNode( KisNodeSP node );
+    void setNode(KisNodeSP node);
 
     /**
      * XXX
      */
-    void setImage( KisImageWSP image );
+    void setImage(KisImageWSP image);
 
     void writeOptionSetting(KisPropertiesConfiguration* setting) const;
 
@@ -73,7 +73,7 @@ public:
 
 private slots:
 
-    void setCurrentFilter( const KoID& );
+    void setCurrentFilter(const KoID&);
 
     void updateFilterConfigWidget();
 
@@ -84,7 +84,7 @@ private:
     const KisFilterSP m_currentFilter;
     KisConfigWidget* m_currentFilterConfigWidget;
     KisPaintDeviceSP m_paintDevice;
-    KisImageWSP m_image;
+    KisImageSP m_image;
 };
 
 #endif

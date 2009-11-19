@@ -1,9 +1,16 @@
-include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder ${CMAKE_BINARY_DIR}/filters/ ${KOMAIN_INCLUDES})
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder  ${CMAKE_BINARY_DIR}/filters/ ${KOMAIN_INCLUDES})
 
+
+add_custom_command(
+    OUTPUT records.cpp
+    COMMAND recordsxml2cpp ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/records.xml
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/records.xml recordsxml2cpp
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    VERBATIM)
 
 ########### next target ###############
 
-set(sidewinder_SRCS 
+set(sidewinder_SRCS
   ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/cell.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/excel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/format.cpp
@@ -12,6 +19,12 @@ set(sidewinder_SRCS
   ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/ustring.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/value.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/workbook.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/formulas.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/utils.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/substreamhandler.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/globalssubstreamhandler.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../sidewinder/worksheetsubstreamhandler.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/records.cpp
 )
 
 set(excelimport_PART_SRCS excelimport.cc ${sidewinder_SRCS})

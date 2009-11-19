@@ -37,9 +37,11 @@ public:
     KisSprayPaintOpSettings();
     virtual ~KisSprayPaintOpSettings() {}
 
-    virtual QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode ) const;
+    virtual QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const;
     virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const;
 
+    virtual void changePaintOpSize(qreal x, qreal y) const;
+    
     bool paintIncremental();
 
     using KisPropertiesConfiguration::fromXML;
@@ -48,65 +50,66 @@ public:
     virtual void fromXML(const QDomElement&);
     virtual void toXML(QDomDocument&, QDomElement&) const;
 
-    QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image) const;
-    void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter) const;
-
     KisPaintOpSettingsSP clone() const;
 
+    // brush settings
     int diameter() const;
-
     qreal coverage() const;
     qreal amount() const;
     qreal spacing() const;
     qreal scale() const;
-
-    int object() const;
-    int shape() const;
-    int width() const;
-    int height() const;
-    bool jitterShapeSize() const;
-
-
-    // metaballs
-    qreal maxTresh() const;
-    qreal minTresh() const;
+    bool jitterMovement() const;
+    bool jitterSize() const;    
+    bool useDensity() const;
+    int particleCount() const;
 
     // color options
     bool useRandomOpacity() const;
     bool useRandomHSV() const;
-
     // TODO: these should be intervals like 20..180
     int hue() const;
     int saturation() const;
     int value() const;
 
-    bool highRendering() const;
+    bool colorPerParticle() const;
+    bool fillBackground() const;
+    bool mixBgColor() const;
+    bool sampleInput() const;
+    
+    // shape size
+    int shape() const;
     bool proportional() const;
     qreal widthPerc() const;
     qreal heightPerc() const;
-
-    bool jitterMovement() const;
-    bool jitterSize() const;
-
-    bool useDensity() const;
-    int particleCount() const;
-
+    bool jitterShapeSize() const;    
+    int width() const;
+    int height() const;
+    // distributed
     bool gaussian() const;
 
+    // rotation
+    bool fixedRotation() const;
+    int fixedAngle() const;
+    bool randomRotation() const;
+    qreal randomRotationWeight() const;
+    bool followCursor() const;
+    qreal followCursorWeigth() const;
+
+    
     // XXX: Hack!
-    void setOptionsWidget(KisPaintOpSettingsWidget* widget)
-    {
+    void setOptionsWidget(KisPaintOpSettingsWidget* widget) {
         if (m_options != 0  && m_options->property("owned by settings").toBool()) {
             delete m_options;
         }
         if (!widget) {
             m_options = 0;
-        }
-        else {
-            m_options = qobject_cast<KisSprayPaintOpSettingsWidget*>( widget );
-            m_options->writeConfiguration( this );
+        } else {
+            m_options = qobject_cast<KisSprayPaintOpSettingsWidget*>(widget);
+            m_options->writeConfiguration(this);
         }
     }
+
+    const QString path() const;
 
 
 private:

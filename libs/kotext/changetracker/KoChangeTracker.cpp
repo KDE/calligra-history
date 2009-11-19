@@ -28,11 +28,15 @@
 //KDE includes
 #include <KDebug>
 #include <KDateTime>
+#include <KGlobal>
+#include <KLocale>
+#include <KUser>
 
 //Qt includes
 #include <QList>
 #include <QString>
 #include <QHash>
+#include <QMultiHash>
 #include <QTextCursor>
 #include <QTextFormat>
 #include <QTextCharFormat>
@@ -50,7 +54,7 @@ public:
     ~Private() { }
 
     // TODO remove the m_ prefix
-    QHash<int, int> m_childs; // TODO rename to 'children'
+    QMultiHash<int, int> children;
     QHash<int, int> m_parents;
     QHash<int, KoChangeTrackerElement *> m_changes;
     QHash<QString, int> m_loadedChanges;
@@ -106,7 +110,7 @@ int KoChangeTracker::getChangeId(QString &title, KoGenChange::Type type, QTextCu
 int KoChangeTracker::getFormatChangeId(QString title, QTextFormat &format, QTextFormat &prevFormat, int existingChangeId)
 {
     if ( existingChangeId ) {
-        d->m_childs.insert(existingChangeId, d->m_changeId);
+        d->children.insert(existingChangeId, d->m_changeId);
         d->m_parents.insert(d->m_changeId, existingChangeId);
     }
 
@@ -114,8 +118,10 @@ int KoChangeTracker::getFormatChangeId(QString title, QTextFormat &format, QText
     changeElement->setChangeFormat(format);
     changeElement->setPrevFormat(prevFormat);
 
-    changeElement->setDate(KDateTime::currentLocalDateTime().toString(KDateTime::ISODate));
-    changeElement->setCreator(QString("essai format"));
+    changeElement->setDate(KDateTime::currentLocalDateTime().toString(KDateTime::ISODate).replace(KGlobal::locale()->decimalSymbol(), QString(".")));
+
+    KUser user(KUser::UseRealUserID);
+    changeElement->setCreator(user.property(KUser::FullName).toString());
 
     changeElement->setEnabled(d->m_enabled);
 
@@ -127,14 +133,16 @@ int KoChangeTracker::getFormatChangeId(QString title, QTextFormat &format, QText
 int KoChangeTracker::getInsertChangeId(QString title, int existingChangeId)
 {
     if ( existingChangeId ) {
-        d->m_childs.insert(existingChangeId, d->m_changeId);
+        d->children.insert(existingChangeId, d->m_changeId);
         d->m_parents.insert(d->m_changeId, existingChangeId);
     }
 
     KoChangeTrackerElement *changeElement = new KoChangeTrackerElement(title, KoGenChange::insertChange);
 
-    changeElement->setDate(KDateTime::currentLocalDateTime().toString(KDateTime::ISODate));
-    changeElement->setCreator(QString("essai insert"));
+    changeElement->setDate(KDateTime::currentLocalDateTime().toString(KDateTime::ISODate).replace(KGlobal::locale()->decimalSymbol(), QString(".")));
+//    changeElement->setDate(KDateTime::currentLocalDateTime().toString("Y-m-dTH:M:Sz")); //i must have misunderstood the API doc but it doesn't work.
+    KUser user(KUser::UseRealUserID);
+    changeElement->setCreator(user.property(KUser::FullName).toString());
 
     changeElement->setEnabled(d->m_enabled);
 
@@ -146,14 +154,15 @@ int KoChangeTracker::getInsertChangeId(QString title, int existingChangeId)
 int KoChangeTracker::getDeleteChangeId(QString title, QTextDocumentFragment selection, int existingChangeId)
 {
     if ( existingChangeId ) {
-        d->m_childs.insert(existingChangeId, d->m_changeId);
+        d->children.insert(existingChangeId, d->m_changeId);
         d->m_parents.insert(d->m_changeId, existingChangeId);
     }
 
     KoChangeTrackerElement *changeElement = new KoChangeTrackerElement(title, KoGenChange::deleteChange);
 
-    changeElement->setDate(KDateTime::currentLocalDateTime().toString(KDateTime::ISODate));
-    changeElement->setCreator(QString("essai delete"));
+    changeElement->setDate(KDateTime::currentLocalDateTime().toString(KDateTime::ISODate).replace(KGlobal::locale()->decimalSymbol(), QString(".")));
+    KUser user(KUser::UseRealUserID);
+    changeElement->setCreator(user.property(KUser::FullName).toString());
     //TODO preserve formating info there. this will do for now
     changeElement->setDeleteData(selection.toPlainText());
 
@@ -183,10 +192,40 @@ int KoChangeTracker::mergeableId(KoGenChange::Type type, QString &title, int exi
     if (!existingId || !d->m_changes.value(existingId))
         return 0;
 
-    if (d->m_changes.value(existingId)->getChangeType() == type && d->m_changes.value(existingId)->getChangeTitle() == title && !d->m_parents.contains(existingId))
+    if (d->m_changes.value(existingId)->getChangeType() == type && d->m_changes.value(existingId)->getChangeTitle() == title)
         return existingId;
     else
-        return mergeableId(type, title, d->m_parents.value(existingId));
+        if (d->m_parents.contains(existingId))
+            return mergeableId(type, title, d->m_parents.value(existingId));
+        else
+            return 0;
+}
+
+int KoChangeTracker::split(int changeId)
+{
+    KoChangeTrackerElement *element = new KoChangeTrackerElement(*d->m_changes.value(changeId));
+    d->m_changes.insert(d->m_changeId, element);
+    return d->m_changeId++;
+}
+
+bool KoChangeTracker::isParent(int testedId, int baseId)
+{
+    if (testedId == baseId)
+        return true;
+    else if (d->m_parents.contains(baseId))
+        return isParent(testedId, d->m_parents.value(baseId));
+    else
+        return false;
+}
+
+void KoChangeTracker::setParent(int child, int parent)
+{
+    if (!d->children.values(parent).contains(child)) {
+        d->children.insert(parent, child);
+    }
+    if (!d->m_parents.contains(child)) {
+        d->m_parents.insert(child, parent);
+    }
 }
 
 bool KoChangeTracker::saveInlineChange(int changeId, KoGenChange &change)
@@ -195,15 +234,13 @@ bool KoChangeTracker::saveInlineChange(int changeId, KoGenChange &change)
         return false;
 
     change.setType(d->m_changes.value(changeId)->getChangeType());
-    if (d->m_changes.value(changeId)->hasCreator())
-        change.addChangeMetaData("dc-creator", d->m_changes.value(changeId)->getCreator());
-    if (d->m_changes.value(changeId)->hasDate())
-        change.addChangeMetaData("dc-date", d->m_changes.value(changeId)->getDate());
+    change.addChangeMetaData("dc-creator", d->m_changes.value(changeId)->getCreator());
+    change.addChangeMetaData("dc-date", d->m_changes.value(changeId)->getDate());
     if (d->m_changes.value(changeId)->hasExtraMetaData())
         change.addChildElement("changeMetaData", d->m_changes.value(changeId)->getExtraMetaData());
 
     if (d->m_changes.value(changeId)->hasDeleteData())
-        change.addChildElement("deleteData", d->m_changes.value(changeId)->getDeleteData());
+        change.addChildElement("deletedData", d->m_changes.value(changeId)->getDeleteData());
 
     return true;
 }
@@ -225,14 +262,17 @@ void KoChangeTracker::loadOdfChanges(const KoXmlElement& element)
                             changeElement = new KoChangeTrackerElement(tag.attributeNS(KoXmlNS::text,"id"),KoGenChange::formatChange);
                         } else if (region.localName() == "deletion") {
                             changeElement = new KoChangeTrackerElement(tag.attributeNS(KoXmlNS::text,"id"),KoGenChange::deleteChange);
+                            KoXmlElement deletedData = region.namedItemNS(KoXmlNS::text, "p").toElement();
+                            if(!deletedData.isNull())
+                              changeElement->setDeleteData(deletedData.text());
                         }
                         KoXmlElement metadata = region.namedItemNS(KoXmlNS::office,"change-info").toElement();
                         if (!metadata.isNull()) {
-                            KoXmlElement date = metadata.namedItem("dc-date").toElement();
+                            KoXmlElement date = metadata.namedItem("dc:date").toElement();
                             if (!date.isNull()) {
                                 changeElement->setDate(date.text());
                             }
-                            KoXmlElement creator = metadata.namedItem("dc-creator").toElement();
+                            KoXmlElement creator = metadata.namedItem("dc:creator").toElement();
                             if (!date.isNull()) {
                                 changeElement->setCreator(creator.text());
                             }
@@ -243,6 +283,7 @@ void KoChangeTracker::loadOdfChanges(const KoXmlElement& element)
                                 changeElement->setCreator(creator.text());
                             }*/
                         }
+                        changeElement->setEnabled(d->m_enabled);
                         d->m_changes.insert( d->m_changeId, changeElement);
                         d->m_loadedChanges.insert(tag.attributeNS(KoXmlNS::text,"id"), d->m_changeId++);
                     }

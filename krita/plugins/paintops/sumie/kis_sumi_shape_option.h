@@ -28,6 +28,9 @@ public:
     KisSumiShapeOption();
     ~KisSumiShapeOption();
 
+    void setRadius(int radius) const;
+    void setScaleFactor(qreal scale) const;
+    
     int radius() const;
     double sigma() const;
     int brushDimension() const;
@@ -40,7 +43,7 @@ public:
     void writeOptionSetting(KisPropertiesConfiguration* config) const;
     void readOptionSetting(const KisPropertiesConfiguration* config);
 private:
-   KisShapeOptionsWidget * m_options;
+    KisShapeOptionsWidget * m_options;
 };
 
 #endif // KIS_SUMI_SHAPE_OPTION_H

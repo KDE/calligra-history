@@ -42,15 +42,12 @@ public:
 
     static KisBrushRegistry* instance();
 
-    KisBrushSP getOrCreateBrush( const QDomElement& element );
+    KisBrushSP getOrCreateBrush(const QDomElement& element);
 
 private:
     KisBrushRegistry();
     KisBrushRegistry(const KisBrushRegistry&);
     KisBrushRegistry operator=(const KisBrushRegistry&);
-
-private:
-    static KisBrushRegistry *m_singleton;
 };
 
 #endif // KIS_GENERATOR_REGISTRY_H_

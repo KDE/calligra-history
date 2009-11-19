@@ -47,9 +47,9 @@ set(kritaui_LIB_SRCS
     flake/kis_shape_selection_canvas.cpp
     flake/kis_shape_selection_model.cpp 
     flake/kis_layermap_visitor.cpp
+    flowlayout.cpp
     kis_autogradient.cc
     kis_autogradient_resource.cc
-    kis_birdeye_box.cc 
     kis_bookmarked_configurations_editor.cc
     kis_bookmarked_configurations_model.cc
     kis_bookmarked_filter_configurations_model.cc
@@ -61,11 +61,12 @@ set(kritaui_LIB_SRCS
     kis_control_frame.cpp
     kis_composite_ops_model.cc
     kis_cursor.cc
-    kis_custom_palette.cc 
+    kis_custom_palette.cc
     kis_custom_pattern.cc
     kis_doc2.cc 
     kis_exposure_visitor.cc 
     kis_factory2.cc
+    kis_favorite_brush_data.cpp
     kis_filter_handler.cc 
     kis_filter_manager.cc 
     kis_filters_model.cc
@@ -73,7 +74,6 @@ set(kritaui_LIB_SRCS
     kis_image_manager.cc
     kis_image_view_converter.cpp
     kis_import_catcher.cc 
-    kis_layer_box.cpp 
     kis_layer_manager.cc
     kis_mask_manager.cc
     kis_node_commands_adapter.cpp
@@ -82,15 +82,18 @@ set(kritaui_LIB_SRCS
     kis_painting_assistant.cc 
     kis_painting_assistants_manager.cc 
     kis_paintop_box.cc 
-    kis_palette_docker.cc
+    kis_palette_manager.cpp
+    kis_popup_palette.cpp
     kis_png_converter.cpp
     kis_print_job.cpp 
+    kis_recent_color_data.cpp
     kis_resource_server_provider.cpp 
     kis_selection_decoration.cc
     kis_selection_manager.cc 
     kis_statusbar.cc 
     kis_view2.cpp 
     kis_zoom_manager.cc
+    ko_favorite_resource_manager.cpp
     kisexiv2/kis_exif_io.cpp
     kisexiv2/kis_exiv2.cpp
     kisexiv2/kis_iptc_io.cpp
@@ -110,6 +113,7 @@ set(kritaui_LIB_SRCS
     recorder/kis_recorded_filter_action_editor.cc
     tool/kis_selection_options.cc 
     tool/kis_selection_tool_helper.cpp 
+    tool/kis_shape_tool_helper.cpp 
     tool/kis_tool.cc 
     tool/kis_tool_freehand.cc 
     tool/kis_tool_freehand_p.cpp
@@ -143,18 +147,23 @@ set(kritaui_LIB_SRCS
     widgets/squeezedcombobox.cpp
 )
 
-if(HAVE_OPENGL AND HAVE_GLEW)
+if(HAVE_OPENGL)
+    if(HAVE_GLEW)
+        set(kritaui_LIB_SRCS
+            ${kritaui_LIB_SRCS}
+            opengl/kis_opengl_shader.cpp
+            opengl/kis_opengl_fragment_shader.cpp
+            opengl/kis_opengl_vertex_shader.cpp
+            opengl/kis_opengl_program.cpp
+            opengl/kis_opengl_hdr_exposure_program.cpp
+            opengl/kis_opengl_gradient_program.cpp
+            )
+    endif(HAVE_GLEW)
     set(kritaui_LIB_SRCS
         ${kritaui_LIB_SRCS}
-        opengl/kis_opengl_shader.cpp
-        opengl/kis_opengl_fragment_shader.cpp
-        opengl/kis_opengl_vertex_shader.cpp
-        opengl/kis_opengl_program.cpp
-        opengl/kis_opengl_hdr_exposure_program.cpp
-        opengl/kis_opengl_gradient_program.cpp
         kis_3d_object_model.cpp
         )
-endif(HAVE_OPENGL AND HAVE_GLEW)
+endif(HAVE_OPENGL)
 
 add_definitions(${KDE4_ENABLE_EXCEPTIONS})
 
@@ -164,8 +173,8 @@ kde4_add_ui_files(kritaui_LIB_SRCS
     forms/wdggeneralsettings.ui
     forms/wdgperformancesettings.ui
     forms/wdggridsettings.ui
-    forms/wdgbirdeye.ui 
     forms/wdggenerators.ui
+    forms/wdgcustompalette.ui
     forms/wdgbookmarkedconfigurationseditor.ui
     forms/wdgapplyprofile.ui
     forms/wdgcustompattern.ui
@@ -175,11 +184,8 @@ kde4_add_ui_files(kritaui_LIB_SRCS
     forms/wdgdisplaysettings.ui
     forms/kis_previewwidgetbase.ui
     forms/kis_matrix_widget.ui
-    forms/wdglayerbox.ui
-    forms/wdgpalettechooser.ui
     forms/wdgselectionoptions.ui
     forms/wdgshapeoptions.ui
-    forms/wdgcustompalette.ui
     forms/wdgnewimage.ui
     forms/wdgimageproperties.ui
     forms/wdgtransformationeffect.ui
@@ -235,13 +241,11 @@ install( FILES
 #    kis_iconwidget.h
 #    kis_itemchooser.h
 #    kis_label_zoom.h
-#    kis_layerbox.h
 #    kis_move_event.h
 #    kis_multi_bool_filter_widget.h
 #    kis_multi_double_filter_widget.h
 #    kis_multi_integer_filter_widget.h
 #    kis_paintop_box.h
-#    kis_palette_widget.h
 #    kis_previewwidget.h
 #    kis_tool_non_paint.h
 #    kis_tool_paint.h
@@ -250,7 +254,6 @@ install( FILES
 #    kis_tool_manager.h
 #    kis_tool_types.h
 #    kis_view2.h
-#    kobirdeyepanel.h
 #    KoInputDevice.h
 #    canvas/kis_perspective_grid_manager.h
    DESTINATION ${INCLUDE_INSTALL_DIR})

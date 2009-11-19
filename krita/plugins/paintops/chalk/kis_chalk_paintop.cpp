@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2008 Lukáš Tvrdý <lukast.dev@gmail.com>
+ *  Copyright (c) 2008,2009 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,11 +20,7 @@
 #include "kis_chalk_paintop_settings.h"
 
 #include <cmath>
-#include <math.h>
-
 #include <QRect>
-#include <QColor>
-//#include <QMutexLocker>
 
 #include <KoColor.h>
 #include <KoColorSpace.h>
@@ -32,26 +28,27 @@
 #include <kis_image.h>
 #include <kis_debug.h>
 
-#include <kis_brush.h>
 #include <kis_global.h>
 #include <kis_paint_device.h>
 #include <kis_painter.h>
 #include <kis_types.h>
 #include <kis_paintop.h>
-#include <kis_selection.h>
-#include <kis_random_accessor.h>
+#include <kis_paint_information.h>
 
+#include <kis_pressure_opacity_option.h>
 
 KisChalkPaintOp::KisChalkPaintOp(const KisChalkPaintOpSettings *settings, KisPainter * painter, KisImageWSP image)
-    : KisPaintOp( painter )
-    , m_settings( settings )
-    , m_image ( image )
+        : KisPaintOp(painter)
+        , m_settings(settings)
+        , m_image(image)
 {
-    m_chalkBrush.setRadius( settings->radius() );
+    m_chalkBrush = new ChalkBrush(settings);
+    settings->opacityOption()->sensor()->reset();
 }
 
 KisChalkPaintOp::~KisChalkPaintOp()
 {
+    delete m_chalkBrush;
 }
 
 void KisChalkPaintOp::paintAt(const KisPaintInformation& info)
@@ -60,8 +57,7 @@ void KisChalkPaintOp::paintAt(const KisPaintInformation& info)
 
     if (!m_dab) {
         m_dab = new KisPaintDevice(painter()->device()->colorSpace());
-    }
-    else {
+    } else {
         m_dab->clear();
     }
 
@@ -70,10 +66,11 @@ void KisChalkPaintOp::paintAt(const KisPaintInformation& info)
     x1 = info.pos().x();
     y1 = info.pos().y();
 
-    m_chalkBrush.paint(m_dab, x1, y1, painter()->paintColor());
+    quint8 origOpacity = m_settings->opacityOption()->apply(painter(), info);
+    m_chalkBrush->paint(m_dab, x1, y1, painter()->paintColor());
 
     QRect rc = m_dab->extent();
 
     painter()->bitBlt(rc.x(), rc.y(), m_dab, rc.x(), rc.y(), rc.width(), rc.height());
-
+    painter()->setOpacity(origOpacity);
 }

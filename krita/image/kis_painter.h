@@ -151,9 +151,9 @@ public:
      * @param sh the height of the region
      */
     void bltFixed(qint32 dx, qint32 dy,
-                const KisFixedPaintDeviceSP src,
-                qint32 sx, qint32 sy,
-                qint32 sw, qint32 sh);
+                  const KisFixedPaintDeviceSP src,
+                  qint32 sx, qint32 sy,
+                  qint32 sw, qint32 sh);
 
     /**
      * Convenience method that uses QPoint and QRect
@@ -273,6 +273,7 @@ public:
      * specified end position.
      *
      * XXX: this method really should work with subpixel precision for start and end position
+     * XXX: this method does not use the composite op
      */
     void drawLine(const QPointF & start, const QPointF & end);
 
@@ -281,6 +282,7 @@ public:
      * specified end position.
      *
      * XXX: this method really should work with subpixel precision for start and end position
+     * XXX: this method does not use the composite op
      */
     void drawDDALine(const QPointF & start, const QPointF & end);
 
@@ -289,12 +291,15 @@ public:
      * end position.
      *
      * XXX: this method really should work with subpixel precision for start and end position
+     * XXX: this method does not use the composite op
      */
     void drawWobblyLine(const QPointF & start, const QPointF & end);
 
     /**
      * Paint an unstroked, one-pixel wide line from the specified start to the specified
      * end position using the Wu algorithm
+     *
+     * XXX: this method does not use the composite op
      */
     void drawWuLine(const QPointF & start, const QPointF & end);
 
@@ -305,6 +310,7 @@ public:
      *
      * XXX: the width should be set in doubles, not integers.
      * XXX: this method really should work with subpixel precision for start and end position
+     * XXX: this method does not use the composite op
      */
     void drawThickLine(const QPointF & start, const QPointF & end, int startWidth, int endWidth);
 
@@ -355,7 +361,7 @@ public:
     void setPaintColor(const KoColor& color);
 
     /// Returns the color that will be used to paint with
-    KoColor paintColor() const;
+    const KoColor &paintColor() const;
 
     /**
      * Set the current background color, and convert it
@@ -364,13 +370,13 @@ public:
     void setBackgroundColor(const KoColor& color);
 
     /// Returns the current background color
-    KoColor backgroundColor() const;
+    const KoColor &backgroundColor() const;
 
     /// Set the current fill color
     void setFillColor(const KoColor& color);
 
     /// Returns the current fill color
-    KoColor fillColor() const;
+    const KoColor &fillColor() const;
 
     /// Set the current generator (a generator can be used to fill an area
     void setGenerator(KisFilterConfiguration * generator);
@@ -453,13 +459,20 @@ public:
     const KoAbstractGradient* gradient();
 
     /**
-    * Set the size of the tile in fillPainterPath, useful when optimizing the use of fillPainterPath 
-    * e.g. Spray paintop uses more small tiles, although selections uses bigger tiles. QImage::fill 
-    * is quite expensive so with smaller images you can save instructions 
+    * Set the size of the tile in fillPainterPath, useful when optimizing the use of fillPainterPath
+    * e.g. Spray paintop uses more small tiles, although selections uses bigger tiles. QImage::fill
+    * is quite expensive so with smaller images you can save instructions
     * Default and maximum size is 256x256 image
     */
-    void setMaskImageSize(qint32 width,qint32 height);
-    
+    void setMaskImageSize(qint32 width, qint32 height);
+
+    /**
+     * If the alpha channel is locked, the alpha values of the paint device we are painting on
+     * will not change.
+     */
+    void setLockAlpha(bool protect);
+    bool alphaLocked() const;
+
 protected:
     /// Initialize, set everything to '0' or defaults
     void init();

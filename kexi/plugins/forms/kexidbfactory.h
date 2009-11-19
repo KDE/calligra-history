@@ -36,7 +36,7 @@ class KexiDBFactory : public KFormDesigner::WidgetFactory
     Q_OBJECT
 
 public:
-    KexiDBFactory(QObject *parent, const QStringList &args);
+    KexiDBFactory(QObject *parent, const QVariantList &);
     virtual ~KexiDBFactory();
 
     virtual QWidget *createWidget(const QByteArray &classname, QWidget *parent, const char *name,
@@ -50,16 +50,12 @@ public:
     virtual bool previewWidget(const QByteArray &, QWidget *, KFormDesigner::Container *);
     virtual bool clearWidgetContent(const QByteArray &classname, QWidget *w);
 
-    //virtual void  saveSpecialProperty(const QString &classname, const QString &name, const QVariant &value, QWidget *w,
-    //QDomElement &parentNode, QDomDocument &parent) {}
-    //virtual void            readSpecialProperty(const QCString &classname, QDomElement &node, QWidget *w, KFormDesigner::ObjectTreeItem *item) {}
-    virtual QList<QByteArray> autoSaveProperties(const QByteArray &classname);
-
 protected slots:
     void slotImageBoxIdChanged(long id); /*KexiBLOBBuffer::Id_t*/
 
 protected:
-    virtual bool changeInlineText(KFormDesigner::Form *form, QWidget *widget, const QString &text);
+    virtual bool changeInlineText(KFormDesigner::Form *form, QWidget *widget,
+        const QString &text, QString &oldText);
     virtual void resizeEditor(QWidget *editor, QWidget *widget, const QByteArray &classname);
 
     virtual bool isPropertyVisibleInternal(const QByteArray& classname, QWidget *w,

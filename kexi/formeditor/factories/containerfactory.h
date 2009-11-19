@@ -25,6 +25,8 @@
 #include "commands.h"
 #include "widgetfactory.h"
 #include "utils.h"
+#include "FormWidgetInterface.h"
+
 #include <QGroupBox>
 #include <QMenu>
 #include <QPaintEvent>
@@ -51,89 +53,49 @@ protected:
 };
 
 //! Helper widget (used when using 'Lay out horizontally')
-class HBox : public QFrame
+class HBox : public QFrame, public KFormDesigner::FormWidgetInterface
 {
-    Q_OBJECT
-
 public:
     HBox(QWidget *parent);
     virtual ~HBox();
-    void setPreviewMode() {
-        m_preview = true;
-    }
     virtual void paintEvent(QPaintEvent *ev);
-
-protected:
-    bool  m_preview;
 };
 
 //! Helper widget (used when using 'Lay out vertically')
-class VBox : public QFrame
+class VBox : public QFrame, public KFormDesigner::FormWidgetInterface
 {
-    Q_OBJECT
-
 public:
     VBox(QWidget *parent);
     virtual ~VBox();
-    void setPreviewMode() {
-        m_preview = true;
-    }
     virtual void paintEvent(QPaintEvent *ev);
-
-protected:
-    bool  m_preview;
 };
 
 //! Helper widget (used when using 'Lay out in a grid')
-class Grid : public QFrame
+class Grid : public QFrame, public KFormDesigner::FormWidgetInterface
 {
-    Q_OBJECT
-
 public:
     Grid(QWidget *parent);
     virtual ~Grid();
-    void setPreviewMode() {
-        m_preview = true;
-    }
     virtual void paintEvent(QPaintEvent *ev);
-
-protected:
-    bool  m_preview;
 };
 
 //! Helper widget (used when using 'Lay out with horizontal flow')
-class HFlow : public QFrame
+class HFlow : public QFrame, public KFormDesigner::FormWidgetInterface
 {
-    Q_OBJECT
-
 public:
     HFlow(QWidget *parent);
     virtual ~HFlow();
-    void setPreviewMode() {
-        m_preview = true;
-    }
     virtual void paintEvent(QPaintEvent *ev);
-
-protected:
-    bool  m_preview;
 };
 
 //! Helper widget (used when using 'Lay out with horizontal flow')
-class VFlow : public QFrame
+class VFlow : public QFrame, public KFormDesigner::FormWidgetInterface
 {
-    Q_OBJECT
-
 public:
     VFlow(QWidget *parent);
     virtual ~VFlow();
-    void setPreviewMode() {
-        m_preview = true;
-    }
     virtual void paintEvent(QPaintEvent *ev);
-    virtual QSize  sizeHint() const;
-
-protected:
-    bool  m_preview;
+    virtual QSize sizeHint() const;
 };
 
 //! A simple container widget
@@ -248,7 +210,7 @@ class ContainerFactory : public KFormDesigner::WidgetFactory
     Q_OBJECT
 
 public:
-    ContainerFactory(QObject *parent, const QStringList &args);
+    ContainerFactory(QObject *parent, const QVariantList &args);
     virtual ~ContainerFactory();
 
     virtual QWidget* createWidget(const QByteArray &classname, QWidget *parent, const char *name,
@@ -263,7 +225,6 @@ public:
                                      const QVariant &value, QWidget *w, QDomElement &parentNode, QDomDocument &parent);
     virtual bool readSpecialProperty(const QByteArray& classname, QDomElement &node, QWidget *w,
                                      KFormDesigner::ObjectTreeItem *item);
-    virtual QList<QByteArray> autoSaveProperties(const QByteArray &classname);
 
 protected:
     virtual bool isPropertyVisibleInternal(const QByteArray &classname, QWidget *w,

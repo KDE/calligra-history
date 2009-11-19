@@ -28,7 +28,6 @@
 
 #include <KarbonGlobal.h>
 #include <KarbonPart.h>
-#include <KarbonGradientHelper.h>
 
 #include <KoShape.h>
 #include <KoShapeRegistry.h>
@@ -65,11 +64,11 @@ SvgParser::SvgParser( const QMap<QString, KoDataCenter*> & dataCenters )
 {
     m_fontAttributes << "font-family" << "font-size" << "font-weight" << "text-decoration";
     // the order of the style attributes is important, don't change without reason !!!
-    m_styleAttributes << "color" << "opacity" << "display";
+    m_styleAttributes << "color" << "display";
     m_styleAttributes << "fill" << "fill-rule" << "fill-opacity";
     m_styleAttributes << "stroke" << "stroke-width" << "stroke-linejoin" << "stroke-linecap";
     m_styleAttributes << "stroke-dasharray" << "stroke-dashoffset" << "stroke-opacity" << "stroke-miterlimit"; 
-    m_styleAttributes << "filter";
+    m_styleAttributes << "opacity" << "filter";
 }
 
 SvgParser::~SvgParser()
@@ -109,7 +108,9 @@ const char * parseNumber( const char *ptr, double &number )
 
     // read the sign
     if(*ptr == '+')
+    {
         ptr++;
+    }    
     else if(*ptr == '-')
     {
         ptr++;
@@ -132,7 +133,9 @@ const char * parseNumber( const char *ptr, double &number )
 
         // read the sign of the exponent
         if(*ptr == '+')
+        {
             ptr++;
+        }
         else if(*ptr == '-')
         {
             ptr++;
@@ -430,8 +433,9 @@ double SvgParser::parseUnit( const QString &unit, bool horiz, bool vert, QRectF 
 {
     if( unit.isEmpty() )
         return 0.0;
+    QByteArray unitLatin1 = unit.toLatin1();
     // TODO : percentage?
-    const char *start = unit.toLatin1();
+    const char *start = unitLatin1.data();
     if(!start) {
         return 0.0;
     }
@@ -1034,8 +1038,9 @@ void SvgParser::parsePA( SvgGraphicsContext *gc, const QString &command, const Q
     }
     else if( command == "opacity" )
     {
-        fillcolor.setAlphaF( SvgUtil::fromPercentage( params ) );
-        strokecolor.setAlphaF( SvgUtil::fromPercentage( params ) );
+        // fake shape opacity by multiplying with alpha of fill and stroke color
+        fillcolor.setAlphaF( fillcolor.alphaF() * SvgUtil::fromPercentage( params ) );
+        strokecolor.setAlphaF( strokecolor.alphaF() * SvgUtil::fromPercentage( params ) );
     }
     else if( command == "font-family" )
     {
@@ -1443,6 +1448,13 @@ void SvgParser::applyFilter( KoShape * shape )
 
     KoFilterEffectStack * filterStack = 0;
 
+    QSet<QString> stdInputs;
+    stdInputs << "SourceGraphic" << "SourceAlpha";
+    stdInputs << "BackgroundImage" << "BackgroundAlpha";
+    stdInputs << "FillPaint" << "StrokePaint";
+    
+    QMap<QString, KoFilterEffect*> inputs;
+    
     // create the filter effects and add them to the shape
     for( KoXmlNode n = content.firstChild(); !n.isNull(); n = n.nextSibling() )
     {
@@ -1453,24 +1465,58 @@ void SvgParser::applyFilter( KoShape * shape )
             continue;
         }
 
+        if (primitive.hasAttribute("in"))
+            filterEffect->setInput(0, primitive.attribute("in"));
+        if (primitive.hasAttribute("result"))
+            filterEffect->setOutput(primitive.attribute("result"));
+
         QRectF subRegion;
         // parse subregion
         if( filter->primitiveUnits() == SvgFilterHelper::UserSpaceOnUse )
         {
-            qreal x = filterRegion.x();
-            if( primitive.hasAttribute( "x" ) )
-                x = parseUnitX( primitive.attribute( "x" ) ); 
-            qreal y = filterRegion.y();
-            if( primitive.hasAttribute( "y" ) )
-                y = parseUnitY( primitive.attribute( "y" ) );
-            qreal w = filterRegion.width();
-            if( primitive.hasAttribute( "width" ) )
-                w = parseUnitX( primitive.attribute( "width" ) );
-            qreal h = filterRegion.height();
-            if( primitive.hasAttribute( "height" ) )
-                h = parseUnitY( primitive.attribute( "height" ) );
-            subRegion.setTopLeft(SvgUtil::userSpaceToObject(QPointF(x,y), bound));
-            subRegion.setSize(SvgUtil::userSpaceToObject(QSizeF(w,h), bound));
+            if( ! primitive.hasAttribute("x") || ! primitive.hasAttribute("y") ||
+                ! primitive.hasAttribute("width") || ! primitive.hasAttribute("height"))
+            {
+                bool hasStdInput = false;
+                bool isFirstEffect = filterStack == 0;
+                // check if one of the inputs is a standard input
+                foreach( const QString &input, filterEffect->inputs())
+                {
+                    if( (isFirstEffect && input.isEmpty()) || stdInputs.contains(input) )
+                    {
+                        hasStdInput = true;
+                        break;
+                    }
+                }
+                if( hasStdInput )
+                {
+                    // default to 0%, 0%, 100%, 100%
+                    subRegion.setTopLeft(QPointF(0,0));
+                    subRegion.setSize(QSizeF(1,1));
+                }
+                else 
+                {
+                    // defaults to bounding rect of all referenced nodes
+                    foreach( const QString &input, filterEffect->inputs())
+                    {
+                        if( !inputs.contains(input) )
+                            continue;
+                        
+                        KoFilterEffect * inputFilter = inputs[input];
+                        if( inputFilter )
+                            subRegion |= inputFilter->filterRect();
+                    }
+                }
+            }
+            else
+            {
+                qreal x = parseUnitX( primitive.attribute( "x" ) ); 
+                qreal y = parseUnitY( primitive.attribute( "y" ) );
+                qreal w = parseUnitX( primitive.attribute( "width" ) );
+                qreal h = parseUnitY( primitive.attribute( "height" ) );
+                subRegion.setTopLeft(SvgUtil::userSpaceToObject(QPointF(x,y), bound));
+                subRegion.setSize(SvgUtil::userSpaceToObject(QSizeF(w,h), bound));
+            }
         }
         else
         {
@@ -1482,10 +1528,6 @@ void SvgParser::applyFilter( KoShape * shape )
             qreal h = SvgUtil::fromPercentage( primitive.attribute( "height", "1" ) );
             subRegion = QRectF(QPointF(x, y), QSizeF(w, h));
         }
-        if (primitive.hasAttribute("in"))
-            filterEffect->setInput(0, primitive.attribute("in"));
-        if (primitive.hasAttribute("result"))
-            filterEffect->setOutput(primitive.attribute("result"));
 
         filterEffect->setFilterRect(subRegion);
         
@@ -1493,6 +1535,7 @@ void SvgParser::applyFilter( KoShape * shape )
             filterStack = new KoFilterEffectStack();
 
         filterStack->appendFilterEffect(filterEffect);
+        inputs[filterEffect->output()] = filterEffect;
     }
     if (filterStack) {
         filterStack->setClipRect(objectFilterRegion);
@@ -1569,7 +1612,8 @@ QList<KoShape*> SvgParser::parseUse( const KoXmlElement &e )
                     group->setName( a.attribute("id") );
 
                 addToGroup( childShapes, group );
-
+                parseStyle( group, styles ); // apply style to group after size is set
+                
                 shapes.append( group );
 
                 removeGraphicContext();
@@ -1583,6 +1627,8 @@ QList<KoShape*> SvgParser::parseUse( const KoXmlElement &e )
                 if( shape )
                     shapes.append( shape );
             }
+        } else {
+            // TODO: any named object can be referenced too
         }
         removeGraphicContext();
     }
@@ -1710,7 +1756,7 @@ QList<KoShape*> SvgParser::parseContainer( const KoXmlElement &e )
             KoShapeGroup * group = new KoShapeGroup();
             group->setZIndex( nextZIndex() );
 
-            parseStyle( group, b );
+            parseStyle( 0, b ); // parse style for inheritance
             parseFont( b );
 
             QList<KoShape*> childShapes = parseContainer( b );
@@ -1720,7 +1766,8 @@ QList<KoShape*> SvgParser::parseContainer( const KoXmlElement &e )
                 group->setName( b.attribute("id") );
 
             addToGroup( childShapes, group );
-
+            parseStyle( group, b ); // apply style to this group after size is set
+            
             shapes.append( group );
 
             removeGraphicContext();
@@ -2009,10 +2056,8 @@ KoShape * SvgParser::createText( const KoXmlElement &b, const QList<KoShape*> & 
     text->applyAbsoluteTransformation( m_gc.top()->matrix );
     text->setZIndex( nextZIndex() );
 
-    // apply the style of the text element
-    parseStyle( text, b );
-    // apply the style of the last tspan element
-    parseStyle( text, styleElement );
+    // apply the style merged from the text element and the last tspan element
+    parseStyle( text, mergeStyles( collectStyles(styleElement), collectStyles(b) ) );
 
     removeGraphicContext();
 
@@ -2263,5 +2308,15 @@ KoShape * SvgParser::createShape( const QString &shapeID )
     // reset tranformation that might come from the default shape
     shape->setTransformation( QMatrix() );
 
+    // reset border
+    KoShapeBorderModel * oldBorder = shape->border();
+    shape->setBorder(0);
+    delete oldBorder;
+
+    // reset fill
+    KoShapeBackground * oldFill = shape->background();
+    shape->setBackground(0);
+    delete oldFill;
+    
     return shape;
 }

@@ -25,6 +25,7 @@
 class KoPAView;
 class KoConfigDocumentPage;
 class KoConfigGridPage;
+class KoConfigMiscPage;
 
 class KoPAConfigureDialog : public KPageDialog
 {
@@ -40,6 +41,7 @@ public slots:
 private:
     KoConfigGridPage* m_gridPage;
     KoConfigDocumentPage* m_docPage;
+    KoConfigMiscPage* m_miscPage;
 };
 
 #endif // KOPACONFIGUREDIALOG_H

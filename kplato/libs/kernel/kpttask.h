@@ -89,7 +89,8 @@ public:
             bool loadXML(KoXmlElement &element, XMLLoaderObject &status );
             /// Save to document
             void saveXML(QDomElement &element) const;
-        
+            bool contains( const QDate &date ) const { return m_actual.contains( date ); }
+
         private:
             QMap<QDate, ActualEffort*> m_actual;
     };
@@ -179,10 +180,12 @@ public:
     Duration remainingEffort( const QDate &date ) const;
     /// Returns the total actual effort
     Duration actualEffort() const;
-    /// Returns the total actual effort on @ date
+    /// Returns the total actual effort on @p date
     Duration actualEffort( const QDate &date ) const;
     /// Returns the total actual effort upto and including @p date
     Duration actualEffortTo( const QDate &date ) const;
+    /// Returns the actual effort for @p resource on @p date
+    Duration actualEffort( const Resource *resource, const QDate &date ) const;
     /// TODO
     QString note() const;
     /// TODO
@@ -200,7 +203,7 @@ public:
     /**
      * Returns a map of all actual effort and cost entered
      */
-    virtual EffortCostMap actualEffortCost() const;
+    virtual EffortCostMap actualEffortCost( long id ) const;
 
     void addUsedEffort( const Resource *resource, UsedEffort *value = 0 );
     UsedEffort *takeUsedEffort( const Resource *r ) { return m_usedEffort.take( const_cast<Resource*>( r ) ); changed(); }
@@ -218,11 +221,12 @@ public:
     QString entryModeToString() const;
     QStringList entrymodeList() const;
     
-    EffortCostMap effortCostPrDay(const QDate &start, const QDate &end ) const;
+    EffortCostMap effortCostPrDay(const QDate &start, const QDate &end, long id = -1 ) const;
     
 protected:
     void copy( const Completion &copy);
-    
+    double averageCostPrHour( const QDate &date, long id ) const;
+
 private:
     Node *m_node;
     bool m_started, m_finished;

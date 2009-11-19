@@ -44,6 +44,10 @@
 #include "kis_group_layer.h"
 #include "kis_types.h"
 #include "kis_painter.h"
+#include "kis_canvas2.h"
+#include "kis_view2.h"
+#include "kis_node_manager.h"
+#include "kis_selection_manager.h"
 #include <commands/kis_image_layer_add_command.h>
 #include <kis_transaction.h>
 
@@ -66,7 +70,8 @@ void KisToolMove::paint(QPainter& gc, const KoViewConverter &converter)
 }
 
 // recursive search a node with a non-  transparent pixel
-KisNodeSP findNode(KisNodeSP node, int x, int y) {
+KisNodeSP findNode(KisNodeSP node, int x, int y)
+{
 
     // if this is a group and the pixel is transparent, don't even enter it
     if (node->inherits("KisGroupLayer")) {
@@ -84,13 +89,12 @@ KisNodeSP findNode(KisNodeSP node, int x, int y) {
         if (node->isEditable()) {
             if (node->inherits("KisGroupLayer")) {
                 foundNode = findNode(node, x, y);
-            }
-            else if (node->inherits("KisLayer")) {
+            } else if (node->inherits("KisLayer")) {
                 KisLayerSP layer = dynamic_cast<KisLayer*>(node.data());
                 if (layer) {
                     const KoColorSpace* cs = layer->projection()->colorSpace();
                     KoColor color(layer->projection()->colorSpace());
-                    layer->projection()->pixel( x, y, &color );
+                    layer->projection()->pixel(x, y, &color);
 
                     // XXX:; have threshold here? Like, only a little bit transparent, we don't select it?
                     if (cs->alpha(color.data()) != OPACITY_TRANSPARENT) {
@@ -114,7 +118,7 @@ void KisToolMove::mousePressEvent(KoPointerEvent *e)
 
         KisNodeSP node;
         KisImageWSP image = currentImage();
-        if (!image || !image->rootLayer() || image->rootLayer()->childCount() == 0 ) {
+        if (!image || !image->rootLayer() || image->rootLayer()->childCount() == 0) {
             return;
         }
         // shortcut: if the pixel at projection is transparent, it's all transparent
@@ -122,21 +126,20 @@ void KisToolMove::mousePressEvent(KoPointerEvent *e)
         KoColor color(cs);
         image->projection()->pixel(pos.x(), pos.y(), &color);
 
-        m_selection = currentSelection();
+        KisSelectionSP selection = currentSelection();
 
-        if (   cs->alpha(color.data()) == OPACITY_TRANSPARENT
-            || m_optionsWidget->radioSelectedLayer->isChecked()
-            || e->modifiers() == Qt::ControlModifier ) {
+        if (cs->alpha(color.data()) == OPACITY_TRANSPARENT
+                || m_optionsWidget->radioSelectedLayer->isChecked()
+                || e->modifiers() == Qt::ControlModifier) {
             node = currentNode();
-        }
-        else {
+        } else {
 
             // iterate over all layers at the current position, get the pixel at x,y and check whether it's transparent
             node = image->rootLayer()->lastChild();
             node = findNode(node, pos.x(), pos.y());
 
             // if there is a selection, we cannot move the group
-            if (!m_selection && (m_optionsWidget->radioGroup->isChecked() or e->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier)) ) {
+            if (!selection && (m_optionsWidget->radioGroup->isChecked() or e->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier))) {
                 node = node->parent();
             }
         }
@@ -149,11 +152,12 @@ void KisToolMove::mousePressEvent(KoPointerEvent *e)
         if (currentImage()->undo()) {
             currentImage()->undoAdapter()->beginMacro(i18n("Move"));
         }
-        
-        if (m_selection) {
+
+        if (selection && !selection->isTotallyUnselected(image->bounds())) {
+            selection->convertToQImage(0).save("selection.png");
             // Create a temporary layer with the contents of the selection of the current layer.
             Q_ASSERT(!node->inherits("KisGroupLayer"));
-            
+
             KisLayerSP oldLayer = dynamic_cast<KisPaintLayer*>(node.data());
 
             // we can only do the selection thing if the source layer was a paint layer, not a mask
@@ -163,7 +167,7 @@ void KisToolMove::mousePressEvent(KoPointerEvent *e)
 
                 // copy the contents to the new device
                 KisPainter gc(dev);
-                gc.setSelection(m_selection);
+                gc.setSelection(selection);
                 gc.setCompositeOp(COMPOSITE_OVER);
                 gc.setOpacity(OPACITY_OPAQUE);
                 QRect rc = oldLayer->extent();
@@ -171,29 +175,34 @@ void KisToolMove::mousePressEvent(KoPointerEvent *e)
                 gc.end();
 
                 // clear the old layer
-                currentImage()->undoAdapter()->addCommand( new KisTransaction("cut", oldLayer->paintDevice()) );
-                oldLayer->paintDevice()->clearSelection(m_selection);
+                currentImage()->undoAdapter()->addCommand(new KisTransaction("cut", oldLayer->paintDevice()));
+                oldLayer->paintDevice()->clearSelection(selection);
 
-                // XXX: clear away the selection???
+                // deselect away the selection???
+                selection->clear();
+
+                KisCanvas2* kisCanvas = dynamic_cast<KisCanvas2*>(m_canvas);
+                KisView2* view = 0;
+                if (kisCanvas) {
+                    view = kisCanvas->view();
+                }
 
                 // create the new layer and add it.
                 KisPaintLayerSP layer = new KisPaintLayer(currentImage(),
-                                                        node->name() + "(moved)",
-                                                        oldLayer->opacity(),
-                                                        dev);
-                layer->setTemporary(true);
-                currentImage()->undoAdapter()->addCommand( new KisImageLayerAddCommand( currentImage(), layer, node->parent(), node ) );
-
+                        node->name() + "(moved)",
+                        oldLayer->opacity(),
+                        dev);
+                currentImage()->undoAdapter()->addCommand(new KisImageLayerAddCommand(currentImage(), layer, node->parent(), node));
+                view->nodeManager()->activateNode(layer);
                 m_targetLayer = node;
                 m_selectedNode = layer;
             }
-        }
-        else {
+        } else {
             // No selection
             m_selectedNode = node;
             m_targetLayer = 0;
         }
-        
+
         m_dragging = true;
         m_dragStart = QPoint(static_cast<int>(pos.x()), static_cast<int>(pos.y()));
         m_layerStart.setX(node->x());
@@ -233,7 +242,7 @@ void KisToolMove::mouseReleaseEvent(KoPointerEvent *e)
 
                 m_canvas->addCommand(cmd);
                 currentImage()->undoAdapter()->endMacro();
-             }
+            }
             currentImage()->setModified();
         }
     }
@@ -251,11 +260,6 @@ void KisToolMove::drag(const QPoint& original)
         m_selectedNode->setX(m_selectedNode->x() + pos.x());
         m_selectedNode->setY(m_selectedNode->y() + pos.y());
 
-        if (m_selection) {
-            m_selection->setX(m_selection->x() + pos.x());
-            m_selection->setY(m_selection->y() + pos.y());
-        }
-        
         rc = rc.unite(m_selectedNode->extent());
 
         m_layerPosition = QPoint(m_selectedNode->x(), m_selectedNode->y());

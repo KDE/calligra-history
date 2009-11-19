@@ -654,7 +654,7 @@ bool DefaultTool::moveSelection(int direction, Qt::KeyboardModifiers modifiers)
         QList<QPointF> prevPos;
         QList<QPointF> newPos;
         QList<KoShape*> shapes;
-        foreach(KoShape* shape, koSelection()->selectedShapes(KoFlake::StrippedSelection)) {
+        foreach(KoShape* shape, koSelection()->selectedShapes(KoFlake::TopLevelSelection)) {
             if (shape->isGeometryProtected())
                 continue;
             shapes.append(shape);
@@ -959,14 +959,10 @@ void DefaultTool::selectionGroup()
         }
     }
     KoShapeGroup *group = new KoShapeGroup();
-    // is this needed?
-    if (selection->activeLayer()) {
-        selection->activeLayer()->addChild(group);
-    }
     // TODO what if only one shape is left?
     QUndoCommand *cmd = new QUndoCommand(i18n("Group shapes"));
     m_canvas->shapeController()->addShapeDirect(group, cmd);
-    new KoShapeGroupCommand(group, groupedShapes, cmd);
+    KoShapeGroupCommand::createCommand(group, groupedShapes, cmd);
     m_canvas->addCommand(cmd);
 }
 
@@ -993,7 +989,9 @@ void DefaultTool::selectionUngroup()
         KoShapeGroup *group = dynamic_cast<KoShapeGroup*>(shape);
         if (group) {
             cmd = cmd ? cmd : new QUndoCommand(i18n("Ungroup shapes"));
-            new KoShapeUngroupCommand(group, group->childShapes(), cmd);
+            new KoShapeUngroupCommand(group, group->childShapes(),
+                                      group->parent()? QList<KoShape*>(): m_canvas->shapeManager()->topLevelShapes(),
+                                      cmd);
             m_canvas->shapeController()->removeShape(group, cmd);
         }
     }

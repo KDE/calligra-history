@@ -794,7 +794,7 @@ KoFilter::ConversionStatus RTFImport::convert( const QByteArray& from, const QBy
 
     for (QMap<QString,int>::ConstIterator it=debugUnknownKeywords.constBegin();
         it!=debugUnknownKeywords.constEnd();it++)
-        kDebug(30515) <<"Unknown keyword:" << QString("%1" ).arg( it.data(), 4 )  <<" *" << it.key();
+        kDebug(30515) <<"Unknown keyword:" << QString("%1" ).arg( it.value(), 4 )  <<" *" << it.key();
 
     return KoFilter::OK;
 }
@@ -1574,7 +1574,7 @@ void RTFImport::addImportedPicture( const QString& rawFileName )
     // ### TODO: what with MS-DOS absolute paths? (Will only work for KOffice on Win32)
     QFileInfo info;
     info.setFile( inFileName );
-    QDir dir( info.dirPath() );
+    QDir dir( info.path() );
 
     KUrl url;
     url.setPath(dir.filePath( rawFileName ));
@@ -1662,7 +1662,7 @@ void RTFImport::addDateTime( const QString& format, const bool isDate, RTFFormat
         // It is a time with a specified format, so check if it is really a time
         // (as in KWord 1.3, a date can have a time format but a time cannot have a date format
         const QRegExp regexp ("[yMd]"); // any date format character?
-        asDate = (regexp.search(format)>-1);  // if yes, then it is a date
+        asDate = (regexp.indexIn(format)>-1);  // if yes, then it is a date
     }
     DomNode node;
     if (asDate)
@@ -1707,7 +1707,8 @@ void RTFImport::parseField( RTFProperty * )
         if (!fldinst.isEmpty())
         {
             DomNode node;
-            QStringList list ( QStringList::split( ' ', fldinst, false ) );
+            QString strFldinst( QString::fromUtf8(fldinst) );
+            QStringList list = strFldinst.split( ' ', QString::SkipEmptyParts );
             kDebug(30515) <<"Field:" << list;
             uint i;
 
@@ -1791,12 +1792,12 @@ void RTFImport::parseField( RTFProperty * )
             {
                 QString strFldinst( QString::fromUtf8(fldinst) );
                 QRegExp regexp("\\\\@\\s*\"(.+)\""); // \@ "Text"
-                if (regexp.search(strFldinst)==-1)
+                if (regexp.indexIn(strFldinst)==-1)
                 { // Not found? Perhaps it is not in quotes (even if it is rare)
                     kWarning(30515) << "Date/time field format not in quotes!";
                     strFldinst += ' '; // Add a space at the end to simplify the regular expression
                     regexp = QRegExp("\\\\@(\\S+)\\s+"); // \@some_text_up_to_a_space
-                    regexp.search(strFldinst);
+                    regexp.indexIn(strFldinst);
                 }
                 QString format(regexp.cap(1));
                 kDebug(30515) <<"Date/time field format:" << format;
@@ -2378,8 +2379,8 @@ void RTFImport::addLayout( DomNode &node, const QString &name, const RTFLayout &
         if (border.style != RTFBorder::None || border.width > 0)
         {
             node.addNode( borderN[i] );
-              node.addColor( (border.color >= colorTable.count())
-                             ? QColor(Qt::black) : colorTable[border.color] );
+              node.addColor( (border.color < colorTable.count() && border.color >= 0)
+                             ? colorTable[border.color] : QColor(Qt::black) );
               node.setAttribute( "style", (int)border.style & 0xf );
               node.setAttribute( "width", (border.width < 20) ? 1 : border.width /20 );
             node.closeNode( borderN[i] );
@@ -2578,8 +2579,8 @@ void RTFImport::finishTable()
                 if (border.style != RTFBorder::None || border.width > 0)
                 {
                     const char *id = "lrtb";
-                    QColor c = (border.color >= colorTable.count())
-                                ? QColor(Qt::black) : colorTable[border.color];
+                    QColor c = (border.color < colorTable.count() && border.color >= 0)
+                                ? QColor(colorTable[border.color]) : QColor(Qt::black);
                     frameSets.addBorder( (int)id[i], c, (int)border.style & 0x0f,
                                          .05*(!border.width ? 10 : border.width) );
                 }
@@ -2610,7 +2611,7 @@ void RTFImport::writeOutPart( const char *name, const DomNode& node )
     if ( dev )
     {
         QTextStream stream( dev );
-        stream.setEncoding( QTextStream::UnicodeUTF8 );
+        stream.setCodec( "UTF-8" );
         stream << node.toString();
     }
     else

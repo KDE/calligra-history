@@ -1,7 +1,12 @@
 set( EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR} )
 include_directories(  ${KOMAIN_INCLUDES}  ${CMAKE_SOURCE_DIR}/krita/image/metadata ${CMAKE_SOURCE_DIR}/krita/sdk/tests )
-########### next target ###############
 
+SET(KisRandomGeneratorDemoSources kis_random_generator_demo.cpp kimageframe.cpp)
+kde4_add_ui_files(KisRandomGeneratorDemoSources kis_random_generator_demo.ui)
+kde4_add_executable(KisRandomGeneratorDemo ${KisRandomGeneratorDemoSources})
+target_link_libraries(KisRandomGeneratorDemo ${KDE4_KDEUI_LIBS} kritaimage ${KDEWIN_LIBRARIES})
+
+########### next target ###############
 
 set(kis_base_node_test_SRCS kis_base_node_test.cpp )
 kde4_add_unit_test(KisBaseNodeTest TESTNAME krita-image-BaseNodeTest ${kis_base_node_test_SRCS})
@@ -22,6 +27,7 @@ target_link_libraries(KisNodeFacadeTest  ${KDE4_KDEUI_LIBS} kritaimage ${QT_QTTE
 ########### next target ###############
 
 add_definitions(-DFILES_DATA_DIR="\\"${CMAKE_CURRENT_SOURCE_DIR}/data/\\"")
+add_definitions(-DFILES_OUTPUT_DIR="\\"${CMAKE_CURRENT_BINARY_DIR}\\"")
 set(kis_paint_device_test_SRCS kis_paint_device_test.cpp )
 kde4_add_unit_test(KisPaintDeviceTest TESTNAME krita-image-KisPaintDeviceTest ${kis_paint_device_test_SRCS})
 target_link_libraries(KisPaintDeviceTest  ${KDE4_KDEUI_LIBS} kritaimage kostore ${QT_QTTEST_LIBRARY})
@@ -68,14 +74,6 @@ set(kis_threaded_applicator_test_SRCS kis_threaded_applicator_test.cpp )
 kde4_add_unit_test(KisThreadedApplicatorTest TESTNAME krita-image-KisThreadedApplicatorTest ${kis_threaded_applicator_test_SRCS})
 
 target_link_libraries(KisThreadedApplicatorTest  ${KDE4_KDEUI_LIBS} ${KDE4_THREADWEAVER_LIBRARY} kritaimage ${QT_QTTEST_LIBRARY})
-
-########### next target ###############
-
-set(kis_painterly_overlay_test_SRCS kis_painterly_overlay_test.cpp )
-
-kde4_add_unit_test(KisPainterlyOverlayTest TESTNAME krita-image-PainterlyOverlayTest ${kis_painterly_overlay_test_SRCS})
-
-target_link_libraries(KisPainterlyOverlayTest  ${KDE4_KDEUI_LIBS} kritaimage ${QT_QTTEST_LIBRARY})
 
 ########### next target ###############
 
@@ -354,12 +352,6 @@ target_link_libraries(KisPaintDeviceActionTest  ${KDE4_KDEUI_LIBS} kritaimage ${
 
 ########### next target ###############
 
-set(kis_painterly_overlay_colorspace_test_SRCS kis_painterly_overlay_colorspace_test.cpp )
-kde4_add_unit_test(KisPainterlyOverlayColorspaceTest TESTNAME krita-image-KisPainterlyOverlayColorspaceTest ${kis_painterly_overlay_colorspace_test_SRCS})
-target_link_libraries(KisPainterlyOverlayColorspaceTest  ${KDE4_KDEUI_LIBS} kritaimage ${QT_QTTEST_LIBRARY})
-
-########### next target ###############
-
 set(kis_paint_information_test_SRCS kis_paint_information_test.cpp )
 kde4_add_unit_test(KisPaintInformationTest TESTNAME krita-image-KisPaintInformationTest ${kis_paint_information_test_SRCS})
 target_link_libraries(KisPaintInformationTest  ${KDE4_KDEUI_LIBS} kritaimage ${QT_QTTEST_LIBRARY})
@@ -519,4 +511,11 @@ target_link_libraries(KisRandomGeneratorTest ${KDE4_KDEUI_LIBS} kritaimage ${QT_
 set(kis_mask_generator_test_SRCS kis_mask_generator_test.cpp )
 kde4_add_unit_test(KisMaskGeneratorTest TESTNAME krita-image-KisMaskGeneratorTest ${kis_mask_generator_test_SRCS})
 target_link_libraries(KisMaskGeneratorTest ${KDE4_KDEUI_LIBS} kritaimage ${QT_QTTEST_LIBRARY})
+
+########### next target ###############
+
+#set(kis_cs_conversion_test_SRCS kis_cs_conversion_test.cpp )
+#kde4_add_unit_test(KisCsConversionTest TESTNAME krita-image-KisCsConversionTest ${kis_cs_conversion_test_SRCS})
+#target_link_libraries(KisCsConversionTest ${KDE4_KDEUI_LIBS} kritaimage ${QT_QTTEST_LIBRARY})
+
 

@@ -37,31 +37,33 @@ class KisPaintLayer::Private
 {
 public:
     KisPaintDeviceSP paintDevice;
-    //KisPaintDeviceSP driedPaintDevice;
+    bool alphaLocked;
 };
 
 KisPaintLayer::KisPaintLayer(KisImageWSP img, const QString& name, quint8 opacity, KisPaintDeviceSP dev)
-    : KisLayer(img, name, opacity)
-    , m_d(new Private())
+        : KisLayer(img, name, opacity)
+        , m_d(new Private())
 {
     Q_ASSERT(img);
     Q_ASSERT(dev);
     m_d->paintDevice = dev;
+    m_d->alphaLocked = false;
 
 }
 
 
 KisPaintLayer::KisPaintLayer(KisImageWSP img, const QString& name, quint8 opacity)
-    : KisLayer(img, name, opacity)
-    , m_d(new Private())
+        : KisLayer(img, name, opacity)
+        , m_d(new Private())
 {
     Q_ASSERT(img);
     m_d->paintDevice = new KisPaintDevice(this, img->colorSpace());
+    m_d->alphaLocked = false;
 }
 
 KisPaintLayer::KisPaintLayer(KisImageWSP img, const QString& name, quint8 opacity, const KoColorSpace * colorSpace)
-    : KisLayer(img, name, opacity)
-    , m_d(new Private())
+        : KisLayer(img, name, opacity)
+        , m_d(new Private())
 {
     if (!colorSpace) {
         Q_ASSERT(img);
@@ -69,14 +71,17 @@ KisPaintLayer::KisPaintLayer(KisImageWSP img, const QString& name, quint8 opacit
     }
     Q_ASSERT(colorSpace);
     m_d->paintDevice = new KisPaintDevice(this, colorSpace);
+    m_d->alphaLocked = false;
 }
 
 KisPaintLayer::KisPaintLayer(const KisPaintLayer& rhs)
-    : KisLayer(rhs)
-    , KisIndirectPaintingSupport(rhs)
-    , m_d(new Private)
+        : KisLayer(rhs)
+        , KisIndirectPaintingSupport(rhs)
+        , m_d(new Private)
 {
+    m_d->alphaLocked = rhs.m_d->alphaLocked;
     m_d->paintDevice = new KisPaintDevice(*rhs.m_d->paintDevice.data());
+    // FIXME: check this. repeat in other constructors?
     m_d->paintDevice->setParentNode(this);
 }
 
@@ -113,14 +118,14 @@ bool KisPaintLayer::needProjection() const
 }
 
 void KisPaintLayer::copyOriginalToProjection(const KisPaintDeviceSP original,
-                                             KisPaintDeviceSP projection,
-                                             const QRect& rect) const
+        KisPaintDeviceSP projection,
+        const QRect& rect) const
 {
     KisPainter gc(projection);
     gc.setCompositeOp(colorSpace()->compositeOp(COMPOSITE_COPY));
     gc.bitBlt(rect.topLeft(), original, rect);
 
-    if(hasTemporaryTarget()) {
+    if (hasTemporaryTarget()) {
         gc.setOpacity(temporaryOpacity());
         gc.setCompositeOp(temporaryCompositeOp());
         gc.bitBlt(rect.topLeft(), temporaryTarget(), rect);
@@ -135,10 +140,19 @@ QIcon KisPaintLayer::icon() const
 KoDocumentSectionModel::PropertyList KisPaintLayer::sectionModelProperties() const
 {
     KoDocumentSectionModel::PropertyList l = KisLayer::sectionModelProperties();
-    l << KoDocumentSectionModel::Property(i18n("ColorSpace"), m_d->paintDevice->colorSpace()->name());
-    if (const KoColorProfile *profile = m_d->paintDevice->colorSpace()->profile())
-        l << KoDocumentSectionModel::Property(i18n("Profile"), profile->name());
+    // XXX: get right icons
+    l << KoDocumentSectionModel::Property(i18n("Alpha Locked"), KIcon("object-locked-unverified"), KIcon("object-locked-verified"), alphaLocked());
     return l;
+}
+
+void KisPaintLayer::setSectionModelProperties(const KoDocumentSectionModel::PropertyList &properties)
+{
+    foreach (KoDocumentSectionModel::Property property, properties) {
+        if (property.name == i18n("Alpha Locked")) {
+            setAlphaLocked(property.state.toBool());
+        }
+    }
+    KisLayer::setSectionModelProperties(properties);
 }
 
 const KoColorSpace * KisPaintLayer::colorSpace() const
@@ -163,18 +177,15 @@ QRect KisPaintLayer::exactBounds() const
     return rect | KisLayer::exactBounds();
 }
 
-
-/* unused *
-KisPaintDeviceSP KisPaintLayer::driedPaintDevice()
+bool KisPaintLayer::alphaLocked() const
 {
-    return m_d->driedPaintDevice;
+    return m_d->alphaLocked;
 }
 
-void KisPaintLayer::removeDriedPaintDevice()
+void KisPaintLayer::setAlphaLocked(bool l)
 {
-    m_d->driedPaintDevice = 0;
+    m_d->alphaLocked = l;
 }
-*/
 
 
 #include "kis_paint_layer.moc"

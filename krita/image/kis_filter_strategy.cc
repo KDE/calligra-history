@@ -18,12 +18,13 @@
  */
 
 #include "kis_filter_strategy.h"
-#include <klocale.h>
-
-#include "kis_debug.h"
 
 #include <math.h>
 
+#include <klocale.h>
+#include <kglobal.h>
+
+#include "kis_debug.h"
 
 double KisHermiteFilterStrategy::valueAt(double t) const
 {
@@ -56,7 +57,7 @@ qint32 KisBicubicFilterStrategy::intValueAt(qint32 t) const
     /* f(t) = 1.5|t|^3 - 2.5|t|^2 + 1, -1 <= t <= 1 */
     if (t < 0) t = -t;
     if (t < 256) {
-        t = (3 * t - 5 * 256) * t * t /2 + (256 << 16);
+        t = (3 * t - 5 * 256) * t * t / 2 + (256 << 16);
 
         //go from .24 fixed point to .8 fixedpoint (hack only works with positve numbers, which it is)
         t = (t + 0x8000) >> 16;
@@ -67,8 +68,8 @@ qint32 KisBicubicFilterStrategy::intValueAt(qint32 t) const
         return t;
     }
     if (t < 512) {
-    /* f(t) = -0.5|t|^3 + 2.5|t|^2 + 4|t| - 2, -2 <= t <= 2 */
-        t = ((-t + 5 * 256) * t /2 - 4*256*256) * t + (2*256 << 16);
+        /* f(t) = -0.5|t|^3 + 2.5|t|^2 + 4|t| - 2, -2 <= t <= 2 */
+        t = ((-t + 5 * 256) * t / 2 - 4 * 256 * 256) * t + (2 * 256 << 16);
 
         //go from .24 fixed point to .8 fixedpoint (hack only works with positve numbers, which it is)
         t = (t + 0x8000) >> 16;
@@ -121,7 +122,7 @@ double KisBellFilterStrategy::valueAt(double t) const
     if (t < .5) return(.75 - (t * t));
     if (t < 1.5) {
         t = (t - 1.5);
-        return(.5 * (t * t));
+        return(.5 *(t * t));
     }
     return(0.0);
 }
@@ -136,7 +137,7 @@ double KisBSplineFilterStrategy::valueAt(double t) const
         return((.5 * tt * t) - tt + (2.0 / 3.0));
     } else if (t < 2) {
         t = 2 - t;
-        return((1.0 / 6.0) * (t * t * t));
+        return((1.0 / 6.0) *(t * t * t));
     }
     return(0.0);
 }
@@ -174,32 +175,29 @@ double KisMitchellFilterStrategy::valueAt(double t) const
     return(0.0);
 }
 
-KisFilterStrategyRegistry *KisFilterStrategyRegistry::m_singleton = 0;
-
 KisFilterStrategyRegistry::KisFilterStrategyRegistry()
 {
-    Q_ASSERT(KisFilterStrategyRegistry::m_singleton == 0);
-    KisFilterStrategyRegistry::m_singleton = this;
 }
 
 KisFilterStrategyRegistry::~KisFilterStrategyRegistry()
 {
+    dbgRegistry << "deleting KisFilterStrategyRegistry";
 }
 
 KisFilterStrategyRegistry* KisFilterStrategyRegistry::instance()
 {
-    if (KisFilterStrategyRegistry::m_singleton == 0) {
-        KisFilterStrategyRegistry::m_singleton = new KisFilterStrategyRegistry();
-        Q_CHECK_PTR(KisFilterStrategyRegistry::m_singleton);
-//        m_singleton->add(new KisHermiteFilterStrategy);
-        m_singleton->add(new KisBicubicFilterStrategy);
-       m_singleton->add(new KisBoxFilterStrategy);
-        m_singleton->add(new KisTriangleFilterStrategy);
-//        m_singleton->add(new KisBellFilterStrategy);
-//        m_singleton->add(new KisBSplineFilterStrategy);
-//        m_singleton->add(new KisLanczos3FilterStrategy);
-//        m_singleton->add(new KisMitchellFilterStrategy);
+    K_GLOBAL_STATIC(KisFilterStrategyRegistry, s_instance);
+    if (!s_instance.exists()) {
+        // s_instance->add(new KisHermiteFilterStrategy);
+        s_instance->add(new KisBicubicFilterStrategy);
+        s_instance->add(new KisBoxFilterStrategy);
+        s_instance->add(new KisTriangleFilterStrategy);
+        // s_instance->add(new KisBellFilterStrategy);
+        // s_instance->add(new KisBSplineFilterStrategy);
+        // s_instance->add(new KisLanczos3FilterStrategy);
+        // s_instance->add(new KisMitchellFilterStrategy);
+
     }
-    return KisFilterStrategyRegistry::m_singleton;
+    return s_instance;
 }
 

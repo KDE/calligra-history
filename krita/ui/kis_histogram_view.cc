@@ -80,6 +80,7 @@ void KisHistogramView::setPaintDevice(KisPaintDeviceSP dev)
 
 void KisHistogramView::setHistogram(KisHistogramSP histogram)
 {
+    if (!histogram) return;
     m_cs = 0;
     m_histogram = histogram;
     m_currentProducer = m_histogram->producer();
@@ -314,7 +315,7 @@ void KisHistogramView::updateHistogram()
             highest = (double)m_histogram->calculations().getHighest();
     }
 
-    QPen pen( Qt::white );
+    QPen pen(Qt::white);
 
     for (int chan = 0; chan < m_channels.count(); chan++) {
         QColor color;
@@ -323,10 +324,10 @@ void KisHistogramView::updateHistogram()
         if (m_color) {
             color = m_channels.at(chan)->color();
             QLinearGradient gradient;
-            gradient.setColorAt( 0, Qt::white );
-            gradient.setColorAt( 1, color );
-            QBrush brush( gradient );
-            pen = QPen( brush, 0 );
+            gradient.setColorAt(0, Qt::white);
+            gradient.setColorAt(1, color);
+            QBrush brush(gradient);
+            pen = QPen(brush, 0);
         } else {
             color = Qt::black;
         }

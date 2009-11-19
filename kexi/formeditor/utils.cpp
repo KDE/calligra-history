@@ -25,6 +25,8 @@
 #include <QMimeData>
 #include <QTabWidget>
 #include <QTabBar>
+#include <QPen>
+#include <QPainter>
 
 #include <kdebug.h>
 #include <kexiutils/utils.h>
@@ -61,11 +63,11 @@ KFormDesigner::installRecursiveEventFilter(QObject *object, QObject *container)
     if (!object || !container || !object->isWidgetType())
         return;
 
-    kDebug() << "Installing event filter on widget:" << object 
-        << "directed to" << container->objectName();
+//    kDebug() << "Installing event filter on widget:" << object 
+//        << "directed to" << container->objectName();
     object->installEventFilter(container);
-    if (((QWidget*)object)->testAttribute(Qt::WA_SetCursor))
-        ((QWidget*)object)->setCursor(QCursor(Qt::ArrowCursor));
+//2.0    if (((QWidget*)object)->testAttribute(Qt::WA_SetCursor))
+//2.0    ((QWidget*)object)->setCursor(QCursor(Qt::ArrowCursor));
 
     const QObjectList list(object->children());
     foreach(QObject *obj, list) {
@@ -95,8 +97,8 @@ KFormDesigner::setRecursiveCursor(QWidget *w, Form *form)
        ) //fix weird behaviour
         return; // if the user has set a cursor for this widget or this is a container, don't change it
 
-    if (w->testAttribute(Qt::WA_SetCursor))
-        w->setCursor(Qt::ArrowCursor);
+//2.0    if (w->testAttribute(Qt::WA_SetCursor))
+    w->setCursor(Qt::ArrowCursor);
 
     const QList<QWidget*> list(w->findChildren<QWidget*>());
     foreach(QWidget *widget, list) {
@@ -263,11 +265,14 @@ void KFormDesigner::widgetsToXML(QDomDocument& doc,
         ObjectTreeItem *item = form.objectTree()->lookup(w->objectName());
         if (!item)
             return;
+        Container *c = form.parentContainer(item->widget());
+        if (!c)
+            return;
 
         // We need to store both parentContainer and parentWidget as they may be different (eg for TabWidget page)
         containers.insert(
             item->name().toLatin1(),
-            form.parentContainer(item->widget())->widget()->objectName().toLatin1().constData()
+            c->widget()->objectName().toLatin1().constData()
         );
         parents.insert(
             item->name().toLatin1(),
@@ -317,7 +322,28 @@ QAction *ActionGroup::action(const QString& name) const
 
 int KFormDesigner::alignValueToGrid(int value, int gridSize)
 {
-    return int((float)value / ((float)gridSize) + 0.5) * gridSize;
+    if ((value % gridSize * 2) < gridSize)
+        return value / gridSize * gridSize;
+    return (value / gridSize + 1) * gridSize;
+}
+
+//-----------------------------
+
+void KFormDesigner::paintWidgetFrame(QPainter& p, const QRect& geometry)
+{
+    QColor c1(Qt::white);
+    c1.setAlpha(100);
+    QColor c2(Qt::black);
+    c2.setAlpha(100);
+    QRect r(geometry);
+    r.setWidth(r.width()-1);
+    r.setHeight(r.height()-1);
+    QPen pen1(c1, 1, Qt::DashLine);
+    QPen pen2(c2, 1, Qt::DashLine);
+    p.setPen(pen1);
+    p.drawRect(r);
+    p.setPen(pen2);
+    p.drawRect(r);
 }
 
 #include "utils.moc"

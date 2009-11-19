@@ -523,7 +523,7 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
     // Create the cmsTransform if needed
     KoColorTransformation* transform = 0;
     if (profile && !profile->isSuitableForOutput()) {
-        transform = KoColorSpaceRegistry::instance()->colorSpace(csName, profile)->createColorConverter( cs );
+        transform = KoColorSpaceRegistry::instance()->colorSpace(csName, profile)->createColorConverter(cs);
     }
 
     // Creating the KisImageWSP
@@ -540,6 +540,16 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
                 annotation = new  KisAnnotation("icc", iccprofile->name(), iccprofile->rawData());
             m_img -> addAnnotation(annotation);
         }
+    }
+    
+    // Read resolution
+    int unit_type;
+    png_uint_32 x_resolution, y_resolution;
+    
+    png_get_pHYs(png_ptr, info_ptr,&x_resolution,&y_resolution, &unit_type);
+    if (unit_type == PNG_RESOLUTION_METER)
+    {
+        m_img->setResolution((double) POINT_TO_CM(x_resolution)/100.0, (double) POINT_TO_CM(y_resolution)/100.0 ); // It is the "invert" macro because we convert from pointer-per-inchs to points
     }
 
     double coeff = quint8_MAX / (double)(pow(2, color_nb_bits) - 1);
@@ -621,7 +631,7 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
                 while (!it.isDone()) {
                     quint16 *d = reinterpret_cast<quint16 *>(it.rawData());
                     d[0] = *(src++);
-                    if (transform) transform->transform( reinterpret_cast<quint8*>(d), reinterpret_cast<quint8*>(d), 1);
+                    if (transform) transform->transform(reinterpret_cast<quint8*>(d), reinterpret_cast<quint8*>(d), 1);
                     if (hasalpha) {
                         d[1] = *(src++);
                     } else {
@@ -634,7 +644,7 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
                 while (!it.isDone()) {
                     quint8 *d = it.rawData();
                     d[0] = (quint8)(stream.nextValue() * coeff);
-                    if (transform) transform->transform( d, d, 1);
+                    if (transform) transform->transform(d, d, 1);
                     if (hasalpha) {
                         d[1] = (quint8)(stream.nextValue() * coeff);
                     } else {
@@ -656,7 +666,7 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
                     d[2] = *(src++);
                     d[1] = *(src++);
                     d[0] = *(src++);
-                    if (transform) transform->transform( reinterpret_cast<quint8 *>(d), reinterpret_cast<quint8*>(d), 1);
+                    if (transform) transform->transform(reinterpret_cast<quint8 *>(d), reinterpret_cast<quint8*>(d), 1);
                     if (hasalpha) d[3] = *(src++);
                     else d[3] = quint16_MAX;
                     ++it;
@@ -668,7 +678,7 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
                     d[2] = (quint8)(stream.nextValue() * coeff);
                     d[1] = (quint8)(stream.nextValue() * coeff);
                     d[0] = (quint8)(stream.nextValue() * coeff);
-                    if (transform) transform->transform( d, d, 1);
+                    if (transform) transform->transform(d, d, 1);
                     if (hasalpha) d[3] = (quint8)(stream.nextValue() * coeff);
                     else d[3] = UCHAR_MAX;
                     ++it;
@@ -731,9 +741,9 @@ KisImageBuilder_Result KisPNGConverter::buildImage(const KUrl& uri)
         uriTF.setPath(tmpFile);
 
         // open the file
-        dbgFile << QFile::encodeName(uriTF.path()) << " " << uriTF.path() << " " << uriTF;
+        dbgFile << QFile::encodeName(uriTF.toLocalFile()) << " " << uriTF.toLocalFile() << " " << uriTF;
 //         QFile *fp = new QFile(QFile::encodeName(uriTF.path()) );
-        QFile *fp = new QFile(uriTF.path());
+        QFile *fp = new QFile(uriTF.toLocalFile());
         if (fp->exists()) {
             result = buildImage(fp);
         } else {
@@ -904,8 +914,8 @@ KisImageBuilder_Result KisPNGConverter::buildFile(QIODevice* iodevice, KisImageW
         dbgFile << "Trying to store annotation of type " << (*it) -> type() << " of size " << (*it) -> annotation() . size();
 
         if ((*it) -> type().startsWith(QString("krita_attribute:"))) { //
-                                                              // Attribute
-#ifdef __GNUC__                                                 \
+            // Attribute
+#ifdef __GNUC__
     #warning "it should be possible to save krita_attributes in the \"CHUNKs\""
 #endif
             dbgFile << "cannot save this annotation : " << (*it) -> type();
@@ -968,9 +978,9 @@ KisImageBuilder_Result KisPNGConverter::buildFile(QIODevice* iodevice, KisImageW
             writeRawProfile(png_ptr, info_ptr, "iptc", buffer.data());
         }
         // Save XMP
-        if(options.xmp)
+        if (options.xmp)
 #if 1
-        // TODO enable when XMP support is finiehsed
+            // TODO enable when XMP support is finiehsed
         {
             dbgFile << "Trying to save XMP information";
             KisMetaData::IOBackend* xmpIO = KisMetaData::IOBackendRegistry::instance()->value("xmp");
@@ -985,6 +995,12 @@ KisImageBuilder_Result KisPNGConverter::buildFile(QIODevice* iodevice, KisImageW
 #endif
     }
 
+    // Save resolution
+    int unit_type;
+    png_uint_32 x_resolution, y_resolution;
+    
+    png_set_pHYs(png_ptr, info_ptr, CM_TO_POINT(img->xRes()) * 100.0, CM_TO_POINT(img->yRes()) * 100.0, PNG_RESOLUTION_METER); // It is the "invert" macro because we convert from pointer-per-inchs to points
+    
     // Save the information to the file
     png_write_info(png_ptr, info_ptr);
     png_write_flush(png_ptr);

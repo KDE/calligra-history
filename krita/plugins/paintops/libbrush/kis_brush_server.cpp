@@ -27,6 +27,8 @@
 #include <KoResourceServer.h>
 #include <KoResourceServerProvider.h>
 
+#include <kis_debug.h>
+
 #include "kis_gbr_brush.h"
 #include "kis_imagepipe_brush.h"
 
@@ -52,16 +54,13 @@ private:
 
         if (fileExtension == ".gbr") {
             brush = new KisGbrBrush(filename);
-        }
-        else if (fileExtension == ".gih") {
+        } else if (fileExtension == ".gih") {
             brush = new KisImagePipeBrush(filename);
         }
 
         return brush;
     }
 };
-
-KisBrushServer *KisBrushServer::m_singleton = 0;
 
 KisBrushServer::KisBrushServer()
 {
@@ -77,14 +76,13 @@ KisBrushServer::KisBrushServer()
 
 KisBrushServer::~KisBrushServer()
 {
+    dbgRegistry << "deleting KisBrushServer";
 }
 
 KisBrushServer* KisBrushServer::instance()
 {
-    if (KisBrushServer::m_singleton == 0) {
-        KisBrushServer::m_singleton = new KisBrushServer();
-    }
-    return KisBrushServer::m_singleton;
+    K_GLOBAL_STATIC(KisBrushServer, s_instance);
+    return s_instance;
 }
 
 

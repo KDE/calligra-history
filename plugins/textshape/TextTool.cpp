@@ -79,7 +79,6 @@
 #include <KMessageBox>
 #include <KRun>
 #include <QAbstractTextDocumentLayout>
-#include <KAction>
 #include <QBuffer>
 #include <QTextTable>
 #include <QKeyEvent>
@@ -582,20 +581,9 @@ void TextTool::paint(QPainter &painter, const KoViewConverter &converter)
                 }
             }
             painter.setPen(caretPen);
-            const int posInParag = m_textEditor->position() - block.position();
-            if (posInParag == 0 && block.length() == 1) { // empty parag, lets check alignment
-                QTextBlockFormat bf = block.blockFormat();
-                Qt::Alignment alignment = bf.alignment();
-                KoText::Direction direction = static_cast<KoText::Direction>(bf.intProperty(KoParagraphStyle::TextProgressionDirection));
-                QTextLine line = block.layout()->lineAt(0);
-                if ((alignment & Qt::AlignHCenter) == Qt::AlignHCenter)
-                    painter.translate(ts->size().width() / 2.0, 0);
-                else if (((alignment & Qt::AlignTrailing) == Qt::AlignTrailing &&
-                            direction == KoText::LeftRightTopBottom)
-                        || ((alignment & Qt::AlignLeading) == Qt::AlignLeading &&
-                            direction == KoText::RightLeftTopBottom))
-                    painter.translate(ts->size().width() - converter.viewToDocumentX(3), 0);
-            }
+            int posInParag = m_textEditor->position() - block.position();
+            if (posInParag <= block.layout()->preeditAreaPosition())
+                posInParag += block.layout()->preeditAreaText().length();
             block.layout()->drawCursor(&painter, QPointF(), posInParag);
         }
 
@@ -671,8 +659,12 @@ const QTextCursor TextTool::cursor()
 void TextTool::setShapeData(KoTextShapeData *data)
 {
     bool docChanged = data == 0 || m_textShapeData == 0 || m_textShapeData->document() != data->document();
-    if (m_textShapeData)
+    if (m_textShapeData) {
         disconnect(m_textShapeData, SIGNAL(destroyed (QObject*)), this, SLOT(shapeDataRemoved()));
+        KoTextDocumentLayout *lay = qobject_cast<KoTextDocumentLayout*>(m_textShapeData->document()->documentLayout());
+        if (lay)
+            disconnect(lay, SIGNAL(shapeAdded(KoShape*)), this, SLOT(shapeAddedToDoc(KoShape*)));
+    }
     m_textShapeData = data;
     if (m_textShapeData == 0)
         return;
@@ -685,7 +677,10 @@ void TextTool::setShapeData(KoTextShapeData *data)
         connect(m_textEditor, SIGNAL(isBidiUpdated()), this, SLOT(isBidiUpdated()));
 
         KoTextDocumentLayout *lay = qobject_cast<KoTextDocumentLayout*>(m_textShapeData->document()->documentLayout());
-        if (lay) { // check and remove the demo text.
+        if (lay) {
+            connect(lay, SIGNAL(shapeAdded(KoShape*)), this, SLOT(shapeAddedToDoc(KoShape*)));
+
+             // check and remove the demo text.
             bool demoTextOn = true;
             foreach (KoShape *shape, lay->shapes()) {
                 TextShape *ts = dynamic_cast<TextShape*>(shape);
@@ -909,7 +904,7 @@ void TextTool::keyPressEvent(QKeyEvent *event)
                 ChangeListCommand *clc = new ChangeListCommand(*m_textEditor->cursor(), KoListStyle::None, 0 /* level */);
                 addCommand(clc);
             }
-        } else if (m_textEditor->position() > 0) {
+        } else if (m_textEditor->position() > 0 || m_textEditor->hasSelection()) {
             if (!m_textEditor->hasSelection() && event->modifiers() & Qt::ControlModifier) // delete prev word.
                 m_textEditor->movePosition(QTextCursor::PreviousWord, QTextCursor::KeepAnchor);
             m_textEditor->deletePreviousChar();
@@ -1051,7 +1046,12 @@ QVariant TextTool::inputMethodQuery(Qt::InputMethodQuery query, const KoViewConv
         // The rectangle covering the area of the input cursor in widget coordinates.
         QRectF rect = textRect(m_textEditor->position(), m_textEditor->position());
         rect.moveTop(rect.top() - m_textShapeData->documentOffset());
-        rect = m_textShape->absoluteTransformation(&converter).mapRect(rect);
+        QMatrix shapeMatrix = m_textShape->absoluteTransformation(&converter);
+        qreal zoomX, zoomY;
+        converter.zoom(&zoomX, &zoomY);
+        shapeMatrix.scale(zoomX, zoomY);
+        rect = shapeMatrix.mapRect(rect);
+
         return rect.toRect();
     }
     case Qt::ImFont:
@@ -1070,7 +1070,7 @@ QVariant TextTool::inputMethodQuery(Qt::InputMethodQuery query, const KoViewConv
     return QVariant();
 }
 
-void TextTool::inputMethodEvent(QInputMethodEvent * event)
+void TextTool::inputMethodEvent(QInputMethodEvent *event)
 {
     if (event->replacementLength() > 0) {
         m_textEditor->setPosition(m_textEditor->position() + event->replacementStart());
@@ -1078,9 +1078,17 @@ void TextTool::inputMethodEvent(QInputMethodEvent * event)
             m_textEditor->deleteChar();
         }
     }
-    if (! event->commitString().isEmpty()) {
+    QTextBlock block = m_textEditor->block();
+    QTextLayout *layout = block.layout();
+    Q_ASSERT(layout);
+    if (!event->commitString().isEmpty()) {
         QKeyEvent ke(QEvent::KeyPress, -1, 0, event->commitString());
         keyPressEvent(&ke);
+        layout->setPreeditArea(-1, QString());
+    } else {
+        layout->setPreeditArea(m_textEditor->position() - block.position(),
+                event->preeditString());
+        m_textEditor->document()->markContentsDirty(m_textEditor->position(), 1);
     }
     event->accept();
 }
@@ -1614,13 +1622,8 @@ void TextTool::setStyle(KoParagraphStyle *style)
 void TextTool::insertTable()
 {
     TableDialog *dia = new TableDialog(0);
-/*
-    connect(dia, SIGNAL(startMacro(const QString&)), this, SLOT(startMacro(const QString&)));
-    connect(dia, SIGNAL(stopMacro()), this, SLOT(stopMacro()));
-*/
-    dia->exec();
-
-    m_textEditor->insertTable(dia->rows(), dia->columns());
+    if (dia->exec() == TableDialog::Accepted)
+        m_textEditor->insertTable(dia->rows(), dia->columns());
 
     delete dia;
 }
@@ -1645,6 +1648,11 @@ void TextTool::toggleTrackChanges(bool on)//TODO transfer this in KoTextEditor
         QTextCharFormat format = m_textEditor->charFormat();
         format.clearProperty(KoCharacterStyle::ChangeTrackerId);
         m_textEditor->setCharFormat(format);
+        const QTextDocument *doc = m_textEditor->document();
+        Q_ASSERT(doc);
+        KoTextDocumentLayout *lay = qobject_cast<KoTextDocumentLayout*>(doc->documentLayout());
+        if(lay)
+          lay->scheduleLayout();
     }
     m_textTyping = false;
     m_textDeleting = false;
@@ -1864,6 +1872,13 @@ void TextTool::setTextColor(const KoColor &color)
 void TextTool::setBackgroundColor(const KoColor &color)
 {
     m_textEditor->setTextBackgroundColor(color.toQColor());
+}
+
+void TextTool::shapeAddedToDoc(KoShape *shape)
+{
+    // in case the new frame added is a freshly appended frame
+    // allow the layouter to do some work and then optionally move the view to follow the cursor
+    QTimer::singleShot(0, this, SLOT(ensureCursorVisible()));
 }
 
 void TextTool::debugTextDocument()

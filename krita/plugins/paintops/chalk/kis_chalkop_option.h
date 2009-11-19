@@ -29,16 +29,20 @@ public:
     KisChalkOpOption();
     ~KisChalkOpOption();
 
+    void setRadius(int radius) const;
     int radius() const;
-    void setRadius( int radius );
 
+    bool inkDepletion() const; 
+    bool saturation() const;
+    bool opacity() const;
+    
     void writeOptionSetting(KisPropertiesConfiguration* setting) const;
     void readOptionSetting(const KisPropertiesConfiguration* setting);
 
 
 private:
 
-   KisChalkOpOptionsWidget * m_options;
+    KisChalkOpOptionsWidget * m_options;
 
 };
 

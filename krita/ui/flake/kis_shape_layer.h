@@ -91,15 +91,12 @@ public:
     void setX(qint32);
     void setY(qint32);
 
-    QRect extent() const;
-    QRect exactBounds() const;
-
     bool accept(KisNodeVisitor&);
 
     KoShapeManager *shapeManager() const;
 
-    bool saveLayer( KoStore * store ) const;
-    bool loadLayer( KoStore* store );
+    bool saveLayer(KoStore * store) const;
+    bool loadLayer(KoStore* store);
 
 public slots:
     void selectionChanged();

@@ -19,8 +19,9 @@
 #ifndef KIS_VIEW_2
 #define KIS_VIEW_2
 
-#include <QDockWidget>
 
+#include <QDockWidget>
+#include <QQueue>
 #include <KoView.h>
 #include <KoProgressUpdater.h>
 #include <KoToolManager.h>
@@ -29,6 +30,9 @@
 
 class QDragEnterEvent;
 class QDropEvent;
+class QMouseEvent;
+
+class KisPaintOpPreset;
 
 class KoCanvasController;
 
@@ -48,6 +52,8 @@ class KisMaskManager;
 class KisPerspectiveGridManager;
 class KisPaintingAssistantsManager;
 class KisGridManager;
+class KoFavoriteResourceManager;
+class KisPaintopBox;
 
 /**
  * Krita view class
@@ -172,6 +178,17 @@ public:  // Krita specific interfaces
     KisGridManager * gridManager();
     KisPerspectiveGridManager* perspectiveGridManager();
     KisPaintingAssistantsManager* paintingAssistantManager();
+    void setFavoriteResourceManager (KisPaintopBox*);
+    KoFavoriteResourceManager* favoriteResourceManager();
+
+signals:
+
+    void sigLoadingFinished();
+    void favoritePaletteCalled(QMouseEvent *);
+
+protected:
+
+    void resizeEvent ( QResizeEvent * event );
 
 private slots:
 
@@ -181,9 +198,12 @@ private slots:
     void slotEditPalette();
     void slotImageSizeChanged();
     void slotTotalRefresh();
+    void toggleDockers(bool toggle);
 
 private:
 
+
+    void createGUI();
     void createActions();
     void createManagers();
 

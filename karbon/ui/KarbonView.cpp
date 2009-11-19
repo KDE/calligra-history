@@ -71,12 +71,12 @@
 #include <KoPageLayoutDialog.h>
 #include <KoRuler.h>
 #include <KoToolManager.h>
+#include <KoStandardAction.h>
 #include <KoToolProxy.h>
 #include <KoShapeManager.h>
 #include <KoShapeController.h>
 #include <KoShapeContainer.h>
 #include <KoShapeGroup.h>
-#include <KoShapeUngroupCommand.h>
 #include <KoShapeCreateCommand.h>
 #include <KoShapeDeleteCommand.h>
 #include <KoShapeReorderCommand.h>
@@ -104,6 +104,10 @@
 #include <KoPasteController.h>
 #include <KoSnapGuide.h>
 #include <KoSnapStrategy.h>
+#include <KoShapeFactory.h>
+#include <KoShapeRegistry.h>
+#include <KoImageCollection.h>
+#include <KoImageData.h>
 
 // kde header
 #include <kaction.h>
@@ -135,7 +139,7 @@
 #include <QtCore/QTimer>
 #include <QtCore/QEvent>
 #include <QtGui/QPrinter>
-
+#include <QtGui/QImageReader>
 
 #include <unistd.h>
 
@@ -147,7 +151,7 @@
 #define KARBON_DEBUG_VIEW
 
 #ifdef KARBON_DEBUG_VIEW
-#define debugView(text) kDebug(38000) <<"KARBON_DEBUG_VIEW:" << text
+#define debugView(text) kDebug(38000) << "(" << this << ") " << text
 #else
 #define debugView(text)
 #endif
@@ -157,12 +161,12 @@ class KarbonView::Private
 public:
     Private( KarbonPart * p)
         : part(p), canvas( 0 ), canvasController(0), horizRuler(0), vertRuler(0)
-        , groupObjects(0), ungroupObjects(0), closePath(0), combinePath(0)
+        , closePath(0), combinePath(0)
         , separatePath(0), reversePath(0), intersectPath(0), subtractPath(0)
         , unitePath(0), excludePath(0), pathSnapToGrid(0), configureAction(0)
         , deleteSelectionAction(0), viewAction(0), showRulerAction(0)
         , snapGridAction(0), showPageMargins(0), showGuidesAction(0)
-        , status(0), cursorCoords(0)
+        , status(0), cursorCoords(0), smallPreview(0), zoomActionWidget(0)
     {}
 
     KarbonPart * part;
@@ -172,8 +176,6 @@ public:
     KoRuler * vertRuler;
 
     // actions:
-    KAction * groupObjects;
-    KAction * ungroupObjects;
     KAction * closePath;
     KAction * combinePath;
     KAction * separatePath;
@@ -195,16 +197,16 @@ public:
     //Status Bar
     QLabel * status;       ///< ordinary status
     QLabel * cursorCoords; ///< cursor coordinates
+    KarbonSmallStylePreview * smallPreview; ///< small style preview
+    QWidget * zoomActionWidget; ///< zoom action widget
 };
 
 KarbonView::KarbonView( KarbonPart* p, QWidget* parent )
-    : KoView( p, parent ), KXMLGUIBuilder( shell() ), d( new Private( p ) )
+    : KoView( p, parent ), d( new Private( p ) )
 {
-    debugView("KarbonView::KarbonView");
+    debugView("");
 
     setComponentData( KarbonFactory::componentData(), true );
-
-    setClientBuilder( this );
 
     if( !p->isReadWrite() )
         setXMLFile( QString::fromLatin1( "karbon_readonly.rc" ) );
@@ -229,13 +231,13 @@ KarbonView::KarbonView( KarbonPart* p, QWidget* parent )
     d->canvasController->show();
 
     // set up status bar message
-    d->status = new QLabel( QString(), statusBar() );
+    d->status = new QLabel( QString(), this );
     d->status->setAlignment( Qt::AlignLeft | Qt::AlignVCenter );
     d->status->setMinimumWidth( 300 );
     addStatusBarItem( d->status, 1 );
     connect( KoToolManager::instance(), SIGNAL(changedStatusText(const QString &)),
              d->status, SLOT(setText(const QString &)) );
-    d->cursorCoords = new QLabel( QString(), statusBar() );
+    d->cursorCoords = new QLabel( QString(), this );
     d->cursorCoords->setAlignment( Qt::AlignLeft | Qt::AlignVCenter );
     d->cursorCoords->setMinimumWidth( 50 );
     addStatusBarItem( d->cursorCoords, 0 );
@@ -244,20 +246,27 @@ KarbonView::KarbonView( KarbonPart* p, QWidget* parent )
     // set up the zoom controller
     KarbonZoomController * zoomController = new KarbonZoomController( d->canvasController, actionCollection() );
     zoomController->setPageSize( d->part->document().pageSize() );
-    addStatusBarItem( zoomController->zoomAction()->createWidget( statusBar() ), 0 );
+    d->zoomActionWidget = zoomController->zoomAction()->createWidget( statusBar() );
+    addStatusBarItem( d->zoomActionWidget, 0 );
     zoomController->setZoomMode( KoZoomMode::ZOOM_PAGE );
     connect( zoomController, SIGNAL(zoomedToSelection()), this, SLOT(zoomSelection()));
     connect( zoomController, SIGNAL(zoomedToAll()), this, SLOT(zoomDrawing()));
 
-    KarbonSmallStylePreview * smallPreview = new KarbonSmallStylePreview( statusBar() );
-    connect( smallPreview, SIGNAL(fillApplied()), this, SLOT(applyFillToSelection()) );
-    connect( smallPreview, SIGNAL(strokeApplied()), this, SLOT(applyStrokeToSelection()) );
-    addStatusBarItem( smallPreview, 0 );
+    d->smallPreview = new KarbonSmallStylePreview( this );
+    connect( d->smallPreview, SIGNAL(fillApplied()), this, SLOT(applyFillToSelection()) );
+    connect( d->smallPreview, SIGNAL(strokeApplied()), this, SLOT(applyStrokeToSelection()) );
+    addStatusBarItem( d->smallPreview, 0 );
 
     // layout:
     QGridLayout *layout = new QGridLayout();
     layout->setMargin(0);
     layout->addWidget(d->canvasController, 1, 1);
+
+    if( shell() )
+    {
+        KoToolManager::instance()->addController( d->canvasController );
+        KoToolManager::instance()->registerTools( actionCollection(), d->canvasController );
+    }
 
     initActions();
 
@@ -295,8 +304,6 @@ KarbonView::KarbonView( KarbonPart* p, QWidget* parent )
 
     if( shell() )
     {
-        KoToolManager::instance()->addController( d->canvasController );
-        KoToolManager::instance()->registerTools( actionCollection(), d->canvasController );
         // set the first layer active
         d->canvasController->canvas()->shapeManager()->selection()->setActiveLayer( part()->document().layers().first() );
 
@@ -331,10 +338,15 @@ KarbonView::KarbonView( KarbonPart* p, QWidget* parent )
 
 KarbonView::~KarbonView()
 {
-    debugView("KarbonView::~KarbonView()");
+    debugView("");
 
     KoToolManager::instance()->removeCanvasController( d->canvasController );
 
+    removeStatusBarItem(d->status);
+    removeStatusBarItem(d->cursorCoords);
+    removeStatusBarItem(d->smallPreview);
+    removeStatusBarItem(d->zoomActionWidget);
+    
     delete d;
 }
 
@@ -348,9 +360,14 @@ KarbonCanvas * KarbonView::canvasWidget() const
     return d->canvas;
 }
 
+KoZoomController * KarbonView::zoomController() const
+{
+    return 0;
+}
+
 void KarbonView::resizeEvent( QResizeEvent* /*event*/ )
 {
-    debugView("KarbonView::resizeEvent()");
+    debugView("");
 
     if(!d->showRulerAction)
         return;
@@ -363,7 +380,7 @@ void KarbonView::resizeEvent( QResizeEvent* /*event*/ )
 
 void KarbonView::dropEvent( QDropEvent *e )
 {
-    debugView("KarbonView::dropEvent()");
+    debugView("");
 
     //Accepts QColor - from Color Manager's KColorPatch
     QColor color = KColorMimeData::fromMimeData( e->mimeData() );
@@ -376,7 +393,7 @@ void KarbonView::dropEvent( QDropEvent *e )
         if( ! part() )
             return;
 
-        if( d->canvas->resourceProvider()->intResource( Karbon::ActiveStyle ) == Karbon::Foreground )
+        if( d->canvas->resourceProvider()->intResource( KoCanvasResource::ActiveStyleType ) == KoFlake::Foreground )
         {
             QList<KoShapeBorderModel*> borders;
             QList<KoShape*> selectedShapes = selection->selectedShapes();
@@ -407,22 +424,29 @@ void KarbonView::dropEvent( QDropEvent *e )
 
 void KarbonView::fileImportGraphic()
 {
-    debugView("KarbonView::fileImportGraphic()");
+    debugView("");
 
     QStringList filter;
     filter << part()->nativeFormatMimeType();
-    filter << "application/x-karbon";
     filter << "image/svg+xml";
+    filter << "application/x-karbon";
     filter << "application/x-wpg";
     filter << "image/x-wmf";
     filter << "image/x-eps";
     filter << "application/postscript";
     
+    QStringList imageFilter;
+    // add filters for all formats supported by QImage
+    foreach(const QByteArray &format, QImageReader::supportedImageFormats()) {
+        imageFilter << "image/" + format;
+    }
+    filter.append(imageFilter);
+    
     QPointer<KFileDialog> dialog = new KFileDialog(KUrl(), "", 0);
     dialog->setCaption(i18n("Choose Graphic to Add"));
     dialog->setModal(true);
     dialog->setMimeFilter( filter );
-    if(dialog->exec()!=QDialog::Accepted) {
+    if (dialog->exec()!=QDialog::Accepted) {
         delete dialog;
         return;
     }
@@ -430,10 +454,11 @@ void KarbonView::fileImportGraphic()
     QString currentMimeFilter = dialog ? dialog->currentMimeFilter() : QString();
     delete dialog;
     
+    QMap<QString,KoDataCenter*> dataCenters = part()->document().dataCenterMap();
     
     KarbonPart importPart;
     // use data centers of this document for importing
-    importPart.document().useExternalDataCenterMap( part()->document().dataCenterMap() );
+    importPart.document().useExternalDataCenterMap(dataCenters);
 
     bool success = true;
 
@@ -442,9 +467,60 @@ void KarbonView::fileImportGraphic()
     if (currentMimeFilter.isEmpty()) {
         // get mime type from file
         KMimeType::Ptr mimeType = KMimeType::findByFileContent(fname);
-        if (mimeType && mimeType->is(importPart.nativeFormatMimeType()))
-            currentMimeFilter = importPart.nativeFormatMimeType();
+        if (mimeType) {
+            if (mimeType->is(importPart.nativeFormatMimeType())) {
+                currentMimeFilter = importPart.nativeFormatMimeType();
+            } else {
+                foreach(const QString &filter, imageFilter) {
+                    if (mimeType->is(filter)) {
+                        currentMimeFilter = filter;
+                        break;
+                    }
+                }
+            }
+        }
     }
+    
+    // check if we are loading an image format
+    if (imageFilter.contains(currentMimeFilter)) {
+        QImage image;
+        if (!image.load(fname)) {
+            KMessageBox::error(0, i18n("Could not load image."), i18n("Import graphic"), 0);
+            return;
+        }
+        KoShapeFactory * factory = KoShapeRegistry::instance()->get( "PictureShape" );
+        if (!factory) {
+            KMessageBox::error(0, i18n("Could not create image shape."), i18n("Import graphic"), 0);
+            return;
+        }
+        
+        KoShape * picture = factory->createDefaultShapeAndInit(dataCenters);
+        KoImageCollection * imageCollection = dynamic_cast<KoImageCollection*>( dataCenters["ImageCollection"] );
+        if (!picture || !imageCollection) {
+            KMessageBox::error(0, i18n("Could not create image shape."), i18n("Import graphic"), 0);
+            return;
+        }
+        
+        // calculate shape size in point from image resolution
+        qreal pxWidth = static_cast<qreal>(image.width());
+        qreal pxHeight = static_cast<qreal>(image.height());
+        qreal width = DM_TO_POINT(pxWidth / static_cast<qreal>(image.dotsPerMeterX()) * 10.0);
+        qreal height = DM_TO_POINT(pxHeight / static_cast<qreal>(image.dotsPerMeterY()) * 10.0);
+        
+        // set shape data
+        picture->setUserData(imageCollection->createImageData(image));
+        picture->setSize(QSizeF(width,height));
+        picture->setPosition(QPointF());
+        picture->setKeepAspectRatio(true);
+        
+        QUndoCommand * cmd = d->canvas->shapeController()->addShapeDirect(picture);
+        cmd->setText(i18n("Insert graphics"));
+        d->canvas->addCommand(cmd);
+        d->canvas->shapeManager()->selection()->select(picture);
+        return;
+    }
+    
+    // check if we are loading our native format
     if (importPart.nativeFormatMimeType() == currentMimeFilter) {
         // directly load the native format
         success = importPart.loadNativeFormat( fname );
@@ -484,7 +560,7 @@ void KarbonView::fileImportGraphic()
 
 void KarbonView::selectionDuplicate()
 {
-    debugView("KarbonView::selectionDuplicate()");
+    debugView("");
     d->canvas->toolProxy()->copy();
     // TODO bring back copy offset
     d->canvas->toolProxy()->paste();
@@ -492,7 +568,7 @@ void KarbonView::selectionDuplicate()
 
 void KarbonView::editSelectAll()
 {
-    debugView("KarbonView::editSelectAll()");
+    debugView("");
 
     KoSelection* selection = d->canvas->shapeManager()->selection();
     if( ! selection )
@@ -512,7 +588,7 @@ void KarbonView::editSelectAll()
 
 void KarbonView::editDeselectAll()
 {
-    debugView("KarbonView::editDeselectAll()");
+    debugView("");
 
     KoSelection* selection = d->canvas->shapeManager()->selection();
     if( selection )
@@ -523,63 +599,63 @@ void KarbonView::editDeselectAll()
 
 void KarbonView::editDeleteSelection()
 {
-    debugView("KarbonView::editDeleteSelection()");
+    debugView("");
 
     d->canvas->toolProxy()->deleteSelection();
 }
 
 void KarbonView::selectionDistributeHorizontalCenter()
 {
-    debugView("KarbonView::selectionDistributeHorizontalCenter()");
+    debugView("");
 
     selectionDistribute(KoShapeDistributeCommand::HorizontalCenterDistribution);
 }
 
 void KarbonView::selectionDistributeHorizontalGap()
 {
-    debugView("KarbonView::selectionDistributeHorizontalGap()");
+    debugView("");
 
     selectionDistribute(KoShapeDistributeCommand::HorizontalGapsDistribution);
 }
 
 void KarbonView::selectionDistributeHorizontalLeft()
 {
-    debugView("KarbonView::selectionDistributeHorizontalLeft()");
+    debugView("");
 
     selectionDistribute(KoShapeDistributeCommand::HorizontalLeftDistribution);
 }
 
 void KarbonView::selectionDistributeHorizontalRight()
 {
-    debugView("KarbonView::selectionDistributeHorizontalRight()");
+    debugView("");
 
     selectionDistribute(KoShapeDistributeCommand::HorizontalRightDistribution);
 }
 
 void KarbonView::selectionDistributeVerticalCenter()
 {
-    debugView("KarbonView::selectionDistributeVerticalCenter()");
+    debugView("");
 
     selectionDistribute(KoShapeDistributeCommand::VerticalCenterDistribution);
 }
 
 void KarbonView::selectionDistributeVerticalGap()
 {
-    debugView("KarbonView::selectionDistributeVerticalGap()");
+    debugView("");
 
     selectionDistribute(KoShapeDistributeCommand::VerticalGapsDistribution);
 }
 
 void KarbonView::selectionDistributeVerticalBottom()
 {
-    debugView("KarbonView::selectionDistributeVerticalBottom()");
+    debugView("");
 
     selectionDistribute(KoShapeDistributeCommand::VerticalBottomDistribution);
 }
 
 void KarbonView::selectionDistributeVerticalTop()
 {
-    debugView("KarbonView::selectionDistributeVerticalTop()");
+    debugView("");
 
     selectionDistribute(KoShapeDistributeCommand::VerticalTopDistribution);
 }
@@ -598,77 +674,16 @@ void KarbonView::selectionDistribute(KoShapeDistributeCommand::Distribute distri
     d->canvas->addCommand( cmd );
 }
 
-void KarbonView::groupSelection()
-{
-    debugView("KarbonView::groupSelection()");
-
-    KoSelection* selection = d->canvas->shapeManager()->selection();
-    if( ! selection )
-        return;
-
-    QList<KoShape*> selectedShapes = selection->selectedShapes( KoFlake::TopLevelSelection );
-    QList<KoShape*> groupedShapes;
-
-    // only group shapes with an unselected parent
-    foreach( KoShape* shape, selectedShapes )
-    {
-        if( selectedShapes.contains( shape->parent() ) )
-            continue;
-        groupedShapes << shape;
-    }
-    KoShapeGroup *group = new KoShapeGroup();
-    if( selection->activeLayer() )
-        selection->activeLayer()->addChild( group );
-    QUndoCommand *cmd = new QUndoCommand( i18n("Group shapes") );
-    new KoShapeCreateCommand( d->part, group, cmd );
-    new KoShapeGroupCommand( group, groupedShapes, cmd );
-    d->canvas->addCommand( cmd );
-}
-
-void KarbonView::ungroupSelection()
-{
-    debugView("KarbonView::ungroupSelection()");
-
-    KoSelection* selection = d->canvas->shapeManager()->selection();
-    if( ! selection )
-        return;
-
-    QList<KoShape*> selectedShapes = selection->selectedShapes( KoFlake::TopLevelSelection );
-    QList<KoShape*> containerSet;
-
-    // only ungroup shape containers with an unselected parent
-    foreach( KoShape* shape, selectedShapes )
-    {
-        if( selectedShapes.contains( shape->parent() ) )
-            continue;
-        containerSet << shape;
-    }
-
-    QUndoCommand *cmd = new QUndoCommand( i18n("Ungroup shapes") );
-
-    // add a ungroup command for each found shape container to the macro command
-    foreach( KoShape* shape, containerSet )
-    {
-        KoShapeContainer *container = dynamic_cast<KoShapeContainer*>( shape );
-        if( container )
-        {
-            new KoShapeUngroupCommand( container, container->childShapes(), cmd );
-            new KoShapeDeleteCommand( d->part, container, cmd );
-        }
-    }
-    d->canvas->addCommand( cmd );
-}
-
 void KarbonView::closePath()
 {
-    debugView("KarbonView::closePath()");
+    debugView("");
 
     // TODO add the new close path command here
 }
 
 void KarbonView::combinePath()
 {
-    debugView("KarbonView::combinePath()");
+    debugView("");
 
     KoSelection* selection = d->canvas->shapeManager()->selection();
     if( ! selection )
@@ -696,7 +711,7 @@ void KarbonView::combinePath()
 
 void KarbonView::separatePath()
 {
-    debugView("KarbonView::separatePath()");
+    debugView("");
     KoSelection* selection = d->canvas->shapeManager()->selection();
     if( ! selection )
         return;
@@ -720,7 +735,7 @@ void KarbonView::separatePath()
 
 void KarbonView::reversePath()
 {
-    debugView("KarbonView::reversePath()");
+    debugView("");
 
     QList<KoPathShape*> paths = selectedPathShapes();
     if( paths.size() )
@@ -838,7 +853,7 @@ void KarbonView::pathSnapToGrid()
 
 void KarbonView::viewModeChanged(bool outlineMode)
 {
-    debugView("KarbonView::viewModeChanged()");
+    debugView("");
 
     d->canvas->enableOutlineMode( outlineMode );
     d->canvas->updateCanvas(d->canvas->canvasWidget()->rect());
@@ -883,7 +898,7 @@ void KarbonView::zoomDrawing()
 
 void KarbonView::initActions()
 {
-    debugView("KarbonView::initActions()");
+    debugView("");
 
     // view ----->
     d->viewAction  = new KToggleAction(i18n("Outline &Mode"), this);
@@ -900,7 +915,7 @@ void KarbonView::initActions()
         return;
 
     // edit ----->
-    KAction *action = actionCollection()->addAction(KStandardAction::Cut,  "edit_cut", 0, 0);
+    QAction *action = actionCollection()->addAction(KStandardAction::Cut,  "edit_cut", 0, 0);
     new KoCutController(d->canvas, action);
     action = actionCollection()->addAction(KStandardAction::Copy,  "edit_copy", 0, 0);
     new KoCopyController(d->canvas, action);
@@ -968,27 +983,24 @@ void KarbonView::initActions()
     KToggleAction *gridAction = d->part->gridData().gridToggleAction(d->canvas);
     actionCollection()->addAction("view_grid", gridAction);
 
-    d->showGuidesAction  = new KToggleAction(KIcon("guides"), i18n("Show Guides"), this);
-    actionCollection()->addAction("view_show_guides", d->showGuidesAction );
-    d->showGuidesAction->setCheckedState(KGuiItem(i18n("Hide Guides")));
-    d->showGuidesAction->setToolTip(i18n("Shows or hides guides"));
+    d->showGuidesAction = KoStandardAction::showGuides(this, SLOT(showGuides()), this);
+    actionCollection()->addAction(KoStandardAction::name(KoStandardAction::ShowGuides), d->showGuidesAction );
     d->showGuidesAction->setChecked( d->part->guidesData().showGuideLines() );
-    connect(d->showGuidesAction, SIGNAL(triggered()), this, SLOT(showGuides()));
 
     d->snapGridAction  = new KToggleAction(i18n("Snap to Grid"), this);
     actionCollection()->addAction("view_snap_to_grid", d->snapGridAction );
     d->snapGridAction->setToolTip(i18n( "Snaps to grid"));
     connect(d->snapGridAction, SIGNAL(triggered()), this, SLOT(snapToGrid()));
 
-    d->groupObjects  = new KAction(KIcon("object-group"), i18n("&Group Objects"), this);
-    actionCollection()->addAction("selection_group", d->groupObjects );
-    d->groupObjects->setShortcut(QKeySequence("Ctrl+G"));
-    connect(d->groupObjects, SIGNAL(triggered()), this, SLOT(groupSelection()));
+    action = actionCollection()->action("object_group");
+    if ( action ) {
+        action->setShortcut(QKeySequence("Ctrl+G"));
+    }
+    action = actionCollection()->action("object_ungroup");
+    if ( action ) {
+        action->setShortcut(QKeySequence("Ctrl+Shift+G"));
+    }
 
-    d->ungroupObjects  = new KAction(KIcon("object-ungroup"), i18n("&Ungroup Objects"), this);
-    actionCollection()->addAction("selection_ungroup", d->ungroupObjects );
-    d->ungroupObjects->setShortcut(QKeySequence("Ctrl+Shift+G"));
-    connect(d->ungroupObjects, SIGNAL(triggered()), this, SLOT(ungroupSelection()));
     // object <-----
 
     // path ------->
@@ -1085,7 +1097,7 @@ void KarbonView::mousePositionChanged( const QPoint &position )
 
 void KarbonView::reorganizeGUI()
 {
-    debugView("KarbonView::reorganizeGUI()");
+    debugView("");
 
     if( d->snapGridAction )
         d->snapGridAction->setChecked( part()->gridData().snapToGrid() );
@@ -1095,7 +1107,7 @@ void KarbonView::reorganizeGUI()
 
 void KarbonView::setNumberOfRecentFiles( unsigned int number )
 {
-    debugView(QString("KarbonView::setNumberOfRecentFiles(%1)").arg(number));
+    debugView(QString("to %1").arg(number));
 
     if( shell() )    // 0L when embedded into konq !
         shell()->setMaxRecentItems( number );
@@ -1103,7 +1115,7 @@ void KarbonView::setNumberOfRecentFiles( unsigned int number )
 
 void KarbonView::showRuler()
 {
-    debugView("KarbonView::showRuler()");
+    debugView("");
 
     if( shell() && d->showRulerAction->isChecked() )
     {
@@ -1120,7 +1132,7 @@ void KarbonView::showRuler()
 
 void KarbonView::togglePageMargins(bool b)
 {
-    debugView(QString("KarbonView::togglePageMargins(%1)").arg(b));
+    debugView(QString("parameter %1").arg(b));
 
     ((KToggleAction*)actionCollection()->action("view_show_margins"))->setChecked(b);
     d->canvas->setShowPageMargins( b );
@@ -1141,7 +1153,7 @@ void KarbonView::updateRuler()
 
 void KarbonView::showGuides()
 {
-    debugView("KarbonView::showGuides()");
+    debugView("");
 
     d->part->guidesData().setShowGuideLines( d->showGuidesAction->isChecked() );
     d->canvas->update();
@@ -1149,7 +1161,7 @@ void KarbonView::showGuides()
 
 void KarbonView::snapToGrid()
 {
-    debugView("KarbonView::snapToGrid()");
+    debugView("");
 
     d->part->gridData().setSnapToGrid( d->snapGridAction->isChecked() );
     d->canvas->update();
@@ -1157,7 +1169,7 @@ void KarbonView::snapToGrid()
 
 void KarbonView::configure()
 {
-    debugView("KarbonView::configure()");
+    debugView("");
 
     QPointer<KarbonConfigureDialog> dialog = new KarbonConfigureDialog( this );
     dialog->exec();
@@ -1168,7 +1180,7 @@ void KarbonView::configure()
 
 void KarbonView::pageLayout()
 {
-    debugView("KarbonView::pageLayout()");
+    debugView("");
 
     QPointer<KoPageLayoutDialog> dlg = new KoPageLayoutDialog( this, part()->pageLayout() );
     dlg->showPageSpread( false );
@@ -1187,13 +1199,11 @@ void KarbonView::pageLayout()
 
 void KarbonView::selectionChanged()
 {
-    debugView("KarbonView::selectionChanged()");
+    debugView("");
 
     KoSelection *selection = d->canvas->shapeManager()->selection();
     int count = selection->selectedShapes( KoFlake::FullSelection ).count();
 
-    d->groupObjects->setEnabled( count > 1 );
-    d->ungroupObjects->setEnabled( false );
     d->closePath->setEnabled( false );
     d->combinePath->setEnabled( false );
     d->excludePath->setEnabled( false );
@@ -1207,7 +1217,6 @@ void KarbonView::selectionChanged()
     if( count > 0 )
     {
         uint selectedPaths = 0;
-        uint selectedGroups = 0;
         uint selectedParametrics = 0;
         // check for different shape types for enabling specific actions
         foreach( KoShape* shape, selection->selectedShapes( KoFlake::FullSelection ) )
@@ -1221,15 +1230,8 @@ void KarbonView::selectionChanged()
                     selectedPaths++;
             }
         }
-        foreach( KoShape* shape, selection->selectedShapes( KoFlake::TopLevelSelection ) )
-        {
-            if( dynamic_cast<KoShapeGroup*>( shape ) )
-                selectedGroups++;
-        }
-        kDebug(38000) << selectedGroups <<" group shapes selected";
         kDebug(38000) << selectedPaths <<" path shapes selected";
         kDebug(38000) << selectedParametrics <<" parameter shapes selected";
-        d->ungroupObjects->setEnabled( selectedGroups > 0 );
         //TODO enable action when the ClosePath command is ported
         //d->closePath->setEnabled( selectedPaths > 0 );
         d->combinePath->setEnabled( selectedPaths > 1 );
@@ -1260,14 +1262,14 @@ void KarbonView::selectionChanged()
 
 void KarbonView::setCursor( const QCursor &c )
 {
-    debugView("KarbonView::setCursor(QCursor)");
+    debugView("");
 
     d->canvas->setCursor( c );
 }
 
 void KarbonView::createLayersTabDock()
 {
-    debugView("KarbonView::createLayersTabDock()");
+    debugView("");
 
     KarbonLayerDockerFactory layerFactory;
     KarbonLayerDocker * layerDocker = qobject_cast<KarbonLayerDocker*>(createDockWidget(&layerFactory));
@@ -1282,7 +1284,7 @@ void KarbonView::createLayersTabDock()
 
 void KarbonView::updateReadWrite( bool readwrite )
 {
-    debugView("KarbonView::updateReadWrite( bool )");
+    debugView("");
     kDebug(38000) <<"writable state =" << readwrite;
 }
 

@@ -34,7 +34,7 @@ KAboutData * newKritaAboutData()
                                             KAboutData::License_GPL,
                                             ki18n("(c) 1999-2009 The Krita team.\n"),
                                             KLocalizedString(),
-                                            "http://www.koffice.org/krita",
+                                            "http://www.krita.org",
                                             "submit@bugs.kde.org");
     aboutData->addAuthor(ki18n("Adrian Page"), KLocalizedString(), "Adrian.Page@tesco.net");
     aboutData->addAuthor(ki18n("Alan Horkan"), KLocalizedString(), "", "http://www.openclipart.org");
@@ -65,6 +65,7 @@ KAboutData * newKritaAboutData()
     aboutData->addAuthor(ki18n("Toshitaka Fujioka"), KLocalizedString(), "fujioka@kde.org");
     aboutData->addAuthor(ki18n("Thomas Zander"), KLocalizedString(), "zander@kde.org");
     aboutData->addAuthor(ki18n("Tom Burdick"), KLocalizedString(), "tburdi1@uic.edu");
+    aboutData->addAuthor(ki18n("Vera Lukman"), KLocalizedString(), "shichan.karachu@gmail.com");
     aboutData->addAuthor(ki18n("Sander Koning"), KLocalizedString(), "sanderkoning@kde.nl");
     aboutData->addAuthor(ki18n("Andreas Lundin"), KLocalizedString(), "adde@update.uu.se");
     return aboutData;

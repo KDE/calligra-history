@@ -93,12 +93,6 @@ void KisToolBrush::initPaint(KoPointerEvent *e)
         return;
     }
 
-#if 0
-    // XXX: TOOL_REFACTOR: how to update all of the canvas? Or how to
-    // find out the cursor area around the cursor so we can remove the
-    // outline?
-    m_canvas->updateCanvas(); // remove the outline
-#endif
     m_painter->setPaintOpPreset(currentPaintOpPreset(), currentImage());
     if (m_painter->paintOp()->incremental()) {
         m_timer->start(m_rate);
@@ -121,18 +115,11 @@ void KisToolBrush::mouseMoveEvent(KoPointerEvent *e)
     }
 }
 
-#if 0
-// XXX: TOOL_REFACTOR
-void KisToolBrush::leave(QEvent */*e*/)
+
+void KisToolBrush::slotSetRate(qreal rate)
 {
-    m_canvs->updateCanvas(); // remove the outline
-}
-#endif
-
-
-void KisToolBrush::slotSetRate(qreal rate) {
     m_rate = qRound(rate);
-    m_sliderRate->setToolTip( QString::number(m_rate) + ' ' + i18n("ms") );
+    m_sliderRate->setToolTip(QString::number(m_rate) + ' ' + i18n("ms"));
 }
 
 void KisToolBrush::slotSetSmoothness(int smoothness)
@@ -162,8 +149,8 @@ QWidget * KisToolBrush::createOptionWidget()
     m_sliderRate->setMinimum(0);
     m_sliderRate->setMaximum(MAXIMUM_RATE);
     connect(m_sliderRate, SIGNAL(valueChanged(qreal, bool)), SLOT(slotSetRate(qreal)));
-    m_sliderRate->setValue( m_rate );
-    m_sliderRate->setToolTip( QString::number(m_rate) + ' ' + i18n("ms") );
+    m_sliderRate->setValue(m_rate);
+    m_sliderRate->setToolTip(QString::number(m_rate) + ' ' + i18n("ms"));
 
 
     m_sliderSmoothness = new QSlider(Qt::Horizontal, optionWidget);
@@ -173,7 +160,7 @@ QWidget * KisToolBrush::createOptionWidget()
     connect(m_chkSmooth, SIGNAL(toggled(bool)), m_sliderSmoothness, SLOT(setEnabled(bool)));
     connect(m_sliderSmoothness, SIGNAL(valueChanged(int)), SLOT(slotSetSmoothness(int)));
     m_sliderSmoothness->setValue(m_smoothness * MAXIMUM_SMOOTHNESS);
-    
+
     // Drawing assistant configuration
     m_chkAssistant = new QCheckBox(i18n("Assistant:"), optionWidget);
     connect(m_chkAssistant, SIGNAL(toggled(bool)), this, SLOT(setAssistant(bool)));
@@ -195,15 +182,15 @@ QWidget * KisToolBrush::createOptionWidget()
 
     KisToolFreehand::addOptionWidgetLayout(m_optionLayout);
     m_optionLayout->addWidget(labelRate, 1, 0);
-    m_optionLayout->addWidget(m_sliderRate, 1, 1,1,2);
+    m_optionLayout->addWidget(m_sliderRate, 1, 1, 1, 2);
     m_optionLayout->addWidget(m_chkSmooth, 2, 0);
     m_optionLayout->addWidget(m_sliderSmoothness, 2, 1, 1, 2);
     m_optionLayout->addWidget(m_chkAssistant, 4, 0);
     m_optionLayout->addWidget(labelMagnetism, 5, 0);
     m_optionLayout->addWidget(m_sliderMagnetism, 5, 1, 1, 2);
-    
+
     optionWidget->setFixedHeight(optionWidget->sizeHint().height());
-    
+
     return optionWidget;
 }
 

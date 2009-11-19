@@ -23,7 +23,6 @@
 
 #include <KarbonGradientEditWidget.h>
 #include <KarbonCursor.h>
-#include <KarbonGradientHelper.h>
 
 #include <KoShape.h>
 #include <KoCanvasBase.h>
@@ -37,6 +36,7 @@
 #include <KoSnapGuide.h>
 #include <KoSnapStrategy.h>
 #include <KoGradientBackground.h>
+#include <KarbonGradientHelper.h>
 #include <KoShapeBackground.h>
 #include <KoResource.h>
 #include <KoResourceItemChooser.h>
@@ -486,7 +486,7 @@ void KarbonGradientTool::initialize()
     GradientStrategy * strategy = m_currentStrategy ? m_currentStrategy : m_strategies.values().first();
     GradientStrategy::setHandleRadius( m_canvas->resourceProvider()->handleRadius() );
     GradientStrategy::setGrabSensitivity( m_canvas->resourceProvider()->grabSensitivity() );
-    m_gradient = KarbonGradientHelper::cloneGradient( strategy->gradient() );
+    m_gradient = KoFlake::cloneGradient( strategy->gradient() );
     if( m_gradientWidget )
     {
         m_gradientWidget->setGradient( *m_gradient );

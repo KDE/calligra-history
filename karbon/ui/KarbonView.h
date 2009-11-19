@@ -64,7 +64,7 @@ class KarbonZoomController;
 class KarbonCanvas;
 class KarbonStylePreviewDocker;
 
-class KARBONUI_EXPORT KarbonView : public KoView, public KXMLGUIBuilder
+class KARBONUI_EXPORT KarbonView : public KoView
 {
     Q_OBJECT
 
@@ -85,11 +85,8 @@ public:
     virtual void setCursor( const QCursor & );
     /// Reimplemented from QWidget
     virtual void dropEvent( QDropEvent *e );
-
-    virtual KoZoomController *zoomController() const {
-        // it seems Karbon has cloned the zoomcontroller sources so we can't return anything here :(
-        return 0;
-    }
+    /// Reimplemented from KoView
+    virtual KoZoomController *zoomController() const;
 
 
 public slots:
@@ -109,9 +106,6 @@ public slots:
     void selectionDistributeVerticalTop();
 
     void fileImportGraphic();
-
-    void groupSelection();
-    void ungroupSelection();
 
     void closePath();
     void combinePath();

@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 Michael Thaler <michael.thaler@physik.tu-muenchen.de>
  *  Copyright (c) 2008 Boudewijn Rempt <boud@valdyas.org>
- *  Copyright (c) 2009 Lukáš Tvrdý <lukast.dev@gmail.com> 
+ *  Copyright (c) 2009 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,6 +36,9 @@
 #include <KoCanvasBase.h>
 #include <KoPointerEvent.h>
 #include <KoCanvasController.h>
+#include <KoPathShape.h>
+#include <KoShapeController.h>
+#include <KoLineBorder.h>
 
 #include <kis_selection.h>
 #include <kis_painter.h>
@@ -110,34 +113,51 @@ void KisToolPolyline::finish()
     if (!currentNode())
         return;
 
-    KisPaintDeviceSP device = currentNode()->paintDevice();
-    if (!device) return;
+    if (!currentNode()->inherits("KisShapeLayer")) {
+        KisPaintDeviceSP device = currentNode()->paintDevice();
+        if (!device) return;
 
-    KisPainter painter(device, currentSelection());
-    painter.beginTransaction(i18n("Polyline"));
+        KisPainter painter(device, currentSelection());
+        painter.beginTransaction(i18n("Polyline"));
 
-    painter.setPaintColor(currentFgColor());
-    painter.setOpacity(m_opacity);
-    painter.setCompositeOp(m_compositeOp);
-    painter.setPaintOpPreset(currentPaintOpPreset(), currentImage()); // Painter takes ownership
+        painter.setPaintColor(currentFgColor());
+        painter.setOpacity(m_opacity);
+        painter.setCompositeOp(m_compositeOp);
+        painter.setPaintOpPreset(currentPaintOpPreset(), currentImage()); // Painter takes ownership
 
-    QPointF start, end;
-    KoPointVector::iterator it;
-    for (it = m_points.begin(); it != m_points.end(); ++it) {
-        if (it == m_points.begin()) {
-            start = (*it);
-        } else {
-            end = (*it);
-            painter.paintLine(start, end);
-            start = end;
+        QPointF start, end;
+        KoPointVector::iterator it;
+        for (it = m_points.begin(); it != m_points.end(); ++it) {
+            if (it == m_points.begin()) {
+                start = (*it);
+            } else {
+                end = (*it);
+                painter.paintLine(start, end);
+                start = end;
+            }
         }
+        device->setDirty(painter.dirtyRegion());   
+        m_canvas->addCommand(painter.endTransaction());
+    } else {
+        KoPathShape* path = new KoPathShape();
+        path->setShapeId(KoPathShapeId);
+
+        QMatrix resolutionMatrix;
+        resolutionMatrix.scale(1 / currentImage()->xRes(), 1 / currentImage()->yRes());
+        path->moveTo(resolutionMatrix.map(m_points[0]));
+        for (int i = 1; i < m_points.count(); i++)
+            path->lineTo(resolutionMatrix.map(m_points[i]));
+        path->normalize();
+
+        KoLineBorder* border = new KoLineBorder(1.0, currentFgColor().toQColor());
+        path->setBorder(border);
+
+        QUndoCommand * cmd = m_canvas->shapeController()->addShape(path);
+        m_canvas->addCommand(cmd);
     }
     m_points.clear();
 
-    device->setDirty(painter.dirtyRegion());
     notifyModified();
-
-    m_canvas->addCommand(painter.endTransaction());
 }
 
 void KisToolPolyline::cancel()
@@ -189,18 +209,18 @@ void KisToolPolyline::paint(QPainter& gc, const KoViewConverter &converter)
     QPointF endPos;
 
 #if defined(HAVE_OPENGL)
-    if ( m_canvas->canvasController()->isCanvasOpenGL() ){
+    if (m_canvas->canvasController()->isCanvasOpenGL()) {
         glEnable(GL_LINE_SMOOTH);
         glEnable(GL_COLOR_LOGIC_OP);
         glLogicOp(GL_XOR);
-        glColor3f(0.501961,1.0, 0.501961);
+        glColor3f(0.501961, 1.0, 0.501961);
 
         if (m_dragging) {
             startPos = pixelToView(m_dragStart);
             endPos = pixelToView(m_dragEnd);
             glBegin(GL_LINES);
-                glVertex2f(startPos.x(), startPos.y() );
-                glVertex2f(endPos.x(), endPos.y() );
+            glVertex2f(startPos.x(), startPos.y());
+            glVertex2f(endPos.x(), endPos.y());
             glEnd();
         }
 
@@ -215,8 +235,8 @@ void KisToolPolyline::paint(QPainter& gc, const KoViewConverter &converter)
                 startPos = pixelToView(start);
                 endPos = pixelToView(end);
 
-                glVertex2f(startPos.x(), startPos.y() );
-                glVertex2f(endPos.x(), endPos.y() );
+                glVertex2f(startPos.x(), startPos.y());
+                glVertex2f(endPos.x(), endPos.y());
 
                 start = end;
             }
@@ -226,7 +246,7 @@ void KisToolPolyline::paint(QPainter& gc, const KoViewConverter &converter)
         glDisable(GL_COLOR_LOGIC_OP);
         glDisable(GL_LINE_SMOOTH);
 
-    }else
+    } else
 #endif
 
 #ifdef INDEPENDENT_CANVAS
@@ -254,15 +274,15 @@ void KisToolPolyline::paint(QPainter& gc, const KoViewConverter &converter)
                 start = end;
             }
         }
-        paintToolOutline(&gc,path);
+        paintToolOutline(&gc, path);
 
     }
 #else
     {
         QPen pen(Qt::SolidLine);
-        pen.setWidth( PREVIEW_LINE_WIDTH );
+        pen.setWidth(PREVIEW_LINE_WIDTH);
         gc.setPen(pen);
-        
+
         if (m_dragging) {
             startPos = pixelToView(m_dragStart);
             endPos = pixelToView(m_dragEnd);
@@ -284,7 +304,7 @@ void KisToolPolyline::paint(QPainter& gc, const KoViewConverter &converter)
             }
         }
     }
-#endif 
+#endif
 }
 
 QString KisToolPolyline::quickHelp() const

@@ -19,7 +19,7 @@
 
 #include <QMutex>
 
-#include <KoProgressUpdater.h>
+#include <KoUpdater.h>
 
 #include <kis_paint_device.h>
 #include <filter/kis_filter_configuration.h>
@@ -31,13 +31,18 @@
 #include <ShivaGeneratorConfigWidget.h>
 #include <OpenShiva/Metadata.h>
 #include <OpenShiva/Source.h>
+#include <OpenShiva/Version.h>
 
 #include "PaintDeviceImage.h"
 #include "QVariantValue.h"
 
+#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION >= 12
+#include "UpdaterProgressReport.h"
+#endif
+
 extern QMutex* shivaMutex;
 
-ShivaGenerator::ShivaGenerator(OpenShiva::Source* kernel) : KisGenerator(KoID( kernel->name().c_str(), kernel->name().c_str() ), KoID("basic"), kernel->name().c_str()), m_source(kernel)
+ShivaGenerator::ShivaGenerator(OpenShiva::Source* kernel) : KisGenerator(KoID(kernel->name().c_str(), kernel->name().c_str()), KoID("basic"), kernel->name().c_str()), m_source(kernel)
 {
     setColorSpaceIndependence(FULLY_INDEPENDENT);
     setSupportsPainting(true);
@@ -49,44 +54,62 @@ KisConfigWidget * ShivaGenerator::createConfigurationWidget(QWidget* parent, con
 {
     Q_UNUSED(dev);
     Q_UNUSED(image);
-    return new ShivaGeneratorConfigWidget( m_source, parent);
+    return new ShivaGeneratorConfigWidget(m_source, parent);
 }
 
 void ShivaGenerator::generate(KisProcessingInformation dstInfo,
-                                 const QSize& size,
-                                 const KisFilterConfiguration* config,
-                                 KoUpdater* progressUpdater) const
+                              const QSize& size,
+                              const KisFilterConfiguration* config,
+                              KoUpdater* progressUpdater) const
 {
     Q_UNUSED(progressUpdater);
     KisPaintDeviceSP dst = dstInfo.paintDevice();
     QPoint dstTopLeft = dstInfo.topLeft();
 
+#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION >= 12
+    UpdaterProgressReport* report = 0;
+    if (progressUpdater) {
+        progressUpdater->setRange(0, size.height());
+        report = new UpdaterProgressReport(progressUpdater);
+    }
+#endif
+        
     Q_ASSERT(!dst.isNull());
 //     Q_ASSERT(config);
     // TODO implement the generating of pixel
     OpenShiva::Kernel kernel;
     kernel.setSource(*m_source);
-    
-    if(config)
-    {
-      QMap<QString, QVariant> map = config->getProperties();
-      for( QMap<QString, QVariant>::iterator it = map.begin(); it != map.end(); ++it)
-      {
-        const GTLCore::Metadata::Entry* entry = kernel.metadata()->parameter(it.key().toAscii().data());
-        if(entry and entry->asParameterEntry()) {
-            kernel.setParameter(it.key().toAscii().data(), qvariantToValue(it.value(), entry->asParameterEntry()->valueType()));
+
+    if (config) {
+        QMap<QString, QVariant> map = config->getProperties();
+        for (QMap<QString, QVariant>::iterator it = map.begin(); it != map.end(); ++it) {
+            const GTLCore::Metadata::Entry* entry = kernel.metadata()->parameter(it.key().toAscii().data());
+            if (entry and entry->asParameterEntry()) {
+                GTLCore::Value val = qvariantToValue(it.value(), entry->asParameterEntry()->valueType());
+                if(val.isValid())
+                {
+                    kernel.setParameter(it.key().toAscii().data(), val);
+                }
+            }
         }
-      }
     }
     {
-      QMutexLocker l(shivaMutex);
-      kernel.compile();
-      if(kernel.isCompiled())
-      {
-        PaintDeviceImage pdi(dst);
-        std::list< GTLCore::AbstractImage* > inputs;
-        GTLCore::Region region(dstTopLeft.x(), dstTopLeft.y() , size.width(), size.height());
-        kernel.evaluatePixeles(region, inputs, &pdi);
-      }
+        QMutexLocker l(shivaMutex);
+        kernel.compile();
+#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION >= 12
     }
+#endif
+        if (kernel.isCompiled()) {
+            PaintDeviceImage pdi(dst);
+            std::list< GTLCore::AbstractImage* > inputs;
+            GTLCore::Region region(dstTopLeft.x(), dstTopLeft.y() , size.width(), size.height());
+            kernel.evaluatePixeles(region, inputs, &pdi
+#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION >= 12
+                , report
+#endif            
+            );
+        }
+#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION < 12
+    }
+#endif
 }

@@ -33,12 +33,17 @@
 #include "brush.h"
 #include "brush_shape.h"
 
+#ifdef BENCHMARK
+    #include <QTime>
+#endif
+
+
 KisSumiPaintOp::KisSumiPaintOp(const
                                KisSumiPaintOpSettings *settings, KisPainter * painter, KisImageWSP image)
-    : KisPaintOp( painter )
-    , m_settings( settings )
-    , m_image( image )
-    , newStrokeFlag( true )
+        : KisPaintOp(painter)
+        , m_settings(settings)
+        , m_image(image)
+        , newStrokeFlag(true)
 
 {
     Q_ASSERT(settings);
@@ -69,19 +74,24 @@ KisSumiPaintOp::KisSumiPaintOp(const
     m_brush.enableOpacity(settings->useOpacity());
     m_brush.enableSaturation(settings->useSaturation());
 
-    if (settings->useWeights()){
+    if (settings->useWeights()) {
         // TODO : improve the way the weights can be set..
-        m_brush.setBristleInkAmountWeight( settings->bristleInkAmountWeight()/100.0 );
-        m_brush.setBristleLengthWeight( settings->bristleLengthWeight()/100.0 );
-        m_brush.setInkDepletionWeight( settings->inkDepletionWeight()/100.0 );
-        m_brush.setPressureWeight( settings->pressureWeight()/100.0 );
+        m_brush.setBristleInkAmountWeight(settings->bristleInkAmountWeight() / 100.0);
+        m_brush.setBristleLengthWeight(settings->bristleLengthWeight() / 100.0);
+        m_brush.setInkDepletionWeight(settings->inkDepletionWeight() / 100.0);
+        m_brush.setPressureWeight(settings->pressureWeight() / 100.0);
     }
 
-    if ( !settings->node() ){
+    if (!settings->node()) {
         m_dev = 0;
-    }else{
+    } else {
         m_dev = settings->node()->paintDevice();
     }
+
+#ifdef BENCHMARK
+    m_count = m_total = 0;
+#endif
+
 
 }
 
@@ -97,21 +107,34 @@ void KisSumiPaintOp::paintAt(const KisPaintInformation& info)
 
 double KisSumiPaintOp::paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, double savedDist)
 {
+#ifdef BENCHMARK
+    QTime time;
+    time.start();
+#endif
+
     Q_UNUSED(savedDist);
 
     if (!painter()) return 0;
 
     if (!m_dab) {
         m_dab = new KisPaintDevice(painter()->device()->colorSpace());
-    }
-    else {
+    } else {
         m_dab->clear();
     }
 
     m_brush.paintLine(m_dab, m_dev, pi1, pi2);
 
+    //QRect rc = m_dab->exactBounds();
     QRect rc = m_dab->extent();
     painter()->bitBlt(rc.topLeft(), m_dab, rc);
+
+
+#ifdef BENCHMARK
+    int msec = time.elapsed();
+    kDebug() << msec << " ms/dab " << "[average: " << m_total / (qreal)m_count << "]";
+    m_total += msec;
+    m_count++;
+#endif
 
     KisVector2D end = toKisVector2D(pi2.pos());
     KisVector2D start = toKisVector2D(pi1.pos());

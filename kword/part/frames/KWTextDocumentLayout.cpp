@@ -359,8 +359,11 @@ void KWTextDocumentLayout::layout()
                 const qreal rightIndent = m_state->shape->size().width() - width - leftIndent;
                 QRectF rect(leftIndent, m_state->y(), width, 1.);
                 line.setLineWidth(rect.width());
-                if (rect.width() <= 0. || line.textLength() == 0) { // margin so small that the text can't fit.
-                    line.setNumColumns(1);
+                if (rect.width() <= 0. || line.textLength() == 0) {
+                    // margin so small that the text can't fit.
+                    if (m_state->layout->lineCount() > 1
+                            || m_state->layout->text().length() > 0) // parag not empty
+                        line.setNumColumns(1); // allow at least one char.
                     line.setPosition(QPointF(rect.x(), rect.y()));
                     return;
                 }
@@ -596,7 +599,7 @@ void KWTextDocumentLayout::layout()
 
                 KWFrame *lastFrame = m_frameSet->frames().last();
                 if (lastFrame->frameBehavior() == KWord::IgnoreContentFrameBehavior
-                        || dynamic_cast<KWCopyShape*> (lastFrame)) {
+                        || dynamic_cast<KWCopyShape*>(lastFrame)) {
                     m_state->clearTillEnd();
                     m_frameSet->layoutDone();
                     return; // done!

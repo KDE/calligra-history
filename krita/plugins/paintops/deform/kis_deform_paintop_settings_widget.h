@@ -32,9 +32,9 @@ public:
     KisDeformPaintOpSettingsWidget(QWidget* parent = 0);
     virtual ~KisDeformPaintOpSettingsWidget();
 
-    void setConfiguration( const KisPropertiesConfiguration * config);
+    void setConfiguration(const KisPropertiesConfiguration * config);
     KisPropertiesConfiguration* configuration() const;
-    void writeConfiguration( KisPropertiesConfiguration *config ) const;
+    void writeConfiguration(KisPropertiesConfiguration *config) const;
 
     int radius() const;
     double deformAmount() const;
@@ -44,6 +44,8 @@ public:
     bool useCounter() const;
     bool useOldData() const;
     qreal spacing() const;
+    
+    void setRadius(int radius) const;
 
 private:
     Ui::WdgDeformOptions* m_options;

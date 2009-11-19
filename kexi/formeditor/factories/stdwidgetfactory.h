@@ -30,6 +30,7 @@
 
 #include "widgetfactory.h"
 #include "container.h"
+#include "FormWidgetInterface.h"
 
 class QTreeWidgetItem;
 class QTreeWidget;
@@ -40,7 +41,7 @@ class Set;
 }
 
 //! A picture label widget for use within forms
-class KexiPictureLabel : public QLabel
+class KexiPictureLabel : public QLabel, public KFormDesigner::FormWidgetInterface
 {
     Q_OBJECT
 
@@ -52,7 +53,7 @@ public:
 };
 
 //! A line widget for use within forms
-class Line : public QFrame
+class Line : public QFrame, public KFormDesigner::FormWidgetInterface
 {
     Q_OBJECT
     Q_PROPERTY(Qt::Orientation orientation READ orientation WRITE setOrientation)
@@ -71,7 +72,7 @@ class StdWidgetFactory : public KFormDesigner::WidgetFactory
     Q_OBJECT
 
 public:
-    StdWidgetFactory(QObject *parent, const QStringList &args);
+    StdWidgetFactory(QObject *parent, const QVariantList &args);
     ~StdWidgetFactory();
 
     virtual QWidget* createWidget(const QByteArray &classname, QWidget *parent, const char *name,
@@ -90,7 +91,6 @@ public:
                                      QDomElement &parentNode, QDomDocument &parent);
     virtual bool readSpecialProperty(const QByteArray &classname, QDomElement &node,
                                      QWidget *w, KFormDesigner::ObjectTreeItem *item);
-    virtual QList<QByteArray> autoSaveProperties(const QByteArray &classname);
 
     virtual void setPropertyOptions(KoProperty::Set& set, const KFormDesigner::WidgetInfo& info, QWidget *w);
 

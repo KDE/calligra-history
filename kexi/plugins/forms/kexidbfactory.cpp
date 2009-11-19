@@ -23,25 +23,28 @@
 #include <qpainter.h>
 #include <qstyle.h>
 
-#include <kgenericfactory.h>
-#include <klocale.h>
-#include <kdebug.h>
-#include <kiconloader.h>
-#include <kactioncollection.h>
-#include <kstandardaction.h>
+#include <KLocale>
+#include <KDebug>
+#include <KIconLoader>
+#include <KActionCollection>
+#include <KStandardAction>
+#include <KPluginFactory>
 
 #include <formeditor/container.h>
 #include <formeditor/form.h>
 #include <formeditor/formIO.h>
 #include <formeditor/objecttree.h>
 #include <formeditor/utils.h>
+#include <formeditor/widgetlibrary.h>
+#include <core/kexi.h>
+#include <core/kexipart.h>
+#include <core/KexiMainWindowIface.h>
 #include <kexidb/utils.h>
 #include <kexidb/connection.h>
-#include <kexipart.h>
-#include <formeditor/widgetlibrary.h>
 #include <kexiutils/utils.h>
 #include <widget/kexicustompropertyfactory.h>
 #include <widget/utils/kexicontextmenuutils.h>
+#include <kexi_global.h>
 
 #include "kexiformview.h"
 #include "widgets/kexidbautofield.h"
@@ -60,152 +63,177 @@
 #include "kexidataawarewidgetinfo.h"
 
 #include "kexidbfactory.h"
-#include <core/kexi.h>
-#include <kexi_global.h>
-#include <KexiMainWindowIface.h>
+#include "kexiformdataiteminterface.h"
 
 
 //////////////////////////////////////////
 
-KexiDBFactory::KexiDBFactory(QObject *parent, const QStringList &)
-        : KFormDesigner::WidgetFactory(parent)
+KexiDBFactory::KexiDBFactory(QObject *parent, const QVariantList &)
+        : KFormDesigner::WidgetFactory(parent, "kexidb")
 {
-    KFormDesigner::WidgetInfo *wi;
-    wi = new KexiDataAwareWidgetInfo(this);
-    wi->setPixmap("form");
-    wi->setClassName("KexiDBForm");
-    wi->setName(i18n("Form"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "form"));
-    wi->setDescription(i18n("A data-aware form widget"));
-    addClass(wi);
+    {
+        KexiDataAwareWidgetInfo *wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("form");
+        wi->setClassName("KexiDBForm");
+        wi->setName(i18n("Form"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "form"));
+        wi->setDescription(i18n("A data-aware form widget"));
+        addClass(wi);
+    }
 
 #ifndef KEXI_NO_SUBFORM
-    wi = new KexiDataAwareWidgetInfo(this);
-    wi->setPixmap("subform");
-    wi->setClassName("KexiDBSubForm");
-    wi->addAlternateClassName("KexiSubForm", true/*override*/); //older
-    wi->setName(i18n("Sub Form"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "subForm"));
-    wi->setDescription(i18n("A form widget included in another Form"));
-    wi->setAutoSyncForProperty("formName", false);
-    addClass(wi);
+    {
+        KexiDataAwareWidgetInfo* wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("subform");
+        wi->setClassName("KexiDBSubForm");
+        wi->addAlternateClassName("KexiSubForm", true/*override*/); //older
+        wi->setName(i18n("Sub Form"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "subForm"));
+        wi->setDescription(i18n("A form widget included in another Form"));
+        wi->setAutoSyncForProperty("formName", false);
+        addClass(wi);
+    }
 #endif
 
-    // inherited
-    wi = new KexiDataAwareWidgetInfo(this, "stdwidgets", "KLineEdit");
-    wi->setPixmap("lineedit");
-    wi->setClassName("KexiDBLineEdit");
-    wi->addAlternateClassName("QLineEdit", true/*override*/);
-    wi->addAlternateClassName("KLineEdit", true/*override*/);
-    wi->setIncludeFileName("klineedit.h");
-    wi->setName(i18n("Text Box"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "textBox"));
-    wi->setDescription(i18n("A widget for entering and displaying text"));
-    addClass(wi);
-
-    // inherited
-    wi = new KexiDataAwareWidgetInfo(this, "stdwidgets", "KTextEdit");
-    wi->setPixmap("textedit");
-    wi->setClassName("KexiDBTextEdit");
-    wi->addAlternateClassName("QTextEdit", true/*override*/);
-    wi->addAlternateClassName("KTextEdit", true/*override*/);
-    wi->setIncludeFileName("ktextedit.h");
-    wi->setName(i18n("Text Editor"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "textEditor"));
-    wi->setDescription(i18n("A multiline text editor"));
-    addClass(wi);
-
-    wi = new KFormDesigner::WidgetInfo(
-        this, "containers", "QFrame" /*we are inheriting to get i18n'd strings already translated there*/);
-    wi->setPixmap("frame");
-    wi->setClassName("KexiFrame");
-    wi->addAlternateClassName("QFrame", true/*override*/);
-    wi->addAlternateClassName("Q3Frame", true/*override*/);
-    wi->setName(i18n("Frame"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "frame"));
-    wi->setDescription(i18n("A simple frame widget"));
-    addClass(wi);
-
-    wi = new KexiDataAwareWidgetInfo(
-        this, "stdwidgets", "QLabel" /*we are inheriting to get i18n'd strings already translated there*/);
-    wi->setPixmap("label");
-    wi->setClassName("KexiDBLabel");
-    wi->addAlternateClassName("QLabel", true/*override*/);
-    wi->addAlternateClassName("KexiLabel", true/*override*/); //older
-    wi->setName(i18nc("Text Label", "Label"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "label"));
-    wi->setDescription(i18n("A widget for displaying text"));
-    addClass(wi);
+    {
+        // inherited
+        KexiDataAwareWidgetInfo* wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("lineedit");
+        wi->setClassName("KexiDBLineEdit");
+        wi->setParentFactoryName("stdwidgets");
+        wi->setInheritedClassName("KLineEdit");
+        wi->addAlternateClassName("QLineEdit", true/*override*/);
+        wi->addAlternateClassName("KLineEdit", true/*override*/);
+        wi->setIncludeFileName("klineedit.h");
+        wi->setName(i18n("Text Box"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "textBox"));
+        wi->setDescription(i18n("A widget for entering and displaying text"));
+        wi->setInternalProperty("dontStartEditingOnInserting", true); // because we are most probably assign data source to this widget
+        wi->setInlineEditingEnabledWhenDataSourceSet(false);
+        addClass(wi);
+    }
+    {
+        // inherited
+        KexiDataAwareWidgetInfo* wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("textedit");
+        wi->setClassName("KexiDBTextEdit");
+        wi->setParentFactoryName("stdwidgets");
+        wi->setInheritedClassName("KTextEdit");
+        wi->addAlternateClassName("QTextEdit", true/*override*/);
+        wi->addAlternateClassName("KTextEdit", true/*override*/);
+        wi->setIncludeFileName("ktextedit.h");
+        wi->setName(i18n("Text Editor"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "textEditor"));
+        wi->setDescription(i18n("A multiline text editor"));
+        wi->setInternalProperty("dontStartEditingOnInserting", true); // because we are most probably assign data source to this widget
+        wi->setInlineEditingEnabledWhenDataSourceSet(false);
+        addClass(wi);
+    }
+    {
+        KFormDesigner::WidgetInfo* wi = new KFormDesigner::WidgetInfo(this);
+        wi->setPixmap("frame");
+        wi->setClassName("KexiFrame");
+        wi->setParentFactoryName("containers");
+        wi->setInheritedClassName("QFrame"); /* we are inheriting to get i18n'd strings already translated there */
+        wi->addAlternateClassName("QFrame", true/*override*/);
+        wi->addAlternateClassName("Q3Frame", true/*override*/);
+        wi->setName(i18n("Frame"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "frame"));
+        wi->setDescription(i18n("A simple frame widget"));
+        addClass(wi);
+    }
+    {
+        KexiDataAwareWidgetInfo* wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("label");
+        wi->setClassName("KexiDBLabel");
+        wi->setParentFactoryName("stdwidgets");
+        wi->setInheritedClassName("QLabel"); /* we are inheriting to get i18n'd strings already translated there */
+        wi->addAlternateClassName("QLabel", true/*override*/);
+        wi->addAlternateClassName("KexiLabel", true/*override*/); //older
+        wi->setName(i18nc("Text Label", "Label"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "label"));
+        wi->setDescription(i18n("A widget for displaying text"));
+        wi->setInlineEditingEnabledWhenDataSourceSet(false);
+        addClass(wi);
+    }
 
 #ifndef KEXI_NO_IMAGEBOX_WIDGET
-    wi = new KexiDataAwareWidgetInfo(
-        this, "stdwidgets", "KexiPictureLabel" /*we are inheriting to get i18n'd strings already translated there*/);
-    wi->setPixmap("pixmaplabel");
-    wi->setClassName("KexiDBImageBox");
-    wi->addAlternateClassName("KexiPictureLabel", true/*override*/);
-    wi->addAlternateClassName("KexiImageBox", true/*override*/); //older
-    wi->setName(i18n("Image Box"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "image"));
-    wi->setDescription(i18n("A widget for displaying images"));
-// wi->setCustomTypeForProperty("pixmapData", KexiCustomPropertyFactory::PixmapData);
-    wi->setCustomTypeForProperty("pixmapId", KexiCustomPropertyFactory::PixmapId);
-    addClass(wi);
-
-    setInternalProperty("KexiDBImageBox", "dontStartEditingOnInserting", "1");
-// setInternalProperty("KexiDBImageBox", "forceShowAdvancedProperty:pixmap", "1");
+    {
+        KexiDataAwareWidgetInfo* wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("pixmaplabel");
+        wi->setClassName("KexiDBImageBox");
+        wi->setParentFactoryName("stdwidgets");
+        wi->setInheritedClassName("KexiPictureLabel"); /* we are inheriting to get i18n'd strings already translated there */
+        wi->addAlternateClassName("KexiPictureLabel", true/*override*/);
+        wi->addAlternateClassName("KexiImageBox", true/*override*/); //older
+        wi->setName(i18n("Image Box"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "image"));
+        wi->setDescription(i18n("A widget for displaying images"));
+    // wi->setCustomTypeForProperty("pixmapData", KexiCustomPropertyFactory::PixmapData);
+        wi->setCustomTypeForProperty("pixmapId", KexiCustomPropertyFactory::PixmapId);
+        wi->setInternalProperty("dontStartEditingOnInserting", true);
+        addClass(wi);
+    }
 #endif
 
 #ifdef KEXI_DB_COMBOBOX_WIDGET
-    wi = new KexiDataAwareWidgetInfo(
-        this, "stdwidgets", "KComboBox" /*we are inheriting to get i18n'd strings already translated there*/);
-    wi->setPixmap("combo");
-    wi->setClassName("KexiDBComboBox");
-    wi->addAlternateClassName("KComboBox", true/*override*/);
-    wi->setName(i18n("Combo Box"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "comboBox"));
-    wi->setDescription(i18n("A combo box widget"));
-    addClass(wi);
+    {
+        KexiDataAwareWidgetInfo* wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("combo");
+        wi->setClassName("KexiDBComboBox");
+        wi->setParentFactoryName("stdwidgets");
+        wi->setInheritedClassName("KComboBox"); /* we are inheriting to get i18n'd strings already translated there */
+        wi->addAlternateClassName("KComboBox", true/*override*/);
+        wi->setName(i18n("Combo Box"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "comboBox"));
+        wi->setDescription(i18n("A combo box widget"));
+        addClass(wi);
+    }
 #endif
-
-    wi = new KexiDataAwareWidgetInfo(this, "stdwidgets", "QCheckBox");
-    wi->setPixmap("check");
-    wi->setClassName("KexiDBCheckBox");
-    wi->addAlternateClassName("QCheckBox", true/*override*/);
-    wi->setName(i18n("Check Box"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "checkBox"));
-    wi->setDescription(i18n("A check box with text label"));
-    addClass(wi);
-
+    {
+        KexiDataAwareWidgetInfo* wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("check");
+        wi->setClassName("KexiDBCheckBox");
+        wi->setParentFactoryName("stdwidgets");
+        wi->setInheritedClassName("QCheckBox"); /* we are inheriting to get i18n'd strings already translated there */
+        wi->addAlternateClassName("QCheckBox", true/*override*/);
+        wi->setName(i18n("Check Box"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "checkBox"));
+        wi->setDescription(i18n("A check box with text label"));
+        addClass(wi);
+    }
 #ifndef KEXI_NO_AUTOFIELD_WIDGET
-    wi = new KexiDataAwareWidgetInfo(this);
-    wi->setPixmap("autofield");
-    wi->setClassName("KexiDBAutoField");
-    wi->addAlternateClassName("KexiDBFieldEdit", true/*override*/); //older
-    wi->setName(i18n("Auto Field"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters", "autoField"));
-    wi->setDescription(i18n("A widget containing an automatically selected editor "
-                            "and a label to edit the value of a database field of any type."));
-    addClass(wi);
+    {
+        KexiDataAwareWidgetInfo* wi = new KexiDataAwareWidgetInfo(this);
+        wi->setPixmap("autofield");
+        wi->setClassName("KexiDBAutoField");
+        wi->addAlternateClassName("KexiDBFieldEdit", true/*override*/); //older
+        wi->setName(i18n("Auto Field"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters", "autoField"));
+        wi->setDescription(i18n("A widget containing an automatically selected editor "
+                                "and a label to edit the value of a database field of any type."));
+        addClass(wi);
+    }
 #endif
 
     /*
@@ -264,16 +292,19 @@ KexiDBFactory::KexiDBFactory(QObject *parent, const QStringList &)
       wDoubleSpinBox->setDescription(i18n("A spin box widget to input and display floating-point numbers"));
       addClass(wDoubleSpinBox);*/
 
-    // inherited
-    wi = new KFormDesigner::WidgetInfo(
-        this, "stdwidgets", "KPushButton");
-    wi->addAlternateClassName("KexiPushButton");
-    wi->setName(i18n("Command Button"));
-    wi->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. "
-              "It must _not_ contain white spaces and non latin1 characters.", "button"));
-    wi->setDescription(i18n("A command button to execute actions"));
-    addClass(wi);
+    {
+        // inherited
+        KFormDesigner::WidgetInfo* wi = new KFormDesigner::WidgetInfo(this);
+        wi->addAlternateClassName("KexiPushButton");
+        wi->setName(i18n("Command Button"));
+        wi->setNamePrefix(
+            i18nc("Widget name. This string will be used to name widgets of this class. "
+                  "It must _not_ contain white spaces and non latin1 characters.", "button"));
+        wi->setDescription(i18n("A command button to execute actions"));
+        wi->setParentFactoryName("stdwidgets");
+        wi->setInheritedClassName("KPushButton");
+        addClass(wi);
+    }
 
     m_propDesc["dataSource"] = i18n("Data Source");
     m_propDesc["formName"] = i18n("Form Name");
@@ -353,12 +384,14 @@ KexiDBFactory::createWidget(const QByteArray &c, QWidget *p, const char *n,
         w = new KexiDBSubForm(container->form(), p);
     else if (c == "KexiDBLineEdit") {
         w = new KexiDBLineEdit(p);
-        if (designMode)
-            w->setCursor(QCursor(Qt::ArrowCursor));
+//2.0 moved to FormWidgetInterface
+//        if (designMode)
+//            w->setCursor(QCursor(Qt::ArrowCursor));
     } else if (c == "KexiDBTextEdit") {
         w = new KexiDBTextEdit(p);
-        if (designMode)
-            w->setCursor(QCursor(Qt::ArrowCursor));
+//2.0 moved to FormWidgetInterface
+//        if (designMode)
+//            w->setCursor(QCursor(Qt::ArrowCursor));
     } else if (c == "Q3Frame" || c == "QFrame" || c == "KexiFrame") {
         w = new KexiFrame(p);
         createContainer = true;
@@ -372,12 +405,12 @@ KexiDBFactory::createWidget(const QByteArray &c, QWidget *p, const char *n,
 #endif
 #ifndef KEXI_NO_AUTOFIELD_WIDGET
     else if (c == "KexiDBAutoField")
-        w = new KexiDBAutoField(p, designMode);
+        w = new KexiDBAutoField(p);
 #endif
     else if (c == "KexiDBCheckBox")
         w = new KexiDBCheckBox(text, p);
     else if (c == "KexiDBComboBox")
-        w = new KexiDBComboBox(p, designMode);
+        w = new KexiDBComboBox(p);
     /* else if(c == "KexiDBTimeEdit")
         w = new KexiDBTimeEdit(QTime::currentTime(), p, n);
       else if(c == "KexiDBDateEdit")
@@ -439,9 +472,20 @@ bool
 KexiDBFactory::startInlineEditing(InlineEditorCreationArguments& args)
 {
 //2.0    m_container = container;
+    const KFormDesigner::WidgetInfo* wclass = args.container->form()->library()->widgetInfoForClassName(args.classname);
+    const KexiDataAwareWidgetInfo* wDataAwareClass = dynamic_cast<const KexiDataAwareWidgetInfo*>(wclass);
+    if (wDataAwareClass && !wDataAwareClass->inlineEditingEnabledWhenDataSourceSet()) {
+        KexiFormDataItemInterface* iface = dynamic_cast<KexiFormDataItemInterface*>(args.widget);
+        if (iface && !iface->dataSource().isEmpty()) {
+//! @todo reimplement inline editing for KexiDBLineEdit using combobox with data sources
+            return false;
+        }
+    }
+
     if (args.classname == "KexiDBLineEdit") {
 //! @todo this code should not be copied here but
 //! just inherited StdWidgetFactory::startInlineEditing() should be called
+
         KLineEdit *lineedit = static_cast<KLineEdit*>(args.widget);
         args.text = lineedit->text();
         args.alignment = lineedit->alignment();
@@ -477,7 +521,6 @@ KexiDBFactory::startInlineEditing(InlineEditorCreationArguments& args)
         if (label->textFormat() == Qt::RichText) {
             args.execute = false;
 //            QString text = label->text();
-            KFormDesigner::WidgetInfo* wclass = args.container->form()->library()->widgetInfoForClassName(args.classname);
             if (wclass && wclass->inheritedClass()) {
                 const QByteArray thisClassname = args.classname; //save
                 args.classname = wclass->inheritedClass()->className();
@@ -556,6 +599,8 @@ KexiDBFactory::startInlineEditing(InlineEditorCreationArguments& args)
         args.execute = false;
         return true;
     }
+//    else if (args.classname == "QPushButton" || args.classname == "KPushButton" || args.classname == "KexiPushButton") {
+//    }
     return false;
 }
 
@@ -574,19 +619,6 @@ KexiDBFactory::clearWidgetContent(const QByteArray & /*classname*/, QWidget *w)
     if (iface)
         iface->clear();
     return true;
-}
-
-QList<QByteArray>
-KexiDBFactory::autoSaveProperties(const QByteArray& /*classname*/)
-{
-    QList<QByteArray> lst;
-// if(classname == "KexiDBSubForm")
-    //lst << "formName";
-// if(classname == "KexiDBLineEdit")
-// lst += "dataSource";
-// if(classname == "KexiDBAutoField")
-//  lst << "labelCaption";
-    return lst;
 }
 
 bool
@@ -678,17 +710,18 @@ KexiDBFactory::propertySetShouldBeReloadedAfterPropertyChange(const QByteArray& 
     return false;
 }
 
-bool
-KexiDBFactory::changeInlineText(KFormDesigner::Form *form, QWidget *widget, const QString &text)
+bool KexiDBFactory::changeInlineText(KFormDesigner::Form *form, QWidget *widget,
+    const QString &text, QString &oldText)
 {
 //2.0    if (!form)
 //2.0        return false;
 //2.0    if (!form->selectedWidget())
 //2.0        return false;
 //2.0    QByteArray n(form->selectedWidget()->metaObject()->className());
-    const QString n(widget->metaObject()->className());
+    const QByteArray n(widget->metaObject()->className());
 // QWidget *w = WidgetFactory::widget();
     if (n == "KexiDBAutoField") {
+        oldText = widget->property("caption").toString();
         changeProperty(form, widget, "caption", text);
         return true;
     }
@@ -716,6 +749,6 @@ KexiDBFactory::slotImageBoxIdChanged(KexiBLOBBuffer::Id_t id)
     }
 }
 
-KFORMDESIGNER_WIDGET_FACTORY(KexiDBFactory, kexidbwidgets)
+K_EXPORT_KEXI_FORM_WIDGET_FACTORY_PLUGIN(KexiDBFactory, kexidbwidgets)
 
 #include "kexidbfactory.moc"

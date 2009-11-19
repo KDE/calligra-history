@@ -60,8 +60,7 @@ public:
     Private(const KoViewConverter *vc)
             : viewConverter(vc)
             , canvas(0)
-            , toolProxy(0)
-    {
+            , toolProxy(0) {
     }
 
     const KoViewConverter * viewConverter;
@@ -69,7 +68,7 @@ public:
     KoToolProxy * toolProxy;
     KisOpenGLImageTexturesSP openGLImageTextures;
     /// the origin of the image rect
-    QPoint origin;      
+    QPoint origin;
     QPoint documentOffset;
     QTimer blockMouseEvent;
 
@@ -123,7 +122,7 @@ void KisOpenGLCanvas2::paintGL()
     glClearColor(widgetBackgroundColor.red() / 255.0, widgetBackgroundColor.green() / 255.0, widgetBackgroundColor.blue() / 255.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
     glShadeModel(GL_FLAT);
-    
+
     KisImageWSP img = m_d->canvas->image();
 
     if (!img) return;
@@ -165,7 +164,6 @@ void KisOpenGLCanvas2::paintGL()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glTranslatef(m_d->origin.x(), m_d->origin.y(), 0.0);
-//    glTranslatef(m_d->documentOffset.x(), m_d->documentOffset.y(), 0.0);
     glScalef(scaleX, scaleY, 1.0);
 
     glBindTexture(GL_TEXTURE_2D, m_d->openGLImageTextures->backgroundTexture());
@@ -195,7 +193,7 @@ void KisOpenGLCanvas2::paintGL()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glTranslatef(-m_d->documentOffset.x(), -m_d->documentOffset.y(), 0.0);
-    glTranslatef( m_d->origin.x(), m_d->origin.y(), 0.0);
+    glTranslatef(m_d->origin.x(), m_d->origin.y(), 0.0);
     glScalef(scaleX, scaleY, 1.0);
 
     glEnable(GL_BLEND);
@@ -222,12 +220,12 @@ void KisOpenGLCanvas2::paintGL()
                 y += m_d->openGLImageTextures->imageTextureTileHeight()) {
 
             glBindTexture(GL_TEXTURE_2D, m_d->openGLImageTextures->imageTextureTile(x, y));
-            if (scaleX > 2.0){
-                glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-                glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-            }else{
-                glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-                glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+            if (scaleX > 2.0) {
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            } else {
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             }
 
             glBegin(GL_QUADS);
@@ -267,14 +265,14 @@ void KisOpenGLCanvas2::paintGL()
     bool drawTools = true;
 
     QPainter gc(this);
-    
+
     drawDecorations(gc, drawTools,
                     m_d->documentOffset,
-                    QRect(QPoint(0, 0), QSize(width(), height() )),
+                    QRect(QPoint(0, 0), QSize(width(), height())),
                     m_d->canvas);
 
     gc.end();
-    
+
 }
 
 void KisOpenGLCanvas2::setPixelToViewTransformation(void)
@@ -304,7 +302,7 @@ void KisOpenGLCanvas2::setPixelToViewTransformation(void)
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glTranslatef(-m_d->documentOffset.x(), -m_d->documentOffset.y(), 0.0);
-    glTranslatef( m_d->origin.x(),  m_d->origin.y(), 0.0);
+    glTranslatef(m_d->origin.x(),  m_d->origin.y(), 0.0);
     glScalef(scaleX, scaleY, 1.0);
 }
 
@@ -322,7 +320,7 @@ void KisOpenGLCanvas2::leaveEvent(QEvent* e)
 void KisOpenGLCanvas2::mouseMoveEvent(QMouseEvent *e)
 {
     if (m_d->blockMouseEvent.isActive()) return;
-    m_d->toolProxy->mouseMoveEvent(e, m_d->viewConverter->viewToDocument( widgetToView(e->pos() + m_d->documentOffset) ));
+    m_d->toolProxy->mouseMoveEvent(e, m_d->viewConverter->viewToDocument(widgetToView(e->pos() + m_d->documentOffset)));
 }
 
 void KisOpenGLCanvas2::contextMenuEvent(QContextMenuEvent *e)
@@ -338,19 +336,19 @@ void KisOpenGLCanvas2::contextMenuEvent(QContextMenuEvent *e)
 void KisOpenGLCanvas2::mousePressEvent(QMouseEvent *e)
 {
     if (m_d->blockMouseEvent.isActive()) return;
-    m_d->toolProxy->mousePressEvent(e, m_d->viewConverter->viewToDocument( widgetToView(e->pos() + m_d->documentOffset) ));
+    m_d->toolProxy->mousePressEvent(e, m_d->viewConverter->viewToDocument(widgetToView(e->pos() + m_d->documentOffset)));
 }
 
 void KisOpenGLCanvas2::mouseReleaseEvent(QMouseEvent *e)
 {
     if (m_d->blockMouseEvent.isActive()) return;
-    m_d->toolProxy->mouseReleaseEvent(e, m_d->viewConverter->viewToDocument( widgetToView(e->pos() + m_d->documentOffset) ));
+    m_d->toolProxy->mouseReleaseEvent(e, m_d->viewConverter->viewToDocument(widgetToView(e->pos() + m_d->documentOffset)));
 }
 
 void KisOpenGLCanvas2::mouseDoubleClickEvent(QMouseEvent *e)
 {
     if (m_d->blockMouseEvent.isActive()) return;
-    m_d->toolProxy->mouseDoubleClickEvent(e, m_d->viewConverter->viewToDocument( widgetToView(e->pos() + m_d->documentOffset) ));
+    m_d->toolProxy->mouseDoubleClickEvent(e, m_d->viewConverter->viewToDocument(widgetToView(e->pos() + m_d->documentOffset)));
 }
 
 void KisOpenGLCanvas2::keyPressEvent(QKeyEvent *e)
@@ -384,17 +382,23 @@ void KisOpenGLCanvas2::tabletEvent(QTabletEvent *e)
 {
     setFocus(Qt::OtherFocusReason);
     m_d->blockMouseEvent.start(100);
+
+    m_d->toolProxy->tabletEvent(e, m_d->viewConverter->viewToDocument(e->hiResGlobalPos() - mapToGlobal(QPoint(0, 0)) + m_d->documentOffset - m_d->origin));
+    /*
+    setFocus(Qt::OtherFocusReason);
+    m_d->blockMouseEvent.start(100);
     qreal subpixelX = e->hiResGlobalX();
     subpixelX = subpixelX - ((int) subpixelX); // leave only part behind the dot
     qreal subpixelY = e->hiResGlobalY();
     subpixelY = subpixelY - ((int) subpixelY); // leave only part behind the dot
     QPointF pos(e->x() + subpixelX + m_d->documentOffset.x() - m_d->origin.x(), e->y() + subpixelY + m_d->documentOffset.y() - m_d->origin.y() );
     m_d->toolProxy->tabletEvent(e, m_d->viewConverter->viewToDocument(pos));
+    */
 }
 
 void KisOpenGLCanvas2::wheelEvent(QWheelEvent *e)
 {
-    m_d->toolProxy->wheelEvent(e, m_d->viewConverter->viewToDocument( widgetToView(e->pos() + m_d->documentOffset) ));
+    m_d->toolProxy->wheelEvent(e, m_d->viewConverter->viewToDocument(widgetToView(e->pos() + m_d->documentOffset)));
 }
 
 KoToolProxy * KisOpenGLCanvas2::toolProxy()
@@ -408,13 +412,14 @@ void KisOpenGLCanvas2::documentOffsetMoved(const QPoint & pt)
     updateGL();
 }
 
-void KisOpenGLCanvas2::adjustOrigin(){
+void KisOpenGLCanvas2::adjustOrigin()
+{
     KisImageWSP image = m_d->canvas->image();
     if (image == 0) return;
 
     QSize documentSize(int(ceil(m_d->viewConverter->documentToViewX(image->width()  / image->xRes()))),
                        int(ceil(m_d->viewConverter->documentToViewY(image->height() / image->yRes()))));
-    QRect documentRect = QRect( QPoint(0,0), documentSize );
+    QRect documentRect = QRect(QPoint(0, 0), documentSize);
 
     // save the old origin to see if it has changed
     QPoint oldOrigin = m_d->origin;
@@ -425,16 +430,17 @@ void KisOpenGLCanvas2::adjustOrigin(){
     // if there are margins left around the zoomed document rect then
     // distribute them evenly on both sides
     int widthDiff = size().width() - documentRect.width();
-    if( widthDiff > 0 )
-        m_d->origin.rx() += qRound( 0.5 * widthDiff );
+    if (widthDiff > 0)
+        m_d->origin.rx() += qRound(0.5 * widthDiff);
     int heightDiff = size().height() - documentRect.height();
-    if( heightDiff > 0 )
-        m_d->origin.ry() += qRound( 0.5 * heightDiff );
+    if (heightDiff > 0)
+        m_d->origin.ry() += qRound(0.5 * heightDiff);
 
-    emit documentOriginChanged( m_d->origin );
+    emit documentOriginChanged(m_d->origin);
 }
 
-QPoint KisOpenGLCanvas2::documentOrigin(){
+QPoint KisOpenGLCanvas2::documentOrigin()
+{
     return m_d->origin;
 }
 
@@ -446,7 +452,7 @@ QPoint KisOpenGLCanvas2::widgetToView(const QPoint& p) const
 
 QRect KisOpenGLCanvas2::widgetToView(const QRect& r) const
 {
-    return r.translated( - m_d->origin );
+    return r.translated(- m_d->origin);
 }
 
 
@@ -458,7 +464,7 @@ QPoint KisOpenGLCanvas2::viewToWidget(const QPoint& p) const
 
 QRect KisOpenGLCanvas2::viewToWidget(const QRect& r) const
 {
-    return r.translated( m_d->origin );
+    return r.translated(m_d->origin);
 }
 
 

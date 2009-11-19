@@ -349,7 +349,8 @@ QString SvgOutputDev::printFill()
     }
 
     fill += "\"";
-    fill += QString(" fill-opacity=\"%1\"").arg( d->brush.color().alphaF() );
+    if( d->brush.color().alphaF() < 1.0 )
+        fill += QString(" fill-opacity=\"%1\"").arg( d->brush.color().alphaF() );
 
     return fill;
 }
@@ -364,7 +365,8 @@ QString SvgOutputDev::printStroke()
         stroke += d->pen.color().name();
     stroke += "\"";
 
-    stroke += QString( " stroke-opacity=\"%1\"").arg( d->pen.color().alphaF() );
+    if( d->pen.color().alphaF() < 1.0 )
+        stroke += QString( " stroke-opacity=\"%1\"").arg( d->pen.color().alphaF() );
     stroke += QString( " stroke-width=\"%1\"" ).arg( d->pen.widthF() );
 
     if( d->pen.capStyle() == Qt::FlatCap )
@@ -443,7 +445,22 @@ void SvgOutputDev::drawString( GfxState * state, GooString * s )
     double x = state->getCurX();
     double y = state->getCurY();
 
-    state->transform( x, y, &x, &y );
+    double * ctm = state->getCTM();
+    QMatrix transform(ctm[0], ctm[1], ctm[2], ctm[3], ctm[4], ctm[5]);
+    
+    QMatrix mirror;
+    mirror.translate(x, y);
+    mirror.scale(1.0, -1.0);
+    mirror.translate(-x, -y);
+
+    transform = mirror*transform;
+    bool writeTransform = true;
+    if( transform.m11() == 1.0 && transform.m12() == 0.0 && 
+        transform.m21() == 0.0 && transform.m22() == 1.0 ) {
+        writeTransform = false;
+        x += transform.dx();
+        y += transform.dy();
+    }
     
     *d->body << "<text";
     *d->body << " x=\"" << x << "px\"";
@@ -456,8 +473,11 @@ void SvgOutputDev::drawString( GfxState * state, GooString * s )
         *d->body << " font-family=\"" << QString::fromAscii( font->getName()->getCString() ) << "\"";
         //kDebug(30516) << "font name:" << QString::fromAscii( font->getName()->getCString() );
     }
-    *d->body << " font-size=\"" << state->getTransformedFontSize() << "px\"";
-
+    *d->body << " font-size=\"" << qMax(state->getFontSize(), state->getTransformedFontSize()) << "px\"";
+    
+    if( writeTransform )
+        *d->body << " transform=\"" << convertMatrix(transform) << "\"";
+    
     // fill
     if( ! (render & 1) )
         *d->body << printFill();
@@ -546,5 +566,12 @@ void SvgOutputDev::drawImage(GfxState *state, Object */*ref*/, Stream *str,
     delete image;
     delete buffer;
     delete imgStr;
+}
+
+void SvgOutputDev::drawImage(GfxState *state, Object *ref, Stream *str,
+                             int width, int height, GfxImageColorMap *colorMap,
+                             GBool interpolate, int *maskColors, GBool inlineImg)
+{
+    drawImage(state, ref, str, width, height, colorMap, maskColors, inlineImg);
 }
                              

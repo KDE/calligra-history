@@ -179,7 +179,7 @@ void KWDocument::addShape(KoShape *shape)
         fs->setName(shape->shapeId());
         frame = new KWFrame(shape, fs);
     }
-    Q_ASSERT(frame->frameSet()); //sebsauer, 2008-08-16, seems this can happen on "Delete page" && 2x undo
+    Q_ASSERT(frame->frameSet());
     addFrameSet(frame->frameSet());
 
     foreach (KoView *view, views()) {
@@ -190,10 +190,6 @@ void KWDocument::addShape(KoShape *shape)
 
 void KWDocument::removeShape(KoShape *shape)
 {
-    foreach (KoView *view, views()) {
-        KWCanvas *canvas = static_cast<KWView*>(view)->kwcanvas();
-        canvas->shapeManager()->remove(shape);
-    }
     KWFrame *frame = dynamic_cast<KWFrame*>(shape->applicationData());
     if (frame) { // not all shapes have to have a frame. Only top-level ones do.
         KWFrameSet *fs = frame->frameSet();
@@ -202,6 +198,11 @@ void KWDocument::removeShape(KoShape *shape)
             removeFrameSet(fs); // frame and frameset will be deleted when the shape is deleted
         else
             fs->removeFrame(frame);
+    } else { // not a frame, but we still have to remove it from views.
+        foreach (KoView *view, views()) {
+            KWCanvas *canvas = static_cast<KWView*>(view)->kwcanvas();
+            canvas->shapeManager()->remove(shape);
+        }
     }
 }
 
@@ -739,7 +740,7 @@ void KWDocument::requestMoreSpace(KWTextFrameSet *fs)
     Q_ASSERT(fs->frameCount() > 0);
     Q_ASSERT(QThread::currentThread() == thread());
 
-    KWFrame *lastFrame = fs->frames()[ fs->frameCount()-1 ];
+    KWFrame *lastFrame = fs->frames().last();
 
     QString masterPageName;
     if (fs == mainFrameSet()) {
@@ -756,13 +757,13 @@ void KWDocument::requestMoreSpace(KWTextFrameSet *fs)
     }
 
     KWPage page = m_pageManager.page(lastFrame->shape());
-    int pageDiff =  m_pageManager.pageCount() - 1 - page.pageNumber();
+    int pageDiff = m_pageManager.pageCount() - page.pageNumber();
     if (page.pageSide() == KWPage::PageSpread)
         pageDiff--;
     if (pageDiff >= (lastFrame->frameOnBothSheets() ? 1 : 2)) {
         // its enough to just create a new frame.
-        m_frameLayout.createNewFrameForPage(fs, page.pageNumber() +
-                                            (lastFrame->frameOnBothSheets() ? 1 : 2));
+        m_frameLayout.createNewFrameForPage(fs, page.pageNumber()
+                + (lastFrame->frameOnBothSheets() ? 1 : 2));
     } else {
         KWPage newPage = appendPage(masterPageName);
         if (m_magicCurtain)
@@ -821,7 +822,7 @@ void KWDocument::printDebug()
     kDebug(32001) << "                 Debug info";
     kDebug(32001) << "Document:" << this;
     /*kDebug(32001) <<"Type of document:" << (m_pageStyle.hasMainTextFrame()?"WP":"DTP"); */
-    kDebug(32001) <<"Units:" << KoUnit::unitName( unit() );
+    kDebug(32001) << "Units:" << KoUnit::unitName(unit());
     kDebug(32001) << "# Framesets:" << frameSetCount();
     int i = 0;
     foreach (KWFrameSet *fs, m_frameSets) {
@@ -832,7 +833,7 @@ void KWDocument::printDebug()
 
     kDebug(32001) << "PageManager holds" << pageCount() << " pages";
     KWPage page = m_pageManager.begin();
-    while(page.isValid()) {
+    while (page.isValid()) {
         int pgnum = page.pageNumber();
         QString side = "[Left] ";
         QString num = QString::number(pgnum);
@@ -856,8 +857,10 @@ void KWDocument::printDebug()
             kDebug(32001) << " +-- Columns:" << columns.columns << columns.columnSpacing << "pt spacing";
         KoPageLayout layout = style.pageLayout();
         kDebug(32001) << "     PageSize: " << layout.width << "x" << layout.height;
-        kDebug(32001) << "     Indents: (tlbr, edge, binding)" << layout.top << layout.left
-                << layout.bottom << layout.right << layout.pageEdge << layout.bindingSide;
+        kDebug(32001) << "     Indents: (tlbr, edge, binding)" 
+                      << layout.topMargin << layout.leftMargin
+                      << layout.bottomMargin << layout.rightMargin
+                      << layout.pageEdge << layout.bindingSide;
     }
 
     kDebug(32001) << "  The height of the doc (in pt) is:" << pageManager()->bottomOfPage(pageManager()->pageCount() - 1);

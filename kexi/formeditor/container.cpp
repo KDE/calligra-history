@@ -142,8 +142,8 @@ public:
             qMin(insertBegin.x(), end.x()),
             qMin(insertBegin.y(), end.y()) ) );
         insertRect.setBottomRight( QPoint(
-            qMax(insertBegin.x(), end.x()),
-            qMax(insertBegin.y(), end.y()) ) );
+            qMax(insertBegin.x(), end.x()) - 1,
+            qMax(insertBegin.y(), end.y()) - 1) ); // minus 1 to make the size correct
         QRegion region(oldInsertRect);
         region.unite(insertRect);
         QRect toUpdate( oldInsertRect.united(insertRect) );
@@ -509,25 +509,33 @@ Container::eventFilter(QObject *s, QEvent *e)
         startRow = qMax(startRow, 1);
         int endRow = (r.bottom()+1) / gridY;
         endRow = qMin(endRow, rows);
-        int startCol = r.left() / gridX;
+        int startCol = (r.left()-1) / gridX;
         startCol = qMax(startCol, 1);
-        int endCol = r.right() / gridX;
+        int endCol = (r.right()+1) / gridX;
         endCol = qMin(endCol, cols);
+        QVector<QPoint> gridpoints;
         for (int rowcursor = startRow; rowcursor <= endRow; ++rowcursor) {
             for (int colcursor = startCol; colcursor <= endCol; ++colcursor) {
-                const int x = colcursor * gridX - 1;
-                const int y = rowcursor * gridY - 1;
-                p.setPen(pen1);
-                p.drawPoint(x, y);
-                p.drawPoint(x, y+1);
-                p.setPen(pen2);
-                p.drawPoint(x+1, y);
-                p.drawPoint(x+1, y+1);
+//                const int x = colcursor * gridX - 1;
+//                const int y = rowcursor * gridY - 1;
+//                p.setPen(pen1);
+//                p.drawPoint(x, y);
+//                p.drawPoint(x, y+1);
+//                p.setPen(pen2);
+                  gridpoints << QPoint(colcursor * gridX - 1,rowcursor * gridY - 1);
+//                p.drawPoint(x, y);
+//                p.drawPoint(x, y+1);
+//                p.drawPoint(x+1, y);
+//                p.drawPoint(x+1, y+1);
 #ifdef DEBUG_PAINTER
     points++;
 #endif
             }
         }
+
+//! @todo when container's background is not solid color, find better grid color, e.g. buffer the background for pixmaps or gradients
+        p.setPen(KexiUtils::contrastColor(widget()->palette().background().color()));
+        p.drawPoints(gridpoints);
 #ifdef DEBUG_PAINTER
     kDebug() << "millisecs:" << t.elapsed() << "points:" << points;
 #endif
@@ -542,10 +550,14 @@ Container::eventFilter(QObject *s, QEvent *e)
             QVector<qreal> dashes;
             dashes << 2 << 2;
             selPen2.setDashPattern(dashes);
+            QRect selectionOrInsertingRectangle(d->selectionOrInsertingRectangle());
+            selectionOrInsertingRectangle.setSize(
+                selectionOrInsertingRectangle.size() - QSize(1,1)); // -(1,1) because the rect is painted
+                                                                    // up to the next pixel in Qt
             p.setPen(selPen1);
-            p.drawRect(d->selectionOrInsertingRectangle());
+            p.drawRect(selectionOrInsertingRectangle);
             p.setPen(selPen2);
-            p.drawRect(d->selectionOrInsertingRectangle());
+            p.drawRect(selectionOrInsertingRectangle);
         }
         return false;
     }
@@ -561,7 +573,6 @@ Container::eventFilter(QObject *s, QEvent *e)
         QKeyEvent *kev = static_cast<QKeyEvent*>(e);
 
         if (kev->key() == Qt::Key_F2) { // pressing F2 == double-clicking
-            d->state = Private::InlineEditing;
             QWidget *w;
 
             // try to find the widget which was clicked last and should be edited
@@ -571,7 +582,9 @@ Container::eventFilter(QObject *s, QEvent *e)
                 w = m_moving;
             else
                 w = d->form->selectedWidgets()->last();
-            d->form->library()->startInlineEditing(w->metaObject()->className(), w, this);
+            if (d->form->library()->startInlineEditing(w->metaObject()->className(), w, this)) {
+                d->state = Private::InlineEditing;
+            }
         }
         else if (kev->key() == Qt::Key_Escape) {
             if (false) {
@@ -668,13 +681,14 @@ Container::eventFilter(QObject *s, QEvent *e)
     }
 
     case QEvent::MouseButtonDblClick: { // editing
-        kDebug() << "Mouse dbl click for widget " << s->objectName();
+        kDebug() << "Mouse dbl click for widget" << s->objectName();
         QWidget *w = static_cast<QWidget*>(s);
         if (!w)
             return false;
 
-        d->state = Private::InlineEditing;
-        d->form->library()->startInlineEditing(w->metaObject()->className(), w, this);
+        if (d->form->library()->startInlineEditing(w->metaObject()->className(), w, this)) {
+            d->state = Private::InlineEditing;
+        }
         return true;
     }
 

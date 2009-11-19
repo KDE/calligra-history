@@ -71,13 +71,14 @@ KoFilter::ConversionStatus KisJPEGImport::convert(const QByteArray&, const QByte
         if (url.isEmpty())
             return KoFilter::FileNotFound;
 
-        KisJPEGConverter ib(doc, doc -> undoAdapter());
+        KisJPEGConverter ib(doc, doc->undoAdapter());
 
 //        if (view != 0)
 //            view -> canvasSubject() ->  progressDisplay() -> setSubject(&ib, false, true);
 
         switch (ib.buildImage(url)) {
         case KisImageBuilder_RESULT_UNSUPPORTED:
+        case KisImageBuilder_RESULT_UNSUPPORTED_COLORSPACE:
             return KoFilter::NotImplemented;
             break;
         case KisImageBuilder_RESULT_INVALID_ARG:
@@ -95,11 +96,12 @@ KoFilter::ConversionStatus KisJPEGImport::convert(const QByteArray&, const QByte
             return KoFilter::InternalError;
             break;
         case KisImageBuilder_RESULT_OK:
-            doc -> setCurrentImage(ib.image());
+            doc->setCurrentImage(ib.image());
             return KoFilter::OK;
         default:
             break;
         }
+
 
     }
     return KoFilter::StorageCreationError;

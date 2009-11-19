@@ -138,7 +138,9 @@ public:
 KarbonPart::KarbonPart( QWidget* parentWidget, const char* widgetName, QObject* parent, const char* name, bool singleViewMode )
 : KoDocument( parentWidget, parent, singleViewMode ), d( new Private() )
 {
-    Q_UNUSED(widgetName)
+    Q_UNUSED(widgetName);
+
+    connect( this, SIGNAL( unitChanged( const KoUnit& ) ), this, SLOT( updateUnit( const KoUnit& ) ) );
 
     setObjectName(name);
     setComponentData( KarbonFactory::componentData(), false );
@@ -245,8 +247,11 @@ bool KarbonPart::loadOdf( KoOdfReadStore & odfStore )
     {
         const KoXmlElement *style = odfStore.styles().findStyle(
             master->attributeNS( KoXmlNS::style, "page-layout-name", QString() ) );
-        pageLayout().loadOdf( *style );
-        setPageSize( QSizeF( pageLayout().width, pageLayout().height ) );
+        if( style )
+        {
+            pageLayout().loadOdf( *style );
+            setPageSize( QSizeF( pageLayout().width, pageLayout().height ) );
+        }
     }
     else
     {
@@ -288,7 +293,7 @@ void KarbonPart::loadOasisSettings( const KoXmlDocument & settingsDoc )
     KoOasisSettings::Items viewSettings = settings.itemSet( "view-settings" );
     if ( !viewSettings.isNull() )
     {
-        changeUnit(KoUnit::unit(viewSettings.parseConfigItemString("unit")));
+        setUnit(KoUnit::unit(viewSettings.parseConfigItemString("unit")));
         // FIXME: add other config here.
     }
     guidesData().loadOdfSettings( settingsDoc );
@@ -421,7 +426,7 @@ void KarbonPart::initConfig()
         if( KGlobal::locale()->measureSystem() == KLocale::Imperial )
             defaultUnit = "in";
 
-        changeUnit(KoUnit::unit( miscGroup.readEntry( "Units", defaultUnit ) ) );
+        setUnit(KoUnit::unit( miscGroup.readEntry( "Units", defaultUnit ) ) );
     }
     if( config->hasGroup( "Grid" ) )
     {
@@ -522,9 +527,8 @@ void KarbonPart::setPageSize( const QSizeF &pageSize )
     }
 }
 
-void KarbonPart::changeUnit( const KoUnit &unit )
+void KarbonPart::updateUnit( const KoUnit &unit )
 {
-    setUnit(unit);
     d->document.setUnit(unit);
 }
 

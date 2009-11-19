@@ -461,7 +461,7 @@ void DependencyConnectorItem::hoverLeaveEvent( QGraphicsSceneHoverEvent * /*even
 
 void DependencyConnectorItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
-    //qDebug()<<"DependencyConnectorItem::mousePressEvent:"<<node()->name();
+    //qDebug()<<"DependencyConnectorItem::mousePressEvent:"<<node()->name()<<isEditable();
     if ( ! isEditable() ) {
         event->ignore();
         return;
@@ -799,7 +799,7 @@ DependencyLinkItem *DependencyNodeItem::takeChildRelation( DependencyLinkItem *r
 
 void DependencyNodeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
-    //kDebug();
+    kDebug();
     QGraphicsItem::GraphicsItemFlags f = flags();
     if ( itemScene()->connectionMode() ) {
         itemScene()->clearConnection();
@@ -931,7 +931,8 @@ void DependencyNodeSymbolItem::setSymbol( int type, const QRectF &rect )
 //--------------------
 DependencyScene::DependencyScene( QWidget *parent )
     : QGraphicsScene( parent ),
-    m_model( 0 )
+    m_model( 0 ),
+    m_readwrite( false )
 {
     m_connectionitem = new DependencyCreatorItem();
     addItem( m_connectionitem );
@@ -1167,6 +1168,9 @@ DependencyNodeItem *DependencyScene::createItem( Node *node )
     if ( item->scene() != this ) {
         addItem( item );
     }
+    item->setEditable( m_readwrite );
+    item->startConnector()->setEditable( m_readwrite );
+    item->finishConnector()->setEditable( m_readwrite );
     //kDebug()<<item->text()<<item;
     int col = item->nodeLevel();
     if ( parent ) {
@@ -1274,6 +1278,7 @@ void DependencyScene::createLink( DependencyNodeItem *parent, Relation *rel )
         return;
     }
     DependencyLinkItem *dep = new DependencyLinkItem( parent, child, rel );
+    dep->setEditable( m_readwrite );
     addItem( dep );
     //kDebug();
     dep->createPath();
@@ -1555,6 +1560,7 @@ void DependencyScene::contextMenuEvent ( QGraphicsSceneContextMenuEvent *event )
 
 void DependencyScene::setReadWrite( bool on )
 {
+    m_readwrite = on;
     foreach ( QGraphicsItem *i, items() ) {
         if ( i->type() == DependencyConnectorItem::Type ) {
             static_cast<DependencyConnectorItem*>( i )->setEditable( on );
@@ -1871,6 +1877,7 @@ DependencyEditor::DependencyEditor( KoDocument *part, QWidget *parent )
 
 void DependencyEditor::updateReadWrite( bool on )
 {
+    qDebug()<<"DependencyEditor::updateReadWrite:"<<on;
     m_view->itemScene()->setReadWrite( on );
     ViewBase::updateReadWrite( on );
 }
@@ -2080,6 +2087,7 @@ void DependencyEditor::updateActionsEnabled( bool on )
     Project *p = m_view->project();
     
     bool o = ( on && p && selectedNodeCount() <= 1 );
+    menuAddTask->setEnabled( o );
     actionAddTask->setEnabled( o );
     actionAddMilestone->setEnabled( o );
     
@@ -2087,6 +2095,7 @@ void DependencyEditor::updateActionsEnabled( bool on )
     
     o = ( on && p && selectedNodeCount() == 1 );
     
+    menuAddSubTask->setEnabled( o );
     actionAddSubtask->setEnabled( o );
 }
 
@@ -2095,24 +2104,38 @@ void DependencyEditor::setupGui()
     KActionCollection *coll = actionCollection();
     
     QString name = "taskeditor_add_list";
-    actionAddTask  = new KAction(KIcon( "add_task" ), i18n("Add Task..."), this);
+
+    menuAddTask = new KActionMenu( KIcon( "view-task-add" ), "Add Task...", this );
+    coll->addAction("add_task", menuAddTask );
+    connect( menuAddTask, SIGNAL( triggered( bool ) ), SLOT( slotAddTask() ) );
+    addAction( name, menuAddTask );
+
+    actionAddTask  = new KAction( i18n("Add Task..."), this);
     actionAddTask->setShortcut( KShortcut( Qt::CTRL + Qt::Key_I ) );
-    coll->addAction("add_task", actionAddTask );
     connect( actionAddTask, SIGNAL( triggered( bool ) ), SLOT( slotAddTask() ) );
-    addAction( name, actionAddTask );
-    
-    actionAddSubtask  = new KAction(KIcon( "add_sub_task" ), i18n("Add Sub-Task..."), this);
-    actionAddSubtask->setShortcut( KShortcut( Qt::CTRL + Qt::SHIFT + Qt::Key_I ) );
-    coll->addAction("add_sub_task", actionAddSubtask );
-    connect( actionAddSubtask, SIGNAL( triggered( bool ) ), SLOT( slotAddSubtask() ) );
-    addAction( name, actionAddSubtask );
-    
-    actionAddMilestone  = new KAction(KIcon( "add_milestone" ), i18n("Add Milestone..."), this);
+    menuAddTask->addAction( actionAddTask );
+
+    actionAddMilestone  = new KAction( i18n("Add Milestone..."), this );
     actionAddMilestone->setShortcut( KShortcut( Qt::CTRL + Qt::ALT + Qt::Key_I ) );
-    coll->addAction("add_milestone", actionAddMilestone );
     connect( actionAddMilestone, SIGNAL( triggered( bool ) ), SLOT( slotAddMilestone() ) );
-    addAction( name, actionAddMilestone );
+    menuAddTask->addAction( actionAddMilestone );
     
+
+    menuAddSubTask = new KActionMenu( KIcon( "view-task-child-add" ), "Add Sub-Task...", this );
+    coll->addAction("add_subtask", menuAddTask );
+    connect( menuAddSubTask, SIGNAL( triggered( bool ) ), SLOT( slotAddSubtask() ) );
+    addAction( name, menuAddSubTask );
+
+    actionAddSubtask  = new KAction( i18n("Add Sub-Task..."), this );
+    actionAddSubtask->setShortcut( KShortcut( Qt::CTRL + Qt::SHIFT + Qt::Key_I ) );
+    connect( actionAddSubtask, SIGNAL( triggered( bool ) ), SLOT( slotAddSubtask() ) );
+    menuAddSubTask->addAction( actionAddSubtask );
+
+    actionAddSubMilestone = new KAction( i18n("Add Sub-Milestone..."), this );
+    actionAddSubMilestone->setShortcut( KShortcut( Qt::CTRL + Qt::SHIFT + Qt::ALT + Qt::Key_I ) );
+    connect( actionAddSubMilestone, SIGNAL( triggered( bool ) ), SLOT( slotAddSubMilestone() ) );
+    menuAddSubTask->addAction( actionAddSubMilestone );
+
     actionDeleteTask  = new KAction(KIcon( "edit-delete" ), i18n("Delete Task"), this);
     actionDeleteTask->setShortcut( KShortcut( Qt::Key_Delete ) );
     coll->addAction("delete_task", actionDeleteTask );
@@ -2144,6 +2167,17 @@ void DependencyEditor::slotAddSubtask()
         return;
     }
     emit addSubtask();
+    m_currentnode = 0;
+}
+
+void DependencyEditor::slotAddSubMilestone()
+{
+    kDebug();
+    m_currentnode = selectedNode();
+    if ( m_currentnode == 0 ) {
+        return;
+    }
+    emit addSubMilestone();
     m_currentnode = 0;
 }
 

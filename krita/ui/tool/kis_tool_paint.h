@@ -59,11 +59,13 @@ enum enumBrushMode {
     PAINT_STYLUS,
     ERASE,
     ERASE_STYLUS,
-    HOVER
+    HOVER,
+    EDIT_BRUSH,
+    PAN
 };
 
 class KRITAUI_EXPORT KisToolPaint
-            : public KisTool
+        : public KisTool
 {
 
     Q_OBJECT
@@ -84,11 +86,11 @@ public:
     /** If the paint tool support outline like brushes, set to true.
     *   If not (e.g. gradient tool), set to false. Default is false.
     */
-    void setSupportOutline(bool supportOutline){
+    void setSupportOutline(bool supportOutline) {
         m_supportOutline = supportOutline;
     }
-    
-    
+
+
 protected:
 
     /// Add the tool-specific layout to the default option widget layout.
@@ -99,9 +101,9 @@ protected:
 
     virtual QWidget * createOptionWidget();
 
-     /** Quick help is a short help text about the way the tool functions.
-     * Deprecated: this method may move to KoToolFactory.
-     */
+    /** Quick help is a short help text about the way the tool functions.
+    * Deprecated: this method may move to KoToolFactory.
+    */
     virtual KDE_DEPRECATED QString quickHelp() const {
         return QString();
     }
@@ -116,9 +118,11 @@ private slots:
     void slotPopupQuickHelp();
     void slotSetOpacity(qreal opacityPerCent, bool final);
     void slotSetCompositeMode(const QString& compositeOp);
-    void slotSelectCursorStyle();
-    
-    
+
+protected slots:
+    virtual void resetCursorStyle();
+
+
 protected:
 
     quint8 m_opacity;
@@ -134,7 +138,7 @@ private:
     QLabel *m_lbComposite;
     KisCmbComposite *m_cmbComposite;
     KisNodeSP m_previousNode;
-    
+
     bool m_supportOutline;
 };
 

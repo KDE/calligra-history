@@ -33,12 +33,15 @@
 #include <KoPointerEvent.h>
 #include <KoCanvasBase.h>
 #include <KoCanvasController.h>
+#include <KoShapeController.h>
 
 #include <kis_selection.h>
 #include <kis_painter.h>
 #include <kis_paintop_registry.h>
 #include <kis_cursor.h>
 #include <kis_layer.h>
+#include <kis_shape_tool_helper.h>
+
 
 #include <config-opengl.h>
 
@@ -153,28 +156,36 @@ void KisToolEllipse::mouseReleaseEvent(KoPointerEvent *event)
         if (!currentNode())
             return;
 
-        if (!currentNode()->paintDevice())
-            return;
+        if (!currentNode()->inherits("KisShapeLayer")) {
+            if (!currentNode()->paintDevice())
+                return;
 
-        KisPaintDeviceSP device = currentNode()->paintDevice();
-        delete m_painter;
-        m_painter = new KisPainter(device, currentSelection());
-        Q_CHECK_PTR(m_painter);
+            KisPaintDeviceSP device = currentNode()->paintDevice();
+            delete m_painter;
+            m_painter = new KisPainter(device, currentSelection());
+            Q_CHECK_PTR(m_painter);
 
-        m_painter->beginTransaction(i18n("Ellipse"));
-        setupPainter(m_painter);
-        m_painter->setOpacity(m_opacity);
-        m_painter->setCompositeOp(m_compositeOp);
+            m_painter->beginTransaction(i18n("Ellipse"));
+            setupPainter(m_painter);
+            m_painter->setOpacity(m_opacity);
+            m_painter->setCompositeOp(m_compositeOp);
 
-        m_painter->paintEllipse(QRectF(m_dragStart, m_dragEnd));
-        QRegion bound = m_painter->dirtyRegion();
-        device->setDirty(bound);
-        notifyModified();
+            m_painter->paintEllipse(QRectF(m_dragStart, m_dragEnd));
+            QRegion bound = m_painter->dirtyRegion();
+            device->setDirty(bound);
+            notifyModified();
 
-        m_canvas->addCommand(m_painter->endTransaction());
+            m_canvas->addCommand(m_painter->endTransaction());
 
-        delete m_painter;
-        m_painter = 0;
+            delete m_painter;
+            m_painter = 0;
+        } else {
+            QRectF rect = convertToPt(QRectF(m_dragStart, m_dragEnd));
+            KoShape* shape = KisShapeToolHelper::createEllipseShape(rect);
+
+            QUndoCommand * cmd = m_canvas->shapeController()->addShape(shape);
+            m_canvas->addCommand(cmd);
+         }
     } else {
         KisToolPaint::mouseReleaseEvent(event);
     }
@@ -185,82 +196,81 @@ void KisToolEllipse::paintEllipse(QPainter& gc, const QRect&)
 {
     QPointF viewDragStart = pixelToView(m_dragStart);
     QPointF viewDragEnd = pixelToView(m_dragEnd);
-    
+
 #if defined(HAVE_OPENGL)
-    if (m_canvas->canvasController()->isCanvasOpenGL()){
+    if (m_canvas->canvasController()->isCanvasOpenGL()) {
         glEnable(GL_LINE_SMOOTH);
         glEnable(GL_COLOR_LOGIC_OP);
         glLogicOp(GL_XOR);
-        glColor3f(0.501961,1.0, 0.501961);
+        glColor3f(0.501961, 1.0, 0.501961);
 
-        int steps = 72; 
-        qreal x = ( viewDragEnd.x() - viewDragStart.x() ) * 0.5;
-        qreal a = qAbs( x );
-        qreal y = ( viewDragEnd.y() - viewDragStart.y() ) * 0.5;
-        qreal b = qAbs( y );
-        
+        int steps = 72;
+        qreal x = (viewDragEnd.x() - viewDragStart.x()) * 0.5;
+        qreal a = qAbs(x);
+        qreal y = (viewDragEnd.y() - viewDragStart.y()) * 0.5;
+        qreal b = qAbs(y);
+
         x += viewDragStart.x();
         y += viewDragStart.y();
 
 // useful for debugging
-#if 0        
+#if 0
         glPointSize(20);
         glBegin(GL_POINTS);
-            glVertex2d(x,y);
+        glVertex2d(x, y);
         glEnd();
-        
-        glBegin(GL_LINES);
-            glVertex2d( viewDragStart.x(), viewDragStart.y() );
-            glVertex2d( viewDragEnd.x(), viewDragEnd.y() );
 
-            glVertex2d( x,y );
-            glVertex2d( x + a,y );
-            
-            glVertex2d( x,y );
-            glVertex2d( x,y + b);
-            
+        glBegin(GL_LINES);
+        glVertex2d(viewDragStart.x(), viewDragStart.y());
+        glVertex2d(viewDragEnd.x(), viewDragEnd.y());
+
+        glVertex2d(x, y);
+        glVertex2d(x + a, y);
+
+        glVertex2d(x, y);
+        glVertex2d(x, y + b);
+
         glEnd();
-#endif         
-        
+#endif
+
         qreal angle = 0;
         qreal beta = -angle;
         qreal sinbeta = sin(beta);
         qreal cosbeta = cos(beta);
 
         glBegin(GL_LINE_LOOP);
-        for (int i = 0; i < 360; i += 360.0 / steps)
-        {
+        for (int i = 0; i < 360; i += 360.0 / steps) {
             qreal alpha = i * (M_PI / 180) ;
             qreal sinalpha = sin(alpha);
             qreal cosalpha = cos(alpha);
-    
+
             qreal X = x + (a * cosalpha * cosbeta - b * sinalpha * sinbeta);
             qreal Y = y + (a * cosalpha * sinbeta + b * sinalpha * cosbeta);
-    
-            glVertex2d(X,Y);
+
+            glVertex2d(X, Y);
         }
         glEnd();
 
-            
+
         glDisable(GL_COLOR_LOGIC_OP);
         glDisable(GL_LINE_SMOOTH);
 
-    }else
+    } else
 #endif
 
-    if (m_canvas) {
+        if (m_canvas) {
 #ifdef INDEPENDENT_CANVAS
-        QPainterPath path;
-        path.addEllipse(QRectF( viewDragStart, viewDragEnd ));
-        paintToolOutline(&gc,path);
+            QPainterPath path;
+            path.addEllipse(QRectF(viewDragStart, viewDragEnd));
+            paintToolOutline(&gc, path);
 #else
-        QPen old = gc.pen();
-        QPen pen(Qt::SolidLine);
-        gc.setPen(pen);
-        gc.drawEllipse(QRectF(viewDragStart, viewDragEnd));
-        gc.setPen(old);
+            QPen old = gc.pen();
+            QPen pen(Qt::SolidLine);
+            gc.setPen(pen);
+            gc.drawEllipse(QRectF(viewDragStart, viewDragEnd));
+            gc.setPen(old);
 #endif
-    }
+        }
 }
 
 #include "kis_tool_ellipse.moc"

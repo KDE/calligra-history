@@ -1068,7 +1068,7 @@ void Cell::saveOdfAnnotation( KoXmlWriter &xmlwriter )
     {
         //<office:annotation draw:style-name="gr1" draw:text-style-name="P1" svg:width="2.899cm" svg:height="2.691cm" svg:x="2.858cm" svg:y="0.001cm" draw:caption-point-x="-2.858cm" draw:caption-point-y="-0.001cm">
         xmlwriter.startElement( "office:annotation" );
-        const QStringList text = comment.split( "\n", QString::SkipEmptyParts );
+        const QStringList text = comment.split( '\n', QString::SkipEmptyParts );
         for ( QStringList::ConstIterator it = text.begin(); it != text.end(); ++it ) {
             xmlwriter.startElement( "text:p" );
             xmlwriter.addTextNode( *it );
@@ -1352,13 +1352,15 @@ bool Cell::loadOdf(const KoXmlElement& element, OdfLoadingContext& tableContext)
         // each spreadsheet application likes to safe formulas with a different namespace
         // prefix, so remove all of them
         QStringList prefixes = QStringList() << "oooc:" << "kspr:" << "of:" << "msoxl:";
-        foreach (QString prefix, prefixes) {
+        QString namespacePrefix;
+        foreach (const QString &prefix, prefixes) {
             if (oasisFormula.startsWith( prefix )) {
                 oasisFormula = oasisFormula.mid( prefix.length() );
+                namespacePrefix = prefix;
                 break;
             }
         }
-        oasisFormula = Odf::decodeFormula( oasisFormula, locale() );
+        oasisFormula = Odf::decodeFormula( oasisFormula, locale(), namespacePrefix );
         setUserInput( oasisFormula );
     }
     else if ( !userInput().isEmpty() && userInput().at(0) == '=' ) //prepend ' to the text to avoid = to be painted

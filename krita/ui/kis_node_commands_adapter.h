@@ -20,6 +20,7 @@
 #define KIS_NODE_COMMANDS_ADAPTER_H
 
 class KisView2;
+class KoCompositeOp;
 
 #include <kis_types.h>
 #include <krita_export.h>
@@ -35,20 +36,22 @@ class KRITAUI_EXPORT KisNodeCommandsAdapter : public QObject
     Q_OBJECT
 
 public:
-    KisNodeCommandsAdapter( KisView2 * view );
+    KisNodeCommandsAdapter(KisView2 * view);
     virtual ~KisNodeCommandsAdapter();
 public:
     void beginMacro(const QString& macroName);
     void endMacro();
-    void addNode(KisNodeSP node, KisNodeSP parent, KisNodeSP aboveThis );
-    void addNode(KisNodeSP node, KisNodeSP parent, quint32 index );
-    void moveNode(KisNodeSP node, KisNodeSP parent, KisNodeSP aboveThis );
-    void moveNode(KisNodeSP node, KisNodeSP parent, quint32 indexaboveThis );
+    void addNode(KisNodeSP node, KisNodeSP parent, KisNodeSP aboveThis);
+    void addNode(KisNodeSP node, KisNodeSP parent, quint32 index);
+    void moveNode(KisNodeSP node, KisNodeSP parent, KisNodeSP aboveThis);
+    void moveNode(KisNodeSP node, KisNodeSP parent, quint32 indexaboveThis);
     void removeNode(KisNodeSP node);
     void lower(KisNodeSP node);
     void raise(KisNodeSP node);
     void toBottom(KisNodeSP node);
     void toTop(KisNodeSP node);
+    void setOpacity(KisNodeSP node, qint32 opacity);
+    void setCompositeOp(KisNodeSP node, const KoCompositeOp* compositeOp);
 
     void undoLastCommand();
 private:

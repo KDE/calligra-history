@@ -93,7 +93,7 @@ bool KWPage::operator==(const KWPage &other) const
 
 uint KWPage::hash() const
 {
-   return n + qHash(priv);
+    return n + qHash(priv);
 }
 
 qreal KWPage::width() const
@@ -117,7 +117,7 @@ qreal KWPage::topMargin() const
     if (! isValid())
         return 0;
     const KWPageManagerPrivate::Page &page = priv->pages[n];
-    return page.style.pageLayout().top;
+    return page.style.pageLayout().topMargin;
 }
 
 qreal KWPage::bottomMargin() const
@@ -125,7 +125,7 @@ qreal KWPage::bottomMargin() const
     if (! isValid())
         return 0;
     const KWPageManagerPrivate::Page &page = priv->pages[n];
-    return page.style.pageLayout().bottom;
+    return page.style.pageLayout().bottomMargin;
 }
 
 qreal KWPage::leftMargin() const
@@ -136,7 +136,7 @@ qreal KWPage::leftMargin() const
     qreal answer = page.pageSide == Left ? pageEdgeMargin() : marginClosestBinding();
     if (answer != -1)
         return answer;
-    return page.style.pageLayout().left;
+    return page.style.pageLayout().leftMargin;
 }
 
 qreal KWPage::rightMargin() const
@@ -147,7 +147,39 @@ qreal KWPage::rightMargin() const
     qreal answer = page.pageSide == Right ? pageEdgeMargin() : marginClosestBinding();
     if (answer != -1)
         return answer;
-    return page.style.pageLayout().right;
+    return page.style.pageLayout().rightMargin;
+}
+
+qreal KWPage::topPadding() const
+{
+    if (! isValid())
+        return 0;
+    const KWPageManagerPrivate::Page &page = priv->pages[n];
+    return page.style.pageLayout().topPadding;
+}
+
+qreal KWPage::bottomPadding() const
+{
+    if (! isValid())
+        return 0;
+    const KWPageManagerPrivate::Page &page = priv->pages[n];
+    return page.style.pageLayout().bottomPadding;
+}
+
+qreal KWPage::leftPadding() const
+{
+    if (! isValid())
+        return 0;
+    const KWPageManagerPrivate::Page &page = priv->pages[n];
+    return page.style.pageLayout().leftPadding;
+}
+
+qreal KWPage::rightPadding() const
+{
+    if (! isValid())
+        return 0;
+    const KWPageManagerPrivate::Page &page = priv->pages[n];
+    return page.style.pageLayout().rightPadding;
 }
 
 qreal KWPage::pageEdgeMargin() const

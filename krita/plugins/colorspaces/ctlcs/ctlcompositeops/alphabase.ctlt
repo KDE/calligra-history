@@ -1,6 +1,8 @@
 @operation(compositeWithmask, inputs=2, arguments=int mask, optional_arguments=int opacity = 255)
 {
-  @alphachannel( float blend = @in(1) / @unit; )
+  // @in(0) -> dst
+  // @in(1) -> src
+  @alphachannel( float blend = @in(1) / (1.0 * @unit); )
   if(mask != 255)
   {
     blend = (blend * mask) / 255;
@@ -11,31 +13,20 @@
     {
       blend = (blend * opacity) / 255;
     }
-    @alphachannel( @type newalpha = @in(0) + (( @unit - @in(0)) * blend) / @unit;
+    @alphachannel( @type newalpha = @in(0) + (( @unit - @in(0)) * blend);
     @out = newalpha;
     if(newalpha > 0 )
     {
       blend = (blend * @unit) / newalpha;
-    } )
-    compose( @in(0), @in(1), blend, @out);
+    }
+    )
+    compose( @in(1), @in(0), blend, @out);
+  } else {
+    @allchannels( @out = @in(0); )
   }
 }
 
 @operation(compositeWithoutmask, inputs=2, optional_arguments=int opacity = 255)
 {
-  @alphachannel( float blend = @in(1) / @unit; )
-  if( @alphachannel( @in(1) != 0 ) )
-  {
-    if( opacity != 255 )
-    {
-      blend = (blend * opacity) / 255;
-    }
-    @alphachannel( @type newalpha = @in(0) + (( @unit - @in(0)) * blend) / @unit;
-    @out = newalpha;
-    if(newalpha > 0 )
-    {
-      blend = (blend * @unit) / newalpha;
-    } )
-    compose( @in(0), @in(1), blend, @out);
-  }
+  compositeWithmask(@in(0), @in(1), 255, @out, opacity);
 }

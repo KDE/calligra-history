@@ -160,7 +160,7 @@ void KWOdfWriter::saveHeaderFooter(KoEmbeddedDocumentSaver& embeddedSaver, KoGen
 KWOdfWriter::KWOdfWriter(KWDocument *document)
         : QObject(),
         m_document(document),
-        m_shapeTree(4,2)
+        m_shapeTree(4, 2)
 {
 }
 
@@ -175,18 +175,18 @@ bool KWOdfWriter::save(KoOdfWriteStore & odfStore, KoEmbeddedDocumentSaver & emb
 
     KoStore * store = odfStore.store();
 
-    if ( ! store->open( "settings.xml" ) ) {
+    if (! store->open("settings.xml")) {
         return false;
     }
 
-    saveOdfSettings( store );
+    saveOdfSettings(store);
 
-    if(!store->close())
+    if (!store->close())
         return false;
 
     KoXmlWriter * manifestWriter = odfStore.manifestWriter();
 
-    manifestWriter->addManifestEntry( "settings.xml", "text/xml" );
+    manifestWriter->addManifestEntry("settings.xml", "text/xml");
 
     KoXmlWriter* contentWriter = odfStore.contentWriter();
     if (!contentWriter)
@@ -194,7 +194,7 @@ bool KWOdfWriter::save(KoOdfWriteStore & odfStore, KoEmbeddedDocumentSaver & emb
 
     KTemporaryFile tmpChangeFile;
     tmpChangeFile.open();
-    KoXmlWriter *changeWriter = new KoXmlWriter(&tmpChangeFile,1);
+    KoXmlWriter *changeWriter = new KoXmlWriter(&tmpChangeFile, 1);
     if (!changeWriter)
         return false;
 
@@ -307,7 +307,7 @@ bool KWOdfWriter::save(KoOdfWriteStore & odfStore, KoEmbeddedDocumentSaver & emb
                 value.clear();
                 KWTextFrame *tf = dynamic_cast<KWTextFrame*>(frame);
                 if (tf && tf->minimumFrameHeight() > 1)
-                    shape->setAdditionalAttribute("fo:min-height", QString::number(tf->minimumFrameHeight())+ "pt");
+                    shape->setAdditionalAttribute("fo:min-height", QString::number(tf->minimumFrameHeight()) + "pt");
                 break;
             }
             if (!value.isEmpty())
@@ -341,7 +341,7 @@ bool KWOdfWriter::save(KoOdfWriteStore & odfStore, KoEmbeddedDocumentSaver & emb
             shape->setAdditionalAttribute("draw:z-index", QString::number(effectiveZIndex));
             shape->setAdditionalAttribute("text:anchor-type", "page");
             shape->setAdditionalAttribute("text:anchor-page-number", QString::number(page.pageNumber()));
-            context.addShapeOffset(shape, QMatrix(1, 0, 0 , 1, 0, -pagePos ));
+            context.addShapeOffset(shape, QMatrix(1, 0, 0 , 1, 0, -pagePos));
             shape->saveOdf(context);
             context.removeShapeOffset(shape);
             shape->removeAdditionalAttribute("draw:copy-of");
@@ -371,17 +371,7 @@ bool KWOdfWriter::save(KoOdfWriteStore & odfStore, KoEmbeddedDocumentSaver & emb
         }
     }
 
-    bodyWriter->startElement("text:page-sequence");
-    foreach (KWPage page, m_document->pageManager()->pages()) {
-        Q_ASSERT(m_masterPages.contains(page.pageStyle()));
-        bodyWriter->startElement("text:page");
-        bodyWriter->addAttribute("text:master-page-name", m_masterPages.value(page.pageStyle()));
-        bodyWriter->endElement(); // text:page
-    }
-    bodyWriter->endElement(); // text:page-sequence
-
-
-
+    //we save the changes before starting the page sequence element because odf validator insist on having <tracked-changes> right after the <office:text> tag
     mainStyles.saveOdfAutomaticStyles(contentWriter, false);
 
     changes.saveOdfChanges(changeWriter);
@@ -391,6 +381,15 @@ bool KWOdfWriter::save(KoOdfWriteStore & odfStore, KoEmbeddedDocumentSaver & emb
 
     tmpChangeFile.close();
     bodyWriter->addCompleteElement(&tmpChangeFile);
+
+    bodyWriter->startElement("text:page-sequence");
+    foreach (KWPage page, m_document->pageManager()->pages()) {
+        Q_ASSERT(m_masterPages.contains(page.pageStyle()));
+        bodyWriter->startElement("text:page");
+        bodyWriter->addAttribute("text:master-page-name", m_masterPages.value(page.pageStyle()));
+        bodyWriter->endElement(); // text:page
+    }
+    bodyWriter->endElement(); // text:page-sequence
 
     delete tmpBodyWriter;
     tmpBodyWriter = 0;
@@ -419,11 +418,11 @@ bool KWOdfWriter::save(KoOdfWriteStore & odfStore, KoEmbeddedDocumentSaver & emb
 
 bool KWOdfWriter::saveOdfSettings(KoStore *store)
 {
-    KoStoreDevice settingsDev( store );
-    KoXmlWriter * settingsWriter = KoOdfWriteStore::createOasisXmlWriter( &settingsDev, "office:document-settings" );
+    KoStoreDevice settingsDev(store);
+    KoXmlWriter * settingsWriter = KoOdfWriteStore::createOasisXmlWriter(&settingsDev, "office:document-settings");
 
     // add this so that OOo reads guides lines and grid data from ooo:view-settings
-    settingsWriter->addAttribute( "xmlns:ooo", "http://openoffice.org/2004/office" );
+    settingsWriter->addAttribute("xmlns:ooo", "http://openoffice.org/2004/office");
 
     settingsWriter->startElement("office:settings");
     settingsWriter->startElement("config:config-item-set");
@@ -435,12 +434,12 @@ bool KWOdfWriter::saveOdfSettings(KoStore *store)
 
     settingsWriter->startElement("config:config-item-set");
     settingsWriter->addAttribute("config:name", "ooo:view-settings");
-    settingsWriter->startElement("config:config-item-map-indexed" );
-    settingsWriter->addAttribute("config:name", "Views" );
-    settingsWriter->startElement("config:config-item-map-entry" );
+    settingsWriter->startElement("config:config-item-map-indexed");
+    settingsWriter->addAttribute("config:name", "Views");
+    settingsWriter->startElement("config:config-item-map-entry");
 
-    m_document->guidesData().saveOdfSettings( *settingsWriter );
-    m_document->gridData().saveOdfSettings( *settingsWriter );
+    m_document->guidesData().saveOdfSettings(*settingsWriter);
+    m_document->gridData().saveOdfSettings(*settingsWriter);
 
     settingsWriter->endElement(); // config:config-item-map-entry
     settingsWriter->endElement(); // config:config-item-map-indexed

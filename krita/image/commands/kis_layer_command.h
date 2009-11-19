@@ -19,14 +19,10 @@
 #ifndef KIS_LAYER_COMMAND_H_
 #define KIS_LAYER_COMMAND_H_
 
-#include <krita_export.h>
 #include <QUndoCommand>
-#include <QRect>
-#include <QPoint>
-
+#include <krita_export.h>
 #include "kis_types.h"
 
-class KoCompositeOp;
 class KisLayer;
 
 /// the base command for commands altering a layer
@@ -45,4 +41,4 @@ public:
 protected:
     KisLayerSP m_layer;
 };
-#endif 
+#endif

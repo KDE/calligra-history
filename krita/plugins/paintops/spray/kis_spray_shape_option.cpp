@@ -24,10 +24,10 @@ class KisShapeOptionsWidget: public QWidget, public Ui::WdgShapeOptions
 {
 public:
     KisShapeOptionsWidget(QWidget *parent = 0)
-        : QWidget(parent)
-    {
+            : QWidget(parent) {
         setupUi(this);
     }
+
 };
 
 KisSprayShapeOption::KisSprayShapeOption()
@@ -35,66 +35,58 @@ KisSprayShapeOption::KisSprayShapeOption()
 {
     m_checkable = false;
     m_options = new KisShapeOptionsWidget();
-    connect(m_options->shapeBtn,SIGNAL(toggled(bool)),SIGNAL( sigSettingChanged()));
-    connect(m_options->particleBtn,SIGNAL(toggled(bool)),SIGNAL( sigSettingChanged()));
-    connect(m_options->pixelBtn,SIGNAL(toggled(bool)),SIGNAL( sigSettingChanged()));
-    connect(m_options->shapeBox,SIGNAL(currentIndexChanged(int)),SIGNAL( sigSettingChanged()));
-    connect(m_options->widthSpin,SIGNAL(valueChanged(int)),SIGNAL( sigSettingChanged()));
-    connect(m_options->heightSpin,SIGNAL(valueChanged(int)),SIGNAL( sigSettingChanged()));
-    connect(m_options->jitterShape,SIGNAL(toggled(bool)),SIGNAL( sigSettingChanged()));
-    connect(m_options->heightPro,SIGNAL(valueChanged(double)),SIGNAL( sigSettingChanged()));
-    connect(m_options->widthPro,SIGNAL(valueChanged(double)),SIGNAL( sigSettingChanged()));
-    connect(m_options->proportionalBox,SIGNAL(toggled(bool)),SIGNAL( sigSettingChanged()));
-    connect(m_options->gaussBox,SIGNAL(toggled(bool)),SIGNAL( sigSettingChanged()));
+    connect(m_options->shapeBox, SIGNAL(currentIndexChanged(int)), SIGNAL(sigSettingChanged()));
+    connect(m_options->widthSpin, SIGNAL(valueChanged(int)), SIGNAL(sigSettingChanged()));
+    connect(m_options->heightSpin, SIGNAL(valueChanged(int)), SIGNAL(sigSettingChanged()));
+    connect(m_options->jitterShape, SIGNAL(toggled(bool)), SIGNAL(sigSettingChanged()));
+    connect(m_options->heightPro, SIGNAL(valueChanged(double)), SIGNAL(sigSettingChanged()));
+    connect(m_options->widthPro, SIGNAL(valueChanged(double)), SIGNAL(sigSettingChanged()));
+    connect(m_options->proportionalBox, SIGNAL(toggled(bool)), SIGNAL(sigSettingChanged()));
+    connect(m_options->gaussBox, SIGNAL(toggled(bool)), SIGNAL(sigSettingChanged()));
 
-// turn off those
-//     connect(m_options->maxTreshSpin,SIGNAL(valueChanged(double)),SIGNAL( sigSettingChanged()));
-//     connect(m_options->minTreshSpin,SIGNAL(toggled(bool)),SIGNAL( sigSettingChanged()));
-//     connect(m_options->renderBox,SIGNAL(toggled(bool)),SIGNAL( sigSettingChanged()));
-
+    connect(m_options->randomSlider,SIGNAL(valueChanged(int)),this,SLOT(randomValueChanged(int)));
+    connect(m_options->followSlider,SIGNAL(valueChanged(int)),this,SLOT(followValueChanged(int)));
+    
     setConfigurationPage(m_options);
 }
 
 KisSprayShapeOption::~KisSprayShapeOption()
 {
-    // delete m_options; 
+    // delete m_options;
 }
 
-int KisSprayShapeOption::object() const {
-    if (m_options->shapeBtn->isChecked())
-        return 0;
-    if (m_options->particleBtn->isChecked())
-        return 1;
-    if (m_options->pixelBtn->isChecked())
-        return 2;
-    return -1;
-}
-
-int KisSprayShapeOption::shape() const {
+int KisSprayShapeOption::shape() const
+{
     return m_options->shapeBox->currentIndex();
 }
 
-int KisSprayShapeOption::width() const {
+int KisSprayShapeOption::width() const
+{
     return m_options->widthSpin->value();
 }
 
-int KisSprayShapeOption::height() const {
+int KisSprayShapeOption::height() const
+{
     return m_options->heightSpin->value();
 }
 
-bool KisSprayShapeOption::jitterShapeSize() const {
+bool KisSprayShapeOption::jitterShapeSize() const
+{
     return m_options->jitterShape->isChecked();
 }
 
-qreal KisSprayShapeOption::heightPerc() const {
+qreal KisSprayShapeOption::heightPerc() const
+{
     return m_options->heightPro->value();
 }
 
-qreal KisSprayShapeOption::widthPerc() const {
-    return m_options->widthPro->value(); 
+qreal KisSprayShapeOption::widthPerc() const
+{
+    return m_options->widthPro->value();
 }
 
-bool KisSprayShapeOption::proportional() const {
+bool KisSprayShapeOption::proportional() const
+{
     return m_options->proportionalBox->isChecked();
 }
 
@@ -109,30 +101,72 @@ void KisSprayShapeOption::writeOptionSetting(KisPropertiesConfiguration* setting
 // TODO
 void KisSprayShapeOption::readOptionSetting(const KisPropertiesConfiguration* setting)
 {
-/*    m_options->diameterSpinBox->setValue( setting->getInt("Spray/diameter") );
-    m_options->coverageSpin->setValue( setting->getDouble("Spray/coverage") );
-    m_options->jitterSizeBox->setChecked( setting->getBool("Spray/jitterSize") );*/
-}
-
-
-qreal KisSprayShapeOption::maxTresh() const
-{
-    return m_options->maxTreshSpin->value();
-}
-
-
-qreal KisSprayShapeOption::minTresh() const
-{
-    return m_options->minTreshSpin->value();
-}
-
-bool KisSprayShapeOption::highRendering() const
-{
-    return m_options->renderBox->isChecked();
+    /*    m_options->diameterSpinBox->setValue( setting->getInt("Spray/diameter") );
+        m_options->coverageSpin->setValue( setting->getDouble("Spray/coverage") );
+        m_options->jitterSizeBox->setChecked( setting->getBool("Spray/jitterSize") );*/
 }
 
 
 bool KisSprayShapeOption::gaussian() const
 {
     return m_options->gaussBox->isChecked();
+}
+
+
+QString KisSprayShapeOption::path() const
+{
+    return m_options->imageUrl->url().toLocalFile();
+    
+}
+
+
+
+bool KisSprayShapeOption::fixedRotation() const
+{
+    return m_options->fixedRotation->isChecked();
+}
+
+
+int KisSprayShapeOption::fixedAngle() const
+{
+    return m_options->fixedRotationSPBox->value();
+}
+
+
+bool KisSprayShapeOption::followCursor() const
+{
+    return m_options->followCursor->isChecked();
+}
+
+
+qreal KisSprayShapeOption::followCursorWeigth() const
+{
+    return m_options->followCursorWeightSPBox->value();
+}
+
+
+
+bool KisSprayShapeOption::randomRotation() const
+{
+    return m_options->randomRotation->isChecked();
+}
+
+
+qreal KisSprayShapeOption::randomRotationWeight() const
+{
+    return m_options->randomWeightSPBox->value();
+}
+
+
+void KisSprayShapeOption::randomValueChanged(int value)
+{
+    qreal relative = value / (qreal)m_options->randomSlider->maximum() ;
+    m_options->randomWeightSPBox->setValue( relative * m_options->randomWeightSPBox->maximum() );
+}
+
+
+void KisSprayShapeOption::followValueChanged(int value)
+{
+    qreal relative = value / (qreal)m_options->followSlider->maximum() ;
+    m_options->followCursorWeightSPBox->setValue( relative * m_options->followCursorWeightSPBox->maximum() );
 }

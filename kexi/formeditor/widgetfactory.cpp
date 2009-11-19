@@ -30,17 +30,20 @@
 //#endif
 #include <kdialog.h>
 #include <keditlistbox.h>
-#include <kxmlguiclient.h>
+//2.0#include <kxmlguiclient.h>
 #include <kactioncollection.h>
 
 #include "richtextdialog.h"
-#include "editlistviewdialog.h"
+#ifndef KEXI_FORMS_NO_LIST_WIDGET
+# include "editlistviewdialog.h"
+#endif
 #include "resizehandle.h"
 //#include "formmanager.h"
 #include "form.h"
 #include "container.h"
 #include "objecttree.h"
 #include "widgetlibrary.h"
+#include "WidgetInfo.h"
 #include "utils.h"
 //removed #include "widgetpropertyset.h"
 #include "widgetwithsubpropertiesinterface.h"
@@ -50,96 +53,6 @@
 
 using namespace KFormDesigner;
 
-///// Widget Info //////////////////////////
-
-WidgetInfo::WidgetInfo(WidgetFactory *f)
-        : m_inheritedClass(0)
-        , m_overriddenAlternateNames(0)
-        , m_factory(f)
-        , m_propertiesWithDisabledAutoSync(0)
-        , m_customTypesForProperty(0)
-{
-}
-
-WidgetInfo::WidgetInfo(WidgetFactory *f, const char* parentFactoryName,
-                       const char* inheritedClassName)
-        : m_parentFactoryName(QByteArray("kformdesigner_") + parentFactoryName)
-        , m_inheritedClassName(inheritedClassName)
-        , m_inheritedClass(0)
-        , m_overriddenAlternateNames(0)
-        , m_factory(f)
-        , m_propertiesWithDisabledAutoSync(0)
-        , m_customTypesForProperty(0)
-{
-    m_class = inheritedClassName;
-}
-
-WidgetInfo::~WidgetInfo()
-{
-    delete m_overriddenAlternateNames;
-    delete m_propertiesWithDisabledAutoSync;
-    delete m_customTypesForProperty;
-}
-
-void WidgetInfo::addAlternateClassName(const QByteArray& alternateName, bool override)
-{
-    m_alternateNames += alternateName;
-    if (override) {
-        if (!m_overriddenAlternateNames)
-            m_overriddenAlternateNames = new QSet<QByteArray>;
-        m_overriddenAlternateNames->insert(alternateName);
-    } else {
-        if (m_overriddenAlternateNames)
-            m_overriddenAlternateNames->remove(alternateName);
-    }
-}
-
-bool WidgetInfo::isOverriddenClassName(const QByteArray& alternateName) const
-{
-    return m_overriddenAlternateNames && m_overriddenAlternateNames->contains(alternateName);
-}
-
-void WidgetInfo::setAutoSyncForProperty(const char *propertyName, tristate flag)
-{
-    if (!m_propertiesWithDisabledAutoSync) {
-        if (~flag)
-            return;
-        m_propertiesWithDisabledAutoSync = new QHash<QByteArray, tristate>;
-    }
-
-    if (~flag) {
-        m_propertiesWithDisabledAutoSync->remove(propertyName);
-    } else {
-        m_propertiesWithDisabledAutoSync->insert(propertyName, flag);
-    }
-}
-
-tristate WidgetInfo::autoSyncForProperty(const char *propertyName) const
-{
-    if (!m_propertiesWithDisabledAutoSync)
-        return cancelled;
-    tristate flag = m_propertiesWithDisabledAutoSync->value(propertyName);
-    return flag;
-}
-
-void WidgetInfo::setCustomTypeForProperty(const char *propertyName, int type)
-{
-    if (!propertyName || type == (int)KoProperty::Auto)
-        return;
-    if (!m_customTypesForProperty) {
-        m_customTypesForProperty = new QHash<QByteArray, int>();
-    }
-    m_customTypesForProperty->remove(propertyName);
-    m_customTypesForProperty->insert(propertyName, type);
-}
-
-int WidgetInfo::customTypeForProperty(const char *propertyName) const
-{
-    if (!m_customTypesForProperty || !m_customTypesForProperty->contains(propertyName))
-        return KoProperty::Auto;
-    return m_customTypesForProperty->value(propertyName);
-}
-
 ///// InlineEditorCreationArguments //////////////////////////
 
 WidgetFactory::InlineEditorCreationArguments::InlineEditorCreationArguments(
@@ -147,8 +60,7 @@ WidgetFactory::InlineEditorCreationArguments::InlineEditorCreationArguments(
     : classname(_classname), widget(_widget), container(_container), 
       geometry(_widget ? _widget->geometry() : QRect()),
       alignment( Qt::AlignLeft ),
-      backgroundMode( Qt::NoBackground ),
-      useFrame( false ), multiLine( false ), execute( true )
+      useFrame( false ), multiLine( false ), execute( true ), transparentBackground( false )
 {
 }
 
@@ -160,7 +72,7 @@ WidgetFactory::WidgetFactory(QObject *parent, const char *name)
     setObjectName(QString("kformdesigner_") + name);
     m_showAdvancedProperties = true;
     m_hiddenClasses = 0;
-    m_guiClient = 0;
+//2.0    m_guiClient = 0;
 }
 
 WidgetFactory::~WidgetFactory()
@@ -190,6 +102,10 @@ void WidgetFactory::hideClass(const char *classname)
     m_hiddenClasses->insert(QByteArray(classname).toLower());
 }
 
+const WidgetInfoHash& WidgetFactory::classes() const
+{
+    return m_classesByName;
+}
 
 void WidgetFactory::disableFilter(QWidget *w, Container *container)
 {
@@ -409,12 +325,6 @@ QWidget *WidgetFactory::widget() const
     return m_widget;
 }
 #endif
-
-void WidgetFactory::setInternalProperty(const QByteArray& classname, const QByteArray& property,
-                                        const QString& value)
-{
-    m_internalProp.insert(classname+":"+property, value);
-}
 
 void WidgetFactory::setPropertyOptions(KoProperty::Set& set, const WidgetInfo& info, QWidget *w)
 {

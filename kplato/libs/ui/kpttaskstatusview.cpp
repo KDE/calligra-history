@@ -306,6 +306,10 @@ void TaskStatusView::slotSplitView()
     m_view->setViewSplitMode( ! m_view->isViewSplit() );
 }
 
+void TaskStatusView::slotRefreshView()
+{
+    model()->refresh();
+}
 
 void TaskStatusView::slotOptions()
 {
@@ -487,9 +491,9 @@ PerformanceStatusBase::PerformanceStatusBase( QWidget *parent )
     labelBCWS->setToolTip( ToolTip::nodeBCWS() );
     labelBCWP->setToolTip( ToolTip::nodeBCWP() );
     labelACWP->setToolTip( ToolTip::nodeACWP() );
-    labelPI->setToolTip( ToolTip::nodePerformanceIndex() );
-    labelCPI->setToolTip( i18nc( "@info:tooltip", "Costbased performance index" ) );
-    labelSPI->setToolTip( i18nc( "@info:tooltip", "Effortbased performance index" ) );
+    labelPI->setToolTip(  i18nc( "@info:tooltip", "Performance indexes" ) );
+    labelCPI->setToolTip( i18nc( "@info:tooltip", "Cost performance index (BCWP/ACWP)" ) );
+    labelSPI->setToolTip( ToolTip::nodePerformanceIndex() );
 
     plotwidget->setAntialiasing(false);
     plotwidget->setShowGrid(false);
@@ -511,6 +515,12 @@ void PerformanceStatusBase::slotReset()
     draw();
 }
 
+void PerformanceStatusBase::slotUpdate()
+{
+    //kDebug();
+    drawValues();
+}
+
 void PerformanceStatusBase::setScheduleManager( ScheduleManager *sm )
 {
     //kDebug();
@@ -520,8 +530,14 @@ void PerformanceStatusBase::setScheduleManager( ScheduleManager *sm )
 
 void PerformanceStatusBase::setProject( Project *project )
 {
+    if ( m_project ) {
+        disconnect( m_project, SIGNAL( localeChanged() ), this, SLOT( slotUpdate() ) );
+    }
     m_project = project;
     m_model.setProject( project );
+    if ( m_project ) {
+        connect( m_project, SIGNAL( localeChanged() ), this, SLOT( slotUpdate() ) );
+    }
 }
 
 void PerformanceStatusBase::draw()

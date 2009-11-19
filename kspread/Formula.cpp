@@ -415,7 +415,7 @@ void TokenStack::ensureSpace()
 // helper function: return true for valid identifier character
 bool KSpread::isIdentifier( QChar ch )
 {
-  return ( ch.unicode() == '_' ) || (ch.unicode() == '$' ) || ( ch.isLetter() );
+  return ( ch.unicode() == '_' ) || (ch.unicode() == '$' ) || (ch.unicode() == '.') || ( ch.isLetter() );
 }
 
 
@@ -592,6 +592,13 @@ Tokens Formula::scan( const QString& expr, const KLocale* locale ) const
          state = InString;
        }
 
+       // decimal dot ?
+       else if ( ch == decimal[0] )
+       {
+         tokenText.append( ex[i++] );
+         state = InDecimal;
+       }
+
        // beginning with alphanumeric ?
        // could be identifier, cell, range, or function...
        else if( isIdentifier( ch ) )
@@ -604,13 +611,6 @@ Tokens Formula::scan( const QString& expr, const KLocale* locale ) const
        {
          i++;
          state = InSheetOrAreaName;
-       }
-
-       // decimal dot ?
-       else if ( ch == decimal[0] )
-       {
-         tokenText.append( ex[i++] );
-         state = InDecimal;
        }
 
        // error value?
@@ -787,7 +787,7 @@ Tokens Formula::scan( const QString& expr, const KLocale* locale ) const
                  // for compatibility with oocalc (and the openformula spec), don't parse single-quoted
                  // text as an identifier, instead add an Unknown token and remember we had an error
                  parseError = true;
-                 tokens.append( Token( Token::Unknown, "'" + tokenText + "'", tokenStart ) );
+                 tokens.append( Token( Token::Unknown, '\'' + tokenText + '\'', tokenStart ) );
              }
              tokenStart = i;
              tokenText.clear();
@@ -1388,7 +1388,13 @@ struct stackEntry {
   int row1, col1, row2, col2;
 };
 
-Value Formula::eval() const
+Value Formula::eval( CellIndirection cellIndirections ) const
+{
+  QHash<Cell, Value> values;
+  return evalRecursive( cellIndirections, values );
+}
+
+Value Formula::evalRecursive( CellIndirection cellIndirections, QHash<Cell, Value>& values ) const
 {
   QStack<stackEntry> stack;
   stackEntry entry;
@@ -1576,7 +1582,24 @@ Value Formula::eval() const
           if (region.isValid() && region.isSingular())
           {
             const QPoint position = region.firstRange().topLeft();
-            val1 = Cell(region.firstSheet(), position).value();
+            if (cellIndirections.isEmpty())
+              val1 = Cell(region.firstSheet(), position).value();
+            else
+            {
+              Cell cell(region.firstSheet(), position);
+              cell = cellIndirections.value(cell, cell);
+              if (values.contains(cell))
+                val1 = values.value(cell);
+              else
+              {
+                values[cell] = Value::errorCIRCLE();
+                if (cell.isFormula())
+                  val1 = cell.formula().evalRecursive( cellIndirections, values );
+                else
+                  val1 = cell.value();
+                values[cell] = val1;
+              }
+            }
             // store the reference, so we can use it within functions
             entry.col1 = entry.col2 = position.x();
             entry.row1 = entry.row2 = position.y();
@@ -1629,9 +1652,7 @@ Value Formula::eval() const
         {
           stackEntry e = stack.pop();
           args.insert (args.begin(), e.val);
-          // TODO: create and fill a FunctionExtra object, if needed
-          // problem: we don't know if we need it, as we don't have the
-          // function name yet ...
+          // fill the FunctionExtra object
           fe.ranges[index - 1].col1 = e.col1;
           fe.ranges[index - 1].row1 = e.row1;
           fe.ranges[index - 1].col2 = e.col2;

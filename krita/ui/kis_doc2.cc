@@ -28,6 +28,8 @@
 #include <QDomDocument>
 #include <QDomElement>
 #include <QImage>
+#include <QRect>
+#include <QSize>
 #include <QPainter>
 #include <QStringList>
 #include <QWidget>
@@ -106,12 +108,12 @@ class KisDoc2::KisDocPrivate
 public:
 
     KisDocPrivate()
-        : undoAdapter(0)
-        , nserver(0)
-        , macroNestDepth(0)
-        , ioProgressTotalSteps(0)
-        , ioProgressBase(0)
-        , kraLoader(0) {
+            : undoAdapter(0)
+            , nserver(0)
+            , macroNestDepth(0)
+            , ioProgressTotalSteps(0)
+            , ioProgressBase(0)
+            , kraLoader(0) {
     }
 
     ~KisDocPrivate() {
@@ -137,8 +139,8 @@ public:
 
 
 KisDoc2::KisDoc2(QWidget *parentWidget, QObject *parent, bool singleViewMode)
-    : KoDocument(parentWidget, parent, singleViewMode)
-    , m_d(new KisDocPrivate())
+        : KoDocument(parentWidget, parent, singleViewMode)
+        , m_d(new KisDocPrivate())
 {
 
     setComponentData(KisFactory2::componentData(), false);
@@ -215,8 +217,8 @@ QDomDocument KisDoc2::saveXML()
     root.setAttribute("editor", "Krita");
     root.setAttribute("syntaxVersion", "2");
 
-    Q_ASSERT( m_d->kraSaver == 0 );
-    m_d->kraSaver = new KisKraSaver( this );
+    Q_ASSERT(m_d->kraSaver == 0);
+    m_d->kraSaver = new KisKraSaver(this);
 
     root.appendChild(m_d->kraSaver->saveXML(doc, m_d->image));
 
@@ -257,8 +259,8 @@ bool KisDoc2::loadXML(const KoXmlDocument& doc, KoStore *)
     }
 
     setUndo(false);
-    Q_ASSERT( m_d->kraLoader == 0 );
-    m_d->kraLoader = new KisKraLoader( this, syntaxVersion );
+    Q_ASSERT(m_d->kraLoader == 0);
+    m_d->kraLoader = new KisKraLoader(this, syntaxVersion);
 
     // Legacy from the multi-image .kra file period.
     for (node = root.firstChild(); !node.isNull(); node = node.nextSibling()) {
@@ -289,7 +291,7 @@ bool KisDoc2::completeSaving(KoStore *store)
 
     setIOSteps(m_d->image->nlayers() + 1);
 
-    m_d->kraSaver->saveBinaryData( store, m_d->image, url().url(), isStoredExtern() );
+    m_d->kraSaver->saveBinaryData(store, m_d->image, url().url(), isStoredExtern());
 
     delete m_d->kraSaver;
     m_d->kraSaver = 0;
@@ -356,35 +358,16 @@ QList<KoDocument::CustomDocumentWidgetItem> KisDoc2::createCustomDocumentWidgets
 
 KisImageWSP KisDoc2::newImage(const QString& name, qint32 width, qint32 height, const KoColorSpace * colorspace)
 {
-    qApp->setOverrideCursor(Qt::BusyCursor);
-    if (!init())
-        return KisImageWSP(0);
+    KoColor backgroundColor(Qt::white, colorspace);
 
-    setUndo(false);
+    /**
+     * FIXME: check whether this is a good value
+     */
+    double defaultResolution=1.;
 
-    KisImageWSP img = KisImageWSP(new KisImage(m_d->undoAdapter, width, height, colorspace, name));
-    img->lock();
-
-    Q_CHECK_PTR(img);
-    connect(img.data(), SIGNAL(sigImageModified()), this, SLOT(setModified()));
-
-    KisPaintLayerSP layer = new KisPaintLayer(img.data(), img->nextLayerName(), OPACITY_OPAQUE, colorspace);
-    Q_CHECK_PTR(layer);
-
-    const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
-    KisFillPainter painter;
-
-    layer->paintDevice()->fill(0, 0, width, height, KoColor(Qt::white, cs).data());
-
-    img->addNode(layer.data(), img->rootLayer().data());
-
-    setCurrentImage(img);
-    layer->setDirty();
-    setUndo(true);
-    img->unlock();
-    qApp->restoreOverrideCursor();
-
-    return img;
+    newImage(name, width, height, colorspace, backgroundColor, "",
+             defaultResolution);
+    return image();
 }
 
 bool KisDoc2::newImage(const QString& name, qint32 width, qint32 height, const KoColorSpace * cs, const KoColor &bgColor, const QString &description, const double imgResolution)
@@ -420,6 +403,7 @@ bool KisDoc2::newImage(const QString& name, qint32 width, qint32 height, const K
 
     KisFillPainter painter;
     painter.begin(layer->paintDevice());
+    painter.beginTransaction("");
     painter.fillRect(0, 0, width, height, bgColor, opacity);
     painter.end();
 
@@ -432,7 +416,6 @@ bool KisDoc2::newImage(const QString& name, qint32 width, qint32 height, const K
     cfg.defImgResolution(imgResolution);
 
     setUndo(true);
-    layer->setDirty();
     img->unlock();
 
     qApp->restoreOverrideCursor();
@@ -464,6 +447,19 @@ void KisDoc2::paintContent(QPainter& painter, const QRect& rc)
     const KoColorProfile *  profile = KoColorSpaceRegistry::instance()->profileByName(monitorProfileName);
     QRect rect = rc & m_d->image->bounds();
     m_d->image->renderToPainter(rect.left(), rect.left(), rect.top(), rect.height(), rect.width(), rect.height(), painter, profile);
+}
+
+QPixmap KisDoc2::generatePreview(const QSize& size)
+{
+    if (m_d->image) {
+        QSize newSize = m_d->image->bounds().size();
+        newSize.scale(size, Qt::KeepAspectRatio);
+
+        QImage img = m_d->image->convertToQImage(QRect(0, 0, newSize.width(), newSize.height()), newSize, 0);
+        img.save("thumb.png");
+        return QPixmap::fromImage(img);
+    }
+    return QPixmap(size);
 }
 
 void KisDoc2::setUndo(bool undo)
@@ -571,9 +567,8 @@ void KisDoc2::undoIndexChanged(int idx)
 {
     const QUndoCommand* command = undoStack()->command(idx);
     if (command) {
-       m_d->undoAdapter->notifyCommandExecuted(undoStack()->command(idx));
-    }
-    else {
+        m_d->undoAdapter->notifyCommandExecuted(undoStack()->command(idx));
+    } else {
         kWarning() << "trying to clear undo stack to index" << idx << ": no command at that index";
     }
 }

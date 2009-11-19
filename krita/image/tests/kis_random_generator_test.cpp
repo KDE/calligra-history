@@ -38,12 +38,12 @@ void KisRandomGeneratorTest::twoSeeds(quint64 seed1, quint64 seed2)
 
 void KisRandomGeneratorTest::twoSeeds()
 {
-  twoSeeds( 140, 1405);
-  twoSeeds( 140515215, 232351521LL);
-  twoSeeds( 470461, 848256);
-  twoSeeds( 189840, 353395);
-  twoSeeds( 719471126795LL, 566272);
-  twoSeeds( 154349154349LL, 847895847895LL);
+    twoSeeds(140, 1405);
+    twoSeeds(140515215, 232351521LL);
+    twoSeeds(470461, 848256);
+    twoSeeds(189840, 353395);
+    twoSeeds(719471126795LL, 566272);
+    twoSeeds(154349154349LL, 847895847895LL);
 }
 
 
@@ -99,16 +99,15 @@ void KisRandomGeneratorTest::testEvolution()
     int counter = 0;
 
     KisRandomGenerator randg(10000);
-    for (int y = 2; y < 1000; y++) {
-        for (int x = 2; x < 1000; x++) {
+    for (int y = 0; y < 1024; y++) {
+        for (int x = 0; x < 1024; x++) {
             quint64 number = randg.randomAt(x, y);
-            double dnumber = randg.doubleRandomAt(x, y);
 
-            for (int i = -2; i < 3; i++) {
-                for (int j = -2; j < 3; j++) {
+            for (int i = 0; i < 5; i++) {
+                for (int j = 0; j < 5; j++) {
                     if (i != 0 || j != 0) {
-                        double dnumber2 = randg.doubleRandomAt(x + i, y + j);
-                        if (!(fabs(dnumber - dnumber2) > 0.001)) {
+                        quint64 number2 = randg.randomAt(x + i, y + j);
+                        if (number == number2) {
                             counter++;
                         }
                     }
@@ -117,7 +116,7 @@ void KisRandomGeneratorTest::testEvolution()
         }
     }
     // XXX: too many pixels are similar too close together?
-    QVERIFY(counter < 14940947);
+    QVERIFY(counter == 0);
 }
 
 QTEST_KDEMAIN(KisRandomGeneratorTest, GUI)

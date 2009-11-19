@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright (C) 2005-2008 Jarosław Staniek <staniek@kde.org>
+   Copyright (C) 2005-2009 Jarosław Staniek <staniek@kde.org>
 
    This work is based on kspread/dialogs/kspread_dlg_csv.cc
    and will be merged back with KOffice libraries.
@@ -57,6 +57,10 @@ class KProgressDialog;
 class KexiCSVDelimiterWidget;
 class KexiCSVTextQuoteComboBox;
 class KexiCSVInfoLabel;
+class KexiProject;
+namespace KexiPart {
+class Item;
+}
 
 /**
  * @short Kexi CSV import dialog
@@ -93,6 +97,12 @@ protected:
     virtual void accept();
 
 private:
+    //! Used in emergency by accept()
+    void dropDestinationTable(KexiProject* project, KexiPart::Item* partItemForSavedTable);
+
+    //! Used in emergency by accept()
+    void raiseErrorInAccept(KexiProject* project, KexiPart::Item* partItemForSavedTable);
+
     QGridLayout* MyDialogLayout;
     QHBoxLayout* Layout1;
     Q3Table* m_table;
@@ -165,6 +175,9 @@ private:
     //! @return date built out of @a y, @a m, @a d parts,
     //! taking m_minimumYearFor100YearSlidingWindow into account
     QDate buildDate(int y, int m, int d) const;
+
+    //! Updates size of m_columnNames and m_changedColumnNames if needed
+    void updateColumnVectorSize();
 
     bool m_cancelled : 1;
     bool m_adjustRows : 1;

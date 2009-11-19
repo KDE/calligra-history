@@ -22,26 +22,18 @@
 #ifndef KFORMDESIGNERWIDGETFACTORY_H
 #define KFORMDESIGNERWIDGETFACTORY_H
 
-#include <QObject>
-#include <QPointer>
 #include <QPixmap>
-#include <QHash>
-
-#include <kexi_export.h>
-#include <kexiutils/tristate.h>
-
-//! Disable list widget because we need to replace it with QTreeWidget 
-//! which uses very different API compared to Q3ListView.
-//! @todo re-add QTreeWidget
-#define KEXI_FORMS_NO_LIST_WIDGET
+#include <QVariant>
+#include "WidgetInfo.h"
 
 class QWidget;
+class QListWidget;
 class QMenu;
 class QDomElement;
 class QDomDocument;
 class QVariant;
 class KActionCollection;
-class KXMLGUIClient;
+//2.0 class KXMLGUIClient;
 
 namespace KoProperty
 {
@@ -51,169 +43,21 @@ class Set;
 namespace KFormDesigner
 {
 
-class WidgetFactory;
-class WidgetLibrary;
 class Container;
-class ResizeHandleSet;
 class ObjectTreeItem;
 class Form;
+class WidgetLibrary;
 
-/**
- * This class holds properties of widget classes provided by a factory.
- */
-class KFORMEDITOR_EXPORT WidgetInfo
+//! Used by WidgetFactory
+class KFORMEDITOR_EXPORT InternalPropertyHandlerInterface
 {
-public:
-    typedef QList<WidgetInfo*> List;
-    typedef QHash<QByteArray, WidgetInfo*> Hash;
-
-    WidgetInfo(WidgetFactory *f);
-
-    WidgetInfo(WidgetFactory *f, const char* parentFactoryName, const char* inheritedClassName = 0);
-
-    virtual ~WidgetInfo();
-
-    //! \return a pixmap associated with the widget
-    QString pixmap() const {
-        return m_pixmap;
-    }
-
-    //! \return the class name of a widget e.g. 'QLineEdit'
-    QByteArray className() const {
-        return m_class;
-    }
-
-    /*! \return the name used to name widget, that will appear eg in scripts (must not contain spaces
-      nor non-latin1 characters) */
-    QString namePrefix() const {
-        return m_prefixName;
-    }
-
-    //! \return the real name e.g. 'Line Edit', showed eg in ObjectTreeView
-    QString name() const {
-        return m_name;
-    }
-
-    QString description() const {
-        return m_desc;
-    }
-    QString includeFileName() const {
-        return m_include;
-    }
-    QList<QByteArray> alternateClassNames() const {
-        return m_alternateNames;
-    }
-    QString savingName() const {
-        return m_saveName;
-    }
-    WidgetFactory *factory() const {
-        return m_factory;
-    }
-
-    void setPixmap(const QString &p) {
-        m_pixmap = p;
-    }
-    void setClassName(const QByteArray &s) {
-        m_class = s;
-    }
-    void setName(const QString &n) {
-        m_name = n;
-    }
-    void setNamePrefix(const QString &n) {
-        m_prefixName = n;
-    }
-    void setDescription(const QString &desc) {
-        m_desc = desc;
-    }
-
-    /*! Sets the C++ include file corresponding to this class,
-     that uic will need to add when creating the file. You don't have to set this for Qt std widgets.*/
-    void setIncludeFileName(const QString &name) {
-        m_include = name;
-    }
-
-    /*! Sets alternate names for this class.
-     If this name is found when loading a .ui file, the className() will be used instead.
-     It allows to support both KDE and Qt versions of widget, without duplicating code.
-     As a rule, className() should always return a class name which is inherited from
-     alternate class. For example KLineEdit class has alternate QLineEdit class.
-
-     \a override parameter overrides class name of a widget,
-     even if it was implemented in other factory.
-     By default it's set to false, what means that no other class is overridden
-     by this widget class if there is already a class implementing it
-     (no matter in which factory).
-     By forced overriding existing class with other - custom, user
-     will be able to see more or less properties and experience different behaviour.
-     For example, in Kexi application, KLineEdit class contains additional
-     "datasource" property for binding to database sources.
-    */
-    void addAlternateClassName(const QByteArray& alternateName, bool override = false);
-
-    /*! \return true is a class \a alternateName is defined as alternate name with
-     'override' flag set to true, using addAlternateClassName().
-     If this flag is set to false (the default) or there's no such alternate class
-     name defined. */
-    bool isOverriddenClassName(const QByteArray& alternateName) const;
-
-    /*! Sets the name that will be written in the .ui file when saving.
-     This name must be one of alternate names (or loading will be impossible).
-
-     On form data saving to XML .ui format, saveName is used instead,
-     so .ui format is not broken and still usable with other software as Qt Designer.
-     Custom properties are saved as well with 'stdset' attribute set to 0. */
-    void setSavingName(const QString &saveName) {
-        m_saveName = saveName;
-    }
-
-    /*! Sets autoSync flag for property \a propertyName.
-     This allows to override autoSync flag for certain widget's property, because
-     e.g. KoProperty::EditorView can have autoSync flag set to false or true, but
-     not all properties have to comply with that.
-     \a flag equal to cancelled value means there is no overriding (the default). */
-    void setAutoSyncForProperty(const char *propertyName, tristate flag);
-
-    /*! \return autoSync override value (true or false) for \a propertyName.
-     If cancelled value is returned, there is no overriding (the default). */
-    tristate autoSyncForProperty(const char *propertyName) const;
-
-    QByteArray parentFactoryName() const {
-        return m_parentFactoryName;
-    }
-
-    WidgetInfo* inheritedClass() const {
-        return m_inheritedClass;
-    }
-
-    /*! Sets custom type \a type for property \a propertyName.
-     This allows to override default type, especially when custom property
-     and custom property editor item has to be used. */
-    void setCustomTypeForProperty(const char *propertyName, int type);
-
-    /*! \return custom type for property \a propertyName. If no specific custom type has been assigned,
-     KoProperty::Auto is returned.
-     @see setCustomTypeForProperty() */
-    int customTypeForProperty(const char *propertyName) const;
-
 protected:
-    QByteArray m_parentFactoryName, m_inheritedClassName; //!< Used for inheriting widgets between factories
-    WidgetInfo* m_inheritedClass;
+    /*! Assigns \a value for internal property \a property for a class \a classname.
+     Internal properties are not stored within objects, but can be provided
+     to describe class' details. */
+    virtual void setInternalProperty(const QByteArray& classname, const QByteArray& property, const QVariant& value) = 0;
 
-private:
-    QString m_pixmap;
-    QByteArray m_class;
-    QString m_name;
-    QString m_prefixName;
-    QString m_desc;
-    QString m_include;
-    QList<QByteArray> m_alternateNames;
-    QSet<QByteArray> *m_overriddenAlternateNames;
-    QString m_saveName;
-    QPointer<WidgetFactory> m_factory;
-    QHash<QByteArray, tristate> *m_propertiesWithDisabledAutoSync;
-    QHash<QByteArray, int> *m_customTypesForProperty;
-
-    friend class WidgetLibrary;
+    friend class WidgetInfo;
 };
 
 //! The base class for all widget Factories
@@ -257,13 +101,17 @@ private:
   readSpecialProperty()). \n \n
 
   <b>Special internal properties</b>\n
-  Use void setInternalProperty(const QByteArray& classname, const QByteArray& property, const QString& value);
+  Use void WidgetInfo::setInternalProperty(const QByteArray& property, const QVariant& value)
   to set values of special internal properties.
   Currently these properties are used for customizing popup menu items used for orientation selection.
   Customization for class ClassName should look like:
-  <code> void setInternalProperty("ClassName", "orientationSelectionPopup", "myicon"); </code>
+  <code>
+   WidgetInfo *wi = ...
+   wi->setInternalProperty("orientationSelectionPopup", true);
+   wi->setInternalProperty("orientationSelectionPopup:horizontalIcon", "myicon");
+  </code>
   Available internal properties:
-  * "orientationSelectionPopup" - set it to "1" if you want a given class to offer orientation selection,
+  * "orientationSelectionPopup" - set it to true if you want a given class to offer orientation selection,
      so orientation selection popup will be displayed when needed.
   * "orientationSelectionPopup:horizontalIcon" - sets a name of icon for "Horizontal" item
     for objects of class 'ClassName'. Set this property only for classes supporting orientations.
@@ -274,21 +122,21 @@ private:
     Set this property only for classes supporting orientations.
   * "orientationSelectionPopup:verticalText" - the same for "Vertical" item,
     e.g. i18n("Insert Vertical Line"). Set this property only for classes supporting orientations.
-  * "dontStartEditingOnInserting" - if not empty, WidgetFactory::startInlineEditing() will not be executed upon
+  * "dontStartEditingOnInserting" - if true, WidgetFactory::startInlineEditing() will not be executed upon
     widget inseting by a user.
-  * "forceShowAdvancedProperty:{propertyname}" - set it to "1" for "{propertyname}" advanced property
+  * "forceShowAdvancedProperty:{propertyname}" - set it to true for "{propertyname}" advanced property
     if you want to force it to be visible even if WidgetLibrary::setAdvancedPropertiesVisible(false)
-    has been called. For example, setting "forceShowAdvancedProperty:pixmap" to "1"
+    has been called. For example, setting "forceShowAdvancedProperty:pixmap" to true
     unhides "pixmap" property for a given class.
 
-  See StdWidgetFactory::StdWidgetFactory() for properties like
-  "Line:orientationSelectionPopup:horizontalIcon".
+  See StdWidgetFactory::StdWidgetFactory() for properties like "Line:orientationSelectionPopup:horizontalIcon".
 
   \n\n
   See the standard factories in formeditor/factories for an example of factories,
   and how to deal with complex widgets (eg tabwidget).
   */
-class KFORMEDITOR_EXPORT WidgetFactory : public QObject
+class KFORMEDITOR_EXPORT WidgetFactory : public QObject,
+                                         public InternalPropertyHandlerInterface
 {
     Q_OBJECT
 public:
@@ -303,7 +151,7 @@ public:
     };
     Q_DECLARE_FLAGS(CreateWidgetOptions, CreateWidgetOption)
 
-    WidgetFactory(QObject *parent = 0, const char *name = 0);
+    WidgetFactory(QObject *parent, const char *name);
     virtual ~WidgetFactory();
 
     /*! Adds a new class described by \a w. */
@@ -318,9 +166,7 @@ public:
     /**
      * \return all classes which are provided by this factory
      */
-    const WidgetInfo::Hash& classes() const {
-        return m_classesByName;
-    }
+    const WidgetInfoHash& classes() const;
 
     /**
      * Creates a widget (and if needed a KFormDesigner::Container)
@@ -364,10 +210,11 @@ public:
         Container *container;
         QRect geometry;
         Qt::Alignment alignment;
-        Qt::BackgroundMode backgroundMode;
         bool useFrame : 1;
         bool multiLine : 1;
         bool execute : 1;
+        //! true if the inline editor's bakground should be transparent (false by default)
+        bool transparentBackground : 1;
     };
 
     /*! Sets up (if necessary) aguments for the inline editor used to edit the contents 
@@ -408,11 +255,6 @@ public:
     bool isPropertyVisible(const QByteArray &classname, QWidget *w,
                            const QByteArray &property, bool multiple, bool isTopLevel);
 
-    /*! You need to return here a list of the properties that should automatically be saved
-    for a widget belonging to \a classname, and your custom properties (eg "text"
-    for label or button, "contents" for combobox...). */
-    virtual QList<QByteArray> autoSaveProperties(const QByteArray &classname) = 0;
-
     /*! \return The i18n'ed name of the property whose name is \a name,
      that will be displayed in PropertyEditor. */
     inline QString propertyDescForName(const QByteArray &name) {
@@ -432,9 +274,9 @@ public:
 
     /*! \return internal property \a property for a class \a classname.
      Internal properties are not stored within objects, but can be just provided
-     to describe classes' details. */
-    inline QString internalProperty(const QByteArray& classname, const QByteArray& property) const {
-        return m_internalProp[classname+":"+property];
+     to describe class' details. */
+    inline QVariant internalProperty(const QByteArray& classname, const QByteArray& property) const {
+        return m_internalProp.value(classname + ":" + property);
     }
 
     /*! This function is called when the widget is resized,
@@ -542,8 +384,10 @@ protected:
 #endif
     /*! Assigns \a value for internal property \a property for a class \a classname.
      Internal properties are not stored within objects, but can be provided
-     to describe classes' details. */
-    void setInternalProperty(const QByteArray& classname, const QByteArray& property, const QString& value);
+     to describe class' details. */
+    inline void setInternalProperty(const QByteArray& classname, const QByteArray& property, const QVariant& value) {
+        m_internalProp.insert(classname + ":" + property, value);
+    }
 
     WidgetLibrary *m_library;
 // moved to Form
@@ -554,27 +398,27 @@ protected:
 //    QPointer<ResizeHandleSet> m_handles;
 //2.0: moved to Form::Private::inlineEditorContainer
 //    QPointer<Container> m_container;
-//  WidgetInfo::List m_classes;
-    WidgetInfo::Hash m_classesByName;
+//  WidgetInfoList m_classes;
+    WidgetInfoHash m_classesByName;
     QSet<QByteArray>* m_hiddenClasses;
 
     //! i18n stuff
     QHash<QByteArray, QString> m_propDesc;
     QHash<QByteArray, QString> m_propValDesc;
     //! internal properties
-    QHash<QByteArray, QString> m_internalProp;
+    QHash<QByteArray, QVariant> m_internalProp;
 
     /*! flag useful to decide whether to hide some properties.
      It's value is inherited from WidgetLibrary. */
     bool m_showAdvancedProperties;
 
-    /*! Contains name of an XMLGUI file providing toolbar buttons
-     (and menu items in the future?) for the factory.
-     Can be empty, e.g. for the main factory which has XMLGUI defined in the shell window itself
-     (e.g. kexiformpartinstui.rc for Kexi Forms). This name is set in WidgetLibrary::loadFactories() */
-    QString m_xmlGUIFileName;
+//2.0    /*! Contains name of an XMLGUI file providing toolbar buttons
+//2.0     (and menu items in the future?) for the factory.
+//2.0     Can be empty, e.g. for the main factory which has XMLGUI defined in the shell window itself
+//2.0     (e.g. kexiformpartinstui.rc for Kexi Forms). This name is set in WidgetLibrary::loadFactories() */
+//2.0    QString m_xmlGUIFileName;
 
-    KXMLGUIClient *m_guiClient;
+//2.0    KXMLGUIClient *m_guiClient;
 
 //2.0    QPointer<QWidget> m_widget;
 // moved to Form as Private::inlineEditor
@@ -585,9 +429,17 @@ protected:
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(WidgetFactory::CreateWidgetOptions)
 
+//! Implementation of a form designer-compatible widget factory
+#define K_EXPORT_KEXI_FORM_WIDGET_FACTORY_PLUGIN( class_name, internal_name ) \
+    K_PLUGIN_FACTORY(factory, registerPlugin<class_name>();) \
+    K_EXPORT_PLUGIN(factory("kformdesigner_" # internal_name)) \
+    K_EXPORT_PLUGIN_VERSION(KDE_MAKE_VERSION(KFORMDESIGNER_VERSION, 0, 0))
+
+#if 0
 //! macro to declare KFormDesigner-compatible widget factory as a KDE Component factory
 #define KFORMDESIGNER_WIDGET_FACTORY(factoryClassName, libraryName) \
     K_EXPORT_COMPONENT_FACTORY(kformdesigner_ ## libraryName, KGenericFactory<factoryClassName>("kformdesigner_" # libraryName))
+#endif
 
 }
 #endif

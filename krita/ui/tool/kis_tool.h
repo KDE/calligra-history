@@ -47,7 +47,7 @@ static const QString TOOL_TYPE_VIEW = "4 Krita/View";                // Tools th
 static const QString TOOL_TYPE_SELECTED = "5 Krita/Select";          // Tools that select pixels
 
 class  KRITAUI_EXPORT KisTool
-            : public KoTool
+        : public KoTool
 {
     Q_OBJECT
 
@@ -113,18 +113,18 @@ public:
     virtual QWidget* createOptionWidget();
     virtual QWidget* optionWidget();
 
-    inline void setOutlineStyle(PaintMode mode){
-        m_mode = mode;
+    inline void setOutlineStyle(PaintMode mode) {
+        m_outlinePaintMode = mode;
     }
 
 protected:
 
     KisImageWSP image() const;
     QCursor cursor() const;
-    
+
     /// @return the currently active selection
     KisSelectionSP currentSelection() const;
-    
+
     /// Call this to set the document modified
     void notifyModified() const;
 
@@ -139,19 +139,23 @@ protected:
 
     /// convenience method to fill the painter's settings with all the current resources
     virtual void setupPainter(KisPainter * painter);
-    
-    /// paint the path which is in view coordinates, default paint mode is XOR_MODE, BW_MODE is also possible
-    void paintToolOutline(QPainter * painter,QPainterPath &path);
 
-private slots:
+    /// paint the path which is in view coordinates, default paint mode is XOR_MODE, BW_MODE is also possible
+    void paintToolOutline(QPainter * painter, QPainterPath &path);
+
+protected slots:
     /**
      * Called whenever the configuration settings change.
      */
-    void slotSelectCursorStyle();
+    virtual void resetCursorStyle();
 
-    
+private slots:
+
+    void slotToggleFgBg();
+    void slotResetFgBg();
+
 private:
-    PaintMode m_mode;
+    PaintMode m_outlinePaintMode;
 
     struct Private;
     Private* const d;

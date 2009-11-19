@@ -37,7 +37,6 @@ set(komain_LIB_SRCS
     KoToolBox.cpp
     KoToolBoxFactory.cpp
     KoToolDocker.cpp
-    KoToolDockerFactory.cpp
     KoVersionDialog.cpp
     KoViewAdaptor.cpp
     KoView.cpp
@@ -55,8 +54,10 @@ set(komain_LIB_SRCS
     KoFilterChainLink.cpp
     KoFilterChainLinkList.cpp
     KoImageSelectionWidget.cpp
+    KoStandardAction.cpp
     config/KoConfigDocumentPage.cpp
     config/KoConfigGridPage.cpp
+    config/KoConfigMiscPage.cpp
 
     KoDocumentSectionDelegate.cpp
     KoDocumentSectionToolTip.cpp
@@ -148,6 +149,7 @@ install( FILES
     KoProgressUpdater.h
     KoProgressBar.h
     KoUpdater.h
+    KoStandardAction.h
     komain_export.h
 DESTINATION ${INCLUDE_INSTALL_DIR} COMPONENT Devel)
 

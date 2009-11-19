@@ -27,7 +27,8 @@
 #include "KoDocumentSectionModel.h"
 
 class KoProperties;
-
+class KoColorSpace;
+class KoCompositeOp;
 class KisNodeVisitor;
 
 /**
@@ -86,6 +87,49 @@ public:
      */
     virtual KisPaintDeviceSP projection() const;
 
+    virtual const KoColorSpace * colorSpace() const = 0;
+
+    /**
+     * Return the opacity of this layer, scaled to a range between 0
+     * and 255.
+     * XXX: Allow true float opacity
+     */
+    quint8 opacity() const; //0-255
+
+    /**
+     * Set the opacity for this layer. The range is between 0 and 255.
+     * The layer will be marked dirty.
+     *
+     * XXX: Allow true float opacity
+     */
+    void setOpacity(quint8 val); //0-255
+
+    /**
+     * return the 8-bit opacity of this layer scaled to the range
+     * 0-100
+     *
+     * XXX: Allow true float opacity
+     */
+    quint8 percentOpacity() const; //0-100
+
+    /**
+     * Set the opacity of this layer with a number between 0 and 100;
+     * the number will be scaled to between 0 and 255.
+     * XXX: Allow true float opacity
+     */
+    void setPercentOpacity(quint8 val); //0-100
+
+    /**
+     * Return the composite op associated with this layer.
+     */
+    virtual const KoCompositeOp * compositeOp() const = 0;
+    const QString& compositeOpId() const;
+
+    /**
+     * Set a new composite op for this layer. The layer will be marked
+     * dirty.
+     */
+    void setCompositeOp(const QString& compositeOpId);
 
     /**
      * return the name of this node. This is the same as the
@@ -287,16 +331,16 @@ signals:
     /**
      * This signal is emitted when the visibility of the layer is changed with \ref setVisible.
      */
-    void visibilityChanged( bool );
+    void visibilityChanged(bool);
 
     /**
      * This signal is emitted when the node is locked or unlocked with \ref setUserLocked.
      */
-    void userLockingChanged( bool );
+    void userLockingChanged(bool);
     /**
      * This signal is emitted when the node is locked or unlocked with \ref setSystemLocked.
      */
-    void systemLockingChanged( bool );
+    void systemLockingChanged(bool);
 private:
 
     class Private;

@@ -116,8 +116,7 @@ void Paragraph::addRunOfText(QString text,  wvWare::SharedPtr<const wvWare::Word
         const wvWare::Word97::CHP* refChp = &m_paragraphStyle->chp();
         if ( !refChp || refChp->ftcAscii != chp->ftcAscii )
         {
-            if ( !fontName.isEmpty() )
-            {
+            if (!fontName.isEmpty()) {
                 textStyle->addProperty(QString("style:font-name"), fontName, KoGenStyle::TextType);
             }
         }
@@ -125,6 +124,9 @@ void Paragraph::addRunOfText(QString text,  wvWare::SharedPtr<const wvWare::Word
         textStyle = new KoGenStyle(KoGenStyle::StyleTextAuto, "text");
         if (m_inStylesDotXml) {
             textStyle->setAutoStyleInStylesDotXml(true);
+        }
+        if (!fontName.isEmpty()) {
+            textStyle->addProperty(QString("style:font-name"), fontName, KoGenStyle::TextType);
         }
         applyCharacterProperties( chp, textStyle, m_paragraphStyle );
     }
@@ -419,6 +421,7 @@ void Paragraph::applyParagraphProperties(const wvWare::ParagraphProperties& prop
     //
     // TODO: Check if we can use fo:border instead of all the
     //       fo:border-{top,bottom,left,right}
+    // TODO: Check if borderStyle is "double" and add attributes for that.
     if ( !refPap || refPap->brcTop.brcType != pap.brcTop.brcType )
     {
         style->addProperty( "fo:border-top", Conversion::setBorderAttributes( pap.brcTop ), KoGenStyle::ParagraphType );
@@ -507,10 +510,10 @@ void Paragraph::applyCharacterProperties(const wvWare::Word97::CHP* chp, KoGenSt
         refChp = 0;
     }
 
-    //ico = color of text
+    //ico = color of text, but this has been replaced by cv
     if ( !refChp || refChp->cv != chp->cv )
     {
-        style->addProperty(QString("fo:color"), '#' + QString::number(chp->cv|0xff000000, 16).right(6).toUpper());
+        style->addProperty(QString("fo:color"), '#' + QString::number(chp->cv|0xff000000, 16).right(6).toUpper(), KoGenStyle::TextType);
     }
 
     //hps = font size in half points
@@ -621,7 +624,7 @@ void Paragraph::applyCharacterProperties(const wvWare::Word97::CHP* chp, KoGenSt
 
     if (!refChp || refChp->shd.cvBack != chp->shd.cvBack) {
         if (chp->shd.cvBack != 0xff000000)
-            style->addProperty(QString("fo:background-color"), '#' + QString::number(chp->shd.cvBack|0xff000000, 16).right(6).toUpper());
+            style->addProperty(QString("fo:background-color"), '#' + QString::number(chp->shd.cvBack|0xff000000, 16).right(6).toUpper(), KoGenStyle::TextType);
         else
             style->addProperty( "fo:background-color", "transparent", KoGenStyle::TextType);
     }

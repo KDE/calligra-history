@@ -23,7 +23,19 @@
 #include <QMenu>
 #include <kexidataiteminterface.h>
 
-QColor lighterGrayBackgroundColor(const QPalette& palette);
+//! Form-related utilities
+class KexiFormUtils
+{
+public:
+    //! @return color blended from 33% of background color and 66% of base color
+    static QColor lighterGrayBackgroundColor(const QPalette& palette);
+
+    //! @return pre-loaded data-source-tag icon pixmap of appropriate size
+    static QPixmap dataSourceTagIcon();
+
+    //! @return pre-loaded data-source-tag icon pixmap of appropriate size (RTL version)
+    static QPixmap dataSourceRTLTagIcon();
+};
 
 //! @short Used for extending editor widgets' context menu.
 /*! @internal This is performed by adding a title and disabling editing
@@ -70,5 +82,7 @@ public:
         Q_UNUSED(autoField); return false;
     }
 };
+
+
 
 #endif

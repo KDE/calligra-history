@@ -11,11 +11,26 @@ set(karbonfiltereffects_PART_SRCS
     MergeEffect.cpp
     MergeEffectFactory.cpp
     MergeEffectConfigWidget.cpp
-)
+    ColorMatrixEffect.cpp
+    ColorMatrixEffectFactory.cpp
+    ColorMatrixEffectConfigWidget.cpp
+    FloodEffect.cpp
+    FloodEffectFactory.cpp
+    FloodEffectConfigWidget.cpp
+    CompositeEffect.cpp
+    CompositeEffectFactory.cpp
+    CompositeEffectConfigWidget.cpp
+    BlendEffect.cpp
+    BlendEffectFactory.cpp
+    BlendEffectConfigWidget.cpp
+    ComponentTransferEffect.cpp
+    ComponentTransferEffectFactory.cpp
+    ComponentTransferEffectConfigWidget.cpp
+    )
 
 kde4_add_plugin(karbonfiltereffects ${karbonfiltereffects_PART_SRCS})
 
-target_link_libraries(karbonfiltereffects flake)
+target_link_libraries(karbonfiltereffects flake kocolorwidgets)
 
 install(TARGETS karbonfiltereffects  DESTINATION ${PLUGIN_INSTALL_DIR})
 

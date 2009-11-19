@@ -19,6 +19,7 @@
  */
 
 #include "KoTextEditor.h"
+#include "KoTextEditor_p.h"
 
 #include "KoBookmark.h"
 #include "KoInlineTextObjectManager.h"
@@ -82,42 +83,6 @@ static bool isRightToLeft(const QString &text)
 
 /*Private*/
 
-class KoTextEditor::Private
-{
-public:
-    enum State {
-        NoOp,
-        KeyPress,
-        Delete,
-        Format,
-        Custom
-    };
-
-    explicit Private(KoTextEditor *qq, QTextDocument *document);
-
-    ~Private() {}
-
-    void documentCommandAdded();
-    void updateState(State newState, QString title = QString());
-
-    bool deleteInlineObjects(bool backwards = false);
-    void deleteSelection();
-    void runDirectionUpdater();
-
-    KoTextEditor *q;
-    QTextCursor caret;
-    QTextDocument *document;
-    QUndoCommand *headCommand;
-    QString commandTitle;
-    KoText::Direction direction;
-    bool isBidiDocument;
-
-    State editorState;
-
-    QTimer updateRtlTimer;
-    QList<int> dirtyBlocks;
-};
-
 KoTextEditor::Private::Private(KoTextEditor *qq, QTextDocument *document)
     : q(qq),
     document (document),
@@ -155,7 +120,7 @@ void KoTextEditor::Private::documentCommandAdded()
 
         QPointer<QTextDocument> m_document;
     };
-//kDebug() << "editor state: " << editorState << " headcommand: " << headCommand;
+    //kDebug() << "editor state: " << editorState << " headcommand: " << headCommand;
     if (!headCommand || editorState == NoOp) {
         headCommand = new QUndoCommand(commandTitle);
         if (KoTextDocument(document).undoStack()) {
@@ -243,7 +208,7 @@ return found;
 }
 
 void KoTextEditor::Private::deleteSelection()
-{//TODO
+{
     KoTextDocumentLayout *layout = qobject_cast<KoTextDocumentLayout*>(document->documentLayout());
     Q_ASSERT(layout);
     Q_ASSERT(layout->inlineTextObjectManager());
@@ -252,25 +217,13 @@ void KoTextEditor::Private::deleteSelection()
     if (!delText.hasSelection())
         delText.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor);
     QString text = delText.selectedText();
-    //kDebug() << "delText: " << text;
     QTextDocumentFragment selection = delText.selection();
-    caret.deleteChar();
-    //kDebug() << "inlineObject property: " << caret.charFormat().intProperty(KoCharacterStyle::InlineInstanceId);
     if (KoTextDocument(document).changeTracker() && KoTextDocument(document).changeTracker()->isEnabled()) {
-        //            KoTextDocumentLayout *layout = qobject_cast<KoTextDocumentLayout*>(m_textShapeData->document()->documentLayout());
-        //            Q_ASSERT(layout);
-        //            Q_ASSERT(layout->inlineTextObjectManager());
-        //            if (!m_changeRegistered) {
-        int changeId = KoTextDocument(document).changeTracker()->getDeleteChangeId(i18n("Delete"), selection, caret.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
-        //                format.setProperty(KoCharacterStyle::ChangeTrackerId, changeId);
-        //            }
-       KoDeleteChangeMarker *deleteMarker = new KoDeleteChangeMarker;
-       deleteMarker->setChangeId(changeId);
-        //            deleteMarker->setId(format.property(KoCharacterStyle::ChangeTrackerId).toInt());
-        //            deleteMarker->setText(text);
-        layout->inlineTextObjectManager()->insertInlineObject(caret, deleteMarker);
-        //            m_caret.setCharFormat(oldFormat);
+        QTextCharFormat format = caret.charFormat();
+        q->registerTrackedChange(caret, KoGenChange::deleteChange, i18n("Delete"), format, format); //this will replace the text to be deleted by a marker.
     }
+    else
+        caret.deleteChar();
 }
 
 void KoTextEditor::Private::runDirectionUpdater()
@@ -285,8 +238,9 @@ void KoTextEditor::Private::runDirectionUpdater()
             KoText::Direction dir =
                 static_cast<KoText::Direction>(format.intProperty(KoParagraphStyle::TextProgressionDirection));
 
-            if (dir == KoText::AutoDirection || dir == KoText::PerhapsLeftRightTopBottom ||
-                    dir == KoText::PerhapsRightLeftTopBottom) {
+            if (dir == KoText::AutoDirection || dir == KoText::PerhapsLeftRightTopBottom
+                    || dir == KoText::PerhapsRightLeftTopBottom
+                    || dir == KoText::InheritDirection) {
                 bool rtl = isRightToLeft(block.text());
                 if (rtl && (dir != KoText::AutoDirection || QApplication::isLeftToRight()))
                     newDirection = KoText::PerhapsRightLeftTopBottom;
@@ -312,6 +266,22 @@ void KoTextEditor::Private::runDirectionUpdater()
     }
 }
 
+void KoTextEditor::Private::clearCharFormatProperty(int property)
+{
+    class PropertyWiper : public CharFormatVisitor
+    {
+    public:
+        PropertyWiper(int propertyId) : propertyId(propertyId) {};
+        void visit(QTextCharFormat &format) const {
+            format.clearProperty(propertyId);
+        }
+
+    int propertyId;
+    };
+    PropertyWiper wiper(property);
+    CharFormatVisitor::visitSelection(q, wiper,QString(), false);
+}
+
 /*KoTextEditor*/
 
 //TODO factor out the changeTracking charFormat setting from all individual slots to a public slot, which will be available for external commands (TextShape)
@@ -320,118 +290,6 @@ void KoTextEditor::Private::runDirectionUpdater()
 //The BlockFormatVisitor is also used for the change tracking of a blockFormat. The changeTracker stores the information about the changeId in the charFormat. The BlockFormatVisitor ensures that thd changeId is set on the whole block (even if only a part of the block is actually selected).
 //Should such mechanisms be later provided directly by Qt, we could dispose of these classes.
 
-class BlockFormatVisitor
-{
-public:
-    BlockFormatVisitor() {}
-    virtual ~BlockFormatVisitor() {}
-
-    virtual void visit(QTextBlockFormat &format) const = 0;
-
-    static void visitSelection(KoTextEditor *editor, const BlockFormatVisitor &visitor, QString title = i18n("Format"), bool resetProperties = false) {
-        int start = qMin(editor->position(), editor->anchor());
-        int end = qMax(editor->position(), editor->anchor());
-
-        QTextBlock block = editor->block();
-        if (block.position() > start)
-            block = block.document()->findBlock(start);
-
-        // now loop over all blocks that the selection contains and alter the text fragments where applicable.
-        while (block.isValid() && block.position() <= end) {
-            QTextBlockFormat format = block.blockFormat();
-            if (resetProperties) {
-                if (KoTextDocument(editor->document()).styleManager()) {
-                    KoParagraphStyle *old = KoTextDocument(editor->document()).styleManager()->paragraphStyle(block.blockFormat().intProperty(KoParagraphStyle::StyleId));
-                    if (old)
-                        old->unapplyStyle(block);
-                }
-            }
-            visitor.visit(format);
-            QTextCursor cursor(block);
-            QTextBlockFormat prevFormat = cursor.blockFormat();
-            editor->registerTrackedChange(cursor, KoGenChange::formatChange, title, format, prevFormat, true);
-            cursor.setBlockFormat(format);
-            block = block.next();
-        }
-    }
-};
-
-class CharFormatVisitor
-{
-public:
-    CharFormatVisitor() {}
-    virtual ~CharFormatVisitor() {}
-
-    virtual void visit(QTextCharFormat &format) const = 0;
-
-    static void visitSelection(KoTextEditor *editor, const CharFormatVisitor &visitor, QString title = i18n("Format")) {
-        int start = qMin(editor->position(), editor->anchor());
-        int end = qMax(editor->position(), editor->anchor());
-        if (start == end) { // just set a new one.
-            QTextCharFormat format = editor->charFormat();
-            visitor.visit(format);
-
-            if (KoTextDocument(editor->document()).changeTracker() && KoTextDocument(editor->document()).changeTracker()->isEnabled()) {
-                QTextCharFormat prevFormat(editor->charFormat());
-
-                int changeId = KoTextDocument(editor->document()).changeTracker()->getFormatChangeId(title, format, prevFormat, editor->charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
-                format.setProperty(KoCharacterStyle::ChangeTrackerId, changeId);
-            }
-
-            editor->cursor()->setCharFormat(format);
-            return;
-        }
-
-        QTextBlock block = editor->block();
-        if (block.position() > start)
-            block = block.document()->findBlock(start);
-
-        QList<QTextCursor> cursors;
-        QList<QTextCharFormat> formats;
-        // now loop over all blocks that the selection contains and alter the text fragments where applicable.
-        while (block.isValid() && block.position() < end) {
-            QTextBlock::iterator iter = block.begin();
-            while (! iter.atEnd()) {
-                QTextFragment fragment = iter.fragment();
-                if (fragment.position() > end)
-                    break;
-                if (fragment.position() + fragment.length() <= start) {
-                    iter++;
-                    continue;
-                }
-
-                QTextCursor cursor(block);
-                cursor.setPosition(fragment.position() + 1);
-                QTextCharFormat format = cursor.charFormat(); // this gets the format one char after the postion.
-                visitor.visit(format);
-
-                if (KoTextDocument(editor->document()).changeTracker() && KoTextDocument(editor->document()).changeTracker()->isEnabled()) {
-                    QTextCharFormat prevFormat(cursor.charFormat());
-
-                    int changeId = KoTextDocument(editor->document()).changeTracker()->getFormatChangeId(title, format, prevFormat, cursor.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
-                    format.setProperty(KoCharacterStyle::ChangeTrackerId, changeId);
-                }
-
-                cursor.setPosition(qMax(start, fragment.position()));
-                int to = qMin(end, fragment.position() + fragment.length());
-                cursor.setPosition(to, QTextCursor::KeepAnchor);
-                cursors.append(cursor);
-                formats.append(format);
-
-                QTextCharFormat prevFormat(cursor.charFormat());
-                editor->registerTrackedChange(cursor,KoGenChange::formatChange,title, format, prevFormat, false); //this will lead to every fragment having a different change untill the change merging in registerTrackedChange checks also for formatChange or not?
-
-                iter++;
-            }
-            block = block.next();
-        }
-        QList<QTextCharFormat>::Iterator iter = formats.begin();
-        foreach(QTextCursor cursor, cursors) {
-            cursor.mergeCharFormat(*iter);
-            ++iter;
-        }
-    }
-};
 
 KoTextEditor::KoTextEditor(QTextDocument *document)
     : KoToolSelection(document),
@@ -465,61 +323,116 @@ void KoTextEditor::addCommand(QUndoCommand *command)
     d->updateState(KoTextEditor::Private::NoOp);
 }
 
-void KoTextEditor::registerTrackedChange(QTextCursor &selection, KoGenChange::Type changeType, QString title, QTextFormat &format, QTextFormat &prevFormat, bool applyToWholeBlock)
+void KoTextEditor::registerTrackedChange(QTextCursor &selection, KoGenChange::Type changeType, QString title, QTextFormat& format, QTextFormat& prevFormat, bool applyToWholeBlock)
 {
+    KoTextDocumentLayout *layout = qobject_cast<KoTextDocumentLayout*>(d->document->documentLayout());
+    Q_ASSERT(layout);
+    Q_ASSERT(layout->inlineTextObjectManager());
+
     if (!KoTextDocument(d->document).changeTracker() || !KoTextDocument(d->document).changeTracker()->isEnabled()) {
-        selection.charFormat().clearProperty(KoCharacterStyle::ChangeTrackerId);
+        d->clearCharFormatProperty(KoCharacterStyle::ChangeTrackerId);
         return;
     }
 
-    //first check if there already is an identical change registered just before or just after the selection. If so, merge appropriatly.
-    //TODO implement for format change. handle the prevFormat/newFormat check.
-    QTextCursor checker = QTextCursor(selection);
-    int idBefore = 0;
-    int idAfter = 0;
-    int changeId = 0;
-    int selectionBegin = qMin(checker.anchor(), checker.position());
-    int selectionEnd = qMax(checker.anchor(), checker.position());
-    checker.setPosition(selectionBegin);
-    idBefore = KoTextDocument(d->document).changeTracker()->mergeableId(changeType, title, checker.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
-    checker.setPosition(selectionEnd);
-    if (!checker.atEnd()) {
-        checker.movePosition(QTextCursor::NextCharacter);
-        idAfter = KoTextDocument(d->document).changeTracker()->mergeableId(changeType, title, checker.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
-    }
-    changeId = (idBefore)?idBefore:idAfter;
-
-    switch (changeType) {
-        case KoGenChange::insertChange:
-            if (!changeId)
-                changeId = KoTextDocument(d->document).changeTracker()->getInsertChangeId(title, selection.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
-            break;
-        case KoGenChange::formatChange:
-            if (!changeId)
-                changeId = KoTextDocument(d->document).changeTracker()->getFormatChangeId(title, format, prevFormat, d->caret.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
-            break;
-        case KoGenChange::deleteChange:
-            //if (!changeId)
-            break;
-    }
-
-    if (applyToWholeBlock) {
-        selection.movePosition(QTextCursor::StartOfBlock);
-        selection.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-    }
-
-    QTextCharFormat f;
-    f.setProperty(KoCharacterStyle::ChangeTrackerId, changeId);
-    selection.mergeCharFormat(f);
-/* // old code...
-   if (KoTextDocument(m_textShapeData->document()).changeTracker() && KoTextDocument(m_textShapeData->document()).changeTracker()->isEnabled()) {
-        if ( !m_changeRegistered ) {
-            int changeId = KoTextDocument(m_textShapeData->document()).changeTracker()->getInsertChangeId(i18n("Key Press"), m_caret.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
-            QTextCharFormat format;
-            format.setProperty(KoCharacterStyle::ChangeTrackerId, changeId);
-            m_caret.mergeCharFormat(format);
+    if (changeType != KoGenChange::deleteChange) {
+        //first check if there already is an identical change registered just before or just after the selection. If so, merge appropriatly.
+        //TODO implement for format change. handle the prevFormat/newFormat check.
+        QTextCursor checker = QTextCursor(selection);
+        int idBefore = 0;
+        int idAfter = 0;
+        int changeId = 0;
+        int selectionBegin = qMin(checker.anchor(), checker.position());
+        int selectionEnd = qMax(checker.anchor(), checker.position());
+        checker.setPosition(selectionBegin);
+        idBefore = KoTextDocument(d->document).changeTracker()->mergeableId(changeType, title, checker.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
+        checker.setPosition(selectionEnd);
+        if (!checker.atEnd()) {
+            checker.movePosition(QTextCursor::NextCharacter);
+            idAfter = KoTextDocument(d->document).changeTracker()->mergeableId(changeType, title, checker.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
         }
-    }*/
+        changeId = (idBefore)?idBefore:idAfter;
+
+        switch (changeType) {//TODO: this whole thing actually needs to be done like a visitor. If the selection contains several change regions, the parenting needs to be individualised.
+            case KoGenChange::insertChange:
+                if (!changeId)
+                    changeId = KoTextDocument(d->document).changeTracker()->getInsertChangeId(title, selection.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
+                break;
+            case KoGenChange::formatChange:
+                if (!changeId)
+                    changeId = KoTextDocument(d->document).changeTracker()->getFormatChangeId(title, format, prevFormat, d->caret.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt());
+                break;
+            case KoGenChange::deleteChange:
+                //this should never be the case
+                break;
+        }
+
+        if (applyToWholeBlock) {
+            selection.movePosition(QTextCursor::StartOfBlock);
+            selection.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        }
+
+        QTextCharFormat f;
+        f.setProperty(KoCharacterStyle::ChangeTrackerId, changeId);
+        selection.mergeCharFormat(f);
+    }
+    else {
+        QTextCursor checker = QTextCursor(selection);
+        KoDeleteChangeMarker *deleteChangemarker = 0;
+        KoDeleteChangeMarker *testMarker;
+        bool backwards = (checker.anchor() > checker.position());
+        int selectionBegin = qMin(checker.anchor(), checker.position());
+        int selectionEnd = qMax(checker.anchor(), checker.position());
+        int changeId;
+        QString prefix;
+        QString sufix;
+        QString delText;
+        checker.setPosition(selectionBegin);
+        testMarker = dynamic_cast<KoDeleteChangeMarker*>(layout->inlineTextObjectManager()->inlineTextObject(checker));
+        if (testMarker) {
+            prefix =  KoTextDocument(d->document).changeTracker()->elementById(testMarker->changeId())->getDeleteData();
+        }
+        checker.setPosition(selectionEnd);
+        if (!checker.atEnd()) {
+            checker.movePosition(QTextCursor::NextCharacter);
+            testMarker = dynamic_cast<KoDeleteChangeMarker*>(layout->inlineTextObjectManager()->inlineTextObject(checker));
+            if (testMarker) {
+                sufix =  KoTextDocument(d->document).changeTracker()->elementById(testMarker->changeId())->getDeleteData();
+            }
+        }
+        checker.setPosition(selectionBegin);
+        while (checker.position() < selectionEnd && !checker.atEnd()) {
+            checker.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
+            if (layout->inlineTextObjectManager()->inlineTextObject(checker)) {
+                testMarker = dynamic_cast<KoDeleteChangeMarker*>(layout->inlineTextObjectManager()->inlineTextObject(checker));
+                if (testMarker) {
+                    delText = delText + KoTextDocument(d->document).changeTracker()->elementById(testMarker->changeId())->getDeleteData();
+                }
+            }
+            else {
+                delText = delText + checker.selectedText();
+            }
+            checker.setPosition(checker.position());
+        }
+
+        QTextDocumentFragment deletedFragment = selection.selection();
+        changeId = KoTextDocument(d->document).changeTracker()->getDeleteChangeId(i18n("Delete"), deletedFragment, selection.charFormat().property( KoCharacterStyle::ChangeTrackerId ).toInt()); //TODO this needs to be done like a visitor for individualised parenting
+        deleteChangemarker = new KoDeleteChangeMarker(KoTextDocument(d->document).changeTracker());
+        deleteChangemarker->setChangeId(changeId);
+        if (!sufix.isEmpty()) {
+            selection.setPosition(selectionBegin);
+            selection.setPosition(selectionEnd+1, QTextCursor::KeepAnchor);
+            selectionEnd++;
+        }
+        if (!prefix.isEmpty()) {
+            selection.setPosition(selectionBegin-1);
+            selection.setPosition(selectionEnd, QTextCursor::KeepAnchor);
+            selectionBegin--;
+        }
+        layout->inlineTextObjectManager()->insertInlineObject(selection, deleteChangemarker);
+        KoTextDocument(d->document).changeTracker()->elementById(deleteChangemarker->changeId())->setDeleteData(prefix + delText + sufix);
+        if (backwards)
+            selection.movePosition(QTextCursor::PreviousCharacter);
+    }
 }
 
 void KoTextEditor::bold(bool bold)
@@ -937,46 +850,22 @@ int KoTextEditor::columnNumber() const
 }
 
 void KoTextEditor::deleteChar()
-{//TODO
-    KoTextDocumentLayout *layout = qobject_cast<KoTextDocumentLayout*>(d->document->documentLayout());
-    Q_ASSERT(layout);
-    Q_ASSERT(layout->inlineTextObjectManager());
-
-//TODO this should not be needed. this case should be handled by the generic code. neighbouring dels should be merged
-    if (!d->caret.hasSelection() && dynamic_cast<KoDeleteChangeMarker*>(layout->inlineTextObjectManager()->inlineTextObject(d->caret))) {
-    //kDebug() << "move over existing del";
-    d->caret.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor);
-    return;
-    }
-
+{
+    if (!d->caret.hasSelection() && d->caret.atEnd())
+        return;
     if (!d->deleteInlineObjects(false) || d->caret.hasSelection()) {
         d->updateState(KoTextEditor::Private::Delete, i18n("Delete"));
 
         if (!d->caret.hasSelection())
             d->caret.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
         d->deleteSelection();
-    /*        QTextCursor cur = QTextCursor(m_caret);
-    if (!cur.hasSelection())
-    cur.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor);
-    //find out if we have a delete marker before
-    cur.setPosition((qMin(m_caret.position(), m_caret.anchor()) -1);
-    KoDeleteChangeMarker *prev = dynamic_cast<KoDeleteChangeMarker*>(layout->inlineTextObjectManager()->inlineTextObject(m_caret));
-    //find out if we have a delete marker after
-    cur.setPosition(qMax(m_caret.anchor(), m_caret.position()));
-    KoDeleteChangeMarker *next = dynamic_cast<KoDeleteChangeMarker*>(layout->inlineTextObjectManager()->inlineTextObject(m_caret));
-
-
-
-    bool m_changeRegistered = m_textDeleting;
-    kDebug() << "delete. registered: " << m_changeRegistered;
-    startMacro(i18n("Delete"));
-    *///        QTextCharFormat oldFormat = m_caret.charFormat();
-    //        QTextCharFormat format = m_caret.charFormat();
     }
 }
 
 void KoTextEditor::deletePreviousChar()
 {
+    if (!d->caret.hasSelection() && d->caret.atStart())
+        return;
     if (!d->deleteInlineObjects(false) || d->caret.hasSelection()) {
         d->updateState(KoTextEditor::Private::Delete, i18n("Delete"));
 
@@ -1057,10 +946,12 @@ void KoTextEditor::insertTable(int rows, int columns)
 void KoTextEditor::insertText(const QString &text)
 {
     d->updateState(KoTextEditor::Private::KeyPress, i18n("Key Press"));
-    if (!d->headCommand){
-        QTextCharFormat format = d->caret.charFormat();
-        registerTrackedChange(d->caret, KoGenChange::insertChange, i18n("Key Press"), format, format, false);
-    }
+
+    //first we make sure that we clear the inlineObject charProperty, if we have no selection
+    if (!d->caret.hasSelection() && d->caret.charFormat().hasProperty(KoCharacterStyle::InlineInstanceId))
+        d->clearCharFormatProperty(KoCharacterStyle::InlineInstanceId);
+    QTextCharFormat format = d->caret.charFormat();
+    registerTrackedChange(d->caret, KoGenChange::insertChange, i18n("Key Press"), format, format, false);
     int blockNumber = d->caret.blockNumber();
     d->caret.insertText(text);
 
@@ -1130,6 +1021,7 @@ void KoTextEditor::newLine()
     bf.clearProperty(KoParagraphStyle::UnnumberedListItem);
     bf.clearProperty(KoParagraphStyle::IsListHeader);
     bf.clearProperty(KoParagraphStyle::MasterPageName);
+    bf.clearProperty(KoParagraphStyle::BreakBefore);
     d->caret.setBlockFormat(bf);
     if (nextStyle) {
         QTextBlock block = d->caret.block();
@@ -1229,6 +1121,16 @@ bool KoTextEditor::visualNavigation() const
 bool KoTextEditor::isBidiDocument() const
 {
     return d->isBidiDocument;
+}
+
+void KoTextEditor::beginEditBlock()
+{
+    d->caret.beginEditBlock();
+}
+
+void KoTextEditor::endEditBlock()
+{
+    d->caret.endEditBlock();
 }
 
 #include "KoTextEditor.moc"

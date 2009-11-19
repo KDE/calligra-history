@@ -51,96 +51,96 @@
 namespace
 {
 
-    QString getColorSpaceForColorType(uint16 sampletype, uint16 color_type, uint16 color_nb_bits, TIFF *image, uint16 &nbchannels, uint16 &extrasamplescount, uint8 &destDepth)
-    {
-        if (color_type == PHOTOMETRIC_MINISWHITE || color_type == PHOTOMETRIC_MINISBLACK) {
-            if (nbchannels == 0) nbchannels = 1;
-            extrasamplescount = nbchannels - 1; // FIX the extrasamples count in case of
-            if (color_nb_bits <= 8) {
-                destDepth = 8;
-                return KoColorSpaceRegistry::instance()->colorSpaceId(GrayAColorModelID, Integer8BitsColorDepthID);
-            } else {
-                destDepth = 16;
-                return KoColorSpaceRegistry::instance()->colorSpaceId(GrayAColorModelID, Integer16BitsColorDepthID);
-            }
-
-        } else if (color_type == PHOTOMETRIC_RGB  /*|| color_type == */) {
-            if (nbchannels == 0) nbchannels = 3;
-            extrasamplescount = nbchannels - 3; // FIX the extrasamples count in case of
-            if (sampletype == SAMPLEFORMAT_IEEEFP) {
-                if (color_nb_bits == 16) {
-                    destDepth = 16;
-                    return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Float16BitsColorDepthID);
-                } else if (color_nb_bits == 32) {
-                    destDepth = 32;
-                    return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Float32BitsColorDepthID);
-                }
-                return "";
-            } else {
-                if (color_nb_bits <= 8) {
-                    destDepth = 8;
-                    return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Integer8BitsColorDepthID);
-                } else {
-                    destDepth = 16;
-                    return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Integer16BitsColorDepthID);
-                }
-            }
-        } else if (color_type == PHOTOMETRIC_YCBCR) {
-            if (nbchannels == 0) nbchannels = 3;
-            extrasamplescount = nbchannels - 3; // FIX the extrasamples count in case of
-            if (color_nb_bits <= 8) {
-                destDepth = 8;
-                return KoColorSpaceRegistry::instance()->colorSpaceId(YCbCrAColorModelID, Integer8BitsColorDepthID);
-            } else {
-                destDepth = 16;
-                return KoColorSpaceRegistry::instance()->colorSpaceId(YCbCrAColorModelID, Integer16BitsColorDepthID);
-            }
-        } else if (color_type == PHOTOMETRIC_SEPARATED) {
-            if (nbchannels == 0) nbchannels = 4;
-            // SEPARATED is in general CMYK but not always, so we check
-            uint16 inkset;
-            if ((TIFFGetField(image, TIFFTAG_INKSET, &inkset) == 0)) {
-                dbgFile << "Image does not define the inkset.";
-                inkset = 2;
-            }
-            if (inkset !=  INKSET_CMYK) {
-                dbgFile << "Unsupported inkset (right now, only CMYK is supported)";
-                char** ink_names;
-                uint16 numberofinks;
-                if (TIFFGetField(image, TIFFTAG_INKNAMES, &ink_names)  == 1 && TIFFGetField(image, TIFFTAG_NUMBEROFINKS, &numberofinks)  == 1) {
-                    dbgFile << "Inks are :";
-                    for (uint i = 0; i < numberofinks; i++) {
-                        dbgFile << ink_names[i];
-                    }
-                } else {
-                    dbgFile << "inknames are not defined !";
-                    // To be able to read stupid adobe files, if there are no information about inks and four channels, then it's a CMYK file :
-                    if (nbchannels - extrasamplescount != 4) {
-                        return "";
-                    }
-                }
-            }
-            if (color_nb_bits <= 8) {
-                destDepth = 8;
-                return KoColorSpaceRegistry::instance()->colorSpaceId(CMYKAColorModelID, Integer8BitsColorDepthID);
-            } else {
-                destDepth = 16;
-                return KoColorSpaceRegistry::instance()->colorSpaceId(CMYKAColorModelID, Integer16BitsColorDepthID);
-            }
-        } else if (color_type == PHOTOMETRIC_CIELAB || color_type == PHOTOMETRIC_ICCLAB) {
+QString getColorSpaceForColorType(uint16 sampletype, uint16 color_type, uint16 color_nb_bits, TIFF *image, uint16 &nbchannels, uint16 &extrasamplescount, uint8 &destDepth)
+{
+    if (color_type == PHOTOMETRIC_MINISWHITE || color_type == PHOTOMETRIC_MINISBLACK) {
+        if (nbchannels == 0) nbchannels = 1;
+        extrasamplescount = nbchannels - 1; // FIX the extrasamples count in case of
+        if (color_nb_bits <= 8) {
+            destDepth = 8;
+            return KoColorSpaceRegistry::instance()->colorSpaceId(GrayAColorModelID, Integer8BitsColorDepthID);
+        } else {
             destDepth = 16;
-            if (nbchannels == 0) nbchannels = 3;
-            extrasamplescount = nbchannels - 3; // FIX the extrasamples count in case of
-            return KoColorSpaceRegistry::instance()->colorSpaceId(LABAColorModelID, Integer16BitsColorDepthID);
-        } else if (color_type ==  PHOTOMETRIC_PALETTE) {
-            destDepth = 16;
-            if (nbchannels == 0) nbchannels = 2;
-            extrasamplescount = nbchannels - 2; // FIX the extrasamples count in case of
-            // <-- we will convert the index image to RGBA16 as the palette is always on 16bits colors
-            return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Integer16BitsColorDepthID);
+            return KoColorSpaceRegistry::instance()->colorSpaceId(GrayAColorModelID, Integer16BitsColorDepthID);
         }
-        return QString::null;
+
+    } else if (color_type == PHOTOMETRIC_RGB  /*|| color_type == */) {
+        if (nbchannels == 0) nbchannels = 3;
+        extrasamplescount = nbchannels - 3; // FIX the extrasamples count in case of
+        if (sampletype == SAMPLEFORMAT_IEEEFP) {
+            if (color_nb_bits == 16) {
+                destDepth = 16;
+                return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Float16BitsColorDepthID);
+            } else if (color_nb_bits == 32) {
+                destDepth = 32;
+                return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Float32BitsColorDepthID);
+            }
+            return "";
+        } else {
+            if (color_nb_bits <= 8) {
+                destDepth = 8;
+                return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Integer8BitsColorDepthID);
+            } else {
+                destDepth = 16;
+                return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Integer16BitsColorDepthID);
+            }
+        }
+    } else if (color_type == PHOTOMETRIC_YCBCR) {
+        if (nbchannels == 0) nbchannels = 3;
+        extrasamplescount = nbchannels - 3; // FIX the extrasamples count in case of
+        if (color_nb_bits <= 8) {
+            destDepth = 8;
+            return KoColorSpaceRegistry::instance()->colorSpaceId(YCbCrAColorModelID, Integer8BitsColorDepthID);
+        } else {
+            destDepth = 16;
+            return KoColorSpaceRegistry::instance()->colorSpaceId(YCbCrAColorModelID, Integer16BitsColorDepthID);
+        }
+    } else if (color_type == PHOTOMETRIC_SEPARATED) {
+        if (nbchannels == 0) nbchannels = 4;
+        // SEPARATED is in general CMYK but not always, so we check
+        uint16 inkset;
+        if ((TIFFGetField(image, TIFFTAG_INKSET, &inkset) == 0)) {
+            dbgFile << "Image does not define the inkset.";
+            inkset = 2;
+        }
+        if (inkset !=  INKSET_CMYK) {
+            dbgFile << "Unsupported inkset (right now, only CMYK is supported)";
+            char** ink_names;
+            uint16 numberofinks;
+            if (TIFFGetField(image, TIFFTAG_INKNAMES, &ink_names)  == 1 && TIFFGetField(image, TIFFTAG_NUMBEROFINKS, &numberofinks)  == 1) {
+                dbgFile << "Inks are :";
+                for (uint i = 0; i < numberofinks; i++) {
+                    dbgFile << ink_names[i];
+                }
+            } else {
+                dbgFile << "inknames are not defined !";
+                // To be able to read stupid adobe files, if there are no information about inks and four channels, then it's a CMYK file :
+                if (nbchannels - extrasamplescount != 4) {
+                    return "";
+                }
+            }
+        }
+        if (color_nb_bits <= 8) {
+            destDepth = 8;
+            return KoColorSpaceRegistry::instance()->colorSpaceId(CMYKAColorModelID, Integer8BitsColorDepthID);
+        } else {
+            destDepth = 16;
+            return KoColorSpaceRegistry::instance()->colorSpaceId(CMYKAColorModelID, Integer16BitsColorDepthID);
+        }
+    } else if (color_type == PHOTOMETRIC_CIELAB || color_type == PHOTOMETRIC_ICCLAB) {
+        destDepth = 16;
+        if (nbchannels == 0) nbchannels = 3;
+        extrasamplescount = nbchannels - 3; // FIX the extrasamples count in case of
+        return KoColorSpaceRegistry::instance()->colorSpaceId(LABAColorModelID, Integer16BitsColorDepthID);
+    } else if (color_type ==  PHOTOMETRIC_PALETTE) {
+        destDepth = 16;
+        if (nbchannels == 0) nbchannels = 2;
+        extrasamplescount = nbchannels - 2; // FIX the extrasamples count in case of
+        // <-- we will convert the index image to RGBA16 as the palette is always on 16bits colors
+        return KoColorSpaceRegistry::instance()->colorSpaceId(RGBAColorModelID, Integer16BitsColorDepthID);
     }
+    return QString::null;
+}
 }
 
 KisTIFFConverter::KisTIFFConverter(KisDoc2 *doc, KisUndoAdapter *adapter)
@@ -160,8 +160,8 @@ KisImageBuilder_Result KisTIFFConverter::decode(const KUrl& uri)
     dbgFile << "Start decoding TIFF File";
     // Opent the TIFF file
     TIFF *image = 0;
-    if ((image = TIFFOpen(QFile::encodeName(uri.path()), "r")) == NULL) {
-        dbgFile << "Could not open the file, either it does not exist, either it is not a TIFF :" << uri.path();
+    if ((image = TIFFOpen(QFile::encodeName(uri.toLocalFile()), "r")) == NULL) {
+        dbgFile << "Could not open the file, either it does not exist, either it is not a TIFF :" << uri.toLocalFile();
 
         return (KisImageBuilder_RESULT_BAD_FETCH);
     }
@@ -276,7 +276,7 @@ KisImageBuilder_Result KisTIFFConverter::readTIFFDirectory(TIFF* image)
     KoColorTransformation* transform = 0;
     if (profile && !profile->isSuitableForOutput()) {
         dbgFile << "The profile can't be used in krita, need conversion";
-        transform = KoColorSpaceRegistry::instance()->colorSpace(colorSpaceId, profile)->createColorConverter( cs );
+        transform = KoColorSpaceRegistry::instance()->colorSpace(colorSpaceId, profile)->createColorConverter(cs);
     }
 
     // Check if there is an alpha channel
@@ -323,7 +323,7 @@ KisImageBuilder_Result KisTIFFConverter::readTIFFDirectory(TIFF* image)
     // Creating the KisImageWSP
     if (! m_img) {
         m_img = new KisImage(m_doc->undoAdapter(), width, height, cs, "built image");
-        m_img->setResolution(xres / 72.0, yres / 72.0);
+        m_img->setResolution( POINT_TO_INCH(xres), POINT_TO_INCH(yres )); // It is the "invert" macro because we convert from pointer-per-inchs to points
         m_img->lock();
         Q_CHECK_PTR(m_img);
         if (profile) {
@@ -358,35 +358,35 @@ KisImageBuilder_Result KisTIFFConverter::readTIFFDirectory(TIFF* image)
     uint8 nbcolorsamples = nbchannels - extrasamplescount;
     switch (color_type) {
     case PHOTOMETRIC_MINISWHITE: {
-            poses[0] = 0; poses[1] = 1;
-            postprocessor = new KisTIFFPostProcessorInvert(nbcolorsamples);
-        }
-        break;
+        poses[0] = 0; poses[1] = 1;
+        postprocessor = new KisTIFFPostProcessorInvert(nbcolorsamples);
+    }
+    break;
     case PHOTOMETRIC_MINISBLACK: {
-            poses[0] = 0; poses[1] = 1;
-            postprocessor = new KisTIFFPostProcessor(nbcolorsamples);
-        }
-        break;
+        poses[0] = 0; poses[1] = 1;
+        postprocessor = new KisTIFFPostProcessor(nbcolorsamples);
+    }
+    break;
     case PHOTOMETRIC_CIELAB: {
-            poses[0] = 0; poses[1] = 1; poses[2] = 2; poses[3] = 3;
-            postprocessor = new KisTIFFPostProcessorICCLABtoCIELAB(nbcolorsamples);
-        }
-        break;
+        poses[0] = 0; poses[1] = 1; poses[2] = 2; poses[3] = 3;
+        postprocessor = new KisTIFFPostProcessorICCLABtoCIELAB(nbcolorsamples);
+    }
+    break;
     case PHOTOMETRIC_ICCLAB: {
-            poses[0] = 0; poses[1] = 1; poses[2] = 2; poses[3] = 3;
-            postprocessor = new KisTIFFPostProcessor(nbcolorsamples);
-        }
-        break;
+        poses[0] = 0; poses[1] = 1; poses[2] = 2; poses[3] = 3;
+        postprocessor = new KisTIFFPostProcessor(nbcolorsamples);
+    }
+    break;
     case PHOTOMETRIC_RGB: {
-            poses[0] = 2; poses[1] = 1; poses[2] = 0; poses[3] = 3;
-            postprocessor = new KisTIFFPostProcessor(nbcolorsamples);
-        }
-        break;
+        poses[0] = 2; poses[1] = 1; poses[2] = 0; poses[3] = 3;
+        postprocessor = new KisTIFFPostProcessor(nbcolorsamples);
+    }
+    break;
     case PHOTOMETRIC_SEPARATED: {
-            poses[0] = 0; poses[1] = 1; poses[2] = 2; poses[3] = 3; poses[4] = 4;
-            postprocessor = new KisTIFFPostProcessor(nbcolorsamples);
-        }
-        break;
+        poses[0] = 0; poses[1] = 1; poses[2] = 2; poses[3] = 3; poses[4] = 4;
+        postprocessor = new KisTIFFPostProcessor(nbcolorsamples);
+    }
+    break;
     default:
         break;
     }
@@ -549,7 +549,7 @@ KisImageBuilder_Result KisTIFFConverter::buildImage(const KUrl& uri)
     if (uri.isEmpty())
         return KisImageBuilder_RESULT_NO_URI;
 
-    if (!KIO::NetAccess::exists(uri, false, qApp -> activeWindow())) {
+    if (!KIO::NetAccess::exists(uri, KIO::NetAccess::SourceSide, qApp -> activeWindow())) {
         return KisImageBuilder_RESULT_NOT_EXIST;
     }
 
@@ -588,8 +588,8 @@ KisImageBuilder_Result KisTIFFConverter::buildFile(const KUrl& uri, KisImageWSP 
 
     // Open file for writing
     TIFF *image;
-    if ((image = TIFFOpen(QFile::encodeName(uri.path()), "w")) == NULL) {
-        dbgFile << "Could not open the file for writing" << uri.path();
+    if ((image = TIFFOpen(QFile::encodeName(uri.toLocalFile()), "w")) == NULL) {
+        dbgFile << "Could not open the file for writing" << uri.toLocalFile();
         TIFFClose(image);
         return (KisImageBuilder_RESULT_FAILURE);
     }
@@ -609,9 +609,9 @@ KisImageBuilder_Result KisTIFFConverter::buildFile(const KUrl& uri, KisImageWSP 
         TIFFSetField(image, TIFFTAG_ARTIST, author.toAscii().data());
     }
 
-    dbgFile << "xres: " << img->xRes()*72 << " yres: " << img->yRes()*72;
-    TIFFSetField(image, TIFFTAG_XRESOLUTION, img->xRes()*72);
-    TIFFSetField(image, TIFFTAG_YRESOLUTION, img->yRes()*72);
+    dbgFile << "xres: " << INCH_TO_POINT(img->xRes()) << " yres: " << INCH_TO_POINT(img->yRes());
+    TIFFSetField(image, TIFFTAG_XRESOLUTION, INCH_TO_POINT(img->xRes())); // It is the "invert" macro because we convert from pointer-per-inchs to points
+    TIFFSetField(image, TIFFTAG_YRESOLUTION, INCH_TO_POINT(img->yRes()));
 
     KisGroupLayer* root = dynamic_cast<KisGroupLayer*>(img->rootLayer().data());
     if (root == 0) {

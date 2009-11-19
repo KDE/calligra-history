@@ -32,8 +32,9 @@
 #include "kis_image.h"
 #include "kis_group_layer.h"
 
-class KisProjection::Private {
-    public:
+class KisProjection::Private
+{
+public:
 
     KisImageUpdater* updater;
     KisImageWSP image;
@@ -70,7 +71,7 @@ void KisProjection::run()
     // The image updater is created in the run() method so it lives in the thread, otherwise
     // startUpdate will be executed in gui thread.
     m_d->updater = new KisImageUpdater();
-    connect(this, SIGNAL(sigUpdateProjection(KisNodeSP,QRect)), m_d->updater, SLOT(startUpdate(KisNodeSP,QRect)));
+    connect(this, SIGNAL(sigUpdateProjection(KisNodeSP, QRect)), m_d->updater, SLOT(startUpdate(KisNodeSP, QRect)));
     connect(m_d->updater, SIGNAL(updateDone(QRect)), m_d->image, SLOT(slotProjectionUpdated(QRect)));
     exec(); // start the event loop
 }
@@ -104,7 +105,7 @@ void KisProjection::updateProjection(KisNodeSP node, const QRect& rc)
     // The chunks do not run concurrently (there is only one KisImageUpdater and only
     // one event loop), but it is still useful, since intermediate results are passed
     // back to the main thread where the gui can be updated.
-    QRect interestingRect;
+    QRect interestingRect = rc.intersected(m_d->image->bounds());
 
     if (m_d->useRegionOfInterest) {
         interestingRect = rc.intersected(m_d->roi);
@@ -170,7 +171,7 @@ void KisImageUpdater::update(KisNodeSP node, KisNodeSP child, const QRect & rc)
 
     // update the projection of the layer: this may increase the dirty rect
     if (KisLayer* layer = dynamic_cast<KisLayer*>(node.data())) {
-       dirtyRect |= layer->updateProjection(dirtyRect);
+        dirtyRect |= layer->updateProjection(dirtyRect);
     }
 
     if (grouplayer) {

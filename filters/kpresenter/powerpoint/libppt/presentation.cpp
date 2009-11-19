@@ -28,75 +28,102 @@ using namespace Libppt;
 class Presentation::Private
 {
 public:
-  Slide* masterSlide;
-  std::vector<Slide*> slides;
+    Slide* masterSlide;
+    std::vector<Slide*> slides;
 
-  /**
-  * @brief Collection of fonts shared by slides
-  *
-  */
-  TextFontCollection fonts;
+    /**
+    * @brief Collection of fonts shared by slides
+    *
+    */
+    TextFontCollection fonts;
+
+    /**
+    * @brief A container record that specifies a main master slide.
+    */
+    MainMasterContainer *mainMasterContainer;
+
+    /**
+    * @brief An optional TextCFExceptionAtom record that specifies default
+    * settings for character-level style and formatting.
+    */
+    TextCFException *textCFDefaultsAtom;
+
+    /**
+    * @brief An optional TextPFExceptionAtom record that specifies default
+    * settings for paragraph-level style and formatting.
+    */
+    TextPFException *textPFDefaultsAtom;
 };
 
 Presentation::Presentation()
 {
-  d = new Private;
-  d->masterSlide = 0;
+    d = new Private;
+    d->masterSlide = 0;
+    d->mainMasterContainer = 0;
+    d->textCFDefaultsAtom = 0;
+    d->textPFDefaultsAtom = 0;
 }
 
 Presentation::~Presentation()
 {
-  clear();
-  delete d;
+    clear();
+    delete d;
 }
 
 void Presentation::clear()
 {
-  // FIXME use iterator
-  for( unsigned i=0; i<slideCount(); i++ )
-    delete slide( i );
-  d->slides.clear();
-  delete d->masterSlide;
-  d->masterSlide = 0;
+    // FIXME use iterator
+    for (unsigned i = 0; i < slideCount(); i++)
+        delete slide(i);
+    d->slides.clear();
+    delete d->masterSlide;
+    delete d->mainMasterContainer;
+    delete d->textCFDefaultsAtom;
+    delete d->textPFDefaultsAtom;
+
+    d->mainMasterContainer = 0;
+    d->textCFDefaultsAtom = 0;
+    d->textPFDefaultsAtom = 0;
+    d->masterSlide = 0;
 }
 
-bool Presentation::load( const char* filename )
+bool Presentation::load(const char* filename)
 {
-  PPTReader* reader = new PPTReader;
-  bool result = reader->load( this, filename );
-  delete reader;
-  return result;
+    PPTReader* reader = new PPTReader;
+    bool result = reader->load(this, filename);
+    delete reader;
+    return result;
 }
 
-void Presentation::appendSlide( Slide* slide )
+void Presentation::appendSlide(Slide* slide)
 {
-  d->slides.push_back( slide );
+    d->slides.push_back(slide);
 }
 
 unsigned Presentation::slideCount() const
 {
-  return d->slides.size();
+    return d->slides.size();
 }
 
-Slide* Presentation::slide( unsigned index )
+Slide* Presentation::slide(unsigned index)
 {
-  if( index >= slideCount() ) return (Slide*)0;
-  return d->slides[index];
+    if (index >= slideCount()) return (Slide*)0;
+    return d->slides[index];
 }
 
 
 Slide* Presentation::masterSlide()
 {
-  return d->masterSlide;
+    return d->masterSlide;
 }
 
-void Presentation::setMasterSlide( Slide* masterSlide )
+void Presentation::setMasterSlide(Slide* masterSlide)
 {
-  delete d->masterSlide;
-  d->masterSlide = masterSlide;
+    delete d->masterSlide;
+    d->masterSlide = masterSlide;
 }
 
-const TextFont Presentation::getFont(unsigned index)
+TextFont* Presentation::getFont(unsigned index)
 {
     return d->fonts.getFont(index);
 }
@@ -105,3 +132,50 @@ void Presentation::addTextFont(const TextFont &font)
 {
     d->fonts.addFont(font);
 }
+
+void Presentation::setMainMasterContainer(MainMasterContainer *container)
+{
+    d->mainMasterContainer = container;
+}
+
+MainMasterContainer *Presentation::getMainMasterContainer()
+{
+    return d->mainMasterContainer;
+}
+
+void Presentation::setTextCFDefaultsAtom(TextCFException *cf)
+{
+    if (!cf) {
+        return;
+    }
+
+    if (d->textCFDefaultsAtom) {
+        delete d->textCFDefaultsAtom;
+    }
+
+    d->textCFDefaultsAtom = new TextCFException(*cf);
+}
+
+void Presentation::setTextPFDefaultsAtom(TextPFException *pf)
+{
+    if (!pf) {
+        return;
+    }
+
+    if (d->textPFDefaultsAtom) {
+        delete d->textPFDefaultsAtom;
+    }
+
+    d->textPFDefaultsAtom = new TextPFException(*pf);
+}
+
+TextPFException *Presentation::defaultTextPFException()
+{
+    return d->textPFDefaultsAtom;
+}
+
+TextCFException *Presentation::defaultTextCFException()
+{
+    return d->textCFDefaultsAtom;
+}
+

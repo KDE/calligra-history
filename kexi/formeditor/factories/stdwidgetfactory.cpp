@@ -37,10 +37,10 @@
 #include <QDateEdit>
 #include <QDateTimeEdit>
 
+#include <KPluginFactory>
 #include <KPushButton>
 #include <KNumInput>
 #include <KComboBox>
-#include <KGenericFactory>
 #include <KTextEdit>
 #include <KLineEdit>
 #include <KLocale>
@@ -147,7 +147,7 @@ EditRichTextAction::EditRichTextAction(KFormDesigner::Container *container,
 
 void EditRichTextAction::slotTriggered()
 {
-    const QString classname( m_receiver->metaObject()->className() );
+    const QByteArray classname( m_receiver->metaObject()->className() );
     QString text;
     if (classname == "KTextEdit") {
         KTextEdit* te = dynamic_cast<KTextEdit*>(m_receiver);
@@ -175,7 +175,7 @@ void EditRichTextAction::slotTriggered()
 
 // The factory itself
 
-StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
+StdWidgetFactory::StdWidgetFactory(QObject *parent, const QVariantList &)
         : KFormDesigner::WidgetFactory(parent, "stdwidgets")
 {
     KFormDesigner::WidgetInfo *wFormWidget = new KFormDesigner::WidgetInfo(this);
@@ -203,6 +203,7 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wLabel->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "label"));
     wLabel->setDescription(i18n("A widget to display text"));
+    wLabel->setAutoSaveProperties(QList<QByteArray>() << "text");
     addClass(wLabel);
 
     KFormDesigner::WidgetInfo *wPixLabel = new KFormDesigner::WidgetInfo(this);
@@ -215,6 +216,7 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wPixLabel->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "picture"));
     wPixLabel->setDescription(i18n("A widget to display pictures"));
+    wPixLabel->setAutoSaveProperties(QList<QByteArray>() << "pixmap");
     addClass(wPixLabel);
 
     KFormDesigner::WidgetInfo *wLineEdit = new KFormDesigner::WidgetInfo(this);
@@ -235,6 +237,12 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wSpring->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "spring"));
     wSpring->setDescription(i18n("A spring to place between widgets"));
+    wSpring->setAutoSaveProperties(QList<QByteArray>() << "orientation");
+    wSpring->setInternalProperty("orientationSelectionPopup", true);
+    wSpring->setInternalProperty("orientationSelectionPopup:horizontalIcon", "spring");
+    wSpring->setInternalProperty("orientationSelectionPopup:verticalIcon", "spring_vertical");
+    wSpring->setInternalProperty("orientationSelectionPopup:horizontalText", i18n("Insert &Horizontal Spring"));
+    wSpring->setInternalProperty("orientationSelectionPopup:verticalText", i18n("Insert &Vertical Spring"));
     addClass(wSpring);
 
     KFormDesigner::WidgetInfo *wPushButton = new KFormDesigner::WidgetInfo(this);
@@ -246,6 +254,7 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wPushButton->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "button"));
     wPushButton->setDescription(i18n("A simple push button to execute actions"));
+    wPushButton->setAutoSaveProperties(QList<QByteArray>() << "text");
     addClass(wPushButton);
 
     KFormDesigner::WidgetInfo *wRadioButton = new KFormDesigner::WidgetInfo(this);
@@ -286,6 +295,7 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wComboBox->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "comboBox"));
     wComboBox->setDescription(i18n("A combo box widget"));
+    wComboBox->setAutoSaveProperties(QList<QByteArray>() << "list_items");
     addClass(wComboBox);
 
 #ifndef KEXI_FORMS_NO_LIST_WIDGET
@@ -299,7 +309,21 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wListBox->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "listBox"));
     wListBox->setDescription(i18n("A simple list widget"));
+    wListBox->setAutoSaveProperties(QList<QByteArray>() << "list_items");
     addClass(wListBox);
+
+    KFormDesigner::WidgetInfo *wTreeWidget = new KFormDesigner::WidgetInfo(this);
+    wTreeWidget->setPixmap("listwidget");
+    wTreeWidget->setClassName("QTreetWidget");
+//?    wTreeWidget->addAlternateClassName("QListView");
+//?    wTreeWidget->addAlternateClassName("KListView");
+    wTreeWidget->setIncludeFileName("qtreewidget.h");
+    wTreeWidget->setName(i18n("List Widget"));
+    wTreeWidget->setNamePrefix(
+        i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "listWidget"));
+    wTreeWidget->setDescription(i18n("A list (or tree) widget"));
+    wTreeWidget->setAutoSaveProperties(QList<QByteArray>() << "list_contents");
+    addClass(wTreeWidget);
 #endif
 
     KFormDesigner::WidgetInfo *wTextEdit = new KFormDesigner::WidgetInfo(this);
@@ -311,21 +335,8 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wTextEdit->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "textEditor"));
     wTextEdit->setDescription(i18n("A simple single-page rich text editor"));
+    wTextEdit->setAutoSaveProperties(QList<QByteArray>() << "text");
     addClass(wTextEdit);
-
-#ifndef KEXI_FORMS_NO_LIST_WIDGET
-    KFormDesigner::WidgetInfo *wTreeWidget = new KFormDesigner::WidgetInfo(this);
-    wTreeWidget->setPixmap("listwidget");
-    wTreeWidget->setClassName("QTreetWidget");
-//?    wTreeWidget->addAlternateClassName("QListView");
-//?    wTreeWidget->addAlternateClassName("KListView");
-    wTreeWidget->setIncludeFileName("qtreewidget.h");
-    wTreeWidget->setName(i18n("List Widget"));
-    wTreeWidget->setNamePrefix(
-        i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "listWidget"));
-    wTreeWidget->setDescription(i18n("A list (or tree) widget"));
-    addClass(wTreeWidget);
-#endif
 
     KFormDesigner::WidgetInfo *wSlider = new KFormDesigner::WidgetInfo(this);
     wSlider->setPixmap("slider");
@@ -333,7 +344,7 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wSlider->setName(i18n("Slider"));
     wSlider->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "slider"));
-    wSlider->setDescription(i18n("An horizontal slider"));
+    wSlider->setDescription(i18n("A horizontal slider"));
     addClass(wSlider);
 
     KFormDesigner::WidgetInfo *wProgressBar = new KFormDesigner::WidgetInfo(this);
@@ -352,6 +363,12 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wLine->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "line"));
     wLine->setDescription(i18n("A line to be used as a separator"));
+    wLine->setAutoSaveProperties(QList<QByteArray>() << "orientation");
+    wLine->setInternalProperty("orientationSelectionPopup", true);
+    wLine->setInternalProperty("orientationSelectionPopup:horizontalIcon", "line_horizontal");
+    wLine->setInternalProperty("orientationSelectionPopup:verticalIcon", "line_vertical");
+    wLine->setInternalProperty("orientationSelectionPopup:horizontalText", i18n("Insert &Horizontal Line"));
+    wLine->setInternalProperty("orientationSelectionPopup:verticalText", i18n("Insert &Vertical Line"));
     addClass(wLine);
 
     KFormDesigner::WidgetInfo *wDate = new KFormDesigner::WidgetInfo(this);
@@ -363,6 +380,7 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wDate->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "dateWidget"));
     wDate->setDescription(i18n("A widget to input and display a date"));
+    wDate->setAutoSaveProperties(QList<QByteArray>() << "date");
     addClass(wDate);
 
     KFormDesigner::WidgetInfo *wTime = new KFormDesigner::WidgetInfo(this);
@@ -374,6 +392,7 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wTime->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "timeWidget"));
     wTime->setDescription(i18n("A widget to input and display a time"));
+    wTime->setAutoSaveProperties(QList<QByteArray>() << "time");
     addClass(wTime);
 
     KFormDesigner::WidgetInfo *wDateTime = new KFormDesigner::WidgetInfo(this);
@@ -385,6 +404,7 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     wDateTime->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "dateTimeWidget"));
     wDateTime->setDescription(i18n("A widget to input and display a time and a date"));
+    wDateTime->setAutoSaveProperties(QList<QByteArray>() << "dateTime");
     addClass(wDateTime);
 
     m_propDesc["toggleButton"] = i18n("Toggle");
@@ -448,18 +468,6 @@ StdWidgetFactory::StdWidgetFactory(QObject *parent, const QStringList &)
     m_propValDesc["ScrollBarAlwaysOn"] = i18nc("Scroll Bar Always On", "Always On");
     m_propDesc["acceptRichText"] = i18nc("Property: Text Edit accepts rich text", "Rich Text");
     m_propDesc["HTML"] = i18nc("Property: HTML value of text edit", "HTML");
-
-    //internal props
-    setInternalProperty("Line", "orientationSelectionPopup", "1");
-    setInternalProperty("Line", "orientationSelectionPopup:horizontalIcon", "line_horizontal");
-    setInternalProperty("Line", "orientationSelectionPopup:verticalIcon", "line_vertical");
-    setInternalProperty("Line", "orientationSelectionPopup:horizontalText", i18n("Insert &Horizontal Line"));
-    setInternalProperty("Line", "orientationSelectionPopup:verticalText", i18n("Insert &Vertical Line"));
-    setInternalProperty("Spring", "orientationSelectionPopup", "1");
-    setInternalProperty("Spring", "orientationSelectionPopup:horizontalIcon", "spring");
-    setInternalProperty("Spring", "orientationSelectionPopup:verticalIcon", "spring_vertical");
-    setInternalProperty("Spring", "orientationSelectionPopup:horizontalText", i18n("Insert &Horizontal Spring"));
-    setInternalProperty("Spring", "orientationSelectionPopup:verticalText", i18n("Insert &Vertical Spring"));
 }
 
 StdWidgetFactory::~StdWidgetFactory()
@@ -473,7 +481,7 @@ StdWidgetFactory::createWidget(const QByteArray &c, QWidget *p, const char *n,
 {
     QWidget *w = 0;
     QString text(container->form()->library()->textForWidgetName(n, c));
-    const bool designMode = options & KFormDesigner::WidgetFactory::DesignViewMode;
+//2.0    const bool designMode = options & KFormDesigner::WidgetFactory::DesignViewMode;
 
     if (c == "QLabel")
         w = new QLabel(text, p);
@@ -481,8 +489,8 @@ StdWidgetFactory::createWidget(const QByteArray &c, QWidget *p, const char *n,
         w = new KexiPictureLabel(DesktopIcon("image-x-generic"), p);
     else if (c == "KLineEdit") {
         w = new KLineEdit(p);
-        if (designMode)
-            w->setCursor(QCursor(Qt::ArrowCursor));
+//2.0        if (designMode)
+//2.0            w->setCursor(QCursor(Qt::ArrowCursor));
     } else if (c == "KPushButton")
         w = new KPushButton(/*i18n("Button")*/text, p);
 
@@ -553,11 +561,14 @@ bool
 StdWidgetFactory::previewWidget(const QByteArray &classname, 
                                 QWidget *widget, KFormDesigner::Container *)
 {
+    Q_UNUSED(classname);
+    Q_UNUSED(widget);
+/* moved to FormWidgetInterface
     if (classname == "Spring") {
         dynamic_cast<Spring*>(widget)->setPreviewMode();
         return true;
-    }
-    return false;
+    }*/
+    return true;
 }
 
 bool
@@ -591,7 +602,7 @@ StdWidgetFactory::startInlineEditing(InlineEditorCreationArguments& args)
         args.useFrame = true;
         return true;
     }
-    else if (args.classname == "QLabel") {
+    else if (args.widget->inherits("QLabel")) {
         QLabel *label = static_cast<QLabel*>(args.widget);
         if (label->textFormat() == Qt::RichText) {
             //m_widget = w;
@@ -617,7 +628,8 @@ StdWidgetFactory::startInlineEditing(InlineEditorCreationArguments& args)
         args.geometry = QRect(push->x() + r.x(), push->y() + r.y(), r.width(), r.height());
 //! @todo this is typical alignment, can we get actual from the style?
         args.alignment = Qt::AlignCenter;
-        args.backgroundMode = Qt::PaletteButton;
+//        args.backgroundMode = Qt::PaletteButton;
+        args.transparentBackground = true;
         //r.setX(r.x() + 5);
         //r.setY(r.y() + 5);
         //r.setWidth(r.width()-10);
@@ -696,7 +708,7 @@ StdWidgetFactory::changeInlineText(KFormDesigner::Form *form, QWidget *widget,
                                    const QString &text, QString &oldText)
 {
 //2.0    QByteArray n = WidgetFactory::widget()->metaObject()->className();
-    const QString n(widget->metaObject()->className());
+    const QByteArray n(widget->metaObject()->className());
 //2.0    QWidget *w = WidgetFactory::widget();
     if (n == "KIntSpinBox") {
         oldText = QString::number(dynamic_cast<KIntSpinBox*>(widget)->value());
@@ -983,41 +995,6 @@ StdWidgetFactory::isPropertyVisibleInternal(const QByteArray &classname,
     return ok && WidgetFactory::isPropertyVisibleInternal(classname, w, property, isTopLevel);
 }
 
-QList<QByteArray>
-StdWidgetFactory::autoSaveProperties(const QByteArray &classname)
-{
-    QList<QByteArray> l;
-
-    if (classname == "QLabel")
-        l << "text";
-    if (classname == "KPushButton")
-        l << "text";
-    else if (classname == "KexiPictureLabel")
-        l << "pixmap";
-    else if (classname == "KComboBox")
-        l << "list_items";
-#ifndef KEXI_FORMS_NO_LIST_WIDGET
-    else if (classname == "QListBox" || classname == "KListBox")
-        l << "list_items";
-    else if (classname == "QTreeWidget")
-        l << "list_contents";
-#endif
-    else if (classname == "Line")
-        l << "orientation";
-    else if (classname == "KTimeWidget")
-        l << "time";
-    else if (classname == "KDateWidget")
-        l << "date";
-    else if (classname == "KDateTimeWidget")
-        l << "dateTime";
-    else if (classname == "Spring")
-        l << "sizeType" << "orientation";
-    else if (classname == "KTextEdit")
-        l << "textFormat" << "text";
-
-    return l;
-}
-
 #if 0 // moved to EditRichTextAction
 void
 StdWidgetFactory::editText()
@@ -1064,7 +1041,7 @@ StdWidgetFactory::setPropertyOptions(KoProperty::Set& set, const KFormDesigner::
     }
 }
 
-KFORMDESIGNER_WIDGET_FACTORY(StdWidgetFactory, stdwidgets)
+K_EXPORT_KEXI_FORM_WIDGET_FACTORY_PLUGIN(StdWidgetFactory, stdwidgets)
 
 #include "stdwidgetfactory.moc"
 

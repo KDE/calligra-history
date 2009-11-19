@@ -449,12 +449,11 @@ FormIO::savePropertyValue(QDomElement &parentNode, QDomDocument &parent, const c
     WidgetWithSubpropertiesInterface* subpropIface = dynamic_cast<WidgetWithSubpropertiesInterface*>(w);
     QWidget *subwidget = w;
     bool addSubwidgetFlag = false;
-    int propertyId = KexiUtils::indexOfPropertyWithSuperclasses(w, name);
+    int propertyId = w->metaObject()->indexOfProperty(name);
     const bool propertyIsName = qstrcmp(name, "objectName") == 0 || qstrcmp(name, "name") == 0;
     if (!propertyIsName && propertyId == -1 && subpropIface && subpropIface->subwidget()) { // try property from subwidget
         subwidget = subpropIface->subwidget();
-        propertyId = KexiUtils::indexOfPropertyWithSuperclasses(
-                         subpropIface->subwidget(), name);
+        propertyId = subpropIface->subwidget()->metaObject()->indexOfProperty(name);
         addSubwidgetFlag = true;
     }
     if (!propertyIsName && propertyId == -1) {
@@ -466,7 +465,7 @@ FormIO::savePropertyValue(QDomElement &parentNode, QDomDocument &parent, const c
 
     QMetaProperty meta;
     if (!propertyIsName) {
-        meta = KexiUtils::findPropertyWithSuperclasses(subwidget, propertyId);
+        meta = subwidget->metaObject()->property(propertyId);
     }
     if (!propertyIsName && (!meta.isValid() || !meta.isStored(subwidget)))   //not storable
         return;
@@ -926,6 +925,7 @@ FormIO::saveWidget(ObjectTreeItem *item, QDomElement &parent, QDomDocument &domD
 {
     if (!item)
         return;
+    kDebug() << item->className() << item->widget()->objectName();
     bool savedAlignment = false;
     // we let Spring class handle saving itself
     if (item->className() == "Spring") {
@@ -1153,7 +1153,6 @@ FormIO::loadWidget(Container *container, const QDomElement &el, QWidget *parent)
         }
     }
 
-    QWidget *w;
     QByteArray classname, alternate;
     // We translate some name (for compatibility)
     if (el.tagName() == "spacer")
@@ -1183,13 +1182,13 @@ FormIO::loadWidget(Container *container, const QDomElement &el, QWidget *parent)
                     classname = "Grid";
             }
         }
-    } else
-        // We check if this classname is an alternate one, and replace it if necessary
-    {
+    }
+    else { // check if this classname is an alternate one, and replace it if necessary
         classname = el.attribute("class").toLatin1();
         alternate = container->form()->library()->classNameForAlternate(classname);
     }
 
+    QWidget *w;
     if (alternate == "CustomWidget") {
         w = new CustomWidget(classname, container->widget());
         w->setObjectName(wname);
@@ -1218,7 +1217,7 @@ FormIO::loadWidget(Container *container, const QDomElement &el, QWidget *parent)
         //don't generate accelerators for widgets in design mode
         KAcceleratorManager::setNoAccel(w);
     }
-    w->setStyle(container->widget()->style());
+//2.0???    w->setStyle(container->widget()->style());
     w->show();
 
     // We create and insert the ObjectTreeItem at the good place in the ObjectTree
@@ -1270,13 +1269,14 @@ FormIO::loadWidget(Container *container, const QDomElement &el, QWidget *parent)
     if (item->container() && item->container()->layout())
         item->container()->layout()->activate();
 
-    // We add the autoSaveProperties in the modifProp list of the ObjectTreeItem, so that they are saved later
-    const QList<QByteArray> list(container->form()->library()->autoSaveProperties(w->metaObject()->className()));
+    // add the autoSaveProperties in the modifProp list of the ObjectTreeItem, so that they are saved later
+    const QList<QByteArray> autoSaveProperties(
+        container->form()->library()->autoSaveProperties(w->metaObject()->className()) );
     KFormDesigner::WidgetWithSubpropertiesInterface* subpropIface
         = dynamic_cast<KFormDesigner::WidgetWithSubpropertiesInterface*>(w);
     QWidget *subwidget = (subpropIface && subpropIface->subwidget()) ? subpropIface->subwidget() : w;
-    foreach (const QByteArray &propName, list) {
-        if (-1 != KexiUtils::indexOfPropertyWithSuperclasses(subwidget, propName)) {
+    foreach (const QByteArray &propName, autoSaveProperties) {
+        if (subwidget && -1 != subwidget->metaObject()->indexOfProperty(propName)) {
             item->addModifiedProperty(propName, subwidget->property(propName));
         }
     }
@@ -1403,7 +1403,7 @@ FormIO::readChildNodes(ObjectTreeItem *item, Container *container, const QDomEle
                 }
             }
             // If the object doesn't have this property, we let the Factory handle it (maybe a special property)
-            else if (!isQt3NameProperty && -1 == KexiUtils::indexOfPropertyWithSuperclasses(subwidget, name.toLatin1())) {
+            else if (!isQt3NameProperty && -1 == subwidget->metaObject()->indexOfProperty(name.toLatin1())) {
                 if (w->metaObject()->className() == QString::fromLatin1("CustomWidget"))
                     item->storeUnknownProperty(node);
                 else {

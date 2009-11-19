@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2005 Cedric Pasteur <cedric.pasteur@free.fr>
-   Copyright (C) 2004-2007 Jarosław Staniek <staniek@kde.org>
+   Copyright (C) 2004-2009 Jarosław Staniek <staniek@kde.org>
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -32,22 +32,19 @@
 #include "kexidbutils.h"
 #include <kexi_global.h>
 #include <widget/tableview/kexitextformatter.h>
+#include <formeditor/FormWidgetInterface.h>
 
 class KexiDBWidgetContextMenuExtender;
-
-/*! @internal Utility: alter background color to be a blended color
- of the background and base (usually lighter gray). Used for read-only mode. */
-void setLighterGrayBackgroundColor(QWidget* widget);
 
 //! @short Line edit widget for Kexi forms
 /*! Handles many data types. User input is validated by using validators
  and/or input masks.
 */
-class KEXIFORMUTILS_EXPORT KexiDBLineEdit :
-            public KLineEdit,
-            protected KexiDBTextWidgetInterface,
-            public KexiFormDataItemInterface,
-            public KexiSubwidgetInterface
+class KEXIFORMUTILS_EXPORT KexiDBLineEdit : public KLineEdit,
+                                            protected KexiDBTextWidgetInterface,
+                                            public KexiFormDataItemInterface,
+                                            public KexiSubwidgetInterface,
+                                            public KFormDesigner::FormWidgetInterface
 {
     Q_OBJECT
     Q_PROPERTY(QString dataSource READ dataSource WRITE setDataSource)
@@ -57,6 +54,9 @@ class KEXIFORMUTILS_EXPORT KexiDBLineEdit :
 public:
     KexiDBLineEdit(QWidget *parent);
     virtual ~KexiDBLineEdit();
+
+//    //! Sets design mode on or off. Reimplemented to alter the cursor.
+//    virtual void setDesignMode(bool design);
 
     inline QString dataSource() const {
         return KexiFormDataItemInterface::dataSource();
@@ -107,12 +107,10 @@ public:
     virtual bool keyPressed(QKeyEvent *ke);
 
 public slots:
-    inline void setDataSource(const QString &ds) {
-        KexiFormDataItemInterface::setDataSource(ds);
-    }
-    inline void setDataSourcePartClass(const QString &partClass) {
-        KexiFormDataItemInterface::setDataSourcePartClass(partClass);
-    }
+    void setDataSource(const QString &ds);
+
+    void setDataSourcePartClass(const QString &partClass);
+
     virtual void setReadOnly(bool readOnly);
 
     //! Reimplemented, so "undo" means the same as "cancelEditor" action
@@ -142,6 +140,8 @@ protected:
 
     //! Implemented for KexiSubwidgetInterface
     virtual bool appendStretchRequired(KexiDBAutoField* autoField) const;
+
+    void updateTextForDataSource();
 
     //! Used to format text
     KexiTextFormatter m_textFormatter;

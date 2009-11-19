@@ -29,7 +29,7 @@ KisIconWidget::KisIconWidget(QWidget *parent, const char *name)
 {
     setObjectName(name);
     m_resource = 0;
-    setFixedSize( QSize( 26, 26 ) );
+    setFixedSize(QSize(26, 26));
 }
 
 void KisIconWidget::slotSetItem(KoResource * resource)
@@ -44,12 +44,13 @@ void KisIconWidget::paintEvent(QPaintEvent *)
     qint32 cw = width();
     qint32 ch = height();
     if (m_resource) {
-        p.drawImage(QRect( 0, 0, 24, 24), m_resource->img());
+        p.drawImage(QRect(0, 0, 24, 24), m_resource->img());
     } else {
         p.fillRect(0, 0, cw, ch, Qt::white);
     }
     p.setPen(Qt::gray);
     p.drawRect(0, 0, cw + 1, ch + 1);
+    (void)p.end();
     paintPopupArrow();
 }
 

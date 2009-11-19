@@ -50,6 +50,7 @@
 #include <kexidb/utils.h>
 #include <kexidb/queryschema.h>
 #include <formeditor/widgetlibrary.h>
+#include <formeditor/utils.h>
 #include <kexi_global.h>
 
 //#ifdef Q_WS_WIN
@@ -75,25 +76,29 @@ KexiDBImageBox::KexiDBImageBox(bool designMode, QWidget *parent)
         : KexiFrame(parent /* Qt 4 not neede: , Qt::WNoAutoErase*/)
         , KexiFormDataItemInterface()
         , m_alignment(Qt::AlignAuto | Qt::AlignTop)
-        , m_designMode(designMode)
+//2.0 moved to FormWidgetInterface      , m_designMode(designMode)
         , m_readOnly(false)
         , m_scaledContents(false)
         , m_keepAspectRatio(true)
         , m_insideSetData(false)
         , m_setFocusOnButtonAfterClosingPopup(false)
-        , m_lineWidthChanged(false)
+//        , m_lineWidthChanged(false)
         , m_paintEventEnabled(true)
         , m_dropDownButtonVisible(true)
         , m_insideSetPalette(false)
 {
+    setDesignMode(designMode);
     installEventFilter(this);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    QPalette pal(palette());
+    pal.setBrush(backgroundRole(), QBrush(Qt::transparent));
+    KexiFrame::setPalette(pal);
 
     //setup context menu
     m_contextMenu = new KexiImageContextMenu(this);
     m_contextMenu->installEventFilter(this);
 
-    if (m_designMode) {
+    if (designMode) {
         m_chooser = 0;
     } else {
         m_chooser = new KexiDropDownButton(this);
@@ -136,6 +141,7 @@ KexiDBImageBox::KexiDBImageBox(bool designMode, QWidget *parent)
 //  connect(m_chooser, SIGNAL(toggled(bool)), this, SLOT(slotToggled(bool)));
 // }
 
+    KexiFrame::setLineWidth(0);
     setDataSource(QString());   //to initialize popup menu and actions availability
 }
 
@@ -410,7 +416,7 @@ void KexiDBImageBox::handleCopyAction()
 
 void KexiDBImageBox::handlePasteAction()
 {
-    if (isReadOnly() || (!m_designMode && !hasFocus()))
+    if (isReadOnly() || (!designMode() && !hasFocus()))
         return;
     QPixmap pm(qApp->clipboard()->pixmap(QClipboard::Clipboard));
 // if (!pm.isNull())
@@ -476,9 +482,9 @@ void KexiDBImageBox::slotUpdateActionsAvailabilityRequested(bool& valueIsNull, b
                   );
     // read-only if static pixmap or db-aware pixmap for read-only widget:
     valueIsReadOnly =
-           (!m_designMode && dataSource().isEmpty())
+           (!designMode() && dataSource().isEmpty())
         || (!dataSource().isEmpty() && isReadOnly())
-        || (m_designMode && !dataSource().isEmpty());
+        || (designMode() && !dataSource().isEmpty());
 }
 
 /*
@@ -548,7 +554,7 @@ void KexiDBImageBox::updateActionStrings()
 {
     if (!m_contextMenu)
         return;
-    if (m_designMode) {
+    if (designMode()) {
         /*  QString titleString( i18n("Image Box") );
             if (!dataSource().isEmpty())
               titleString.prepend(dataSource() + " : ");
@@ -566,7 +572,7 @@ void KexiDBImageBox::updateActionStrings()
             m_chooser->setToolTip(i18n("Click to show actions for this image box"));
         } else {
             QString beautifiedImageBoxName;
-            if (m_designMode) {
+            if (designMode()) {
                 beautifiedImageBoxName = dataSource();
             } else {
                 beautifiedImageBoxName = columnInfo() ? columnInfo()->captionOrAliasOrName() : QString();
@@ -604,11 +610,11 @@ void KexiDBImageBox::setDataSource(const QString &ds)
         }
     }
 
-    // update some properties s not changed by user
-//! @todo get default line width from global style settings
-    if (!m_lineWidthChanged) {
-        KexiFrame::setLineWidth(ds.isEmpty() ? 0 : 1);
-    }
+    // update some properties not changed by user
+// //! @todo get default line width from global style settings
+//    if (!m_lineWidthChanged) {
+//        KexiFrame::setLineWidth(ds.isEmpty() ? 0 : 1);
+//    }
     if (!m_paletteBackgroundColorChanged && parentWidget()) {
         KexiFrame::setPaletteBackgroundColor(
             dataSource().isEmpty() ? parentWidget()->paletteBackgroundColor() : palette().active().base());
@@ -632,6 +638,24 @@ int KexiDBImageBox::realLineWidth() const
     }
 }
 
+static QPixmap *scaledImageBoxIcon(const KexiUtils::WidgetMargins& margins, const QSize& size)
+{
+    const int realHeight = size.height() - margins.top - margins.bottom;
+    const int realWidth = size.width() - margins.left - margins.right;
+    const bool tooLarge = (size.height() - margins.top - margins.bottom) <= KexiDBImageBox_static->pixmap->height();
+    if (   realHeight <= KexiDBImageBox_static->pixmap->height()
+        || realWidth <= KexiDBImageBox_static->pixmap->width())
+    {
+        if (   realHeight <= KexiDBImageBox_static->small->height()
+            || realWidth <= KexiDBImageBox_static->small->width())
+        {
+            return 0;
+        }
+        return KexiDBImageBox_static->small;
+    }
+    return KexiDBImageBox_static->pixmap;
+}
+
 void KexiDBImageBox::paintEvent(QPaintEvent *pe)
 {
     if (!m_paintEventEnabled)
@@ -642,29 +666,41 @@ void KexiDBImageBox::paintEvent(QPaintEvent *pe)
     KexiUtils::WidgetMargins margins(this);
     margins += KexiUtils::WidgetMargins(_realLineWidth);
 //Qt3 replaced with 'margins': const int m = realLineWidth() + margin();
-    QColor bg(palette().color(backgroundRole())); //Qt3 eraseColor());
-    if (m_designMode && pixmap().isNull()) {
-        QRect r(QPoint(margins.left, margins.top), size() - QSize(margins.left + margins.right, margins.top + margins.bottom));
-        p.fillRect(0, 0, width(), height(), bg);
+    const QBrush bgBrush(palette().brush(backgroundRole()));
+    if (designMode() && pixmap().isNull()) {
+        QRect r(
+            QPoint(margins.left, margins.top),
+            size() - QSize(margins.left + margins.right, margins.top + margins.bottom));
+//        p.fillRect(0, 0, width(), height(), bgBrush);
 
         updatePixmap();
-        QPixmap *imagBoxPm;
-        const bool tooLarge = (height() - margins.top - margins.bottom) <= KexiDBImageBox_static->pixmap->height();
-        if (tooLarge || (width() - margins.left - margins.right) <= KexiDBImageBox_static->pixmap->width())
-            imagBoxPm = KexiDBImageBox_static->small;
-        else
-            imagBoxPm = KexiDBImageBox_static->pixmap;
-        QImage img(imagBoxPm->toImage());
-
-        QPixmap converted(QPixmap::fromImage(img));
-        p.drawPixmap(2, height() - margins.top - margins.bottom - imagBoxPm->height() - 2, converted);
+        QPixmap *imagBoxPm = scaledImageBoxIcon(margins, size());
+        if (imagBoxPm) {
+//        QImage img(imagBoxPm->toImage());
+//          QPixmap converted(QPixmap::fromImage(img));
+            p.drawPixmap(2, height() - margins.top - margins.bottom - imagBoxPm->height() - 2, *imagBoxPm);
+        }
         QFont f(qApp->font());
         p.setFont(f);
-        p.setPen(KexiUtils::contrastColor(bg));
-        p.drawText(r, Qt::AlignCenter,
-                 dataSource().isEmpty()
-                 ? objectName() + "\n" + i18nc("Unbound Image Box", "(unbound)")
-                 : dataSource());
+//        p.setPen(KexiUtils::contrastColor(bg));
+        QString text;
+        if (dataSource().isEmpty()) {
+            text = objectName() + "\n" + i18nc("Unbound Image Box", "(unbound)");
+        }
+        else {
+            text = dataSource();
+            const QFontMetrics fm(fontMetrics());
+            const QPixmap dataSourceTagIcon(KexiFormUtils::dataSourceTagIcon());
+            if (width() >= (dataSourceTagIcon.width() + 2 + fm.boundingRect(r, Qt::AlignCenter, text).width())) {
+                r.setLeft( r.left() + dataSourceTagIcon.width() + 2 ); // make some room for the [>] icon
+                QRect bounding = fm.boundingRect(r, Qt::AlignCenter, text);
+                p.drawPixmap(
+                    bounding.left() - dataSourceTagIcon.width() - 2,
+                    bounding.top() + bounding.height() / 2 - dataSourceTagIcon.height() / 2,
+                    dataSourceTagIcon);
+            }
+        }
+        p.drawText(r, Qt::AlignCenter, text);
     }
     else {
         QSize internalSize(size());
@@ -672,23 +708,32 @@ void KexiDBImageBox::paintEvent(QPaintEvent *pe)
             internalSize.setWidth(internalSize.width() - m_chooser->width());
 
         //clearing needed here because we may need to draw a pixmap with transparency
-        p.fillRect(0, 0, width(), height(), bg);
+ //       p.fillRect(0, 0, width(), height(), bgBrush);
 
         KexiUtils::drawPixmap(p, margins, QRect(QPoint(0, 0), internalSize), pixmap(), m_alignment,
                               m_scaledContents, m_keepAspectRatio);
     }
     KexiFrame::drawFrame(&p);
 
-    // if the widget is focused, draw focus indicator rect _if_ there is no chooser button
-    if (!m_designMode && !dataSource().isEmpty()
+    if (designMode()) {
+        const bool hasFrame = frameWidth() >= 1 && frameShape() != QFrame::NoFrame;
+        if (!hasFrame) {
+            KFormDesigner::paintWidgetFrame(p, rect());
+        }
+    }
+    else { // data mode
+        // if the widget is focused, draw focus indicator rect _if_ there is no chooser button
+        if (   !dataSource().isEmpty()
             && hasFocus()
-            && (!m_chooser || !m_chooser->isVisible())) {
-        QStyleOptionFocusRect option;
-        option.initFrom(this);
-        //option.rect = style().subRect(QStyle::SR_PushButtonContents);
-        style()->drawPrimitive(
-            QStyle::PE_FrameFocusRect, &option, &p, this
-            /*Qt4 , palette().active()*/);
+            && (!m_chooser || !m_chooser->isVisible()))
+        {
+            QStyleOptionFocusRect option;
+            option.initFrom(this);
+            //option.rect = style().subRect(QStyle::SR_PushButtonContents);
+            style()->drawPrimitive(
+                QStyle::PE_FrameFocusRect, &option, &p, this
+                /*Qt4 , palette().active()*/);
+        }
     }
 }
 
@@ -704,7 +749,7 @@ void KexiDBImageBox::paintEvent(QPaintEvent *pe)
 
 void KexiDBImageBox::updatePixmap()
 {
-    if (!(m_designMode && pixmap().isNull()))
+    if (!(designMode() && pixmap().isNull()))
         return;
 
     if (!KexiDBImageBox_static->pixmap) {
@@ -712,6 +757,7 @@ void KexiDBImageBox::updatePixmap()
         QPixmap pm( KIconLoader::global()->loadMimeTypeIcon(
             "image-x-generic", KIconLoader::NoGroup, KIconLoader::SizeLarge, KIconLoader::DisabledState) );
         if (!pm.isNull()) {
+            KIconEffect::semiTransparent(pm);
             KIconEffect::semiTransparent(pm);
         }
         KexiDBImageBox_static->pixmap = new QPixmap(pm);
@@ -793,7 +839,7 @@ bool KexiDBImageBox::keyPressed(QKeyEvent *ke)
 
 void KexiDBImageBox::setLineWidth(int width)
 {
-    m_lineWidthChanged = true;
+//    m_lineWidthChanged = true;
     KexiFrame::setLineWidth(width);
 }
 

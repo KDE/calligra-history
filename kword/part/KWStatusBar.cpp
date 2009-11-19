@@ -154,7 +154,9 @@ void KWStatusBar::resourceChanged(int key, const QVariant &value)
 
 void KWStatusBar::updateCurrentTool(KoCanvasController *canvasController)
 {
-    // kDebug(32003) << "KWStatusBar::updateCurrentTool";
+    QWidget *root = m_statusbar->window();
+    if (root && !root->isAncestorOf(canvasController))
+        return; // ignore tool changes in other mainWindows
     if (m_controller) {
         disconnect(m_controller, SIGNAL(canvasMousePositionChanged(const QPoint&)),
                 this, SLOT(updateMousePosition(const QPoint&)));
@@ -229,13 +231,13 @@ void KWStatusBar::createZoomWidget()
     }
 }
 
-void KWStatusBar::showPage(bool visible )
+void KWStatusBar::showPage(bool visible)
 {
     m_document->config().setStatusBarShowPage(visible);
     m_pageLabel->setVisible(visible);
 }
 
-void KWStatusBar::showModified(bool visible )
+void KWStatusBar::showModified(bool visible)
 {
     m_document->config().setStatusBarShowModified(visible);
     m_modifiedLabel->setVisible(visible);
@@ -247,7 +249,7 @@ void KWStatusBar::showMouse(bool visible)
     m_mousePosLabel->setVisible(visible);
 }
 
-void KWStatusBar::showZoom(bool visible )
+void KWStatusBar::showZoom(bool visible)
 {
     QWidget *zoomWidget = m_zoomWidgets.value(m_currentView);
     m_document->config().setStatusBarShowZoom(visible);

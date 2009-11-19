@@ -45,10 +45,6 @@ KisPaintOp * KisFilterOpFactory::createOp(const KisPaintOpSettingsSP settings,
                                          KisPainter * painter,
                                          KisImageWSP image)
 {
-    Q_UNUSED(image);
-
-    // XXX: make all this casting go away!
-
     KisFilterOpSettings *filteropSettings = const_cast<KisFilterOpSettings*>( dynamic_cast<const KisFilterOpSettings *>(settings.data()) );
     Q_ASSERT(settings != 0 && filteropSettings != 0);
     filteropSettings->setImage( image );
@@ -61,17 +57,17 @@ KisPaintOp * KisFilterOpFactory::createOp(const KisPaintOpSettingsSP settings,
 KisPaintOpSettingsSP KisFilterOpFactory::settings(const KoInputDevice& inputDevice, KisImageWSP image)
 {
     Q_UNUSED(inputDevice);
-    return settings( image );
+    return settings(image);
 }
 
 KisPaintOpSettingsSP KisFilterOpFactory::settings(KisImageWSP image)
 {
     KisFilterOpSettings* settings = new KisFilterOpSettings();
-    settings->setImage( image );
+    settings->setImage(image);
     return settings;
 }
 
 KisPaintOpSettingsWidget* KisFilterOpFactory::createSettingsWidget(QWidget* parent)
 {
-    return new KisFilterOpSettingsWidget( parent );
+    return new KisFilterOpSettingsWidget(parent);
 }

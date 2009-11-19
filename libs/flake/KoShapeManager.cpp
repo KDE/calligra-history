@@ -65,20 +65,6 @@ public:
      */
     void updateTree();
 
-    QList<KoShape *> shapes;
-    QList<KoShape *> additionalShapes; // these are shapes that are only handled for updates
-    KoSelection * selection;
-    KoCanvasBase * canvas;
-    KoRTree<KoShape *> tree;
-    QSet<KoShape *> aggregate4update;
-    QHash<KoShape*, int> shapeIndexesBeforeUpdate;
-    KoShapeManagerPaintingStrategy * strategy;
-    KoShapeManager *q;
-};
-
-void KoShapeManager::Private::updateTree()
-{
-    // for detecting collisions between shapes.
     class DetectCollision
     {
     public:
@@ -110,6 +96,21 @@ void KoShapeManager::Private::updateTree()
     private:
         QList<KoShape*> shapesWithCollisionDetection;
     };
+
+    QList<KoShape *> shapes;
+    QList<KoShape *> additionalShapes; // these are shapes that are only handled for updates
+    KoSelection *selection;
+    KoCanvasBase *canvas;
+    KoRTree<KoShape *> tree;
+    QSet<KoShape *> aggregate4update;
+    QHash<KoShape*, int> shapeIndexesBeforeUpdate;
+    KoShapeManagerPaintingStrategy *strategy;
+    KoShapeManager *q;
+};
+
+void KoShapeManager::Private::updateTree()
+{
+    // for detecting collisions between shapes.
     DetectCollision detector;
     bool selectionModified = false;
     foreach(KoShape *shape, aggregate4update) {
@@ -137,7 +138,6 @@ void KoShapeManager::Private::updateTree()
         emit q->selectionContentChanged();
     }
 }
-
 
 KoShapeManager::KoShapeManager(KoCanvasBase *canvas, const QList<KoShape *> &shapes)
         : d(new Private(this, canvas))
@@ -203,6 +203,10 @@ void KoShapeManager::add(KoShape *shape, Repaint repaint)
             add(containerShape, repaint);
         }
     }
+
+    Private::DetectCollision detector;
+    detector.detect(d->tree, shape, shape->zIndex());
+    detector.fireSignals();
 }
 
 void KoShapeManager::addAdditional(KoShape *shape)
@@ -218,6 +222,10 @@ void KoShapeManager::addAdditional(KoShape *shape)
 
 void KoShapeManager::remove(KoShape *shape)
 {
+    Private::DetectCollision detector;
+    detector.detect(d->tree, shape, shape->zIndex());
+    detector.fireSignals();
+
     shape->update();
     shape->removeShapeManager(this);
     d->selection->deselect(shape);
@@ -350,36 +358,37 @@ void KoShapeManager::paintShape(KoShape * shape, QPainter &painter, const KoView
         KoFilterEffectRenderContext renderContext(converter);
         renderContext.setCoordinateTransformation(coordTransform);
         
+        QImage result;
         QList<KoFilterEffect*> filterEffects = shape->filterEffectStack()->filterEffects();
         // Filter
         foreach(KoFilterEffect* filterEffect, filterEffects) {
             QRectF filterRegion = filterEffect->filterRectForBoundingRect(clipRegion);
             filterRegion = converter.documentToView(filterRegion);
-            QPointF filterOffset = filterRegion.topLeft()-2*clippingOffset;
-            QRect subRegion = filterRegion.translated(filterOffset).toRect();
-
+            QRect subRegion = filterRegion.translated(-clippingOffset).toRect();
             // set current filter region
-            renderContext.setFilterRegion(subRegion);
-            
+            renderContext.setFilterRegion(subRegion & sourceGraphic.rect());
+
             if (filterEffect->maximalInputCount() == 1) {
                 QList<QString> inputs = filterEffect->inputs();
                 QString input = inputs.count() ? inputs.first() : QString();
-                // get input image from image buffers
-                QImage inputImage = imageBuffers.value(input);
-                // apply the filter effect
-                QImage result = filterEffect->processImage(inputImage, renderContext);
-                // store result of effect
-                imageBuffers.insert(filterEffect->output(), result);
+                // get input image from image buffers and apply the filter effect
+                QImage image = imageBuffers.value(input);
+                if (!image.isNull()) {
+                    result = filterEffect->processImage(imageBuffers.value(input), renderContext);
+                }
             } else {
                 QList<QImage> inputImages;
                 foreach(const QString &input, filterEffect->inputs()) {
-                    inputImages.append(imageBuffers.value(input));
+                    QImage image = imageBuffers.value(input);
+                    if (!image.isNull())
+                        inputImages.append(imageBuffers.value(input));
                 }
                 // apply the filter effect
-                QImage result = filterEffect->processImages(inputImages, renderContext);
-                // store result of effect
-                imageBuffers.insert(filterEffect->output(), result);
+                if (filterEffect->inputs().count() == inputImages.count())
+                    result = filterEffect->processImages(inputImages, renderContext);
             }
+            // store result of effect
+            imageBuffers.insert(filterEffect->output(), result);
         }
 
         KoFilterEffect * lastEffect = filterEffects.last();
@@ -495,6 +504,18 @@ void KoShapeManager::notifyShapeChanged(KoShape * shape)
 QList<KoShape*> KoShapeManager::shapes() const
 {
     return d->shapes;
+}
+
+QList<KoShape*> KoShapeManager::topLevelShapes() const
+{
+    QList<KoShape*> shapes;
+    // get all toplevel shapes
+    foreach(KoShape *shape, d->shapes) {
+        if (shape->parent() == 0) {
+            shapes.append(shape);
+        }
+    }
+    return shapes;
 }
 
 KoSelection * KoShapeManager::selection() const

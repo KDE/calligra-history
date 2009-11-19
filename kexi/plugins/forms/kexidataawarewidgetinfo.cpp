@@ -19,25 +19,46 @@
 
 #include "kexidataawarewidgetinfo.h"
 
+class KexiDataAwareWidgetInfo::Private
+{
+public:
+    Private() : inlineEditingEnabledWhenDataSourceSet(true) {}
+    bool inlineEditingEnabledWhenDataSourceSet;
+};
+
 KexiDataAwareWidgetInfo::KexiDataAwareWidgetInfo(KFormDesigner::WidgetFactory *f)
         : KFormDesigner::WidgetInfo(f)
+        , d( new Private )
 {
     init();
 }
 
+/* 2.0
 KexiDataAwareWidgetInfo::KexiDataAwareWidgetInfo(KFormDesigner::WidgetFactory *f,
         const char* parentFactoryName, const char* inheritedClassName)
         : KFormDesigner::WidgetInfo(f, parentFactoryName, inheritedClassName)
 {
     init();
-}
+}*/
 
 KexiDataAwareWidgetInfo::~KexiDataAwareWidgetInfo()
 {
+    delete d;
 }
 
 void KexiDataAwareWidgetInfo::init()
 {
     setAutoSyncForProperty("dataSource", false);
     setAutoSyncForProperty("dataSourcePartClass", false);
+}
+
+void KexiDataAwareWidgetInfo::setInlineEditingEnabledWhenDataSourceSet(bool set)
+{
+    d->inlineEditingEnabledWhenDataSourceSet = set;
+}
+
+//! @return flag controling inline editing when data source is set
+bool KexiDataAwareWidgetInfo::inlineEditingEnabledWhenDataSourceSet() const
+{
+    return d->inlineEditingEnabledWhenDataSourceSet;
 }

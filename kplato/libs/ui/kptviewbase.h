@@ -241,6 +241,10 @@ public slots:
     void slotUpdateReadWrite( bool );
     virtual void slotHeaderContextMenuRequested( const QPoint &pos );
 
+    virtual void slotEditCopy() {}
+    virtual void slotEditCut() {}
+    virtual void slotEditPaste() {}
+    virtual void slotRefreshView() {}
     
 signals:
     /// Emitted when the gui has been activated or deactivated

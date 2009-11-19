@@ -473,9 +473,16 @@ void ResourceItemModel::slotResourceGroupRemoved( const ResourceGroup *group )
     m_group = 0;
 }
 
+void ResourceItemModel::slotLayoutChanged()
+{
+    emit layoutAboutToBeChanged();
+    emit layoutChanged();
+}
+
 void ResourceItemModel::setProject( Project *project )
 {
     if ( m_project ) {
+        disconnect( m_project, SIGNAL( localeChanged() ), this, SLOT( slotLayoutChanged() ) );
         disconnect( m_project, SIGNAL( resourceChanged( Resource* ) ), this, SLOT( slotResourceChanged( Resource* ) ) );
         disconnect( m_project, SIGNAL( resourceGroupChanged( ResourceGroup* ) ), this, SLOT( slotResourceGroupChanged( ResourceGroup* ) ) );
         
@@ -499,6 +506,7 @@ void ResourceItemModel::setProject( Project *project )
     }
     m_project = project;
     if ( m_project ) {
+        connect( m_project, SIGNAL( localeChanged() ), this, SLOT( slotLayoutChanged() ) );
         connect( m_project, SIGNAL( resourceChanged( Resource* ) ), this, SLOT( slotResourceChanged( Resource* ) ) );
         connect( m_project, SIGNAL( resourceGroupChanged( ResourceGroup* ) ), this, SLOT( slotResourceGroupChanged( ResourceGroup* ) ) );
         
@@ -521,6 +529,7 @@ void ResourceItemModel::setProject( Project *project )
         connect( m_project, SIGNAL( defaultCalendarChanged( Calendar* ) ), this, SLOT( slotCalendarChanged( Calendar* ) ) );
     }
     m_model.setProject( m_project );
+    reset();
 }
 
 Qt::ItemFlags ResourceItemModel::flags( const QModelIndex &index ) const
@@ -1076,7 +1085,7 @@ bool ResourceItemModel::dropMimeData( const QMimeData *data, Qt::DropAction acti
         KABC::VCardConverter vc;
         KABC::Addressee::List lst = vc.parseVCards( vcard );
         foreach( const KABC::Addressee &a, lst ) {
-            if ( m == 0 ) m = new MacroCommand( i18np( "Add resource from addressbook", "Add %1 resources from addressbook", lst.count() ) );
+            if ( m == 0 ) m = new MacroCommand( i18np( "Add resource from address book", "Add %1 resources from address book", lst.count() ) );
             Resource *r = new Resource();
             QString uid = a.uid();
             if ( ! m_project->findResource( uid ) ) {

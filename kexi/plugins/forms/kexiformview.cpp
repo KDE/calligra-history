@@ -257,6 +257,7 @@ void KexiFormView::initForm()
     pal.setBrush(QPalette::Window, palette().brush(QPalette::Window));
     m_dbform->setPalette(pal); // avoid inheriting QPalette::Window role
                                // from m_scrollView->viewport()
+
 // m_dbform->resize( m_scrollView->viewport()->size() - QSize(20, 20) );
 // m_dbform->resize(QSize(400, 300));
     m_scrollView->setWidget(m_dbform);
@@ -384,6 +385,14 @@ void KexiFormView::initForm()
     if (!newForm && viewMode() == Kexi::DesignViewMode) {
         form()->clearUndoStack();
     }
+
+/*    QList<QWidget*> wlist(m_dbform->findChildren<QWidget*>());
+    wlist.prepend(m_dbform);
+    foreach(QWidget* w, wlist) {
+        KFormDesigner::FormWidgetInterface* fwiface = dynamic_cast<KFormDesigner::FormWidgetInterface*>(w);
+        if (fwiface)
+            fwiface->setDesignMode(viewMode() == Kexi::DesignViewMode);
+    }*/
 }
 
 void KexiFormView::updateAutoFieldsDataSource()
@@ -466,9 +475,9 @@ void KexiFormView::updateValuesForSubproperties()
 static void setUnsavedBLOBIdsForDataViewMode(
     QWidget* widget, const QHash<QByteArray, KexiBLOBBuffer::Id_t>& unsavedLocalBLOBsByName)
 {
-    if (-1 != KexiUtils::indexOfPropertyWithSuperclasses(widget, "pixmapId")) {
+    if (widget && -1 != widget->metaObject()->indexOfProperty("pixmapId")) {
         const KexiBLOBBuffer::Id_t blobID
-        = unsavedLocalBLOBsByName.value(widget->objectName().toLatin1());
+            = unsavedLocalBLOBsByName.value(widget->objectName().toLatin1());
         if (blobID > 0)
             widget->setProperty(
                 "pixmapId",
@@ -1377,23 +1386,24 @@ KexiFormView::setUnsavedLocalBLOB(QWidget *widget, KexiBLOBBuffer::Id_t id)
         tempData()->unsavedLocalBLOBs.insert(widget, id);
 }
 
-/*
-todo
 void KexiFormView::updateActions(bool activated)
 {
   if (viewMode()==Kexi::DesignViewMode) {
+    if (activated)
+        form()->emitActionSignals();
+/* 2.0
     if (form()->selectedWidget()) {
       if (form()->widget() == form()->selectedWidget())
-        KFormDesigner::FormManager::self()->emitFormWidgetSelected( form() );
+        form()->emitFormWidgetSelected();
       else
-        KFormDesigner::FormManager::self()->emitWidgetSelected( form(), false );
+        form()->emitWidgetSelected( false );
     }
     else if (form()->selectedWidgets()) {
-      KFormDesigner::FormManager::self()->emitWidgetSelected( form(), true );
-    }
+      form()->emitWidgetSelected( true );
+    } */
   }
   KexiDataAwareView::updateActions(activated);
-}*/
+}
 
 /*
 void KexiFormView::parentDialogDetached()

@@ -91,7 +91,7 @@ QRect KisFilterMask::decorateRect(KisPaintDeviceSP &src,
 {
     Q_ASSERT(nodeProgressProxy());
 
-    if(!m_d->filterConfig) {
+    if (!m_d->filterConfig) {
         warnKrita << "No filter configuration present";
         return QRect();
     }
@@ -99,17 +99,10 @@ QRect KisFilterMask::decorateRect(KisPaintDeviceSP &src,
     KisFilterSP filter =
         KisFilterRegistry::instance()->value(m_d->filterConfig->name());
 
-    if(!filter) {
+    if (!filter) {
         warnKrita << "Could not retrieve filter \"" << m_d->filterConfig->name() << "\"";
         return QRect();
     }
-
-    // some filters only write out selected or affected pixels to dst, so copy
-    KisPainter p1(dst);
-    p1.setCompositeOp(src->colorSpace()->compositeOp(COMPOSITE_COPY));
-    p1.bitBlt(rc.topLeft(), src, rc);
-    p1.end();
-
 
     KisConstProcessingInformation srcInfo(src,  rc.topLeft(), selection());
     KisProcessingInformation dstInfo(dst, rc.topLeft(), 0);
@@ -140,7 +133,7 @@ QRect KisFilterMask::changeRect(const QRect& rect) const
 {
     QRect filteredRect = rect;
 
-    if(m_d->filterConfig) {
+    if (m_d->filterConfig) {
         KisFilterSP filter = KisFilterRegistry::instance()->value(m_d->filterConfig->name());
         filteredRect = filter->changedRect(rect, m_d->filterConfig);
     }
@@ -163,7 +156,7 @@ QRect KisFilterMask::changeRect(const QRect& rect) const
 
 QRect KisFilterMask::needRect(const QRect& rect) const
 {
-    if(!m_d->filterConfig) return rect;
+    if (!m_d->filterConfig) return rect;
     KisFilterSP filter = KisFilterRegistry::instance()->value(m_d->filterConfig->name());
 
     /**

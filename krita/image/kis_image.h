@@ -61,7 +61,7 @@ class KRITAIMAGE_EXPORT KisImage : public QObject, public KisNodeFacade, public 
 
 public:
 
-    KisImage(KisUndoAdapter * adapter, qint32 width, qint32 height, const KoColorSpace * colorSpace, const QString& name);
+    KisImage(KisUndoAdapter * adapter, qint32 width, qint32 height, const KoColorSpace * colorSpace, const QString& name, bool startProjection = true);
     KisImage(const KisImage& rhs);
     virtual ~KisImage();
 
@@ -99,7 +99,10 @@ public:
                            const KoColorProfile * profile);
 
 
-    QImage convertToQImage(const QRect& r, const QSize& scaledImageSize, const KoColorProfile *profile);
+    /**
+     * XXX: docs!
+     */
+    QImage convertToQImage(const QRect& scaledRect, const QSize& scaledImageSize, const KoColorProfile *profile);
 
     /**
      * Lock the image to make sure no recompositing-causing signals

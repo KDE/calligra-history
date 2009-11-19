@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2008 Lukas Tvrdy <lukast.dev@gmail.com>
+ *  Copyright (c) 2008,2009 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,22 +25,18 @@
 
 #include "bristle.h"
 #include "brush_shape.h"
+#include "kis_chalk_paintop_settings.h"
+
 #include "kis_paint_device.h"
 
 class ChalkBrush
 {
 
 public:
-    ChalkBrush(const BrushShape &initialShape, KoColor inkColor);
-    ChalkBrush();
+    ChalkBrush(const KisChalkPaintOpSettings *settings);
     ~ChalkBrush();
     ChalkBrush(KoColor inkColor, BrushShape shape);
     void paint(KisPaintDeviceSP dev, qreal x, qreal y, const KoColor &color);
-
-    void setRadius(int radius){
-        m_radius = radius;
-        init();
-    }
 
 private:
     void init();
@@ -49,6 +45,7 @@ private:
     KoColor m_inkColor;
     int m_counter;
     int m_radius;
+    const KisChalkPaintOpSettings * m_settings;
 
 };
 

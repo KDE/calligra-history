@@ -32,6 +32,7 @@
 #include <kmessagebox.h>
 #include <kacceleratormanager.h>
 
+#include "WidgetInfo.h"
 #include "formIO.h"
 #include "container.h"
 #include "objecttree.h"
@@ -217,7 +218,7 @@ void PropertyCommand::execute()
                 QWidget *widget = item->widget();
                 WidgetWithSubpropertiesInterface* subpropIface = dynamic_cast<WidgetWithSubpropertiesInterface*>(widget);
                 QWidget *subWidget = (subpropIface && subpropIface->subwidget()) ? subpropIface->subwidget() : widget;
-                if (-1 != KexiUtils::indexOfPropertyWithSuperclasses(subWidget, d->propertyName))
+                if (subWidget && -1 != subWidget->metaObject()->indexOfProperty(d->propertyName))
                   item->widget()->setProperty(d->propertyName, d->value);
             }
         }
@@ -242,7 +243,7 @@ void PropertyCommand::undo()
 
         WidgetWithSubpropertiesInterface* subpropIface = dynamic_cast<WidgetWithSubpropertiesInterface*>(widget);
         QWidget *subWidget = (subpropIface && subpropIface->subwidget()) ? subpropIface->subwidget() : widget;
-        if (-1 != KexiUtils::indexOfPropertyWithSuperclasses(subWidget, d->propertyName))
+        if (subWidget && -1 != subWidget->metaObject()->indexOfProperty(d->propertyName))
             subWidget->setProperty(d->propertyName, it.value());
     }
 
@@ -929,7 +930,7 @@ void InsertWidgetCommand::execute()
         return; //better this than a crash
     Container *container = titem->container();
     WidgetFactory::CreateWidgetOptions options = WidgetFactory::DesignViewMode | WidgetFactory::AnyOrientation;
-    if (d->form->library()->internalProperty(d->_class, "orientationSelectionPopup") == "1") {
+    if (d->form->library()->internalProperty(d->_class, "orientationSelectionPopup").toBool()) {
         if (d->insertRect.isValid()) {
             if (d->insertRect.width() < d->insertRect.height()) {
                 options |= WidgetFactory::VerticalOrientation;
@@ -992,14 +993,20 @@ void InsertWidgetCommand::execute()
     // fix widget size is align-to-grid is enabled
     if (d->form->isSnapWidgetsToGridEnabled()) {
         const int grid = d->form->gridSize();
-        d->insertRect.setWidth( alignValueToGrid(d->insertRect.width(), grid) );
-        d->insertRect.setHeight( alignValueToGrid(d->insertRect.height(), grid) );
+        int v = alignValueToGrid(d->insertRect.width(), grid);
+        if (v < d->insertRect.width()) // do not allow to make the widget smaller
+            v += grid;
+        d->insertRect.setWidth( v );
+        v = alignValueToGrid(d->insertRect.height(), grid);
+        if (v < d->insertRect.height()) // do not allow to make the widget smaller
+            v += grid;
+        d->insertRect.setHeight( v );
     }
 
     w->move(d->insertRect.x(), d->insertRect.y());
 //    w->resize(d->insertRect.width() - 1, d->insertRect.height() - 1); // -1 is not to hide dots
     w->resize(d->insertRect.size());
-    w->setStyle(container->widget()->style());
+//2.0??    w->setStyle(container->widget()->style());
 //2.0 not needed    w->setBackgroundOrigin(QWidget::ParentOrigin);
     w->show();
 
@@ -1024,14 +1031,16 @@ void InsertWidgetCommand::execute()
            w->metaObject()->className())
     );
     foreach (const QByteArray& name, list) {
-        item->addModifiedProperty(name, w->property(name));
+        if (-1 != w->metaObject()->indexOfProperty(name))
+            item->addModifiedProperty(name, w->property(name));
     }
 
     container->reloadLayout(); // reload the layout to take the new wigdet into account
 
     container->selectWidget(w);
-    if (d->form->library()->internalProperty(w->metaObject()->className(),
-            "dontStartEditingOnInserting").isEmpty()) {
+    if (!d->form->library()->internalProperty(w->metaObject()->className(),
+            "dontStartEditingOnInserting").toBool())
+    {
         d->form->library()->startInlineEditing(
             w->metaObject()->className(), w, item->container() ? item->container() : container); // we edit the widget on creation
     }

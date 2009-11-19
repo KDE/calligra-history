@@ -76,17 +76,17 @@ KisPDFImport::ConversionStatus KisPDFImport::convert(const QByteArray& , const Q
     KUrl url;
     url.setPath(filename);
 
-    if (!KIO::NetAccess::exists(url, false, qApp -> mainWidget())) {
+    if (!KIO::NetAccess::exists(url, KIO::NetAccess::SourceSide, QApplication::activeWindow())) {
         return KoFilter::FileNotFound;
     }
 
     // We're not set up to handle asynchronous loading at the moment.
     QString tmpFile;
-    if (KIO::NetAccess::download(url, tmpFile, qApp -> mainWidget())) {
+    if (KIO::NetAccess::download(url, tmpFile, QApplication::activeWindow())) {
         url.setPath(tmpFile);
     }
 
-    Poppler::Document* pdoc = Poppler::Document::load(QFile::encodeName(url.path()));
+    Poppler::Document* pdoc = Poppler::Document::load(QFile::encodeName(url.toLocalFile()));
 
 
     if (!pdoc) {
@@ -140,15 +140,13 @@ KisPDFImport::ConversionStatus KisPDFImport::convert(const QByteArray& , const Q
         KisPaintLayer* layer = new KisPaintLayer(img.data(),
                 i18n("Page %1", *it + 1),
                 quint8_MAX);
-                
+
         Poppler::Page* page = pdoc->page(*it);
-        for(int x = 0; x < width; x += 1000 )
-        {
-            int currentWidth = ( x + 1000 > width ) ? (width - x) : 1000;
-            for(int y = 0; y < height; y += 1000 )
-            {
-              int currentHeight = ( y + 1000 > height ) ? (height - x) : 1000;
-              layer->paintDevice()->convertFromQImage( page->renderToImage(wdg->intHorizontal->value(), wdg->intVertical->value(), x, y, width, height), "", x, y);
+        for (int x = 0; x < width; x += 1000) {
+            int currentWidth = (x + 1000 > width) ? (width - x) : 1000;
+            for (int y = 0; y < height; y += 1000) {
+                int currentHeight = (y + 1000 > height) ? (height - x) : 1000;
+                layer->paintDevice()->convertFromQImage(page->renderToImage(wdg->intHorizontal->value(), wdg->intVertical->value(), x, y, currentWidth, currentHeight), "", x, y);
             }
         }
         delete page;

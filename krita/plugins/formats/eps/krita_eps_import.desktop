@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Service
+Name=Krita Encapsulated PostScript Import Filter
+Name[ca]=Filtre d'importació de PostScript encapsulat per al Krita
+Name[es]=Filtro de Krita de importación de Encapsulated PostScript
+Name[et]=Krita kapseldatud PostScripti impordifilter
+Name[nl]=Ingekapselde Postscript-importfilter voor Krita
+Name[pt]=Filtro de Importação de PostScript Encapsulado para o Krita
+Name[pt_BR]=Filtro de Importação de PostScript Encapsulado para o Krita
+Name[sv]=Krita importfilter för inkapslad Postscript
+Name[uk]=Фільтр імпорту EPS для Krita
+Name[x-test]=xxKrita Encapsulated PostScript Import Filterxx
+X-KDE-Export=application/x-krita
+X-KDE-Import=image/x-eps
+X-KDE-Weight=1
+X-KDE-Library=libkritaepsimport
+X-KDE-ServiceTypes=KOfficeFilter
+NoDisplay=true

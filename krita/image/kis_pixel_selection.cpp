@@ -71,8 +71,9 @@ KisPixelSelection::KisPixelSelection(const KisPixelSelection& rhs)
 
 }
 
-KisSelectionComponent* KisPixelSelection::clone() {
-    return new KisPixelSelection( *this );
+KisSelectionComponent* KisPixelSelection::clone()
+{
+    return new KisPixelSelection(*this);
 }
 
 KisPixelSelection::~KisPixelSelection()
@@ -127,11 +128,14 @@ QImage KisPixelSelection::maskImage(const QRect & rc) const
     }
     return img;
 }
-void KisPixelSelection::select(const QRect & r, quint8 selectedness)
+void KisPixelSelection::select(const QRect & rc, quint8 selectedness)
 {
-    KisFillPainter painter(KisPaintDeviceSP(this));
-    const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
-    painter.fillRect(r, KoColor(Qt::white, cs), selectedness);
+    QRect r = rc.normalized();
+    if (r.width() > 0 && r.height() > 0) {
+        KisFillPainter painter(KisPaintDeviceSP(this));
+        const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
+        painter.fillRect(r, KoColor(Qt::white, cs), selectedness);
+    }
 }
 
 void KisPixelSelection::applySelection(KisPixelSelectionSP selection, selectionAction action)

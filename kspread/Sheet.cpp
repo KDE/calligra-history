@@ -458,7 +458,8 @@ void Sheet::setAutoCalculationEnabled(bool enable)
     //If enabling automatic calculation, make sure that the dependencies are up-to-date
     if (enable == true)
     {
-        const Region region(QRect(QPoint(1, 1), QPoint(KS_colMax, KS_rowMax)), this);
+        Region region(QRect(QPoint(1, 1), QPoint(KS_colMax, KS_rowMax)), this);
+//        region = map()->dependencyManager()->reduceToProvidingRegion(region);
         map()->dependencyManager()->regionChanged(region);
         map()->recalcManager()->recalcSheet(this);
     }
@@ -1848,32 +1849,39 @@ void Sheet::updateView(const Region& region)
 
 bool Sheet::testListChoose(Selection* selection)
 {
-   const QPoint marker( selection->marker() );
-   const QString text = Cell( this, marker ).userInput();
+  const QPoint marker( selection->marker() );
+  const QString text = Cell( this, marker ).userInput();
 
-   Region::ConstIterator end( selection->constEnd() );
-   for ( Region::ConstIterator it( selection->constBegin() ); it != end; ++it )
-   {
-     const QRect range = (*it)->rect();
-     for ( int col = range.left(); col <= range.right(); ++col )
-     {
-       for ( int row = range.top(); row <= range.bottom(); ++row )
-       {
-         const Cell cell( this, col, row );
-         if ( !cell.isPartOfMerged() && !( col == marker.x() && row == marker.y() ) )
-         {
-           if ( !cell.isFormula() && !cell.value().isNumber() &&
-                !cell.value().asString().isEmpty() &&
-                !cell.isTime() && !cell.isDate() )
-           {
-             if ( cell.userInput() != text )
-               return true;
-           }
-         }
-       }
-     }
-   }
-   return false;
+  Region::ConstIterator end( selection->constEnd() );
+  for ( Region::ConstIterator it( selection->constBegin() ); it != end; ++it )
+  {
+    const QRect range = (*it)->rect();
+ 
+    int bottom = range.bottom();
+    if (bottom > d->cellStorage->rows()) bottom = d->cellStorage->rows();
+    for (int row = range.top(); row <= bottom; ++row)
+    {
+      int col = range.left() - 1;
+      while (1) {
+        const Cell cell = d->cellStorage->nextInRow (col, row);
+        if (cell.isNull()) break;
+        col = cell.column();
+        if (cell.isDefault() || (col == 0) || (col > range.right())) break;
+
+        if ( !cell.isPartOfMerged() && !( col == marker.x() && row == marker.y() ) )
+        {
+          if ( !cell.isFormula() && !cell.value().isNumber() &&
+               !cell.value().asString().isEmpty() &&
+               !cell.isTime() && !cell.isDate() )
+          {
+            if ( cell.userInput() != text )
+              return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
 }
 
 
@@ -2044,10 +2052,10 @@ QDomElement Sheet::saveXML( QDomDocument& dd )
 
     QDomElement borders = dd.createElement( "borders" );
     KoPageLayout pageLayout = print()->settings()->pageLayout();
-    borders.setAttribute( "left", pageLayout.left );
-    borders.setAttribute( "top", pageLayout.top );
-    borders.setAttribute( "right", pageLayout.right );
-    borders.setAttribute( "bottom", pageLayout.bottom );
+    borders.setAttribute( "left", pageLayout.leftMargin );
+    borders.setAttribute( "top", pageLayout.topMargin );
+    borders.setAttribute( "right", pageLayout.rightMargin );
+    borders.setAttribute( "bottom", pageLayout.bottomMargin );
     paper.appendChild( borders );
 
     QDomElement head = dd.createElement( "head" );
@@ -2570,19 +2578,19 @@ void Sheet::loadOdfMasterLayoutPage( KoStyleStack &styleStack )
     }
     if ( styleStack.hasProperty( KoXmlNS::fo, "margin-top" ) )
     {
-        pageLayout.top = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "margin-top"));
+        pageLayout.topMargin = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "margin-top"));
     }
     if ( styleStack.hasProperty( KoXmlNS::fo, "margin-bottom" ) )
     {
-        pageLayout.bottom = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "margin-bottom"));
+        pageLayout.bottomMargin = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "margin-bottom"));
     }
     if ( styleStack.hasProperty( KoXmlNS::fo, "margin-left" ) )
     {
-        pageLayout.left = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "margin-left"));
+        pageLayout.leftMargin = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "margin-left"));
     }
     if ( styleStack.hasProperty( KoXmlNS::fo, "margin-right" ) )
     {
-        pageLayout.right = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "margin-right"));
+        pageLayout.rightMargin = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "margin-right"));
     }
     if ( styleStack.hasProperty( KoXmlNS::style, "writing-mode" ) )
     {
@@ -3892,10 +3900,10 @@ bool Sheet::loadXML( const KoXmlElement& sheet )
         KoXmlElement borders = paper.namedItem( "borders" ).toElement();
         if ( !borders.isNull() )
         {
-            pageLayout.left   = MM_TO_POINT(borders.attribute( "left" ).toFloat());
-            pageLayout.right  = MM_TO_POINT(borders.attribute( "right" ).toFloat());
-            pageLayout.top    = MM_TO_POINT(borders.attribute( "top" ).toFloat());
-            pageLayout.bottom = MM_TO_POINT(borders.attribute( "bottom" ).toFloat());
+            pageLayout.leftMargin   = MM_TO_POINT(borders.attribute( "left" ).toFloat());
+            pageLayout.rightMargin  = MM_TO_POINT(borders.attribute( "right" ).toFloat());
+            pageLayout.topMargin    = MM_TO_POINT(borders.attribute( "top" ).toFloat());
+            pageLayout.bottomMargin = MM_TO_POINT(borders.attribute( "bottom" ).toFloat());
         }
         print()->settings()->setPageLayout(pageLayout);
 

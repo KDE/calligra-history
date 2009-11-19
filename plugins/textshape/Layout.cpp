@@ -476,14 +476,13 @@ bool Layout::nextParag()
     if (formatRanges.count() != layout->additionalFormats().count())
         layout->setAdditionalFormats(formatRanges);
 
-    QString blockText = m_block.text();
     int dropCaps = m_format.boolProperty(KoParagraphStyle::DropCaps);
     int dropCapsLength = m_format.intProperty(KoParagraphStyle::DropCapsLength);
     int dropCapsLines = m_format.intProperty(KoParagraphStyle::DropCapsLines);
     if (dropCaps && dropCapsLength != 0 && dropCapsLines > 1
             && m_dropCapsAffectsNMoreLines == 0 // first line of this para is not affected by a previous drop-cap
-            && !blockText.isEmpty()
-       ) {
+            && m_block.length() > 1) {
+        QString blockText = m_block.text();
         // ok, now we can drop caps for this block
         int firstNonSpace = blockText.indexOf(QRegExp("[^ ]")); // since QTextLine::setNumColumns()
         // skips blankspaces, we will too
@@ -1047,7 +1046,6 @@ void Layout::drawFrame(QTextFrame *frame, QPainter *painter, const KoTextDocumen
             }
             drawTrackedChangeItem(painter, block, selectionStart - block.position(), selectionEnd - block.position(), context.viewConverter);
             layout->draw(painter, QPointF(0, 0), selections);
-//            drawTrackedChangeItem(painter, block, selectionStart - block.position(), selectionEnd - block.position(), context.viewConverter);
             decorateParagraph(painter, block, selectionStart - block.position(), selectionEnd - block.position(), context.viewConverter);
 
             KoTextBlockBorderData *border = 0;
@@ -1309,7 +1307,7 @@ void Layout::drawTrackedChangeItem(QPainter *painter, QTextBlock &block, int sel
                 startOfBlock = currentFragment.position(); // start of this block w.r.t. the document
             if (m_changeTracker->containsInlineChanges(fmt)) {
                 KoChangeTrackerElement *changeElement = m_changeTracker->elementById(fmt.property(KoCharacterStyle::ChangeTrackerId).toInt());
-                if (changeElement->isEnabled()) {
+                if (m_changeTracker->isEnabled() && changeElement->isEnabled()) {
                     int firstLine = layout->lineForTextPosition(currentFragment.position() - startOfBlock).lineNumber();
                     int lastLine = layout->lineForTextPosition(currentFragment.position() + currentFragment.length() - startOfBlock).lineNumber();
                     for (int i = firstLine ; i <= lastLine ; i++) {
@@ -1438,7 +1436,7 @@ static void drawUnderlines(QPainter *painter, const QTextFragment& currentFragme
         qreal width = computeWidth(
                           (KoCharacterStyle::LineWeight) fmt.intProperty(KoCharacterStyle::UnderlineWeight),
                           fmt.doubleProperty(KoCharacterStyle::UnderlineWidth),
-                          painter->font());
+                          fmt.font());
         if (underlineMode == KoCharacterStyle::SkipWhiteSpaceLineMode) {
             drawDecorationWords(painter, line, currentFragment.text(), color, fontUnderLineType,
                     fontUnderLineStyle, QString(), width, y);
@@ -1479,7 +1477,7 @@ void Layout::decorateParagraph(QPainter *painter, const QTextBlock &block, int s
                 if (layout->isValidCursorPosition(currentFragment.position() - startOfBlock)) {
                     qreal x1 = line.cursorToX(currentFragment.position() - startOfBlock);
                     qreal x2 = line.cursorToX(currentFragment.position() + currentFragment.length() - startOfBlock);
-                    x2 = qMin(line.naturalTextWidth() + line.x(), x2);
+                    x2 = qMin(line.naturalTextWidth() + line.cursorToX(line.textStart()), x2);
 
                     drawStrikeOuts(painter, currentFragment, line, x1, x2);
                     drawUnderlines(painter, currentFragment, line, x1, x2);

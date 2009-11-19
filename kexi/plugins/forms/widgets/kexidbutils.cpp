@@ -19,8 +19,12 @@
 
 #include "kexidbutils.h"
 
-#include <kmenu.h>
-#include <kiconloader.h>
+#include <QApplication>
+#include <QFontMetrics>
+
+#include <KMenu>
+#include <KIconLoader>
+#include <KIconEffect>
 
 #include <kexidb/queryschema.h>
 #include <kexidb/utils.h>
@@ -30,10 +34,52 @@
 #include "../kexiformmanager.h"
 #include <widget/utils/kexicontextmenuutils.h>
 
+//! Static data for kexi forms
+struct KexiFormStatics
+{
+    QPixmap dataSourceTagIcon() {
+        initDataSourceTagIcon();
+        return m_dataSourceTagIcon;
+    }
 
-QColor lighterGrayBackgroundColor(const QPalette& palette)
+    QPixmap dataSourceRTLTagIcon() {
+        initDataSourceTagIcon();
+        return m_dataSourceRTLTagIcon;
+    }
+
+    void initDataSourceTagIcon() {
+        if (!m_dataSourceTagIcon.isNull())
+            return;
+        QFontMetrics fm(QApplication::fontMetrics());
+        int size = KIconLoader::global()->currentSize(KIconLoader::Small);
+        if (size < KIconLoader::SizeSmallMedium && fm.height() >= KIconLoader::SizeSmallMedium)
+            size = KIconLoader::SizeSmallMedium;
+        m_dataSourceTagIcon = KIconLoader::global()->loadIcon(QLatin1String("data-source-tag"), KIconLoader::Small, size);
+        KIconEffect::semiTransparent(m_dataSourceTagIcon);
+        m_dataSourceRTLTagIcon = QPixmap::fromImage(m_dataSourceTagIcon.toImage().mirrored(true /*h*/, false /*v*/));
+    }
+private:
+    QPixmap m_dataSourceTagIcon;
+    QPixmap m_dataSourceRTLTagIcon;
+};
+
+K_GLOBAL_STATIC(KexiFormStatics, g_KexiFormStatics)
+
+//-------
+
+QColor KexiFormUtils::lighterGrayBackgroundColor(const QPalette& palette)
 {
     return KexiUtils::blendedColors(palette.active().background(), palette.active().base(), 1, 2);
+}
+
+QPixmap KexiFormUtils::dataSourceTagIcon()
+{
+    return g_KexiFormStatics->dataSourceTagIcon();
+}
+
+QPixmap KexiFormUtils::dataSourceRTLTagIcon()
+{
+    return g_KexiFormStatics->dataSourceRTLTagIcon();
 }
 
 //-------

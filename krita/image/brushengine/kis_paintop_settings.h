@@ -103,19 +103,21 @@ public:
      * @return true if we paint incrementally, false if we paint like Photoshop. By default, paintops
      *      do not support non-incremental.
      */
-    virtual bool paintIncremental() { return true; }
+    virtual bool paintIncremental() {
+        return true;
+    }
 
     /**
      * @return a sample stroke that fits in @param size.
      */
-    QImage sampleStroke(const QSize& size );
+    QImage sampleStroke(const QSize& size);
 
     /**
      * This enum defines the current mode for painting an outline.
      */
     enum OutlineMode {
-      CURSOR_IS_OUTLINE = 1, ///< When this mode is set, then the outline is supposed to paint an outline around the cursor
-      CURSOR_ISNT_OUTLINE = 2 ///< When this mode is set, then the outline is no supposed to paint an outline for the cursor (useful for instance in the duplicate op to show the source)
+        CURSOR_IS_OUTLINE = 1, ///< When this mode is set, then the outline is supposed to paint an outline around the cursor
+        CURSOR_ISNT_OUTLINE = 2 ///< When this mode is set, then the outline is no supposed to paint an outline for the cursor (useful for instance in the duplicate op to show the source)
     };
     /**
      * @return the rectangle covered by the current brush (or the previous brush??? and what about pressure???)
@@ -137,6 +139,8 @@ public:
      */
     virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const;
 
+    virtual void changePaintOpSize(qreal x, qreal y) const;
+    
 #if defined(HAVE_OPENGL)
     virtual QString modelName() const;
 #endif
@@ -144,7 +148,7 @@ public:
 private:
 
     struct Private;
-Private* const d;
+    Private* const d;
 
 };
 

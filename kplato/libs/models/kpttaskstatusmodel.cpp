@@ -110,6 +110,7 @@ void TaskStatusItemModel::setProject( Project *project )
 {
     clear();
     if ( m_project ) {
+        disconnect( m_project, SIGNAL( localeChanged() ), this, SLOT( slotLayoutChanged() ) );
         disconnect( m_project, SIGNAL( wbsDefinitionChanged() ), this, SLOT( slotWbsDefinitionChanged() ) );
         disconnect( m_project, SIGNAL( nodeChanged( Node* ) ), this, SLOT( slotNodeChanged( Node* ) ) );
         disconnect( m_project, SIGNAL( nodeToBeAdded( Node* ) ), this, SLOT( slotNodeToBeInserted(  Node*, int ) ) );
@@ -123,6 +124,7 @@ void TaskStatusItemModel::setProject( Project *project )
     m_project = project;
     m_nodemodel.setProject( project );
     if ( project ) {
+        connect( m_project, SIGNAL( localeChanged() ), this, SLOT( slotLayoutChanged() ) );
         connect( m_project, SIGNAL( wbsDefinitionChanged() ), this, SLOT( slotWbsDefinitionChanged() ) );
         connect( m_project, SIGNAL( nodeChanged( Node* ) ), this, SLOT( slotNodeChanged( Node* ) ) );
         connect( m_project, SIGNAL( nodeToBeAdded( Node*, int ) ), this, SLOT( slotNodeToBeInserted(  Node*, int ) ) );
@@ -235,7 +237,7 @@ Qt::ItemFlags TaskStatusItemModel::flags( const QModelIndex &index ) const
     Qt::ItemFlags flags = QAbstractItemModel::flags( index );
     flags &= ~( Qt::ItemIsEditable | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled );
     Node *n = node( index );
-    if ( n == 0 || m_id == -1 || ! n->isScheduled( m_id ) ) {
+    if ( ! m_readWrite || n == 0 || m_id == -1 || ! n->isScheduled( m_id ) ) {
         return flags;
     }
     if ( n->type() != Node::Type_Task && n->type() != Node::Type_Milestone ) {
@@ -698,8 +700,20 @@ void TaskStatusItemModel::slotNodeChanged( Node *node )
     if ( node == 0 || node->type() == Node::Type_Project ) {
         return;
     }
-    int row = node->parentNode()->findChildNode( node );
-    emit dataChanged( createIndex( row, 0, node ), createIndex( row, columnCount(), node ) );
+    QString wbs = node->wbsCode();
+    int row = -1;
+    if ( m_notstarted.value( wbs ) == node ) {
+        row = m_notstarted.keys().indexOf( wbs );
+    } else if ( m_running.value( wbs ) == node ) {
+        row = m_running.keys().indexOf( wbs );
+    } else if ( m_finished.value( wbs ) == node ) {
+        row = m_finished.keys().indexOf( wbs );
+    } else if ( m_upcoming.value( wbs ) == node ) {
+        row = m_upcoming.keys().indexOf( wbs );
+    }
+    if ( row >= 0 ) {
+        emit dataChanged( createIndex( row, 0, node ), createIndex( row, columnCount(), node ) );
+    }
 }
 
 void TaskStatusItemModel::slotWbsDefinitionChanged()
@@ -712,6 +726,12 @@ void TaskStatusItemModel::slotWbsDefinitionChanged()
     }
 }
 
+void TaskStatusItemModel::slotLayoutChanged()
+{
+    //kDebug()<<node->name();
+    emit layoutAboutToBeChanged();
+    emit layoutChanged();
+}
 
 } // namespace KPlato
 

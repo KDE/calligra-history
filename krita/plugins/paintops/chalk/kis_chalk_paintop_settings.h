@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2008 Lukas Tvrdy <lukast.dev@gmail.com>
+ *  Copyright (c) 2008,2009 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 
 #include "kis_chalk_paintop_settings_widget.h"
 
+#include <kis_pressure_opacity_option.h>
+
 #include <config-opengl.h>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -41,11 +43,14 @@ class KisChalkPaintOpSettings : public KisPaintOpSettings
 {
 
 public:
-
-
     KisChalkPaintOpSettings();
     virtual ~KisChalkPaintOpSettings() {}
 
+    virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter& painter, const KoViewConverter& converter, OutlineMode _mode) const;
+    virtual QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const;
+
+    virtual void changePaintOpSize(qreal x, qreal y) const;
+    
     bool paintIncremental();
 
     using KisPropertiesConfiguration::fromXML;
@@ -56,27 +61,32 @@ public:
 
     KisPaintOpSettingsSP clone() const;
 
+    // boiler-plate code
     int radius() const;
-
+    bool inkDepletion() const;
+    bool opacity() const;
+    bool saturation() const;
+    
+    KisPressureOpacityOption * opacityOption() const;
+    
+    
 #if defined(HAVE_OPENGL)
     QString modelName() const;
 #endif
 
 
 // XXX: Hack!
-void setOptionsWidget(KisPaintOpSettingsWidget* widget)
-{
-    if (m_options != 0 && m_options->property("owned by settings").toBool()) {
-        delete m_options;
+    void setOptionsWidget(KisPaintOpSettingsWidget* widget) {
+        if (m_options != 0 && m_options->property("owned by settings").toBool()) {
+            delete m_options;
+        }
+        if (!widget) {
+            m_options = 0;
+        } else {
+            m_options = qobject_cast<KisChalkPaintOpSettingsWidget*>(widget);
+            m_options->writeConfiguration(this);
+        }
     }
-    if (!widget) {
-        m_options = 0;
-    }
-    else {
-        m_options = qobject_cast<KisChalkPaintOpSettingsWidget*>(widget);
-        m_options->writeConfiguration( this );
-    }
-}
 
 private:
 

@@ -119,6 +119,8 @@ public slots:
 
     void setScheduleManager( ScheduleManager *sm );
 
+    virtual void slotRefreshView();
+
 protected slots:
     virtual void slotOptions();
 
@@ -199,7 +201,8 @@ protected:
 
 protected slots:
     void slotReset();
-    
+    void slotUpdate();
+
 private:
     Project *m_project;
     ScheduleManager *m_manager;

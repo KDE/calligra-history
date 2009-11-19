@@ -113,6 +113,9 @@ void TextShape::setDemoText(bool on)
     m_demoText = on;
     if (m_demoText) {
         QTextCursor cursor(m_textShapeData->document());
+        QTextCharFormat cf;
+        cf.setFontPointSize(12.);
+        cursor.mergeCharFormat(cf);
         for (int i = 0; i < 10; ++i)
             cursor.insertText("Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi.\n");
     }
@@ -150,8 +153,13 @@ void TextShape::paintComponent(QPainter &painter, const KoViewConverter &convert
             // this is used to not trigger repaints if layout during the painting is done
             // this enbales to use the same shapes on different pages showing different page numbers
             m_paintRegion = painter.clipRegion();
+            if (!m_textShapeData->page() || page->pageNumber() != m_textShapeData->page()->pageNumber() ) {
+                m_textShapeData->setPage(page);
+                m_textShapeData->foul();
+                lay->interruptLayout();
+                m_textShapeData->fireResizeEvent();
+            }
 
-            m_textShapeData->setPage(page);
             if ( lay ) {
                 while (m_textShapeData->isDirty()){
                     lay->layout();
@@ -321,6 +329,7 @@ void TextShape::saveOdf(KoShapeSavingContext &context) const
 
 bool TextShape::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &context)
 {
+    m_textShapeData->document()->setUndoRedoEnabled(false);
     loadOdfAttributes(element, context, OdfAllAttributes);
 
     // load the (text) style of the frame
@@ -353,7 +362,9 @@ bool TextShape::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &cont
         paragraphStyle.applyStyle(block, false);
     }
 
-    return loadOdfFrame(element, context);
+    bool answer = loadOdfFrame(element, context);
+    m_textShapeData->document()->setUndoRedoEnabled(true);
+    return answer;
 }
 
 bool TextShape::loadOdfFrameElement(const KoXmlElement &element, KoShapeLoadingContext &context)

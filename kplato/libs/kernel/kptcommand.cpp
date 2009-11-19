@@ -3197,7 +3197,7 @@ InsertProjectCmd::InsertProjectCmd( Project &project, Node *parent, Node *after,
     QMap<ResourceGroupRequest*, QPair<ResourceRequest*, Resource*> > rreqs;
     foreach ( Node *n, project.allNodes() ) {
         QList<ResourceRequest*> resReq;
-        if ( ! n->type() == Node::Type_Task || n->requests().isEmpty() ) {
+        if ( n->type() != (int)Node::Type_Task || n->requests().isEmpty() ) {
             continue;
         }
         while ( ResourceGroupRequest *gr = n->requests().requests().value( 0 ) ) {
@@ -3277,7 +3277,8 @@ InsertProjectCmd::InsertProjectCmd( Project &project, Node *parent, Node *after,
         qDebug()<<"InsertProjectCmd groupRequest:"<<n->requests().requests().count();
     }
     // Add nodes ( ids are unique, no need to check )
-    for ( int i = project.numChildren() - 1; i >= 0; --i ) {
+    Node *node_after = after;
+    for ( int i = 0; i < project.numChildren(); ++i ) {
         Node *n = project.childNode( i );
         Q_ASSERT( n );
         //qDebug()<<"InsertProjectCmd: node sch"<<n->schedules();
@@ -3287,16 +3288,21 @@ InsertProjectCmd::InsertProjectCmd( Project &project, Node *parent, Node *after,
         }
         n->setParentNode( 0 );
         //qDebug()<<"InsertProjectCmd: add"<<project.name()<<"->"<<n->name();
-        if ( after ) {
-            addCommand( new TaskAddCmd( m_project, n, after, "Task" ) );
+        if ( node_after ) {
+            addCommand( new TaskAddCmd( m_project, n, node_after, "Task" ) );
+            node_after = n;
         } else {
             qDebug()<<"InsertProjectCmd: add subtask"<<parent->name()<<"->"<<n->name();
             addCommand( new SubtaskAddCmd( m_project, n, parent, "Subtask" ) );
         }
         addChildNodes( n );
     }
-    // Dependencies: not needed, only internal ones
-
+    // Dependencies:
+    foreach ( Node *n, project.allNodes() ) {
+        foreach ( Relation *r, n->dependChildNodes() ) {
+            addCommand( new AddRelationCmd( *m_project, new Relation( r ) ) );
+        }
+    }
     // Remove nodes from project so they are not deleted
     while ( Node *ch = project.childNode( 0 ) ) {
         //qDebug()<<"InsertProjectCmd: remove"<<project.name()<<"->"<<ch->name();
@@ -3400,6 +3406,118 @@ void WorkPackageAddCmd::unexecute()
     // FIXME use project
     //m_project->removeWorkPackage( m_node, m_wp );
     static_cast<Task*>( m_node )->removeWorkPackage( m_wp );
+}
+
+ModifyProjectLocaleCmd::ModifyProjectLocaleCmd(  Project &project, const QString& name )
+    : MacroCommand( name ),
+    m_project( project )
+{
+};
+void ModifyProjectLocaleCmd::execute()
+{
+    MacroCommand::execute();
+    m_project.emitLocaleChanged();
+}
+void ModifyProjectLocaleCmd::unexecute()
+{
+    MacroCommand::unexecute();
+    m_project.emitLocaleChanged();
+}
+
+ModifyCurrencySymolCmd::ModifyCurrencySymolCmd(  KLocale *locale, const QString &value, const QString& name )
+    : NamedCommand( name ),
+    m_locale( locale ),
+    m_newvalue( value ),
+    m_oldvalue( locale->currencySymbol() )
+{
+};
+void ModifyCurrencySymolCmd::execute()
+{
+    m_locale->setCurrencySymbol( m_newvalue );
+}
+void ModifyCurrencySymolCmd::unexecute()
+{
+    m_locale->setCurrencySymbol( m_oldvalue );
+}
+
+ModifyCurrencyFractionalDigitsCmd::ModifyCurrencyFractionalDigitsCmd(  KLocale *locale, int value, const QString& name )
+    : NamedCommand( name ),
+    m_locale( locale ),
+    m_newvalue( value ),
+    m_oldvalue( locale->fracDigits() )
+{
+};
+void ModifyCurrencyFractionalDigitsCmd::execute()
+{
+    m_locale->setFracDigits( m_newvalue );
+}
+void ModifyCurrencyFractionalDigitsCmd::unexecute()
+{
+    m_locale->setFracDigits( m_oldvalue );
+}
+
+ModifyPositivePrefixCurrencySymolCmd::ModifyPositivePrefixCurrencySymolCmd(  KLocale *locale, bool value, const QString& name )
+    : NamedCommand( name ),
+    m_locale( locale ),
+    m_newvalue( value ),
+    m_oldvalue( locale->positivePrefixCurrencySymbol() )
+{
+};
+void ModifyPositivePrefixCurrencySymolCmd::execute()
+{
+    m_locale->setPositivePrefixCurrencySymbol( m_newvalue );
+}
+void ModifyPositivePrefixCurrencySymolCmd::unexecute()
+{
+    m_locale->setPositivePrefixCurrencySymbol( m_oldvalue );
+}
+
+ModifyNegativePrefixCurrencySymolCmd::ModifyNegativePrefixCurrencySymolCmd(  KLocale *locale, bool value, const QString& name )
+    : NamedCommand( name ),
+    m_locale( locale ),
+    m_newvalue( value ),
+    m_oldvalue( locale->negativePrefixCurrencySymbol() )
+{
+};
+void ModifyNegativePrefixCurrencySymolCmd::execute()
+{
+    m_locale->setNegativePrefixCurrencySymbol( m_newvalue );
+}
+void ModifyNegativePrefixCurrencySymolCmd::unexecute()
+{
+    m_locale->setNegativePrefixCurrencySymbol( m_oldvalue );
+}
+
+ModifyPositiveMonetarySignPositionCmd ::ModifyPositiveMonetarySignPositionCmd (  KLocale *locale, int value, const QString& name )
+    : NamedCommand( name ),
+    m_locale( locale ),
+    m_newvalue( value ),
+    m_oldvalue( locale->positiveMonetarySignPosition() )
+{
+};
+void ModifyPositiveMonetarySignPositionCmd ::execute()
+{
+    m_locale->setPositiveMonetarySignPosition( (KLocale::SignPosition)m_newvalue );
+}
+void ModifyPositiveMonetarySignPositionCmd ::unexecute()
+{
+    m_locale->setPositiveMonetarySignPosition( (KLocale::SignPosition)m_oldvalue );
+}
+
+ModifyNegativeMonetarySignPositionCmd ::ModifyNegativeMonetarySignPositionCmd (  KLocale *locale, int value, const QString& name )
+    : NamedCommand( name ),
+    m_locale( locale ),
+    m_newvalue( value ),
+    m_oldvalue( locale->negativeMonetarySignPosition() )
+{
+};
+void ModifyNegativeMonetarySignPositionCmd ::execute()
+{
+    m_locale->setNegativeMonetarySignPosition( (KLocale::SignPosition)m_newvalue );
+}
+void ModifyNegativeMonetarySignPositionCmd ::unexecute()
+{
+    m_locale->setNegativeMonetarySignPosition( (KLocale::SignPosition)m_oldvalue );
 }
 
 }  //KPlato namespace

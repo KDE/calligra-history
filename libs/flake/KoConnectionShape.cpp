@@ -201,7 +201,7 @@ void KoConnectionShape::updatePath(const QSizeF &size)
     Q_UNUSED(size);
 
     QPointF dst = 0.3 * ( m_handles[0] - m_handles[m_handles.count() - 1]);
-    const qreal MinimumEscapeLength = qMax((qreal)0.01, qMin(qAbs(dst.x()), qMin(qAbs(dst.y()), (qreal)20.)));
+    const qreal MinimumEscapeLength = (qreal)20.;
     clear();
     switch (d->connectionType) {
     case Standard: {
@@ -271,7 +271,7 @@ void KoConnectionShape::normalPath( const qreal MinimumEscapeLength )
 
         QPointF direction1 = escapeDirection(0);
         QPointF direction2 = escapeDirection(m_handles.count() - 1);
-
+        
         QPointF edgePoint1 = m_handles[0] + MinimumEscapeLength * direction1;
         QPointF edgePoint2 = m_handles[m_handles.count() - 1] + MinimumEscapeLength * direction2;
 
@@ -312,18 +312,6 @@ void KoConnectionShape::normalPath( const qreal MinimumEscapeLength )
         m_path.append(edges2);
 
         m_path.append( m_handles[m_handles.count() - 1] );
-
-        firstHandle = m_handles[0];
-        lastHandle = m_handles[m_handles.count() - 1];
-        m_handles.clear();
-        m_handles.append(firstHandle);
-
-        for(int i = 1; i<edges1.count() - 1; i++)
-            m_handles.append(edges1[i] + (edges1[i+1] - edges1[i])/2);
-        for(int i = 1; i<edges2.count() - 1; i++)
-            m_handles.append(edges2[i] + (edges2[i+1] - edges2[i])/2);
-
-        m_handles.append(lastHandle);
     }
 }
 
@@ -520,6 +508,8 @@ QPointF KoConnectionShape::perpendicularDirection(const QPointF &p1, const QPoin
 
 void KoConnectionShape::shapeChanged(ChangeType type, KoShape * shape)
 {
+    // check if we are during a forced update
+    const bool updateIsActive = d->forceUpdate;
 
     m_hasMoved = true;
     switch (type) {
@@ -528,7 +518,8 @@ void KoConnectionShape::shapeChanged(ChangeType type, KoShape * shape)
         case ShearChanged:
         case ScaleChanged:
         case GenericMatrixChange:
-            if (isParametricShape())
+        case ParameterChanged:
+            if (isParametricShape() && shape == 0)
                 d->forceUpdate = true;
             break;
         case Deleted:
@@ -543,8 +534,15 @@ void KoConnectionShape::shapeChanged(ChangeType type, KoShape * shape)
             return;
     }
 
-    if (shape && (shape == d->shape1 || shape == d->shape2) && isParametricShape())
+    // the connection was moved while it is connected to some other shapes
+    const bool connectionChanged = !shape && (d->shape1 || d->shape2);
+    // one of the connected shape has moved
+    const bool connectedShapeChanged = shape && (shape == d->shape1 || shape == d->shape2);
+    
+    if (!updateIsActive && (connectionChanged || connectedShapeChanged) && isParametricShape())
         updateConnections();
-
+    
+    // reset the forced update flag
+    d->forceUpdate = false;
 }
 

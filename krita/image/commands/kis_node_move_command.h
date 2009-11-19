@@ -18,15 +18,12 @@
 #ifndef KIS_NODE_MOVE_COMMAND_H
 #define KIS_NODE_MOVE_COMMAND_H
 
-#include <krita_export.h>
-#include <QUndoCommand>
-#include <QRect>
-#include "kis_types.h"
-#include <klocale.h>
-#include "filter/kis_filter_configuration.h"
+#include "kis_node_command.h"
+
+class QPoint;
 
 /// The command for moving of a node
-class KRITAIMAGE_EXPORT KisNodeMoveCommand : public QUndoCommand
+class KRITAIMAGE_EXPORT KisNodeMoveCommand : public KisNodeCommand
 {
 
 public:
@@ -46,7 +43,6 @@ private:
     void moveTo(const QPoint& pos);
 
 private:
-    KisNodeSP m_node;
     QRect m_updateRect;
     QPoint m_oldPos;
     QPoint m_newPos;

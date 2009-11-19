@@ -30,7 +30,7 @@
 #include <QPaintEvent>
 #include <QFileInfo>
 
-#include <KGenericFactory>
+#include <KPluginFactory>
 #include <KTextEdit>
 #include <KLineEdit>
 #include <KLocale>
@@ -140,7 +140,6 @@ void KFDTabWidget::dropEvent(QDropEvent *e)
 
 HBox::HBox(QWidget *parent)
         : QFrame(parent)
-        , m_preview(false)
 {
 }
 
@@ -151,7 +150,8 @@ HBox::~HBox()
 void
 HBox::paintEvent(QPaintEvent *)
 {
-    if (m_preview) return;
+    if (!designMode())
+        return;
     QPainter p(this);
     p.setPen(QPen(Qt::red, 2, Qt::DashLine));
     p.drawRect(1, 1, width() - 1, height() - 1);
@@ -159,7 +159,6 @@ HBox::paintEvent(QPaintEvent *)
 
 VBox::VBox(QWidget *parent)
         : QFrame(parent)
-        , m_preview(false)
 {
 }
 
@@ -170,7 +169,8 @@ VBox::~VBox()
 void
 VBox::paintEvent(QPaintEvent *)
 {
-    if (m_preview) return;
+    if (!designMode())
+        return;
     QPainter p(this);
     p.setPen(QPen(Qt::blue, 2, Qt::DashLine));
     p.drawRect(1, 1, width() - 1, height() - 1);
@@ -178,7 +178,6 @@ VBox::paintEvent(QPaintEvent *)
 
 Grid::Grid(QWidget *parent)
         : QFrame(parent)
-        , m_preview(false)
 {
 }
 
@@ -189,7 +188,8 @@ Grid::~Grid()
 void
 Grid::paintEvent(QPaintEvent *)
 {
-    if (m_preview) return;
+    if (!designMode())
+        return;
     QPainter p(this);
     p.setPen(QPen(Qt::darkGreen, 2, Qt::DashLine));
     p.drawRect(1, 1, width() - 1, height() - 1);
@@ -197,7 +197,6 @@ Grid::paintEvent(QPaintEvent *)
 
 HFlow::HFlow(QWidget *parent)
         : QFrame(parent)
-        , m_preview(false)
 {
 }
 
@@ -208,7 +207,8 @@ HFlow::~HFlow()
 void
 HFlow::paintEvent(QPaintEvent *)
 {
-    if (m_preview) return;
+    if (!designMode())
+        return;
     QPainter p(this);
     p.setPen(QPen(Qt::magenta, 2, Qt::DashLine));
     p.drawRect(1, 1, width() - 1, height() - 1);
@@ -216,7 +216,6 @@ HFlow::paintEvent(QPaintEvent *)
 
 VFlow::VFlow(QWidget *parent)
         : QFrame(parent)
-        , m_preview(false)
 {
 }
 
@@ -227,7 +226,8 @@ VFlow::~VFlow()
 void
 VFlow::paintEvent(QPaintEvent *)
 {
-    if (m_preview) return;
+    if (!designMode())
+        return;
     QPainter p(this);
     p.setPen(QPen(Qt::cyan, 2, Qt::DashLine));
     p.drawRect(1, 1, width() - 1, height() - 1);
@@ -636,7 +636,7 @@ void GoToStackPageAction::slotTriggered()
 
 /////   The factory /////////////////////////
 
-ContainerFactory::ContainerFactory(QObject *parent, const QStringList &)
+ContainerFactory::ContainerFactory(QObject *parent, const QVariantList &)
         : KFormDesigner::WidgetFactory(parent, "containers")
 {
 #if 0 // not needed?
@@ -738,6 +738,7 @@ ContainerFactory::ContainerFactory(QObject *parent, const QStringList &)
     wSplitter->setNamePrefix(
         i18nc("Widget name. This string will be used to name widgets of this class. It must _not_ contain white spaces and non latin1 characters.", "splitter"));
     wSplitter->setDescription(i18n("A container that enables user to resize its children"));
+    wSplitter->setAutoSaveProperties(QList<QByteArray>() << "orientation");
     addClass(wSplitter);
 
     KFormDesigner::WidgetInfo *wHFlow = new KFormDesigner::WidgetInfo(this);
@@ -899,6 +900,7 @@ ContainerFactory::previewWidget(const QByteArray &classname,
         if (!tree->modifiedProperties()->contains("frameShape"))
             stack->setFrameStyle(QFrame::NoFrame);
     }
+/* moved to FormWidgetInterface 
     else if (classname == "HBox")
         dynamic_cast<HBox*>(widget)->setPreviewMode();
     else if (classname == "VBox")
@@ -910,7 +912,7 @@ ContainerFactory::previewWidget(const QByteArray &classname,
     else if (classname == "VFlow")
         dynamic_cast<VFlow*>(widget)->setPreviewMode();
     else
-        return false;
+        return false;*/
     return true;
 }
 
@@ -1027,15 +1029,6 @@ ContainerFactory::readSpecialProperty(const QByteArray &, QDomElement &node, QWi
     }
 
     return false;
-}
-
-QList<QByteArray>
-ContainerFactory::autoSaveProperties(const QByteArray &c)
-{
-    QList<QByteArray> lst;
-    if (c == "QSplitter")
-        lst << "orientation";
-    return lst;
 }
 
 bool
@@ -1224,6 +1217,6 @@ void ContainerFactory::prevStackPage()
 }
 #endif
 
-KFORMDESIGNER_WIDGET_FACTORY(ContainerFactory, containers)
+K_EXPORT_KEXI_FORM_WIDGET_FACTORY_PLUGIN(ContainerFactory, containers)
 
 #include "containerfactory.moc"

@@ -20,22 +20,22 @@
 #include "kis_sprayop_option.h"
 #include "kis_spray_paintop_settings.h"
 #include "kis_spray_shape_option.h"
-#include "kis_spray_color_option.h"
 
+#include <kis_color_option.h>
 #include <kis_paintop_options_widget.h>
 #include <kis_paint_action_type_option.h>
 
 KisSprayPaintOpSettingsWidget:: KisSprayPaintOpSettingsWidget(QWidget* parent)
-    : KisPaintOpOptionsWidget(parent)
+        : KisPaintOpOptionsWidget(parent)
 {
     m_sprayOption =  new KisSprayOpOption();
     m_sprayShapeOption = new KisSprayShapeOption();
-    m_sprayColorOption = new KisSprayColorOption();
+    m_ColorOption = new KisColorOption();
     m_paintActionTypeOption = new KisPaintActionTypeOption();
 
     addPaintOpOption(m_sprayOption);
     addPaintOpOption(m_sprayShapeOption);
-    addPaintOpOption(m_sprayColorOption);
+    addPaintOpOption(m_ColorOption);
     addPaintOpOption(m_paintActionTypeOption);
 }
 
@@ -43,14 +43,14 @@ KisSprayPaintOpSettingsWidget::~ KisSprayPaintOpSettingsWidget()
 {
     delete m_sprayOption;
     delete m_sprayShapeOption;
-    delete m_sprayColorOption;
+    delete m_ColorOption;
     delete m_paintActionTypeOption;
 }
 
 KisPropertiesConfiguration*  KisSprayPaintOpSettingsWidget::configuration() const
 {
     KisSprayPaintOpSettings* config = new KisSprayPaintOpSettings();
-    config->setOptionsWidget( const_cast<KisSprayPaintOpSettingsWidget*>( this ) );
+    config->setOptionsWidget(const_cast<KisSprayPaintOpSettingsWidget*>(this));
     config->setProperty("paintop", "spraybrush"); // XXX: make this a const id string
     writeConfiguration(config);
     return config;

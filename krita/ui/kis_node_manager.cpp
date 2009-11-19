@@ -42,7 +42,6 @@
 #include "kis_layer_manager.h"
 #include "kis_selection_manager.h"
 #include "kis_node_commands_adapter.h"
-#include "kis_layer_box.h"
 
 struct KisNodeManager::Private {
 
@@ -63,7 +62,7 @@ struct KisNodeManager::Private {
 
 void KisNodeManager::Private::slotLayersChanged(KisGroupLayerSP layer)
 {
-    self->activateNode( layer->at( 0 ) );
+    self->activateNode(layer->at(0));
 }
 
 KisNodeManager::KisNodeManager(KisView2 * view, KisDoc2 * doc)
@@ -74,8 +73,8 @@ KisNodeManager::KisNodeManager(KisView2 * view, KisDoc2 * doc)
     m_d->layerManager = new KisLayerManager(view, doc);
     m_d->maskManager = new KisMaskManager(view);
     m_d->self = this;
-    m_d->commandsAdapter = new KisNodeCommandsAdapter( view );
-    connect( m_d->view->image(), SIGNAL(sigPostLayersChanged(KisGroupLayerSP)), SLOT(slotLayersChanged(KisGroupLayerSP)) );
+    m_d->commandsAdapter = new KisNodeCommandsAdapter(view);
+    connect(m_d->view->image(), SIGNAL(sigPostLayersChanged(KisGroupLayerSP)), SLOT(slotLayersChanged(KisGroupLayerSP)));
 }
 
 KisNodeManager::~KisNodeManager()
@@ -110,21 +109,12 @@ KisNodeSP KisNodeManager::activeNode()
     return m_d->activeNode;
 }
 
-KisPaintDeviceSP KisNodeManager::activePaintDevice()
-{
-    if (m_d->maskManager->activeMask()) {
-        return m_d->maskManager->activeDevice();
-    } else {
-        return m_d->layerManager->activeDevice();
-    }
-}
-
 const KoColorSpace* KisNodeManager::activeColorSpace()
 {
     Q_ASSERT(m_d->maskManager);
 
     if (m_d->maskManager->activeDevice()) {
-        Q_ASSERT(m_d->maskManager->activeDevice());
+//        Q_ASSERT(m_d->maskManager->activeDevice());
         return m_d->maskManager->activeDevice()->colorSpace();
     } else {
         Q_ASSERT(m_d->layerManager);
@@ -185,7 +175,6 @@ void KisNodeManager::getNewNodeLocation(const QString & nodeType, KisNodeSP &par
         }
         active = active->parent();
     }
-    dbgUI << "Nothing found, add in the root layer above the first child";
     parent = root;
     above = parent->firstChild();
 }
@@ -209,25 +198,16 @@ void KisNodeManager::insertNode(KisNodeSP node, KisNodeSP parent, int index)
 
 void KisNodeManager::moveNode(KisNodeSP node, KisNodeSP activeNode)
 {
-
-    if (activeNode)
-        dbgUI << " move node " << node->name() << " toward " << activeNode->name();
-    else
-        dbgUI << " move node " << node->name() << " toward root";
     KisNodeSP parent;
     KisNodeSP above;
 
     getNewNodeLocation(node->metaObject()->className(), parent, above, activeNode);
-    dbgUI << " move node " << node->name() << " for parent " << parent->name();
-    if (above)
-        dbgUI << " above " << above->name();
     m_d->commandsAdapter->moveNode(node, parent, above);
     node->setDirty(node->extent());
 }
 
 void KisNodeManager::moveNodeAt(KisNodeSP node, KisNodeSP parent, int index)
 {
-    dbgUI << "Move node " << node << " to " << parent << " at " << index;
     if (allowAsChild(parent->metaObject()->className(), node->metaObject()->className())) {
         m_d->commandsAdapter->moveNode(node, parent, index);
     }
@@ -288,16 +268,13 @@ void KisNodeManager::activateNode(KisNodeSP node)
     Q_ASSERT(selection);
     selection->deselectAll();
 
-    if(! node )
-    {
+    if (! node) {
         selection->setActiveLayer(0);
         emit sigNodeActivated(0);
         m_d->activeNode = 0;
         m_d->maskManager->activateMask(0);
         m_d->layerManager->activateLayer(0);
     } else {
-        dbgUI << " activated node: " << node->name();
-
         KoShape * shape = m_d->view->document()->shapeForNode(node);
         if (!shape) {
             shape = m_d->view->document()->addShape(node);
@@ -311,7 +288,7 @@ void KisNodeManager::activateNode(KisNodeSP node)
 
         selection->select(shape);
         KoShapeLayer * shapeLayer = dynamic_cast<KoShapeLayer*>(shape);
-        Q_ASSERT( shapeLayer );
+        Q_ASSERT(shapeLayer);
         if (shapeLayer) {
             shapeLayer->setGeometryProtected(node->userLocked());
             shapeLayer->setVisible(node->visible());
@@ -346,6 +323,13 @@ void KisNodeManager::nodesUpdated()
 
 }
 
+KisPaintDeviceSP KisNodeManager::activePaintDevice()
+{
+    return m_d->maskManager->activeMask() ?
+        m_d->maskManager->activeDevice() :
+        m_d->layerManager->activeDevice();
+}
+
 void KisNodeManager::nodeProperties(KisNodeSP node)
 {
     if (node->inherits("KisLayer")) {
@@ -355,18 +339,60 @@ void KisNodeManager::nodeProperties(KisNodeSP node)
     }
 }
 
-void KisNodeManager::nodeOpacityChanged(qreal opacity, bool final)
+qint32 KisNodeManager::convertOpacityToInt(qreal opacity)
 {
-    m_d->layerManager->layerOpacity(opacity, final);
+    /**
+     * Scales opacity from the range 0...1
+     * to the integer range 0...255
+     */
+
+    return qMin(255, int(opacity * 2.55 + 0.5));
+}
+
+void KisNodeManager::setNodeOpacity(KisNodeSP node, qint32 opacity,
+                                    bool finalChange)
+{
+    if (!node) return;
+    if (node->opacity() == opacity) return;
+
+    if (!finalChange) {
+        node->setOpacity(opacity);
+        node->setDirty();
+    } else {
+        m_d->commandsAdapter->setOpacity(node, opacity);
+    }
+}
+
+void KisNodeManager::setNodeCompositeOp(KisNodeSP node,
+                                        const KoCompositeOp* compositeOp)
+{
+    if (!node) return;
+    if (node->compositeOp() == compositeOp) return;
+
+    m_d->commandsAdapter->setCompositeOp(node, compositeOp);
+}
+
+void KisNodeManager::nodeOpacityChanged(qreal opacity, bool finalChange)
+{
+    KisNodeSP node = activeNode();
+
+    setNodeOpacity(node, convertOpacityToInt(opacity), finalChange);
 }
 
 void KisNodeManager::nodeCompositeOpChanged(const KoCompositeOp* op)
 {
-    m_d->layerManager->layerCompositeOp(op);
+    KisNodeSP node = activeNode();
+
+    setNodeCompositeOp(node, op);
 }
 
-void KisNodeManager::duplicateActiveNode(KisNodeSP node)
+void KisNodeManager::duplicateActiveNode()
 {
+    KisNodeSP node = activeNode();
+
+    // FIXME: can't imagine how it may happen
+    Q_ASSERT(node);
+
     if (node->inherits("KisLayer")) {
         m_d->layerManager->layerDuplicate();
     } else if (node->inherits("KisMask")) {
@@ -423,25 +449,27 @@ void KisNodeManager::nodeToBottom()
 void KisNodeManager::removeNode(KisNodeSP node)
 {
 //     QRect bounds = node->exactBounds();
-    m_d->commandsAdapter->removeNode( node );
+    m_d->commandsAdapter->removeNode(node);
 //     m_image->rootLayer()->setDirty(bounds);
 }
 
 void KisNodeManager::mirrorNodeX()
 {
-    if (m_d->maskManager->activeMask()) {
-        return m_d->maskManager->mirrorMaskX();
-    } else {
-        return m_d->layerManager->mirrorLayerX();
+    KisNodeSP node = activeNode();
+    if (node->inherits("KisLayer")) {
+        m_d->layerManager->mirrorLayerX();
+    } else if (node->inherits("KisMask")) {
+        m_d->maskManager->mirrorMaskX();
     }
 }
 
 void KisNodeManager::mirrorNodeY()
 {
-    if (m_d->maskManager->activeMask()) {
-        return m_d->maskManager->mirrorMaskY();
-    } else {
-        return m_d->layerManager->mirrorLayerY();
+    KisNodeSP node = activeNode();
+    if (node->inherits("KisLayer")) {
+        m_d->layerManager->mirrorLayerY();
+    } else if (node->inherits("KisMask")) {
+        m_d->maskManager->mirrorMaskY();
     }
 }
 

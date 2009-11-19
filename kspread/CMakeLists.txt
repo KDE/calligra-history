@@ -1,7 +1,5 @@
 project(kspread)
 
-add_definitions(-DQT3_SUPPORT -DQT3_SUPPORT_WARNINGS)
-
 add_subdirectory( data )
 add_subdirectory( shape )
 add_subdirectory( tests )
@@ -13,7 +11,7 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/tests
                      ${CMAKE_CURRENT_SOURCE_DIR}/ui
                      ${CMAKE_SOURCE_DIR}/interfaces
                      ${CMAKE_SOURCE_DIR}/kchart
-                     ${KOMAIN_INCLUDES}                     
+                     ${KOMAIN_INCLUDES}
                      ${KOTEXT_INCLUDES}
                      ${EIGEN2_INCLUDE_DIR} )
 
@@ -223,10 +221,10 @@ target_link_libraries(kspreadcommon
     ${QT_QTSQL_LIBRARY}
     ${KDE4_KNOTIFYCONFIG_LIBS}
     kutils
-    ${KDE4_KDE3SUPPORT_LIBS}
+#    ${KDE4_KDE3SUPPORT_LIBS}
 )
 
-target_link_libraries(kspreadcommon LINK_INTERFACE_LIBRARIES komain ${QT_QT3SUPPORT_LIBRARY} )
+target_link_libraries(kspreadcommon LINK_INTERFACE_LIBRARIES komain )
 
 set_target_properties(kspreadcommon PROPERTIES
     VERSION ${GENERIC_KOFFICE_LIB_VERSION} SOVERSION ${GENERIC_KOFFICE_LIB_SOVERSION}

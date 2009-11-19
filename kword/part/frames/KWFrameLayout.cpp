@@ -209,7 +209,7 @@ void KWFrameLayout::layoutFramesOnPage(int pageNumber)
     Q_ASSERT(page.isValid());
 
     /* +-----------------+
-       |  0              | <- m_pageStyle->pageLayout()->top
+       |  0              | <- m_pageStyle->pageLayout()->topMargin + d:o->topPadding
        |  1  [ header ]  |
        |  2              | <- m_pageStyle->headerDistance()
        |  3  [ maintxt ] |
@@ -219,7 +219,7 @@ void KWFrameLayout::layoutFramesOnPage(int pageNumber)
        |  7 [ footnote ] |
        |  8              | <- m_pageStyle->footerDistance()
        |  9  [ footer ]  |
-       | 10               | <- m_pageStyle->pageLayout()->bottom
+       | 10               | <- m_pageStyle->pageLayout()->bottomMargin + d:o->bottomPadding
        +-----------------+ */
 
     // Create some data structures used for the layouting of the frames later
@@ -230,26 +230,32 @@ void KWFrameLayout::layoutFramesOnPage(int pageNumber)
         minimumHeight[i] = 0;
         resultingPositions[i] = 0;
     }
-    minimumHeight[0] = page.topMargin();
-    minimumHeight[10] = page.bottomMargin();
+    minimumHeight[0] = page.topMargin() + page.topPadding();
+    minimumHeight[10] = page.bottomMargin() + page.bottomPadding();
 
     KoPageLayout layout = page.pageStyle().pageLayout();
-    layout.left = page.leftMargin();
-    layout.right = page.rightMargin();
+    layout.leftMargin = page.leftMargin();
+    layout.rightMargin = page.rightMargin();
+    layout.leftPadding = page.leftPadding();
+    layout.rightPadding = page.rightPadding();
     qreal left = 0, width = page.width();
     if (page.pageSide() == KWPage::PageSpread) {
         width /= 2;
         if (page.pageNumber() != pageNumber) { // doing the 'right' one
             left = width;
-            qreal x = layout.left; // swap margins
-            layout.left = layout.right;
-            layout.right = x;
+            qreal x = layout.leftMargin; // swap margins
+            layout.leftMargin = layout.rightMargin;
+            layout.rightMargin = x;
+            x = layout.leftPadding; // swap paddings
+            layout.leftPadding = layout.rightPadding;
+            layout.rightPadding = x;
         }
     }
-    qreal textWidth = width - layout.left - layout.right;
+    qreal textWidth = width - layout.leftMargin - layout.rightMargin
+                            - layout.leftPadding - layout.rightPadding;
 
     KWPageStyle pageStyle = page.pageStyle();
-    const int columns = pageStyle.hasMainTextFrame() ? pageStyle.columns().columns * (page.pageSide() == KWPage::PageSpread ? 2: 1) : 0;
+    const int columns = pageStyle.hasMainTextFrame() ? pageStyle.columns().columns * (page.pageSide() == KWPage::PageSpread ? 2 : 1) : 0;
     int columnsCount = columns;
     KWTextFrame **main, *footer = 0, *endnote = 0, *header = 0, *footnote = 0;
     main = new KWTextFrame*[columnsCount];
@@ -293,7 +299,7 @@ void KWFrameLayout::layoutFramesOnPage(int pageNumber)
     }
     if (minZIndex < INT_MAX) {
         --minZIndex;
-        for (int i=0; i < columns; ++i)
+        for (int i = 0; i < columns; ++i)
             main[i]->shape()->setZIndex(minZIndex);
         if (footer)
             footer->shape()->setZIndex(minZIndex);
@@ -343,7 +349,8 @@ void KWFrameLayout::layoutFramesOnPage(int pageNumber)
         const qreal columnWidth = textWidth / columns;
         QPointF *points = new QPointF[columns];
         for (int i = columns - 1; i >= 0; i--)
-            points[i] = QPointF(left + layout.left + columnWidth * i, resultingPositions[3]);
+            points[i] = QPointF(left + layout.leftMargin + layout.leftPadding
+                                + columnWidth * i, resultingPositions[3]);
         for (int i = 0; i < columns; i++) {
             for (int f = 0; f < columns; f++) {
                 if (f == i) continue;
@@ -372,22 +379,22 @@ void KWFrameLayout::layoutFramesOnPage(int pageNumber)
 #endif
     if (footnote) {
         footnote->shape()->setPosition(
-            QPointF(left + layout.left, resultingPositions[7]));
+            QPointF(left + layout.leftMargin + layout.leftPadding, resultingPositions[7]));
         footnote->shape()->setSize(QSizeF(textWidth, resultingPositions[8] - resultingPositions[7]));
     }
     if (endnote) {
         endnote->shape()->setPosition(
-            QPointF(left + layout.left, resultingPositions[5]));
+            QPointF(left + layout.leftMargin + layout.leftPadding, resultingPositions[5]));
         endnote->shape()->setSize(QSizeF(textWidth, resultingPositions[6] - resultingPositions[5]));
     }
     if (header) {
         header->shape()->setPosition(
-            QPointF(left + layout.left, resultingPositions[1]));
+            QPointF(left + layout.leftMargin + layout.leftPadding, resultingPositions[1]));
         header->shape()->setSize(QSizeF(textWidth, resultingPositions[2] - resultingPositions[1]));
     }
     if (footer) {
         footer->shape()->setPosition(
-            QPointF(left + layout.left, resultingPositions[9]));
+            QPointF(left + layout.leftMargin + layout.leftPadding, resultingPositions[9]));
         footer->shape()->setSize(QSizeF(textWidth, resultingPositions[10] - resultingPositions[9]));
     }
     delete [] main;
@@ -497,8 +504,8 @@ void KWFrameLayout::setup()
             break;
         case KWord::MainTextFrameSet:
             m_maintext = tfs;
-            disconnect (tfs, SIGNAL(frameRemoved(KWFrame*)), this, SLOT(mainframeRemoved(KWFrame*)));
-            connect (tfs, SIGNAL(frameRemoved(KWFrame*)), this, SLOT(mainframeRemoved(KWFrame*)));
+            disconnect(tfs, SIGNAL(frameRemoved(KWFrame*)), this, SLOT(mainframeRemoved(KWFrame*)));
+            connect(tfs, SIGNAL(frameRemoved(KWFrame*)), this, SLOT(mainframeRemoved(KWFrame*)));
         default: ;// ignore
         }
         if (tfs->pageStyle().isValid())

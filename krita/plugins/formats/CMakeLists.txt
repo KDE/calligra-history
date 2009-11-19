@@ -18,8 +18,18 @@ macro_log_feature( POPPLER_FOUND "poppler-qt4" "The Poppler Qt4 interface librar
 macro_optional_find_package(Kdcraw)
 macro_log_feature( KDCRAW_FOUND "kdcraw" "The KDCraw library" "http://www.digikam.org/" FALSE "" "Required by the Krita RAW filter")
 
+macro_optional_find_package(OpenJPEG)
+macro_log_feature(OPENJPEG_FOUND "openjpeg" "Free library for JPEG 2000 image compression" "http://www.openjpeg.org" FALSE "" "Required by the Krita JPEG 2000 filter")
+
 macro_optional_find_package(GraphicsMagick)
-macro_log_feature(GRAPHICSMAGICK_FOUND "GraphicsMagick" "GraphicsMagick Image Processing System" "http://www.graphicsmagick.org" FALSE "1.1" "Required by the Krita GraphicsMagick filter for various file formats (including PSD, XCF)")
+set(BAD_GRAPHICS_MAGICK_VERSION 1.2.5)
+set(BUILD_GRAPHICSMAGICK FALSE)
+set(HAVE_REQUIRED_GM_VERSION FALSE)
+
+if   (GRAPHICSMAGICK_FOUND AND GRAPHICSMAGICK_VERSION VERSION_LESS ${BAD_GRAPHICS_MAGICK_VERSION})
+    set(HAVE_REQUIRED_GM_VERSION TRUE)
+    set(BUILD_GRAPHICSMAGICK TRUE)
+endif(GRAPHICSMAGICK_FOUND AND GRAPHICSMAGICK_VERSION VERSION_LESS ${BAD_GRAPHICS_MAGICK_VERSION})
 
 include_directories(${KRITA_INCLUDES})
 
@@ -44,13 +54,15 @@ if(OPENEXR_FOUND AND OPENCTL_FOUND)
     add_subdirectory(openexr)
 endif(OPENEXR_FOUND AND OPENCTL_FOUND)
 
-if(GRAPHICSMAGICK_FOUND)
-    add_subdirectory(gmagick)
-endif(GRAPHICSMAGICK_FOUND)
-
 if(POPPLER_FOUND AND HAVE_POPPLER_0_6)
     add_subdirectory(pdf)
 endif(POPPLER_FOUND AND HAVE_POPPLER_0_6)
 
+if(OPENJPEG_FOUND)
+    add_subdirectory(jp2)
+endif(OPENJPEG_FOUND)
+
 add_subdirectory(bmp)
 add_subdirectory(ora)
+add_subdirectory(ppm)
+add_subdirectory(xcf)

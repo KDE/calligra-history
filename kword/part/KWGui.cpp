@@ -98,6 +98,11 @@ KWGui::KWGui(const QString& viewMode, KWView *parent)
 
     connect(m_canvas->shapeManager()->selection(), SIGNAL(selectionChanged()), this, SLOT(shapeSelectionChanged()));
 
+    connect(m_verticalRuler, SIGNAL(guideLineCreated(Qt::Orientation, int)),
+            m_canvasController, SLOT(addGuideLine(Qt::Orientation, int)));
+    connect(m_horizontalRuler, SIGNAL(guideLineCreated(Qt::Orientation, int)),
+            m_canvasController, SLOT(addGuideLine(Qt::Orientation, int)));
+
     pageSetupChanged();
 
     QTimer::singleShot(0, this, SLOT(setupUnitActions()));
@@ -149,10 +154,10 @@ void KWGui::pageSetupChanged()
 
 void KWGui::updateMousePos(const QPoint &point)
 {
-    QPoint canvasOffset(m_canvasController->canvasOffsetX(), m_canvasController->canvasOffsetY() );
+    QPoint canvasOffset(m_canvasController->canvasOffsetX(), m_canvasController->canvasOffsetY());
     // the offset is positive it the canvas is shown fully visible
-    canvasOffset.setX(canvasOffset.x() < 0 ? canvasOffset.x(): 0);
-    canvasOffset.setY(canvasOffset.y() < 0 ? canvasOffset.y(): 0);
+    canvasOffset.setX(canvasOffset.x() < 0 ? canvasOffset.x() : 0);
+    canvasOffset.setY(canvasOffset.y() < 0 ? canvasOffset.y() : 0);
     QPoint viewPos = point - canvasOffset;
     m_horizontalRuler->updateMouseCoordinate(viewPos.x());
     m_verticalRuler->updateMouseCoordinate(viewPos.y());

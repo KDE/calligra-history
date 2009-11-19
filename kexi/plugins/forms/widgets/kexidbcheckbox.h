@@ -22,10 +22,13 @@
 #define KexiDBCheckBox_H
 
 #include "kexiformdataiteminterface.h"
+#include <formeditor/FormWidgetInterface.h>
 #include <qcheckbox.h>
 
 //! @short A db-aware check box
-class KEXIFORMUTILS_EXPORT KexiDBCheckBox : public QCheckBox, public KexiFormDataItemInterface
+class KEXIFORMUTILS_EXPORT KexiDBCheckBox : public QCheckBox,
+                                            public KexiFormDataItemInterface,
+                                            public KFormDesigner::FormWidgetInterface
 {
     Q_OBJECT
     Q_PROPERTY(QString dataSource READ dataSource WRITE setDataSource)
@@ -75,6 +78,8 @@ public:
 
     /*! Reimplemented after KexiFormDataItemInterface. */
     virtual void setDisplayDefaultValue(QWidget* widget, bool displayDefaultValue);
+
+    virtual void paintEvent(QPaintEvent* e);
 
 public slots:
     void setDataSource(const QString &ds);

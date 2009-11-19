@@ -26,6 +26,7 @@
 
  <Menu name="View"><text>&amp;View</text>
   <Action name="fullscreen"/>
+  <Action name="toggledockers"/>
   <Separator/>
   <Action name="view_newview"/>    
   <ActionList name="view_closeallviews"/>   
@@ -150,6 +151,7 @@
      <Separator/>
      <Action name="paintops"/>
      <Action name="paintop_options"/>
+     <Action name="palette_manager"/>
 </ToolBar>
 
 <Menu name="image_popup">

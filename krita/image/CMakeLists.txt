@@ -8,7 +8,7 @@ add_definitions(${KDE4_ENABLE_EXCEPTIONS})
 # 1 - image/tiles
 # 3 - image/tiles3
 
-set(USE_TILESYSTEM 1)
+set(USE_TILESYSTEM 3)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config-tiles.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/../config-tiles.h) ### WRONG PLACE???
 
 if(USE_TILESYSTEM EQUAL 1)
@@ -74,9 +74,10 @@ set(kritaimage_LIB_SRCS
    commands/kis_image_props_command.cpp
    commands/kis_image_resize_command.cpp
    commands/kis_layer_command.cpp
-   commands/kis_layer_compositeop_command.cpp
-   commands/kis_layer_opacity_command.cpp
    commands/kis_layer_props_command.cpp
+   commands/kis_node_command.cpp
+   commands/kis_node_compositeop_command.cpp
+   commands/kis_node_opacity_command.cpp
    commands/kis_node_move_command.cpp
    commands/kis_node_property_list_command.cpp
    commands/kis_reselect_global_selection_command.cpp
@@ -127,8 +128,6 @@ set(kritaimage_LIB_SRCS
    kis_paint_device.cc
    kis_fixed_paint_device.cpp
    kis_paint_layer.cc
-   kis_painterly_overlay.cpp
-   kis_painterly_overlay_colorspace.cpp
    kis_pattern.cc
    kis_perspective_grid.cpp
    kis_perspective_math.cpp

@@ -38,6 +38,7 @@
 #include <KoToolManager.h>
 #include <KoToolProxy.h>
 #include <KoZoomHandler.h>
+#include <KoStandardAction.h>
 #include <KoToolBoxFactory.h>
 #include <KoShapeController.h>
 #include <KoShapeManager.h>
@@ -112,7 +113,6 @@ public:
     KAction *deleteSelectionAction;
 
     KToggleAction *actionViewSnapToGrid;
-    KToggleAction *actionViewShowGuides;
     KToggleAction *actionViewShowMasterPages;
 
     KAction *actionInsertPage;
@@ -136,13 +136,13 @@ public:
 
     // status bar
     QLabel *status;       ///< ordinary status
+    QWidget *zoomActionWidget;
 
     // These used to be protected.
     KoPADocument *doc;
     KoPACanvas *canvas;
     KoPAPageBase *activePage;
     KoPAViewMode *viewMode;
-
 };
 
 
@@ -161,8 +161,11 @@ KoPAView::KoPAView( KoPADocument *document, QWidget *parent )
 KoPAView::~KoPAView()
 {
     KoToolManager::instance()->removeCanvasController( d->canvasController );
-    delete d->zoomController;
 
+    removeStatusBarItem(d->status);
+    removeStatusBarItem(d->zoomActionWidget);
+
+    delete d->zoomController;
     // Delete only the view mode normal, let the derived class delete
     // the currently active view mode if it is not view mode normal
     delete d->viewModeNormal;
@@ -196,7 +199,8 @@ void KoPAView::initGUI()
     addStatusBarItem( d->status, 1 );
     connect( KoToolManager::instance(), SIGNAL( changedStatusText( const QString & ) ),
              d->status, SLOT( setText( const QString & ) ) );
-    addStatusBarItem( d->zoomAction->createWidget( statusBar() ), 0, true );
+    d->zoomActionWidget = d->zoomAction->createWidget(  statusBar() );
+    addStatusBarItem( d->zoomActionWidget, 0 );
 
     d->zoomController->setZoomMode( KoZoomMode::ZOOM_PAGE );
 
@@ -293,13 +297,10 @@ void KoPAView::initActions()
     actionCollection()->addAction("view_snaptogrid", d->actionViewSnapToGrid);
     connect( d->actionViewSnapToGrid, SIGNAL( triggered( bool ) ), this, SLOT (viewSnapToGrid( bool )));
 
-    d->actionViewShowGuides  = new KToggleAction( KIcon( "guides" ), i18n( "Show Guides" ), this );
-    d->actionViewShowGuides->setChecked( d->doc->guidesData().showGuideLines() );
-    d->actionViewShowGuides->setCheckedState( KGuiItem( i18n( "Hide Guides" ) ) );
-    d->actionViewShowGuides->setToolTip( i18n( "Shows or hides guides" ) );
-    actionCollection()->addAction( "view_show_guides", d->actionViewShowGuides );
-    connect( d->actionViewShowGuides, SIGNAL(triggered(bool)),
-             this,                    SLOT(viewGuides(bool)) );
+    KToggleAction *actionViewShowGuides = KoStandardAction::showGuides(this, SLOT(viewGuides(bool)), this);
+    actionViewShowGuides->setChecked( d->doc->guidesData().showGuideLines() );
+    actionCollection()->addAction(KoStandardAction::name(KoStandardAction::ShowGuides),
+            actionViewShowGuides );
 
     d->actionViewShowMasterPages = new KToggleAction(i18n( "Show Master Pages" ), this );
     actionCollection()->addAction( "view_masterpages", d->actionViewShowMasterPages );
@@ -357,6 +358,9 @@ void KoPAView::initActions()
     connect(d->actionConfigure, SIGNAL(triggered()), this, SLOT(configure()));
 
     d->find = new KoFind( this, d->canvas->resourceProvider(), actionCollection() );
+
+    actionCollection()->action( "object_group" )->setShortcut( QKeySequence( "Ctrl+G" ) );
+    actionCollection()->action( "object_ungroup" )->setShortcut( QKeySequence( "Ctrl+Shift+G" ) );
 }
 
 
@@ -656,8 +660,8 @@ void KoPAView::doUpdateActivePage( KoPAPageBase * page )
     KoPageLayout &layout = d->activePage->pageLayout();
     d->horizontalRuler->setRulerLength(layout.width);
     d->verticalRuler->setRulerLength(layout.height);
-    d->horizontalRuler->setActiveRange(layout.left, layout.width - layout.right);
-    d->verticalRuler->setActiveRange(layout.top, layout.height - layout.bottom);
+    d->horizontalRuler->setActiveRange(layout.leftMargin, layout.width - layout.rightMargin);
+    d->verticalRuler->setActiveRange(layout.topMargin, layout.height - layout.bottomMargin);
 
     QSizeF pageSize( layout.width, layout.height );
     d->canvas->setDocumentOrigin(QPointF(layout.width, layout.height));

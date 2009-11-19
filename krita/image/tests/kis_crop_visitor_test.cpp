@@ -35,45 +35,16 @@ void KisCropVisitorTest::testCreation()
 
 void KisCropVisitorTest::testUndo()
 {
-class KisUndoAdapterDummy : public KisUndoAdapter
-{
-    public:
-        KisUndoAdapterDummy() : KisUndoAdapter(0) {}
-        ~KisUndoAdapterDummy() {}
-
-    public:
-        void addCommand(QUndoCommand *cmd) {    
-            undostack.push(cmd);
-        }
-
-        void beginMacro()
-        {
-            undostack.beginMacro("Test");
-        }
-
-        void endMacro()
-        {
-            undostack.endMacro();
-        }
-
-        void doUndo()
-        {
-            undostack.undo();
-        }
-
-    private:
-        QUndoStack undostack;
-    };
     const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
 
-    KisUndoAdapterDummy* undoAdapterDummy = new KisUndoAdapterDummy();
+    TestUtil::KisUndoAdapterDummy* undoAdapterDummy = new TestUtil::KisUndoAdapterDummy();
     KisImageWSP img = new KisImage(undoAdapterDummy, 300, 300, cs, "test");
     img->lock();
     KisPaintLayerSP layer = new KisPaintLayer(img, "testlayer", OPACITY_OPAQUE);
     KisPaintDeviceSP dev = layer->paintDevice();
 
     KisFillPainter painter(dev);
-    painter.fillRect( QRect(0, 0, 300, 300), KoColor(Qt::white, cs));
+    painter.fillRect(QRect(0, 0, 300, 300), KoColor(Qt::white, cs));
     QImage image1 = dev->convertToQImage(0, 0, 0, 300, 300);
 
     undoAdapterDummy->beginMacro();

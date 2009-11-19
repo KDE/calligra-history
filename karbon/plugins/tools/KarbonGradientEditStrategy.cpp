@@ -19,13 +19,13 @@
 
 #include "KarbonGradientEditStrategy.h"
 #include <KarbonGlobal.h>
-#include <KarbonGradientHelper.h>
 
 #include <KoShape.h>
 #include <KoViewConverter.h>
 #include <KoShapeBackgroundCommand.h>
 #include <KoShapeBorderCommand.h>
 #include <KoGradientBackground.h>
+#include <KarbonGradientHelper.h>
 
 #include <QBrush>
 #include <QGradient>

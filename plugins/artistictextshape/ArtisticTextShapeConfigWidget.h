@@ -27,121 +27,29 @@
 
 #include <KoShapeConfigWidgetBase.h>
 
-#include <QUndoCommand>
-#include <KLocale>
-
 class ArtisticTextShape;
 
-class ArtisticTextShapeConfigWidget : public KoShapeConfigWidgetBase
+class ArtisticTextShapeConfigWidget : public QWidget
 {
     Q_OBJECT
 public:
     ArtisticTextShapeConfigWidget();
-    /// reimplemented
-    virtual void open(KoShape *shape);
-    /// reimplemented
-    virtual void save();
-    /// reimplemented
-    virtual bool showOnShapeCreate() { return false; }
-    /// reimplemented
-    virtual QUndoCommand * createCommand();
-
-private:
-    class ChangeFont : public QUndoCommand
-    {
-    public:
-        ChangeFont( ArtisticTextShapeConfigWidget *widget, const QFont &font )
-            : m_widget( widget ), m_font( font )
-        {
-            m_shape = widget->m_shape;
-            setText( i18n("Change font") );
-        }
-        virtual void undo()
-        {
-            if ( m_shape ) {
-                m_shape->setFont( m_oldFont );
-                m_widget->open( m_shape );
-            }
-        }
-        virtual void redo()
-        {
-            if ( m_shape ) {
-                m_oldFont = m_shape->font();
-                m_shape->setFont( m_font );
-                m_widget->open( m_shape );
-            }
-        }
-    private:
-        ArtisticTextShapeConfigWidget *m_widget;
-        ArtisticTextShape *m_shape;
-        QFont m_font;
-        QFont m_oldFont;
-    };
-    class ChangeText : public QUndoCommand
-    {
-    public:
-        ChangeText( ArtisticTextShapeConfigWidget *widget, const QString &text )
-            : m_widget( widget ), m_text( text )
-        {
-            m_shape = widget->m_shape;
-            setText( i18n("Change text") );
-        }
-        virtual void undo()
-        {
-            if ( m_shape ) {
-                m_shape->setText( m_oldText );
-                m_widget->open( m_shape );
-            }
-        }
-        virtual void redo()
-        {
-            if ( m_shape ) {
-                m_oldText = m_shape->text();
-                m_shape->setText( m_text );
-                m_widget->open( m_shape );
-            }
-        }
-    private:
-        ArtisticTextShapeConfigWidget *m_widget;
-        ArtisticTextShape *m_shape;
-        QString m_text;
-        QString m_oldText;
-    };
-    class ChangeAnchor : public QUndoCommand
-    {
-    public:
-        ChangeAnchor( ArtisticTextShapeConfigWidget *widget, ArtisticTextShape::TextAnchor anchor )
-            : m_widget( widget ), m_anchor( anchor )
-        {
-            m_shape = widget->m_shape;
-            setText( i18n("Change text anchor") );
-        }
-        virtual void undo()
-        {
-            if ( m_shape ) {
-                m_shape->setTextAnchor( m_oldAnchor );
-                m_widget->open( m_shape );
-            }
-        }
-        virtual void redo()
-        {
-            if ( m_shape ) {
-                m_oldAnchor = m_shape->textAnchor();
-                m_shape->setTextAnchor( m_anchor );
-                m_widget->open( m_shape );
-            }
-        }
-    private:
-        ArtisticTextShapeConfigWidget *m_widget;
-        ArtisticTextShape *m_shape;
-        ArtisticTextShape::TextAnchor m_anchor;
-        ArtisticTextShape::TextAnchor m_oldAnchor;
-    };
+    
+public slots:
+    /// initializes widget from given shape
+    void initializeFromShape(ArtisticTextShape *shape, KoCanvasBase *canvas);
+    
+    /// updates the widget form the current one
+    void updateWidget();
+    
+private slots:
+    void propertyChanged();
 
 private:
     void blockChildSignals( bool block );
     Ui::ArtisticTextShapeConfigWidget widget;
     ArtisticTextShape * m_shape;
+    KoCanvasBase * m_canvas;
     QButtonGroup * m_anchorGroup;
 };
 

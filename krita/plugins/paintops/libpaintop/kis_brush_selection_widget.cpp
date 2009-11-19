@@ -63,9 +63,10 @@ KisBrushSelectionWidget::KisBrushSelectionWidget(QWidget * parent)
     m_brushesTab->addTab(m_brushChooser, i18n("Predefined Brushes"));
 
     // XXX: pass image!
-    m_customBrushWidget = new KisCustomBrushWidget(0, i18n("Custom Brush"), 0);
-    connect(m_customBrushWidget, SIGNAL(sigBrushChanged()), SIGNAL(sigBrushChanged()));
-    m_brushesTab->addTab(m_customBrushWidget, i18n("Custom Brush"));
+//  TODO custom brush doesn't work correctly
+//    m_customBrushWidget = new KisCustomBrushWidget(0, i18n("Custom Brush"), 0);
+//    connect(m_customBrushWidget, SIGNAL(sigBrushChanged()), SIGNAL(sigBrushChanged()));
+//    m_brushesTab->addTab(m_customBrushWidget, i18n("Custom Brush"));
 
     m_textBrushWidget = new KisTextBrushChooser(0, "textbrush", i18n("Text Brush"));
     connect(m_textBrushWidget, SIGNAL(sigBrushChanged()), SIGNAL(sigBrushChanged()));
@@ -73,7 +74,7 @@ KisBrushSelectionWidget::KisBrushSelectionWidget(QWidget * parent)
 
     setLayout(l);
 
-   // m_brushChooser->itemChooser()->setCurrent(0);
+    // m_brushChooser->itemChooser()->setCurrent(0);
     m_autoBrushWidget->activate();
 }
 
@@ -93,9 +94,10 @@ KisBrushSP KisBrushSelectionWidget::brush()
         theBrush = m_brushChooser->brush();
         break;
     case 2:
-        theBrush = m_customBrushWidget->brush();
-        break;
-    case 3:
+//  TODO custom brush doesn't work correctly
+//        theBrush = m_customBrushWidget->brush();
+//        break;
+//    case 3:
         theBrush = m_textBrushWidget->brush();
         break;
     default:
@@ -103,7 +105,7 @@ KisBrushSP KisBrushSelectionWidget::brush()
     }
     // Fallback to auto brush if no brush selected
     // Can happen if there is no predefined brush found
-    if(!theBrush)
+    if (!theBrush)
         theBrush = m_autoBrushWidget->brush();
 
     return theBrush;
@@ -111,49 +113,60 @@ KisBrushSP KisBrushSelectionWidget::brush()
 }
 
 
-void KisBrushSelectionWidget::setAutoBrush( bool on )
+void KisBrushSelectionWidget::setAutoBrush(bool on)
 {
-    m_autoBrushWidget->setVisible( on );
+    m_autoBrushWidget->setVisible(on);
 }
 
-void KisBrushSelectionWidget::setPredefinedBrushes( bool on )
+void KisBrushSelectionWidget::setPredefinedBrushes(bool on)
 {
-    m_brushChooser->setVisible( on );
+    m_brushChooser->setVisible(on);
 }
 
-void KisBrushSelectionWidget::setCustomBrush( bool on )
+void KisBrushSelectionWidget::setCustomBrush(bool on)
 {
-    m_customBrushWidget->setVisible( on );
+//    m_customBrushWidget->setVisible( on );
 }
 
-void KisBrushSelectionWidget::setTextBrush( bool on )
+void KisBrushSelectionWidget::setTextBrush(bool on)
 {
-    m_textBrushWidget->setVisible( on );
+    m_textBrushWidget->setVisible(on);
 }
 
 void KisBrushSelectionWidget::setImage(KisImageWSP image)
 {
-    m_customBrushWidget->setImage(image);
+//    m_customBrushWidget->setImage(image);
 }
 
-void KisBrushSelectionWidget::setCurrentBrush( KisBrushSP brush)
+void KisBrushSelectionWidget::setCurrentBrush(KisBrushSP brush)
 {
     // XXX: clever code have brush plugins know their configuration
     //      pane, so we don't have to have this if statement and
     //      have an extensible set of brush types
-    if ( dynamic_cast<KisAutoBrush*>(brush.data()) ) {
-        m_brushesTab->setCurrentWidget( m_autoBrushWidget );
+    if (dynamic_cast<KisAutoBrush*>(brush.data())) {
+        m_brushesTab->setCurrentWidget(m_autoBrushWidget);
         m_autoBrushWidget->setBrush(brush);
-    }
-    else if (dynamic_cast<KisTextBrush*>(brush.data())) {
-        m_brushesTab->setCurrentWidget( m_textBrushWidget );
+    } else if (dynamic_cast<KisTextBrush*>(brush.data())) {
+        m_brushesTab->setCurrentWidget(m_textBrushWidget);
         m_textBrushWidget->setBrush(brush);
-    }
-    else {
-        m_brushesTab->setCurrentWidget( m_brushChooser );
+    } else {
+        m_brushesTab->setCurrentWidget(m_brushChooser);
         m_brushChooser->setBrush(brush);
     }
 
+}
+
+
+
+void KisBrushSelectionWidget::setAutoBrushDiameter(qreal diameter)
+{
+    m_autoBrushWidget->setAutoBrushDiameter(diameter);
+}
+
+
+qreal KisBrushSelectionWidget::autoBrushDiameter()
+{
+    return m_autoBrushWidget->autoBrushDiameter();
 }
 
 

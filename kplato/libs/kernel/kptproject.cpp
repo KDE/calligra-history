@@ -643,6 +643,35 @@ void Project::initiateCalculationLists( MainSchedule &sch )
 bool Project::load( KoXmlElement &element, XMLLoaderObject &status )
 {
     //kDebug()<<"--->";
+    // load locale first
+    KoXmlNode n = element.firstChild();
+    for ( ; ! n.isNull(); n = n.nextSibling() ) {
+        if ( ! n.isElement() ) {
+            continue;
+        }
+        KoXmlElement e = n.toElement();
+        if ( e.tagName() == "locale" ) {
+            KLocale *l = locale();
+            l->setCurrencySymbol( e.attribute( "currency-symbol", l->currencySymbol() ) );
+
+//            l->setMonetaryDecimalSymbol( e.attribute( "monetary-decimal-symbol", l->monetaryDecimalSymbol() ) );
+
+//            l->setMonetaryThousandsSeparator( e.attribute( "monetary-thousands-separator", l->monetaryThousandsSeparator() ) );
+            if ( e.hasAttribute( "positive-monetary-sign-position" ) ) {
+                l->setPositiveMonetarySignPosition( (KLocale::SignPosition)( e.attribute( "positive-monetary-sign-position" ).toInt() ) );
+            }
+            if ( e.hasAttribute( "positive-prefix-currency-symbol" ) ) {
+                l->setPositivePrefixCurrencySymbol( e.attribute( "positive-prefix-currency-symbol" ).toInt() );
+            }
+            if ( e.hasAttribute( "negative-monetary-sign-position" ) ) {
+                l->setNegativeMonetarySignPosition( (KLocale::SignPosition)( e.attribute( "negative-monetary-sign-position" ).toInt() ) );
+            }
+            if ( e.hasAttribute( "negative-prefix-currency-symbol" ) ) {
+                l->setNegativePrefixCurrencySymbol( e.attribute( "negative-prefix-currency-symbol" ).toInt() );
+            }
+            //qDebug()<<"project load:"<<l->currencySymbol();
+        }
+    }
     QList<Calendar*> cals;
     QString s;
     bool ok = false;
@@ -679,7 +708,7 @@ bool Project::load( KoXmlElement &element, XMLLoaderObject &status )
     // Load the project children
     // Do calendars first, they only refrence other calendars
     //kDebug()<<"Calendars--->";
-    KoXmlNode n = element.firstChild();
+    n = element.firstChild();
     for ( ; ! n.isNull(); n = n.nextSibling() ) {
         if ( ! n.isElement() ) {
             continue;
@@ -878,6 +907,17 @@ void Project::save( QDomElement &element ) const
     me.setAttribute( "end-time", m_constraintEndTime.toString( KDateTime::ISODate ) );
 
     m_wbsDefinition.saveXML( me );
+    
+    QDomElement loc = me.ownerDocument().createElement( "locale" );
+    me.appendChild( loc );
+    const KLocale *l = locale();
+    loc.setAttribute( "currency-symbol", l->currencySymbol() );
+//    loc.setAttribute( "monetary-decimal-symbol", l->monetaryDecimalSymbol() );
+//    loc.setAttribute( "monetary-thousands-separator", l->monetaryThousandsSeparator() );
+    loc.setAttribute( "positive-monetary-sign-position", l->positiveMonetarySignPosition() );
+    loc.setAttribute( "positive-prefix-currency-symbol", l->positivePrefixCurrencySymbol() );
+    loc.setAttribute( "negative-monetary-sign-position", l->negativeMonetarySignPosition() );
+    loc.setAttribute( "negative-prefix-currency-symbol", l->negativePrefixCurrencySymbol() );
     
     m_accounts.save( me );
 
@@ -2037,8 +2077,8 @@ ScheduleManager *Project::findScheduleManager( const QString &name ) const
 QList<ScheduleManager*> Project::allScheduleManagers() const
 {
     QList<ScheduleManager*> lst;
-    lst << m_managers;
     foreach ( ScheduleManager *sm, m_managers ) {
+        lst << sm;
         lst << sm->allChildren();
     }
     return lst;
@@ -2312,11 +2352,16 @@ void Project::setSchedulerPlugins( const QMap<QString, SchedulerPlugin*> &plugin
     kDebug()<<m_schedulerPlugins;
 }
 
+void Project::emitLocaleChanged()
+{
+    emit localeChanged();
+}
+
 #ifndef NDEBUG
 void Project::printDebug( bool children, const QByteArray& _indent )
 {
     QByteArray indent = _indent;
-    kDebug() << indent <<"+ Project node:" << Node::name(); //FIXME: QT3 support
+    qDebug() << indent <<"+ Project node:" << Node::name()<<" id="<<id();
     indent += '!';
     QListIterator<ResourceGroup*> it( resourceGroups() );
     while ( it.hasNext() )
@@ -2327,10 +2372,10 @@ void Project::printDebug( bool children, const QByteArray& _indent )
 void Project::printCalendarDebug( const QByteArray& _indent )
 {
     QByteArray indent = _indent;
-    kDebug() << indent <<"-------- Calendars debug printout --------";
+    qDebug() << indent <<"-------- Calendars debug printout --------";
     foreach ( Calendar *c, calendarIdDict ) {
         c->printDebug( indent + "--" );
-        kDebug();
+        qDebug();
     }
     if ( m_standardWorktime )
         m_standardWorktime->printDebug();

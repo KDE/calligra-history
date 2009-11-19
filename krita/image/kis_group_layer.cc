@@ -85,11 +85,10 @@ void KisGroupLayer::resetCache(const KoColorSpace *colorSpace)
         colorSpace = image()->colorSpace();
 
     if (!m_d->paintDevice ||
-       !(*m_d->paintDevice->colorSpace() == *colorSpace)) {
+            !(*m_d->paintDevice->colorSpace() == *colorSpace)) {
 
         m_d->paintDevice = new KisPaintDevice(colorSpace);
-    }
-    else {
+    } else {
         m_d->paintDevice->clear();
     }
 }
@@ -102,11 +101,11 @@ KisPaintDeviceSP KisGroupLayer::tryObligeChild() const
         const KisLayer *child = dynamic_cast<KisLayer*>(firstChild().data());
 
         if (child &&
-            child->channelFlags().isEmpty() &&
-            child->projection() &&
-            child->visible() &&
-            child->opacity() == OPACITY_OPAQUE &&
-            *child->projection()->colorSpace() == *colorSpace()) {
+                child->channelFlags().isEmpty() &&
+                child->projection() &&
+                child->visible() &&
+                child->opacity() == OPACITY_OPAQUE &&
+                *child->projection()->colorSpace() == *colorSpace()) {
 
             retval = child->projection();
         }
@@ -138,10 +137,11 @@ QRect KisGroupLayer::repaintOriginal(KisPaintDeviceSP original,
         return rect;
     }
 
+    // make the original empty, it will be filled with the children
     original->clear(rect);
 
     // find the first adjustmentlayer under the dirty child,
-    // if there is one
+    // if there is one, we will use its projection as a starting point
     KisNodeSP startWith = firstChild();
     if (m_d->dirtyNode) {
         KisNodeSP node = firstChild();
@@ -154,8 +154,18 @@ QRect KisGroupLayer::repaintOriginal(KisPaintDeviceSP original,
             node = node->nextSibling();
         }
     }
-    KisMergeVisitor visitor(original, rect);
 
+    // We can optimize, so copy the projection of the filter layer
+    // to the original of the group layer.
+    if (startWith != firstChild()) {
+        KisPainter gc(original);
+        gc.setCompositeOp(original->colorSpace()->compositeOp(COMPOSITE_COPY));
+        gc.bitBlt(rect.topLeft(), startWith->projection(), rect);
+        // move one node beyond the adjustment layer to avoid refiltering
+        startWith = startWith->nextSibling();
+    }
+
+    KisMergeVisitor visitor(original, rect);
     while (startWith) {
         startWith->accept(visitor);
         startWith = startWith->nextSibling();

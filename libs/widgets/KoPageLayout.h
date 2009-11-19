@@ -26,6 +26,7 @@
 #include "KoGenStyles.h"
 #include "KoPageFormat.h"
 #include "KoXmlReader.h"
+#include "KoBorder.h"
 
 #include "kowidgets_export.h"
 
@@ -43,28 +44,45 @@ struct KoPageLayout {
     qreal width;
     /** Page height in points */
     qreal height;
+
     /** Left margin in points */
-    qreal left;
+    qreal leftMargin;
     /** Right margin in points */
-    qreal right;
+    qreal rightMargin;
     /** Top margin in points */
-    qreal top;
+    qreal topMargin;
     /** Bottom margin in points */
-    qreal bottom;
+    qreal bottomMargin;
+
     /// margin on page edge
     qreal pageEdge;
     /// margin on page-binding edge
     qreal bindingSide;
 
+    /** Left padding in points */
+    qreal leftPadding;
+    /** Right padding in points */
+    qreal rightPadding;
+    /** Top padding in points */
+    qreal topPadding;
+    /** Bottom padding in points */
+    qreal bottomPadding;
+
+
+    /// borders
+    KoBorder  border;
+
+
     bool operator==(const KoPageLayout& l) const {
         return (qFuzzyCompare(width,l.width) &&
                 qFuzzyCompare(height,l.height) &&
-                qFuzzyCompare(left,l.left) &&
-                qFuzzyCompare(right,l.right) &&
-                qFuzzyCompare(top,l.top) &&
-                qFuzzyCompare(bottom,l.bottom) &&
+                qFuzzyCompare(leftMargin,l.leftMargin) &&
+                qFuzzyCompare(rightMargin,l.rightMargin) &&
+                qFuzzyCompare(topMargin,l.topMargin) &&
+                qFuzzyCompare(bottomMargin,l.bottomMargin) &&
                 qFuzzyCompare(pageEdge,l.pageEdge) &&
-                qFuzzyCompare(bindingSide,l.bindingSide));
+                qFuzzyCompare(bindingSide,l.bindingSide) &&
+                border == l.border);
     }
     bool operator!=(const KoPageLayout& l) const {
         return !((*this) == l);

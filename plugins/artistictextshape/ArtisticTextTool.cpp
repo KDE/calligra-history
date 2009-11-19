@@ -21,6 +21,7 @@
 #include "ArtisticTextTool.h"
 #include "AttachTextToPathCommand.h"
 #include "DetachTextFromPathCommand.h"
+#include "ArtisticTextShapeConfigWidget.h"
 
 #include <KoCanvasBase.h>
 #include <KoSelection.h>
@@ -33,14 +34,141 @@
 
 #include <KLocale>
 #include <KIcon>
-#include <QAction>
-#include <QGridLayout>
-#include <QToolButton>
-#include <QCheckBox>
-#include <QPainter>
-#include <QPainterPath>
+#include <KDebug>
+
+#include <QtGui/QAction>
+#include <QtGui/QGridLayout>
+#include <QtGui/QToolButton>
+#include <QtGui/QCheckBox>
+#include <QtGui/QPainter>
+#include <QtGui/QPainterPath>
+#include <QtGui/QUndoCommand>
+#include <QtCore/QPointer>
 
 #include <float.h>
+
+class ArtisticTextTool::AddTextRangeCommand : public QUndoCommand
+{
+    public:
+        AddTextRangeCommand( ArtisticTextTool *tool, const QString &text, unsigned int from )
+        : m_tool( tool ), m_text( text ), m_from( from )
+        {
+            m_shape = tool->m_currentShape;
+            setText( i18n("Add text range") );
+        }
+        
+        virtual void undo()
+        {
+            QUndoCommand::undo();
+            
+            if ( ! m_shape )
+                return;
+            
+            if (m_tool) {
+                if ( m_tool->m_currentShape != m_shape ) {
+                    m_tool->enableTextCursor( false );
+                    m_tool->m_currentShape = m_shape;
+                    m_tool->enableTextCursor( true );
+                }
+                m_tool->setTextCursorInternal( m_from );
+                m_tool->m_currentText.remove( m_from, m_text.length() );
+            }
+            
+            m_shape->removeRange( m_from, m_text.length() );
+        }
+        
+        virtual void redo()
+        {
+            QUndoCommand::redo();
+            
+            if ( !m_shape )
+                return;
+            
+            if ( m_tool && m_tool->m_currentShape != m_shape ) {
+                m_tool->enableTextCursor( false );
+                m_tool->m_currentShape = m_shape;
+                m_tool->enableTextCursor( true );
+            }
+            
+            m_shape->addRange( m_from, m_text );
+            
+            if (m_tool) {
+                m_tool->setTextCursorInternal( m_from + m_text.length() );
+            }
+        }
+        
+    private:
+        QPointer<ArtisticTextTool> m_tool;
+        ArtisticTextShape *m_shape;
+        QString m_text;
+        unsigned int m_from;
+};
+
+class ArtisticTextTool::RemoveTextRangeCommand : public QUndoCommand
+{
+    public:
+        RemoveTextRangeCommand( ArtisticTextTool *tool, int from, unsigned int count )
+        : m_tool( tool ), m_from( from ), m_count( count )
+        {
+            m_shape = tool->m_currentShape;
+            m_cursor = tool->textCursor();
+            
+            setText( i18n("Remove text range") );
+        }
+        
+        virtual void undo()
+        {
+            QUndoCommand::undo();
+            
+            if ( !m_shape )
+                return;
+            
+            if (m_tool) {
+                if ( m_tool->m_currentShape != m_shape ) {
+                    m_tool->enableTextCursor( false );
+                    m_tool->m_currentShape = m_shape;
+                    m_tool->enableTextCursor( true );
+                }
+                m_tool->m_currentShape = m_shape;
+                m_tool->m_currentText.insert( m_from, m_text );
+            }
+            
+            m_shape->addRange( m_from, m_text );
+            
+            if (m_tool) {
+                m_tool->setTextCursorInternal( m_cursor );
+            }
+        }
+        
+        virtual void redo()
+        {
+            QUndoCommand::redo();
+            
+            if ( !m_shape )
+                return;
+            
+            if (m_tool) {
+                if ( m_tool->m_currentShape != m_shape ) {
+                    m_tool->enableTextCursor( false );
+                    m_tool->m_currentShape = m_shape;
+                    m_tool->enableTextCursor( true );
+                }
+                if( m_cursor > m_from )
+                    m_tool->setTextCursorInternal( m_from );
+            }
+            m_text = m_shape->removeRange( m_from, m_count );
+        }
+        
+    private:
+        QPointer<ArtisticTextTool> m_tool;
+        ArtisticTextShape *m_shape;
+        int m_from;
+        unsigned int m_count;
+        QString m_text;
+        int m_cursor;
+};
+
+
 
 ArtisticTextTool::ArtisticTextTool(KoCanvasBase *canvas)
     : KoTool(canvas), m_currentShape(0), m_path(0), m_tmpPath(0), m_textCursor( -1 ), m_showCursor( true )
@@ -111,6 +239,7 @@ void ArtisticTextTool::mousePressEvent( KoPointerEvent *event )
                 selection->deselectAll();
                 enableTextCursor( false );
                 m_currentShape = hit;
+                emit shapeSelected(m_currentShape, m_canvas);
                 enableTextCursor( true );
                 selection->select( m_currentShape );
             }
@@ -181,8 +310,12 @@ void ArtisticTextTool::keyPressEvent(QKeyEvent *event)
     if ( m_currentShape && textCursor() > -1 ) {
         switch(event->key())
         {
+        case Qt::Key_Delete:
+            if( textCursor() >= 0 && textCursor() < m_currentShape->text().length())
+                removeFromTextCursor( textCursor(), 1 );
+            break;    
         case Qt::Key_Backspace:
-            removeFromTextCursor( m_textCursor, 1 );
+            removeFromTextCursor( textCursor()-1, 1 );
             break;
         case Qt::Key_Right:
             setTextCursor( textCursor() + 1 );
@@ -222,6 +355,9 @@ void ArtisticTextTool::activate( bool )
         // none found
         emit done();
         return;
+    } else {
+        m_currentText = m_currentShape->text();
+        emit shapeSelected(m_currentShape, m_canvas);
     }
 
     enableTextCursor( true );
@@ -307,29 +443,47 @@ void ArtisticTextTool::convertText()
     emit done();
 }
 
-QWidget *ArtisticTextTool::createOptionWidget()
+QMap<QString, QWidget *> ArtisticTextTool::createOptionWidgets()
 {
-    QWidget * widget = new QWidget();
-    QGridLayout * layout = new QGridLayout(widget);
-
-    QToolButton * attachButton = new QToolButton(widget);
+    QMap<QString, QWidget *> widgets;
+    
+    QWidget * pathWidget = new QWidget();
+    pathWidget->setObjectName("ArtisticTextPathWidget");
+    
+    QGridLayout * layout = new QGridLayout(pathWidget);
+    
+    QToolButton * attachButton = new QToolButton(pathWidget);
     attachButton->setDefaultAction( m_attachPath );
     layout->addWidget( attachButton, 0, 0 );
-
-    QToolButton * detachButton = new QToolButton(widget);
+    
+    QToolButton * detachButton = new QToolButton(pathWidget);
     detachButton->setDefaultAction( m_detachPath );
     layout->addWidget( detachButton, 0, 1 );
-
-    QToolButton * convertButton = new QToolButton(widget);
+    
+    QToolButton * convertButton = new QToolButton(pathWidget);
     convertButton->setDefaultAction( m_convertText );
     layout->addWidget( convertButton, 0, 3 );
-
+    
     layout->setSpacing(0);
     layout->setMargin(6);
     layout->setRowStretch(3, 1);
     layout->setColumnStretch(2, 1);
-
-    return widget;
+    
+    widgets.insert(i18n("Text On Path"), pathWidget);
+    
+    ArtisticTextShapeConfigWidget * configWidget = new ArtisticTextShapeConfigWidget();
+    configWidget->setObjectName("ArtisticTextConfigWidget");
+    if (m_currentShape) {
+        configWidget->initializeFromShape(m_currentShape, m_canvas);
+    }
+    connect(this, SIGNAL(shapeSelected(ArtisticTextShape *, KoCanvasBase *)), 
+            configWidget, SLOT(initializeFromShape(ArtisticTextShape *, KoCanvasBase *)));
+    connect(m_canvas->shapeManager(), SIGNAL(selectionContentChanged()),
+            configWidget, SLOT(updateWidget()));
+            
+    widgets.insert(i18n("Text Properties"), configWidget);
+    
+    return widgets;
 }
 
 void ArtisticTextTool::enableTextCursor( bool enable )
@@ -382,11 +536,11 @@ void ArtisticTextTool::createTextCursorShape()
     m_textCursorShape.closeSubpath();
 }
 
-void ArtisticTextTool::removeFromTextCursor( int from, unsigned int nr )
+void ArtisticTextTool::removeFromTextCursor( int from, unsigned int count )
 {
-    if ( from > 0 && from >= int( nr ) ) {
-        m_currentText.remove( from - nr, nr );
-        QUndoCommand *cmd = new RemoveTextRange( this, from - nr, nr );
+    if ( from >= 0 ) {
+        m_currentText.remove( from, count );
+        QUndoCommand *cmd = new RemoveTextRangeCommand( this, from, count );
         m_canvas->addCommand( cmd );
     }
 }
@@ -402,16 +556,9 @@ void ArtisticTextTool::addToTextCursor( const QString &str )
         unsigned int len = printable.length();
         if ( len ) {
             m_currentText.insert( m_textCursor, printable );
-            QUndoCommand *cmd = new AddTextRange( this, printable, m_textCursor );
+            QUndoCommand *cmd = new AddTextRangeCommand( this, printable, m_textCursor );
             m_canvas->addCommand( cmd );
         }
-    }
-}
-
-void ArtisticTextTool::deleteSelection()
-{
-    if ( m_currentShape ) {
-        removeFromTextCursor( m_textCursor + 1, 1 );
     }
 }
 
@@ -420,6 +567,9 @@ void ArtisticTextTool::textChanged()
     if ( !m_currentShape || m_currentShape->text() == m_currentText )
         return;
 
+    kDebug() << "shape text =" << m_currentShape->text();
+    kDebug() << "current text =" << m_currentText;
+    
     setTextCursorInternal( m_currentShape->text().length() );
 }
 

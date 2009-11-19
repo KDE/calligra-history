@@ -309,7 +309,7 @@ void KoSliderCombo::setValue(qreal value)
         value = d->minimum;
     if(value > d->maximum)
         value = d->maximum;
-    setEditText(KGlobal::locale()->formatNumber(value));
+    setEditText(KGlobal::locale()->formatNumber(value, d->decimals));
     d->slider->blockSignals(true);
     d->slider->setValue(int((value - d->minimum) * 256 / d->maximum + 0.5));
     d->slider->blockSignals(false);

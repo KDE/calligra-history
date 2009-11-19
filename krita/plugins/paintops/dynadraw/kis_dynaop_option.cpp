@@ -24,8 +24,7 @@ class KisDynaOpOptionsWidget: public QWidget, public Ui::WdgDynaOptions
 {
 public:
     KisDynaOpOptionsWidget(QWidget *parent = 0)
-        : QWidget(parent)
-    {
+            : QWidget(parent) {
         setupUi(this);
     }
 };
@@ -40,7 +39,7 @@ KisDynaOpOption::KisDynaOpOption()
 
 KisDynaOpOption::~KisDynaOpOption()
 {
-    delete m_options; 
+    delete m_options;
 }
 
 qreal KisDynaOpOption::initWidth() const
@@ -81,13 +80,13 @@ qreal KisDynaOpOption::widthRange() const
 
 int KisDynaOpOption::action() const
 {
-    if ( m_options->circleRBox->isChecked() )
+    if (m_options->circleRBox->isChecked())
         return 0;
-    if ( m_options->polygonRBox->isChecked() )
+    if (m_options->polygonRBox->isChecked())
         return 1;
-    if ( m_options->wireRBox->isChecked() )
+    if (m_options->wireRBox->isChecked())
         return 2;
-    if ( m_options->linesRBox->isChecked() )
+    if (m_options->linesRBox->isChecked())
         return 3;
     return 0;
 }
@@ -117,14 +116,14 @@ qreal KisDynaOpOption::lineSpacing() const
     return m_options->lineSpacingSPBox->value();
 }
 
-
-
 void KisDynaOpOption::writeOptionSetting(KisPropertiesConfiguration* setting) const
 {
+    Q_UNUSED(setting);
 }
 
 void KisDynaOpOption::readOptionSetting(const KisPropertiesConfiguration* setting)
 {
+    Q_UNUSED(setting);
 }
 
 

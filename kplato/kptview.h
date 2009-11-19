@@ -48,7 +48,7 @@ class View;
 class ViewBase;
 class ViewListItem;
 class ViewListWidget;
-class ViewInfo;
+struct ViewInfo;
 class AccountsView;
 class GanttView;
 class PertEditor;
@@ -65,6 +65,7 @@ class Calendar;
 class Part;
 class Node;
 class Project;
+class Task;
 class MainSchedule;
 class Schedule;
 class Resource;
@@ -145,11 +146,13 @@ public slots:
     void slotEditCut();
     void slotEditCopy();
     void slotEditPaste();
+    void slotRefreshView();
     void slotViewSelector( bool show );
 
     void slotAddTask();
     void slotAddSubTask();
     void slotAddMilestone();
+    void slotAddSubMilestone();
     void slotProjectEdit();
     void slotDefineWBS();
     void slotCurrencyConfig();
@@ -228,11 +231,13 @@ protected slots:
     void slotPrintSelectedDebug();
     void slotPrintCalendarDebug();
     void slotPrintTestDebug();
+    void slotToggleDebugInfo();
 #else
     static void slotPrintDebug() { };
     static void slotPrintSelectedDebug() { };
     static void slotPrintCalendarDebug() { };
     static void slotPrintTestDebug() { };
+    static void slotToggleDebugInfo() { };
 #endif
 
 protected:
@@ -242,12 +247,15 @@ protected:
     QList<QAction*> sortedActionList();
     QAction *addScheduleAction( Schedule *sch );
     void setLabel( ScheduleManager *sm = 0 );
-    Node *currentTask();
+    Task *currentTask() const;
+    Node *currentNode() const;
     Resource *currentResource();
     ResourceGroup *currentResourceGroup();
     Calendar *currentCalendar();
     void updateView( QWidget *widget );
 
+    ViewBase *currentView() const;
+    
     ViewBase *createWelcomeView();
 
 private slots:

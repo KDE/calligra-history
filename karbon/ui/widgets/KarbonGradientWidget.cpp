@@ -28,7 +28,7 @@
 
 #include "KarbonGradientWidget.h"
 #include "KarbonCursor.h"
-#include "KarbonGradientHelper.h"
+#include <KarbonGradientHelper.h>
 
 #include <KLocale>
 #include <KIconLoader>

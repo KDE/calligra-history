@@ -47,8 +47,13 @@
 #include <widget/kexicharencodingcombobox.h>
 #include <widget/kexiprjtypeselector.h>
 #include <main/startup/KexiStartupFileWidget.h>
+#include <kexipart.h>
+#include <KexiMainWindowIface.h>
+#include <kexiproject.h>
 
 using namespace KexiMigration;
+
+#define ROWS_FOR_PREVIEW 3
 
 ImportTableWizard::ImportTableWizard ( KexiDB::Connection* curDB, QWidget* parent, Qt::WFlags flags ) : KAssistantDialog ( parent, flags ) {
     m_currentDatabase = curDB;
@@ -78,13 +83,8 @@ void ImportTableWizard::back() {
 
 void ImportTableWizard::next() {
     if (currentPage() == m_importingPageItem) {
-        if (m_importComplete) {
-            KAssistantDialog::next();
-        }
-        else
-        {
-            doImport();
-        }
+        doImport();
+        KAssistantDialog::next();
     }
     else {
         KAssistantDialog::next();
@@ -140,9 +140,10 @@ void ImportTableWizard::setupSrcConn()
 
     QSet<QString> excludedFilters;
     //! @todo remove when support for kexi files as source prj is added in migration
-    excludedFilters += KexiDB::defaultFileBasedDriverMimeType();
-    excludedFilters += "application/x-kexiproject-shortcut";
-    excludedFilters += "application/x-kexi-connectiondata";
+    excludedFilters
+        << KexiDB::defaultFileBasedDriverMimeType()
+        << "application/x-kexiproject-shortcut"
+        << "application/x-kexi-connectiondata";
     m_srcConnSel->fileWidget->setExcludedFilters(excludedFilters);
 
     kDebug() << m_migrateManager->supportedMimeTypes();
@@ -266,22 +267,6 @@ void ImportTableWizard::arriveSrcConnPage()
     kDebug();
 }
 
-void ImportTableWizard::arriveAlterTablePage()
-{
-    KexiDB::TableSchema ts;
-
-    foreach(QListWidgetItem *table, m_tableListWidget->selectedItems()) {
-        m_importTableName = table->text();
-    }
-    
-    kDebug();
-
-    if (m_migrateDriver->readTableSchema(m_importTableName, ts)) {
-        m_alterSchemaWidget->setTableSchema(&ts);
-    }
-    
-}
-
 void ImportTableWizard::arriveTableSelectPage()
 {
     if (m_migrateDriver) {
@@ -291,11 +276,11 @@ void ImportTableWizard::arriveTableSelectPage()
     Kexi::ObjectStatus result;
     KexiUtils::WaitCursor wait;
     m_migrateDriver = prepareImport(result);
-
+    
     if (m_migrateDriver) {
         if (!m_migrateDriver->connectSource())
             return;
-
+        
         QStringList tableNames;
         if (m_migrateDriver->tableNames(tableNames)) {
             m_tableListWidget->addItems(tableNames);
@@ -303,6 +288,48 @@ void ImportTableWizard::arriveTableSelectPage()
     }
     KexiUtils::removeWaitCursor();
     
+}
+
+void ImportTableWizard::arriveAlterTablePage()
+{
+//! @todo handle errors
+    if (m_tableListWidget->selectedItems().isEmpty())
+        return;
+
+//! @todo (js) support multiple tables?
+#if 0
+    foreach(QListWidgetItem *table, m_tableListWidget->selectedItems()) {
+        m_importTableName = table->text();
+    }
+#else
+    m_importTableName = m_tableListWidget->selectedItems().first()->text();
+#endif
+
+    KexiDB::TableSchema *ts = new KexiDB::TableSchema();
+    if (!m_migrateDriver->readTableSchema(m_importTableName, *ts)) {
+        delete ts;
+        return;
+    }
+
+    kDebug() << ts->fieldCount();
+    m_alterSchemaWidget->setTableSchema(ts);
+
+    if (!m_migrateDriver->readFromTable(m_importTableName))
+        return;
+    m_migrateDriver->moveFirst();
+//    if (!m_migrateDriver->moveFirst())
+//        return;
+    QList<KexiDB::RecordData> data;
+    for (uint i = 0; i < ROWS_FOR_PREVIEW; ++i) {
+        KexiDB::RecordData row;
+        row.resize(ts->fieldCount());
+        for (uint j = 0; j < ts->fieldCount(); ++j) {
+            row[j] = m_migrateDriver->value(j);
+        }
+        data.append(row);
+        m_migrateDriver->moveNext();
+    }
+    m_alterSchemaWidget->setData(data);
 }
 
 void ImportTableWizard::arriveImportingPage()
@@ -455,17 +482,46 @@ QString ImportTableWizard::driverNameForSelectedSource()
 
 bool ImportTableWizard::doImport()
 {
-    QString tableName;
-    KexiDB::TableSchema ts;
-    
-    foreach(QListWidgetItem *table, m_tableListWidget->selectedItems()) {
-        tableName = table->text();
-        if (m_migrateDriver->readTableSchema(tableName, ts)) {
-            if (!m_currentDatabase->createTable(&ts, true))
-                return false;
-        }
+    m_importComplete = true;
+    KexiGUIMessageHandler msg;
+
+    KexiProject* project = KexiMainWindowIface::global()->project();
+    if (!project) {
+        msg.showErrorMessage(i18n("No project available."));
+        return false;
     }
     
-    m_importComplete = true;
+    KexiPart::Part *part = Kexi::partManager().partForClass("org.kexi-project.table");
+    if (!part) {
+        msg.showErrorMessage(&Kexi::partManager());
+        return false;
+    }
+    
+    KexiPart::Item* partItemForSavedTable = project->createPartItem(part->info(), m_alterSchemaWidget->newSchema()->name());
+    if (!partItemForSavedTable) {
+        //  msg.showErrorMessage(project);
+        return false;
+    }
+
+    //Create the table
+    if (!m_currentDatabase->createTable(m_alterSchemaWidget->newSchema(), true)) {
+        return false;
+    }
+
+    //Import the data
+    QList<QVariant> row;
+    m_migrateDriver->moveFirst();
+    do  {
+        for (unsigned int i = 0; i < m_alterSchemaWidget->newSchema()->fieldCount(); ++i) {
+            row.append(m_migrateDriver->value(i));
+        }
+        m_currentDatabase->insertRecord(*(m_alterSchemaWidget->newSchema()), row);
+        row.clear();
+    } while (m_migrateDriver->moveNext());
+
+    //Done so save part and update gui
+    partItemForSavedTable->setIdentifier(m_alterSchemaWidget->newSchema()->id());
+    project->addStoredItem(part->info(), partItemForSavedTable);
+    
     return true;
 }

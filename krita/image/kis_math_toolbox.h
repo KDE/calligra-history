@@ -45,7 +45,7 @@ public:
     struct KisFloatRepresentation {
 
         KisFloatRepresentation(uint nsize, uint ndepth)
-        throw(std::bad_alloc)   
+        throw(std::bad_alloc)
                 : coeffs(new float[nsize*nsize*ndepth])
                 , size(nsize)
                 , depth(ndepth) {
@@ -136,7 +136,7 @@ private:
 };
 
 class KRITAIMAGE_EXPORT KisMathToolboxRegistry
-            : public KoGenericRegistry<KisMathToolbox*>
+        : public KoGenericRegistry<KisMathToolbox*>
 {
 
 public:
@@ -149,8 +149,6 @@ private:
     KisMathToolboxRegistry();
     KisMathToolboxRegistry(const KisMathToolboxRegistry&);
     KisMathToolboxRegistry operator=(const KisMathToolboxRegistry&);
-
-    static KisMathToolboxRegistry * m_singleton;
 };
 
 

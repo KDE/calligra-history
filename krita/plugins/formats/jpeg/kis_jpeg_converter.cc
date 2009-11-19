@@ -27,8 +27,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-extern "C"
-{
+extern "C" {
 #include <iccjpeg.h>
 }
 
@@ -60,6 +59,8 @@ extern "C"
 #include <kis_meta_data_io_backend.h>
 #include <kis_paint_device.h>
 #include <kis_transform_worker.h>
+#include <kis_jpeg_source.h>
+#include <kis_jpeg_destination.h>
 
 #include <colorprofiles/KoIccColorProfile.h>
 
@@ -127,12 +128,18 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_decompress(&cinfo);
 
+    Q_ASSERT(uri.isLocalFile());
+
     // open the file
-    FILE *fp = KDE_fopen(QFile::encodeName(uri.path()), "rb");
-    if (!fp) {
+    QFile file(QFile::encodeName(uri.toLocalFile()));
+    if (!file.exists()) {
         return (KisImageBuilder_RESULT_NOT_EXIST);
     }
-    jpeg_stdio_src(&cinfo, fp);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return (KisImageBuilder_RESULT_BAD_FETCH);
+    }
+    
+    KisJPEGSource::setSource(&cinfo, &file);
 
     jpeg_save_markers(&cinfo, JPEG_COM, 0xFFFF);
     /* Save APP0..APP15 markers */
@@ -152,7 +159,6 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
     if (csName.isEmpty()) {
         dbgFile << "unsupported colorspace :" << cinfo.out_color_space;
         jpeg_destroy_decompress(&cinfo);
-        fclose(fp);
         return KisImageBuilder_RESULT_UNSUPPORTED_COLORSPACE;
     }
     uchar* profile_data;
@@ -185,7 +191,6 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
     if (cs == 0) {
         dbgFile << "unknown colorspace";
         jpeg_destroy_decompress(&cinfo);
-        fclose(fp);
         return KisImageBuilder_RESULT_UNSUPPORTED_COLORSPACE;
     }
     // TODO fixit
@@ -193,18 +198,34 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
 
     KoColorTransformation* transform = 0;
     if (profile && !profile->isSuitableForOutput()) {
-        transform = KoColorSpaceRegistry::instance()->colorSpace(csName, profile)->createColorConverter( cs );
+        transform = KoColorSpaceRegistry::instance()->colorSpace(csName, profile)->createColorConverter(cs);
     }
 
     // Creating the KisImageWSP
     if (! m_img) {
         m_img = new KisImage(m_doc->undoAdapter(),  cinfo.image_width,  cinfo.image_height, cs, "built image");
         Q_CHECK_PTR(m_img);
+        m_img->lock();
         if (profile && !profile->isSuitableForOutput()) {
             m_img -> addAnnotation(KisAnnotationSP(new KisAnnotation(profile->name(), "", profile_rawdata)));
         }
     }
 
+    // Set resolution
+    double xres = 72, yres = 72;
+    if ( cinfo.density_unit == 1 )
+    {
+        xres = cinfo.X_density;
+        yres = cinfo.Y_density;
+    }
+    else if ( cinfo.density_unit == 2 )
+    {
+        xres = cinfo.X_density * 2.54;
+        yres = cinfo.Y_density * 2.54;
+    }
+    m_img->setResolution( POINT_TO_INCH(xres), POINT_TO_INCH(yres) ); // It is the "invert" macro because we convert from pointer-per-inchs to points
+    
+    // Create layer
     KisPaintLayerSP layer = KisPaintLayerSP(new KisPaintLayer(m_img.data(), m_img -> nextLayerName(), quint8_MAX));
 
     // Read data
@@ -219,7 +240,7 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
             while (!it.isDone()) {
                 quint8 *d = it.rawData();
                 d[0] = *(src++);
-                if (transform) transform->transform(d, d, 1 );
+                if (transform) transform->transform(d, d, 1);
                 d[1] = quint8_MAX;
                 ++it;
             }
@@ -230,7 +251,7 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
                 d[2] = *(src++);
                 d[1] = *(src++);
                 d[0] = *(src++);
-                if (transform) transform->transform(d, d, 1 );
+                if (transform) transform->transform(d, d, 1);
                 d[3] = quint8_MAX;
                 ++it;
             }
@@ -242,7 +263,7 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
                 d[1] = quint8_MAX - *(src++);
                 d[2] = quint8_MAX - *(src++);
                 d[3] = quint8_MAX - *(src++);
-                if (transform) transform->transform(d, d, 1 );
+                if (transform) transform->transform(d, d, 1);
                 d[4] = quint8_MAX;
                 ++it;
             }
@@ -277,7 +298,7 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
         KisMetaData::IOBackend* exifIO = KisMetaData::IOBackendRegistry::instance()->value("exif");
         Q_ASSERT(exifIO);
         QByteArray byteArray((const char*)marker->data + 6, marker->data_length - 6);
-	QBuffer buf(&byteArray);
+        QBuffer buf(&byteArray);
         exifIO->loadFrom(layer->metaData(), &buf);
         // Interpret orientation tag
         if (layer->metaData()->containsEntry("http://ns.adobe.com/tiff/1.0/", "Orientation")) {
@@ -376,7 +397,6 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
     // Finish decompression
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
-    fclose(fp);
     delete [] row_pointer;
     return KisImageBuilder_RESULT_OK;
 }
@@ -388,7 +408,7 @@ KisImageBuilder_Result KisJPEGConverter::buildImage(const KUrl& uri)
     if (uri.isEmpty())
         return KisImageBuilder_RESULT_NO_URI;
 
-    if (!KIO::NetAccess::exists(uri, false, qApp -> mainWidget())) {
+    if (!KIO::NetAccess::exists(uri, KIO::NetAccess::SourceSide, QApplication::activeWindow())) {
         return KisImageBuilder_RESULT_NOT_EXIST;
     }
 
@@ -396,7 +416,7 @@ KisImageBuilder_Result KisJPEGConverter::buildImage(const KUrl& uri)
     KisImageBuilder_Result result = KisImageBuilder_RESULT_FAILURE;
     QString tmpFile;
 
-    if (KIO::NetAccess::download(uri, tmpFile, qApp -> mainWidget())) {
+    if (KIO::NetAccess::download(uri, tmpFile, QApplication::activeWindow())) {
         KUrl uriTF;
         uriTF.setPath(tmpFile);
         result = decode(uriTF);
@@ -427,11 +447,13 @@ KisImageBuilder_Result KisJPEGConverter::buildFile(const KUrl& uri, KisPaintLaye
 
     if (!uri.isLocalFile())
         return KisImageBuilder_RESULT_NOT_LOCAL;
+
     // Open file for writing
-    FILE *fp = KDE_fopen(QFile::encodeName(uri.path()), "wb");
-    if (!fp) {
+    QFile file(QFile::encodeName(uri.toLocalFile()));
+    if (!file.open(QIODevice::WriteOnly)) {
         return (KisImageBuilder_RESULT_FAILURE);
     }
+
     uint height = img->height();
     uint width = img->width();
     // Initialize structure
@@ -441,7 +463,7 @@ KisImageBuilder_Result KisJPEGConverter::buildFile(const KUrl& uri, KisPaintLaye
     struct jpeg_error_mgr jerr;
     cinfo.err = jpeg_std_error(&jerr);
     // Initialize output stream
-    jpeg_stdio_dest(&cinfo, fp);
+    KisJPEGDestination::setDestination(&cinfo, &file);
 
     const KoColorSpace * cs = img->colorSpace();
 
@@ -450,11 +472,10 @@ KisImageBuilder_Result KisJPEGConverter::buildFile(const KUrl& uri, KisPaintLaye
     cinfo.input_components = cs->colorChannelCount(); // number of color channels per pixel */
     J_COLOR_SPACE color_type = getColorTypeforColorSpace(cs);
     if (color_type == JCS_UNKNOWN) {
-        KIO::del(uri); // async, but I guess that's ok
+        (void)file.remove();
         return KisImageBuilder_RESULT_UNSUPPORTED_COLORSPACE;
     }
     cinfo.in_color_space = color_type;   // colorspace of input image
-
 
     // Set default compression parameters
     jpeg_set_defaults(&cinfo);
@@ -512,6 +533,12 @@ KisImageBuilder_Result KisJPEGConverter::buildFile(const KUrl& uri, KisPaintLaye
     break;
     }
 
+    // Save resolution
+    cinfo.X_density = INCH_TO_POINT(img->xRes()); // It is the "invert" macro because we convert from pointer-per-inchs to points
+    cinfo.Y_density = INCH_TO_POINT(img->yRes()); // It is the "invert" macro because we convert from pointer-per-inchs to points
+    cinfo.density_unit = 1;
+    cinfo.write_JFIF_header = 1;
+
     // Start compression
     jpeg_start_compress(&cinfo, true);
     // Save exif and iptc information if any available
@@ -554,7 +581,7 @@ KisImageBuilder_Result KisJPEGConverter::buildFile(const KUrl& uri, KisPaintLaye
             }
         }
         // Save XMP
-        if (options.xmp ) {
+        if (options.xmp) {
             dbgFile << "Trying to save XMP information";
             KisMetaData::IOBackend* xmpIO = KisMetaData::IOBackendRegistry::instance()->value("xmp");
             Q_ASSERT(xmpIO);
@@ -672,7 +699,7 @@ KisImageBuilder_Result KisJPEGConverter::buildFile(const KUrl& uri, KisPaintLaye
 
     // Writing is over
     jpeg_finish_compress(&cinfo);
-    fclose(fp);
+    file.close();
 
     delete [] row_pointer;
     // Free memory

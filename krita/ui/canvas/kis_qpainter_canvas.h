@@ -24,6 +24,7 @@
 #include "kis_abstract_canvas_widget.h"
 #include "kis_prescaled_projection.h"
 
+class QMouseEvent;
 class QImage;
 class QPaintEvent;
 class QPoint;
@@ -104,14 +105,13 @@ public: // QWidget
 
 protected:
     /// these methods take origin coordinate into account, basically it means (point - origin)
-    QPoint widgetToView( const QPoint& p ) const;
-    QRect widgetToView( const QRect& r ) const;
-    QPoint viewToWidget( const QPoint& p ) const;
-    QRect viewToWidget( const QRect& r ) const;
+    QPoint widgetToView(const QPoint& p) const;
+    QRect widgetToView(const QRect& r) const;
+    QPoint viewToWidget(const QPoint& p) const;
+    QRect viewToWidget(const QRect& r) const;
 
     /// document size in widget pixels
     QSize documentSize();
-
 
 public: // KisAbstractCanvasWidget
 
@@ -134,7 +134,9 @@ signals:
      * canvas where the documents origin (0,0) or the top left
      * corner of the page is. Copied from Karbon
      */
-    void documentOriginChanged( const QPoint &origin );
+    void documentOriginChanged(const QPoint &origin);
+
+    void doubleClickQPainterCanvas(QMouseEvent *);
 
 
 private slots:

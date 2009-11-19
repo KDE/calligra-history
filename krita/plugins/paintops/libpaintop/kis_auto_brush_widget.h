@@ -33,6 +33,7 @@ public:
     KisWdgAutobrush(QWidget *parent, const char *name) : QWidget(parent) {
         setObjectName(name); setupUi(this);
     }
+    
 };
 
 class PAINTOP_EXPORT KisAutoBrushWidget : public KisWdgAutobrush
@@ -47,7 +48,10 @@ public:
 
     KisBrushSP brush();
 
-    void setBrush( KisBrushSP brush );
+    void setBrush(KisBrushSP brush);
+    
+    void setAutoBrushDiameter(qreal diameter);
+    qreal autoBrushDiameter();
 
 private slots:
 

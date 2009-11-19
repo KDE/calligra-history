@@ -22,6 +22,7 @@
 
 #include <KoTool.h>
 #include <KoPathShape.h>
+#include <QtCore/QPointer>
 
 class KoPathShape;
 class KoShapeGroup;
@@ -72,8 +73,6 @@ private:
     QPointF calculateNewPoint(const QPointF &mousePos, QPointF *speed);
     qreal calculateWidth( qreal pressure );
     qreal calculateAngle( const QPointF &oldSpeed, const QPointF &newSpeed);
-
-    KarbonCalligraphyOptionWidget *m_optionWidget;
 
     QPointF m_lastPoint;
     KarbonCalligraphicShape *m_shape;

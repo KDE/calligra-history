@@ -47,7 +47,6 @@ class KoColorProfile;
 class KisRandomSubAccessorPixel;
 class KisDataManager;
 class KisSelectionComponent;
-class KisPainterlyOverlay;
 
 typedef KisSharedPtr<KisDataManager> KisDataManagerSP;
 
@@ -59,8 +58,8 @@ typedef KisSharedPtr<KisDataManager> KisDataManagerSP;
  * when pixels are accessed by an iterator.
  */
 class KRITAIMAGE_EXPORT KisPaintDevice
-            : public QObject
-            , public KisShared
+        : public QObject
+        , public KisShared
 {
 
     Q_OBJECT
@@ -329,11 +328,10 @@ public:
      *
      * The color values will be transformed from the profile of
      * this paint device to the display profile.
-
-     * @deprecated use iterators instead
+     *
      * @return true if the operation was successful.
      */
-    bool KDE_DEPRECATED pixel(qint32 x, qint32 y, QColor *c);
+    bool pixel(qint32 x, qint32 y, QColor *c);
 
     /**
      * Fill kc with the values found at x and y. This method differs
@@ -342,10 +340,9 @@ public:
      * The color values will be transformed from the profile of
      * this paint device to the display profile.
      *
-     * @deprecated use iterators instead
      * @return true if the operation was successful.
      */
-    bool KDE_DEPRECATED pixel(qint32 x, qint32 y, KoColor * kc);
+    bool pixel(qint32 x, qint32 y, KoColor * kc);
 
     /**
      * Set the specified pixel to the specified color. Note that this
@@ -359,14 +356,12 @@ public:
      * Note that this will use 8-bit values and may cause a significant
      * degradation when used on 16-bit or hdr quality images.
      *
-     * @deprecated use iterators instead
      * @return true if the operation was successful
-     *
      */
-    bool KDE_DEPRECATED setPixel(qint32 x, qint32 y, const QColor& c);
+    bool setPixel(qint32 x, qint32 y, const QColor& c);
 
     /// Convience method for the above
-    bool KDE_DEPRECATED setPixel(qint32 x, qint32 y, const KoColor& kc);
+    bool setPixel(qint32 x, qint32 y, const KoColor& kc);
 
     /**
      * @return the colorspace of the pixels in this paint device
@@ -398,49 +393,25 @@ public:
      */
     virtual quint32 channelCount() const;
 
-    /**
-     * Return the painterly overlay -- a special paint device that
-     * uses the KisPainterlyOverlayColorSpace that defines things
-     * like wetness and canvas height. You need to explicitly create
-     * the painterly overlay before accessing it. Running a physics
-     * filter may also create the painterly overlay.
-     *
-     * Note: this may be 0.
-     */
-    KisPainterlyOverlaySP painterlyOverlay();
-
-    /**
-     * Create a painterly overlay on this paint layer
-     */
-    void createPainterlyOverlay();
-
-    /**
-     * Sets the painterly overlay associated with this paint layer to 0.
-     */
-    void removePainterlyOverlay();
-
 public:
 
     /**
      * Add the specified rect to the parent layer's set of dirty rects
      * (if there is a parent layer)
-     * @deprecated: call setDirty on the node
      */
-    virtual void KDE_DEPRECATED setDirty(const QRect & rc);
+    virtual void setDirty(const QRect & rc);
 
     /**
      *  Add the specified region to the parent layer's dirty region
      *  (if there is a parent layer)
-     * @deprecated: call setDirty on the node
      */
-    virtual void KDE_DEPRECATED setDirty(const QRegion & region);
+    virtual void setDirty(const QRegion & region);
 
     /**
      *  Set the parent layer completely dirty, if this paint device has
      *  as parent layer.
-     * @deprecated: call setDirty on the node
      */
-    virtual void KDE_DEPRECATED setDirty();
+    virtual void setDirty();
 
 public:
 
@@ -545,13 +516,6 @@ signals:
     void ioProgress(qint8 percentage);
     void profileChanged(const KoColorProfile *  profile);
     void colorSpaceChanged(const KoColorSpace *colorspace);
-
-    /**
-     * Emitted when the default empty painterly overlay for this paint
-     * device is replaced with a real painterly overlay. Used to
-     * manage the undo system.
-     */
-    void painterlyOverlayCreated();
 
 private:
 

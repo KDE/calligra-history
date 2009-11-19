@@ -23,6 +23,8 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <stdio.h>
+
 #include "kis_view2.h"
 #include <qprinter.h>
 
@@ -83,8 +85,6 @@
 #include "kis_image_manager.h"
 #include "kis_control_frame.h"
 #include "kis_paintop_box.h"
-#include "kis_birdeye_box.h"
-#include "kis_layer_box.h"
 #include "kis_layer_manager.h"
 #include "kis_zoom_manager.h"
 #include "canvas/kis_grid_manager.h"
@@ -93,9 +93,7 @@
 #include "dialogs/kis_dlg_preferences.h"
 #include "kis_group_layer.h"
 #include "kis_custom_palette.h"
-#include "ui_wdgpalettechooser.h"
 #include "kis_resource_server_provider.h"
-#include "kis_palette_docker.h"
 #include "kis_node_model.h"
 #include "kis_projection.h"
 #include "kis_node.h"
@@ -106,7 +104,13 @@
 #include <kis_paint_layer.h>
 #include "kis_progress_widget.h"
 
+#include <QDebug>
+#include <QMouseEvent>
+#include "kis_paintop_box.h"
 #include "kis_node_commands_adapter.h"
+#include <kis_paintop_preset.h>
+#include "ko_favorite_resource_manager.h"
+#include "kis_paintop_box.h"
 
 class KisView2::KisView2Private
 {
@@ -114,22 +118,23 @@ class KisView2::KisView2Private
 public:
 
     KisView2Private()
-            : canvas(0)
-            , doc(0)
-            , viewConverter(0)
-            , canvasController(0)
-            , resourceProvider(0)
-            , filterManager(0)
-            , statusBar(0)
-            , selectionManager(0)
-            , controlFrame(0)
-            , birdEyeBox(0)
-            , nodeManager(0)
-            , zoomManager(0)
-            , imageManager(0)
-            , gridManager(0)
-            , perspectiveGridManager(0)
-            , paintingAssistantManager(0) {
+        : canvas(0)
+        , doc(0)
+        , viewConverter(0)
+        , canvasController(0)
+        , resourceProvider(0)
+        , filterManager(0)
+        , statusBar(0)
+        , selectionManager(0)
+        , controlFrame(0)
+        , nodeManager(0)
+        , zoomManager(0)
+        , imageManager(0)
+        , gridManager(0)
+        , perspectiveGridManager(0)
+        , paintingAssistantManager(0)
+        , favoriteResourceManager(0) {
+
     }
 
     ~KisView2Private() {
@@ -146,6 +151,7 @@ public:
         delete perspectiveGridManager;
         delete paintingAssistantManager;
         delete viewConverter;
+        delete favoriteResourceManager;
     }
 
 public:
@@ -158,22 +164,25 @@ public:
     KisFilterManager * filterManager;
     KisStatusBar * statusBar;
     KAction * totalRefresh;
+    KAction* toggleDockers;
     KisSelectionManager *selectionManager;
     KisControlFrame * controlFrame;
-    KisBirdEyeBox * birdEyeBox;
     KisNodeManager * nodeManager;
     KisZoomManager * zoomManager;
     KisImageManager * imageManager;
     KisGridManager * gridManager;
     KisPerspectiveGridManager * perspectiveGridManager;
     KisPaintingAssistantsManager* paintingAssistantManager;
+    KoFavoriteResourceManager* favoriteResourceManager;
+    QVector<QDockWidget*> hiddenDockwidgets;
 };
 
 
 KisView2::KisView2(KisDoc2 * doc, QWidget * parent)
-        : KoView(doc, parent),
-        m_d(new KisView2Private())
+    : KoView(doc, parent),
+    m_d(new KisView2Private())
 {
+
     setFocusPolicy(Qt::NoFocus);
 
     m_d->totalRefresh = new KAction(i18n("Total Refresh"), this);
@@ -181,17 +190,25 @@ KisView2::KisView2(KisDoc2 * doc, QWidget * parent)
     m_d->totalRefresh->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_R));
     connect(m_d->totalRefresh, SIGNAL(triggered()), this, SLOT(slotTotalRefresh()));
 
+    m_d->toggleDockers = new KToggleAction(i18n("Show Dockers"), this);
+    m_d->toggleDockers->setChecked(true);
+    actionCollection()->addAction("toggledockers", m_d->toggleDockers);
+    // Note: do not change the default shortcut to something else, like ctrl-h. The escape
+    // key is the only one available on tablet pc's in tablet mode, and that's when this
+    // feature is most useful.
+    m_d->toggleDockers->setShortcut(QKeySequence(Qt::Key_Escape));
+    connect(m_d->toggleDockers, SIGNAL(toggled(bool)), this, SLOT(toggleDockers(bool)));
+
     setComponentData(KisFactory2::componentData(), false);
 
     if (!doc->isReadWrite()) {
         setXMLFile("krita_readonly.rc");
-    }
-    else {
+    } else {
         setXMLFile("krita.rc");
     }
 
     if (mainWindow()) {
-         actionCollection()->addAction(KStandardAction::KeyBindings, "keybindings", mainWindow()->guiFactory(), SLOT(configureShortcuts()));
+        actionCollection()->addAction(KStandardAction::KeyBindings, "keybindings", mainWindow()->guiFactory(), SLOT(configureShortcuts()));
     }
 
     m_d->doc = doc;
@@ -228,17 +245,8 @@ KisView2::KisView2(KisDoc2 * doc, QWidget * parent)
         setDockerManager(dockerMng);
     }
 
-    connect( m_d->canvasController, SIGNAL( toolOptionWidgetsChanged(const QMap<QString, QWidget *> &, QWidget*) ),
-             dockerMng, SLOT( newOptionWidgets(const  QMap<QString, QWidget *> &, QWidget*) ) );
-
-    KisBirdEyeBoxFactory birdeyeFactory(this);
-    m_d->birdEyeBox = qobject_cast<KisBirdEyeBox*>(createDockWidget(&birdeyeFactory));
-
-    KisPaletteDockerFactory paletteDockerFactory(this);
-    createDockWidget(&paletteDockerFactory);
-
-    KisLayerBoxFactory layerboxFactory;
-    createDockWidget(&layerboxFactory);
+    connect(m_d->canvasController, SIGNAL(toolOptionWidgetsChanged(const QMap<QString, QWidget *> &, QWidget*)),
+            dockerMng, SLOT(newOptionWidgets(const  QMap<QString, QWidget *> &, QWidget*)));
 
     m_d->statusBar = new KisStatusBar(this);
     connect(m_d->canvasController, SIGNAL(documentMousePositionChanged(const QPointF &)),
@@ -270,7 +278,7 @@ KisView2::KisView2(KisDoc2 * doc, QWidget * parent)
     }
 
     // canvas sends signal that origin is changed
-    connect(m_d->canvas, SIGNAL( documentOriginChanged() ), m_d->zoomManager, SLOT( pageOffsetChanged() ));
+    connect(m_d->canvas, SIGNAL(documentOriginChanged()), m_d->zoomManager, SLOT(pageOffsetChanged()));
 
     setAcceptDrops(true);
 }
@@ -289,7 +297,7 @@ void KisView2::dragEnterEvent(QDragEnterEvent *event)
     // be showing a progress bar and calling qApp->processEvents().
     if (K3URLDrag::canDecode(event) && QApplication::overrideCursor() == 0) {
         event->accept();
-    } else if ( event->mimeData()->hasImage() ){
+    } else if (event->mimeData()->hasImage()) {
         event->accept();
     } else {
         event->ignore();
@@ -298,31 +306,29 @@ void KisView2::dragEnterEvent(QDragEnterEvent *event)
 
 void KisView2::dropEvent(QDropEvent *event)
 {
-    if (event->mimeData()->hasImage())
-    {
+    if (event->mimeData()->hasImage()) {
         QImage qimg = qvariant_cast<QImage>(event->mimeData()->imageData());
         KisImageWSP img = image();
 
         if (img) {
-            KisPaintDeviceSP device = new KisPaintDevice( KoColorSpaceRegistry::instance()->rgb8() );
-            device->convertFromQImage(qimg,"");
+            KisPaintDeviceSP device = new KisPaintDevice(KoColorSpaceRegistry::instance()->rgb8());
+            device->convertFromQImage(qimg, "");
             KisLayerSP layer = new KisPaintLayer(img.data(), img->nextLayerName(), OPACITY_OPAQUE, device);
 
-            QPointF pos = img->documentToIntPixel( m_d->viewConverter->viewToDocument( event->pos() + m_d->canvas->documentOffset() - m_d->canvas->documentOrigin() ) );
-            layer->setX( pos.x() );
-            layer->setY( pos.y() );
+            QPointF pos = img->documentToIntPixel(m_d->viewConverter->viewToDocument(event->pos() + m_d->canvas->documentOffset() - m_d->canvas->documentOrigin()));
+            layer->setX(pos.x());
+            layer->setY(pos.y());
 
             if (layer) {
                 KisNodeCommandsAdapter adapter(this);
-                if (!m_d->nodeManager->layerManager()->activeLayer()){
+                if (!m_d->nodeManager->layerManager()->activeLayer()) {
                     adapter.addNode(layer.data(), img->rootLayer().data() , 0);
-                }else
-                {
+                } else {
                     adapter.addNode(layer.data(), m_d->nodeManager->layerManager()->activeLayer()->parent().data(), m_d->nodeManager->layerManager()->activeLayer().data());
                 }
                 layer->setDirty();
                 canvas()->update();
-                nodeManager()->activateNode( layer );
+                nodeManager()->activateNode(layer);
             }
         }
         return;
@@ -533,6 +539,8 @@ void KisView2::slotLoadingFinished()
     m_d->zoomManager->zoomController()->setAspectMode(true);
 
     updateGUI();
+
+    emit sigLoadingFinished();
 }
 
 
@@ -622,9 +630,6 @@ void KisView2::connectCurrentImage()
     connect(m_d->doc->nodeModel(), SIGNAL(nodeActivated(KisNodeSP)),
             m_d->nodeManager, SLOT(activateNode(KisNodeSP)));
 
-    if (m_d->birdEyeBox)
-        m_d->birdEyeBox->setImage(img);
-
     if (m_d->controlFrame) {
         connect(img.data(), SIGNAL(sigColorSpaceChanged(const KoColorSpace *)), m_d->controlFrame->paintopBox(), SLOT(colorSpaceChanged(const KoColorSpace*)));
     }
@@ -643,8 +648,6 @@ void KisView2::disconnectCurrentImage()
         if (m_d->statusBar)
             img->disconnect(m_d->statusBar);
 
-        if (m_d->birdEyeBox)
-            m_d->birdEyeBox->setImage(KisImageWSP(0));
         m_d->canvas->disconnectCurrentImage();
     }
 }
@@ -712,15 +715,15 @@ void KisView2::loadPlugins()
 {
     // Load all plugins
     KService::List offers = KServiceTypeTrader::self()->query(QString::fromLatin1("Krita/ViewPlugin"),
-                            QString::fromLatin1("(Type == 'Service') and "
-                                                "([X-Krita-Version] == 3)"));
+                                                              QString::fromLatin1("(Type == 'Service') and "
+                                                                                  "([X-Krita-Version] == 3)"));
     KService::List::ConstIterator iter;
     for (iter = offers.constBegin(); iter != offers.constEnd(); ++iter) {
 
         KService::Ptr service = *iter;
         int errCode = 0;
         KParts::Plugin* plugin =
-            KService::createInstance<KParts::Plugin> (service, this, QStringList(), &errCode);
+                KService::createInstance<KParts::Plugin> (service, this, QStringList(), &errCode);
         if (plugin) {
             insertChildClient(plugin);
         } else {
@@ -765,5 +768,52 @@ void KisView2::slotTotalRefresh()
 {
     m_d->canvas->resetCanvas();
 }
+
+KoFavoriteResourceManager* KisView2::favoriteResourceManager()
+{
+    return m_d->favoriteResourceManager;
+}
+
+void KisView2::setFavoriteResourceManager(KisPaintopBox* paintopBox)
+{
+    qDebug() << "KisView2: Setting favoriteResourceManager";
+    m_d->favoriteResourceManager = new KoFavoriteResourceManager(paintopBox, m_d->canvas->canvasWidget());
+    connect(this, SIGNAL(favoritePaletteCalled(QMouseEvent *)), m_d->favoriteResourceManager, SLOT(slotShowPopupPalette(QMouseEvent *)));
+
+}
+
+void KisView2::toggleDockers(bool toggle)
+{
+    Q_UNUSED(toggle);
+    if (m_d->hiddenDockwidgets.isEmpty()){
+        foreach(QObject* widget, mainWindow()->children()) {
+            if (widget->inherits("QDockWidget")) {
+                QDockWidget* dw = static_cast<QDockWidget*>(widget);
+                if (dw->isVisible()) {
+                    dw->hide();
+                    m_d->hiddenDockwidgets << dw;
+                }
+            }
+        }
+    }
+    else {
+        foreach(QDockWidget* dw, m_d->hiddenDockwidgets) {
+            dw->show();
+        }
+        m_d->hiddenDockwidgets.clear();
+    }
+
+}
+
+void KisView2::resizeEvent ( QResizeEvent * event )
+{
+    dbgUI << "resize: " << event->oldSize() << " to " << event->size() << "main window" << mainWindow()->size();
+
+    if (mainWindow()->size().height() > QApplication::desktop()->availableGeometry(this).height()) {
+        mainWindow()->resize(mainWindow()->width(),
+                             QApplication::desktop()->availableGeometry(this).height());
+    }
+}
+
 
 #include "kis_view2.moc"

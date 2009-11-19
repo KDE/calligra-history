@@ -27,21 +27,24 @@
 
 class KOCOLORWIDGETS_EXPORT KoColorSlider : public KSelector
 {
-  Q_OBJECT
+    Q_OBJECT
 public:
-  KoColorSlider(QWidget *parent = 0);
-  explicit KoColorSlider(Qt::Orientation orientation, QWidget *parent = 0);
-  virtual ~KoColorSlider();
+    KoColorSlider(QWidget *parent = 0);
+    explicit KoColorSlider(Qt::Orientation orientation, QWidget *parent = 0);
+    virtual ~KoColorSlider();
 
 public:
-  void setColors( const KoColor& minColor, const KoColor& maxColor);
+    void setColors( const KoColor& minColor, const KoColor& maxColor);
+    /**
+     * Return the current color
+     */
+    KoColor currentColor() const;
+protected:
+    virtual void drawContents( QPainter* );
 
 protected:
-  virtual void drawContents( QPainter* );
-
-protected:
-  KoColor m_minColor;
-  KoColor m_maxColor;
+    struct Private;
+    Private* const d;
 };
 
 #endif

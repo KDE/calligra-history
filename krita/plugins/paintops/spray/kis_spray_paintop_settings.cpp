@@ -19,22 +19,21 @@
 #include <KoViewConverter.h>
 
 #include <kis_paint_action_type_option.h>
+#include <kis_color_option.h>
 
 #include "kis_spray_paintop_settings.h"
-#include "kis_spray_paintop_settings_widget.h"
 #include "kis_sprayop_option.h"
 #include "kis_spray_shape_option.h"
-#include "kis_spray_color_option.h"
 
 KisSprayPaintOpSettings::KisSprayPaintOpSettings()
-    : m_options(0)
+        : m_options(0)
 {
 }
 
 KisPaintOpSettingsSP KisSprayPaintOpSettings::clone() const
 {
     KisPaintOpSettings* settings =
-        static_cast<KisPaintOpSettings*>( m_options->configuration() );
+        static_cast<KisPaintOpSettings*>(m_options->configuration());
     return settings;
 }
 
@@ -48,35 +47,17 @@ bool KisSprayPaintOpSettings::paintIncremental()
 
 void KisSprayPaintOpSettings::fromXML(const QDomElement& elt)
 {
-    KisPaintOpSettings::fromXML( elt );
-    m_options->setConfiguration( this );
+    KisPaintOpSettings::fromXML(elt);
+    m_options->setConfiguration(this);
 }
 
 void KisSprayPaintOpSettings::toXML(QDomDocument& doc, QDomElement& rootElt) const
 {
     KisPropertiesConfiguration * settings = m_options->configuration();
-    settings->KisPropertiesConfiguration::toXML( doc, rootElt );
+    settings->KisPropertiesConfiguration::toXML(doc, rootElt);
     delete settings;
 }
 
-QRectF KisSprayPaintOpSettings::paintOutlineRect(const QPointF& pos, KisImageWSP image) const
-{
-    qreal size = diameter();
-    size += 2;
-    return image->pixelToDocument(
-            QRectF(0,0, size,size )
-        ).translated( pos - QPointF( size * 0.5 , size * 0.5 ) );
-}
-
-void KisSprayPaintOpSettings::paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter) const
-{
-    qreal size = diameter();
-    QRectF brushSize(0,0, size, size );
-    painter.setPen(Qt::black);
-    //painter.translate(converter.documentToView( pos - image->pixelToDocument( QPointF( size * 0.5,size * 0.5 ) + QPointF(0.5, 0.5) )) );
-    painter.drawEllipse( converter.documentToView( image->pixelToDocument( brushSize ).translated(pos - QPointF( size * 0.5, size * 0.5 ) ) ) );
-    qDebug() <<"pos:" << pos;
-}
 
 int KisSprayPaintOpSettings::diameter() const
 {
@@ -98,7 +79,8 @@ qreal KisSprayPaintOpSettings::spacing() const
     return m_options->m_sprayOption->spacing();
 }
 
-qreal KisSprayPaintOpSettings::scale() const {
+qreal KisSprayPaintOpSettings::scale() const
+{
     return m_options->m_sprayOption->scale();
 }
 
@@ -113,37 +95,40 @@ bool KisSprayPaintOpSettings::jitterSize() const
 }
 
 
-int KisSprayPaintOpSettings::width() const {
+int KisSprayPaintOpSettings::width() const
+{
     return m_options->m_sprayShapeOption->width();
 }
 
 
-int KisSprayPaintOpSettings::height() const {
+int KisSprayPaintOpSettings::height() const
+{
     return m_options->m_sprayShapeOption->height();
 }
 
-int KisSprayPaintOpSettings::object() const {
-    return m_options->m_sprayShapeOption->object();
-}
 
-
-int KisSprayPaintOpSettings::shape() const {
+int KisSprayPaintOpSettings::shape() const
+{
     return m_options->m_sprayShapeOption->shape();
 }
 
-bool KisSprayPaintOpSettings::jitterShapeSize() const {
+bool KisSprayPaintOpSettings::jitterShapeSize() const
+{
     return m_options->m_sprayShapeOption->jitterShapeSize();
 }
 
-qreal KisSprayPaintOpSettings::heightPerc() const {
+qreal KisSprayPaintOpSettings::heightPerc() const
+{
     return m_options->m_sprayShapeOption->heightPerc();
 }
 
-bool KisSprayPaintOpSettings::proportional() const {
+bool KisSprayPaintOpSettings::proportional() const
+{
     return m_options->m_sprayShapeOption->proportional();
 }
 
-qreal KisSprayPaintOpSettings::widthPerc() const {
+qreal KisSprayPaintOpSettings::widthPerc() const
+{
     return m_options->m_sprayShapeOption->widthPerc();
 }
 
@@ -158,72 +143,137 @@ int KisSprayPaintOpSettings::particleCount() const
 }
 
 
-qreal KisSprayPaintOpSettings::maxTresh() const
-{
-    return m_options->m_sprayShapeOption->maxTresh();
-}
-
-
-qreal KisSprayPaintOpSettings::minTresh() const
-{
-    return m_options->m_sprayShapeOption->minTresh();
-}
-
-
-bool KisSprayPaintOpSettings::highRendering() const
-{
-    return m_options->m_sprayShapeOption->highRendering();
-}
-
-
-
 bool KisSprayPaintOpSettings::useRandomOpacity() const
 {
-    return m_options->m_sprayColorOption->useRandomOpacity();
+    return m_options->m_ColorOption->useRandomOpacity();
 }
 
 
 int KisSprayPaintOpSettings::hue() const
 {
-    return m_options->m_sprayColorOption->hue();
+    return m_options->m_ColorOption->hue();
 }
 
 
 int KisSprayPaintOpSettings::saturation() const
 {
-    return m_options->m_sprayColorOption->saturation();
+    return m_options->m_ColorOption->saturation();
 }
 
 int KisSprayPaintOpSettings::value() const
 {
-    return m_options->m_sprayColorOption->value();
+    return m_options->m_ColorOption->value();
 }
 
 
 bool KisSprayPaintOpSettings::useRandomHSV() const
 {
-    return m_options->m_sprayColorOption->useRandomHSV();
+    return m_options->m_ColorOption->useRandomHSV();
 }
 
 QRectF KisSprayPaintOpSettings::paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const
 {
-    if(_mode != CURSOR_IS_OUTLINE) return QRectF();
-    qreal size = diameter();
+    if (_mode != CURSOR_IS_OUTLINE) return QRectF();
+    qreal size = diameter() * scale();
     size += 10;
-    return image->pixelToDocument(QRectF(0,0, size, size).translated( - QPoint( size * 0.5, size * 0.5) ) ).translated(pos);
+    return image->pixelToDocument(QRectF(0, 0, size, size).translated(- QPoint(size * 0.5, size * 0.5))).translated(pos);
 }
 
 void KisSprayPaintOpSettings::paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const
 {
-    if(_mode != CURSOR_IS_OUTLINE) return;
-    qreal size = diameter();
-    painter.setPen(Qt::black);
-    painter.drawEllipse( converter.documentToView( image->pixelToDocument(QRectF(0,0, size, size).translated( - QPoint( size * 0.5, size * 0.5) ) ).translated(pos) ) );
+    if (_mode != CURSOR_IS_OUTLINE) return;
+    qreal size = diameter() * scale();
+    painter.setPen(QColor(255,128,255));
+    painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
+    painter.drawEllipse(converter.documentToView(image->pixelToDocument(QRectF(0, 0, size, size).translated(- QPoint(size * 0.5, size * 0.5))).translated(pos)));
 }
-
 
 
 bool KisSprayPaintOpSettings::gaussian() const
 {
     return m_options->m_sprayShapeOption->gaussian();
+}
+
+
+bool KisSprayPaintOpSettings::colorPerParticle() const
+{
+    return m_options->m_ColorOption->colorPerParticle();
+}
+
+
+bool KisSprayPaintOpSettings::fillBackground() const
+{
+    return m_options->m_ColorOption->fillBackground();
+}
+
+
+bool KisSprayPaintOpSettings::mixBgColor() const
+{
+    return m_options->m_ColorOption->mixBgColor();
+}
+
+
+bool KisSprayPaintOpSettings::sampleInput() const
+{
+    return m_options->m_ColorOption->sampleInputColor();
+}
+
+
+
+const QString KisSprayPaintOpSettings::path() const
+{
+    return m_options->m_sprayShapeOption->path();
+}
+
+
+
+void KisSprayPaintOpSettings::changePaintOpSize(qreal x, qreal y) const
+{
+    if (qAbs(x) > qAbs(y)){
+            // recoginze the left/right movement
+            if (x > 0){
+                m_options->m_sprayOption->setDiamter( diameter() + qRound(x) );
+            }else{
+                m_options->m_sprayOption->setDiamter( diameter() + qRound(x) );
+            }
+    }else{
+    }
+}
+
+
+int KisSprayPaintOpSettings::fixedAngle() const
+{
+    return m_options->m_sprayShapeOption->fixedAngle();
+}
+
+
+bool KisSprayPaintOpSettings::fixedRotation() const
+{
+    return m_options->m_sprayShapeOption->fixedRotation();
+}
+
+
+
+qreal KisSprayPaintOpSettings::randomRotationWeight() const
+{
+    return m_options->m_sprayShapeOption->randomRotationWeight();
+}
+
+
+bool KisSprayPaintOpSettings::randomRotation() const
+{
+    return m_options->m_sprayShapeOption->randomRotation();
+}
+
+
+
+bool KisSprayPaintOpSettings::followCursor() const
+{
+    return m_options->m_sprayShapeOption->followCursor();
+}
+
+
+qreal KisSprayPaintOpSettings::followCursorWeigth() const
+{
+        return m_options->m_sprayShapeOption->followCursorWeigth();
 }

@@ -6,6 +6,7 @@
  * Copyright (C) 2007-2009 Thorsten Zachmann <zachmann@kde.org>
  * Copyright (C) 2008 Girish Ramakrishnan <girish@forwardbias.in>
  * Copyright (C) 2009 KO GmbH <cbo@kogmbh.com>
+ * Copyright (C) 2009 Pierre Stirnweiss <pstirnweiss@googlemail.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -25,30 +26,36 @@
 
 #include "KoTextLoader.h"
 
-// koffice
-#include <KoOdfStylesReader.h>
-#include <KoXmlNS.h>
-#include <KoXmlReader.h>
-#include <KoUnit.h>
-#include <KoShapeRegistry.h>
-#include <KoShapeFactory.h>
-#include <KoShapeContainer.h>
-#include <KoOdfLoadingContext.h>
-#include <KoShapeLoadingContext.h>
-#include <KoTextAnchor.h>
-#include <KoTextDocumentLayout.h>
-#include <KoTextShapeData.h>
-#include <KoVariable.h>
-#include <KoInlineNote.h>
 #include <KoBookmark.h>
 #include <KoBookmarkManager.h>
-#include <KoVariableManager.h>
+#include <KoInlineNote.h>
 #include <KoInlineTextObjectManager.h>
-#include <KoVariableRegistry.h>
+#include "KoList.h"
+#include <KoOdfLoadingContext.h>
+#include <KoOdfStylesReader.h>
 #include <KoProperties.h>
-#include <KoTextBlockData.h>
+#include <KoShapeContainer.h>
+#include <KoShapeFactory.h>
+#include <KoShapeLoadingContext.h>
+#include <KoShapeRegistry.h>
 #include <KoTableColumnAndRowStyleManager.h>
+#include <KoTextAnchor.h>
+#include <KoTextBlockData.h>
+#include "KoTextDebug.h"
+#include "KoTextDocument.h"
+#include <KoTextDocumentLayout.h>
+#include <KoTextShapeData.h>
+#include "KoTextSharedLoadingData.h"
+#include <KoUnit.h>
+#include <KoVariable.h>
+#include <KoVariableManager.h>
+#include <KoVariableRegistry.h>
+#include <KoXmlNS.h>
+#include <KoXmlReader.h>
 
+#include "changetracker/KoChangeTracker.h"
+#include "changetracker/KoChangeTrackerElement.h"
+#include "changetracker/KoDeleteChangeMarker.h"
 #include "styles/KoStyleManager.h"
 #include "styles/KoParagraphStyle.h"
 #include "styles/KoCharacterStyle.h"
@@ -57,22 +64,19 @@
 #include "styles/KoTableStyle.h"
 #include "styles/KoTableColumnStyle.h"
 #include "styles/KoTableCellStyle.h"
-#include "KoTextSharedLoadingData.h"
-#include "KoTextDocument.h"
-#include "KoTextDebug.h"
-#include "KoList.h"
 
-#include "changetracker/KoChangeTracker.h"
+#include <klocale.h>
 
-// KDE + Qt includes
-#include <QTextCursor>
+#include <QList>
+#include <QMap>
+#include <QRect>
+#include <QStack>
 #include <QTextBlock>
+#include <QTextCursor>
 #include <QTextList>
 #include <QTextTable>
 #include <QTime>
-#include <QList>
-#include <QRect>
-#include <klocale.h>
+
 #include <kdebug.h>
 
 // if defined then debugging is enabled
@@ -106,7 +110,8 @@ public:
 
     int loadSpanLevel;
     int loadSpanInitialPos;
-    int currentChangeId;
+    QStack<int> changeStack;
+    QMap<QString, int> changeTransTable;
 
     explicit Private(KoShapeLoadingContext &context)
             : context(context),
@@ -125,8 +130,7 @@ public:
               styleManager(0),
               changeTracker(0),
               loadSpanLevel(0),
-              loadSpanInitialPos(0),
-              currentChangeId(0) {
+              loadSpanInitialPos(0) {
         dt.start();
     }
 
@@ -134,16 +138,62 @@ public:
         kDebug(32500) << "Loading took" << (float)(dt.elapsed()) / 1000 << " seconds";
     }
 
-    KoList *list(const QTextDocument *document, KoListStyle *listStyle)
-    {
-        if (lists.contains(listStyle))
-            return lists[listStyle];
+    KoList *list(const QTextDocument *document, KoListStyle *listStyle);
 
-        KoList *newList = new KoList(document, listStyle);
-        lists[listStyle] = newList;
-        return newList;
-    }
+    void openChangeRegion(const KoXmlElement &element);
+    void closeChangeRegion(const KoXmlElement &element);
+    void splitStack(int id);
 };
+
+void KoTextLoader::Private::splitStack(int id)
+{
+    if (changeStack.isEmpty())
+        return;
+
+    int oldId = changeStack.top();
+    changeStack.pop();
+    if (id == oldId)
+        return;
+    int newId = changeTracker->split(oldId);
+    splitStack(id);
+    changeTracker->setParent(newId, changeStack.top());
+    changeStack.push(newId);
+}
+
+void KoTextLoader::Private::openChangeRegion(const KoXmlElement& element)
+{
+    QString id = element.attributeNS(KoXmlNS::text,"change-id");
+    int changeId = changeTracker->getLoadedChangeId(id);
+    if (!changeId)
+        return;
+    if (!changeStack.empty())
+        changeTracker->setParent(changeId, changeStack.top());
+    changeStack.push(changeId);
+    changeTransTable.insert(id, changeId);
+
+    KoChangeTrackerElement *changeElement = changeTracker->elementById(changeId);
+    changeElement->setEnabled(true);
+}
+
+void KoTextLoader::Private::closeChangeRegion(const KoXmlElement& element)
+{
+    QString id = element.attributeNS(KoXmlNS::text,"change-id");
+    int changeId = changeTracker->getLoadedChangeId(id);
+
+    splitStack(changeId);
+}
+
+KoList *KoTextLoader::Private::list(const QTextDocument *document, KoListStyle *listStyle)
+{
+    if (lists.contains(listStyle))
+        return lists[listStyle];
+
+    KoList *newList = new KoList(document, listStyle);
+    lists[listStyle] = newList;
+    return newList;
+}
+
+/////////////KoTextLoader
 
 KoTextLoader::KoTextLoader(KoShapeLoadingContext &context)
         : QObject()
@@ -209,10 +259,27 @@ void KoTextLoader::loadBody(const KoXmlElement &bodyElem, QTextCursor &cursor)
                     d->changeTracker->loadOdfChanges(tag);
                     usedParagraph = false;
                 } else if (d->changeTracker && localName == "change-start") {
-                    loadChangedRegion(tag, cursor);
+                    d->openChangeRegion(tag);
                     usedParagraph = false;
                 } else if (d->changeTracker && localName == "change-end") {
-                    d->currentChangeId = 0;
+                    d->closeChangeRegion(tag);
+                    usedParagraph = false;
+                } else if (d->changeTracker && localName == "change") {
+                    QString id = tag.attributeNS(KoXmlNS::text,"change-id");
+                    int changeId = d->changeTracker->getLoadedChangeId(id);
+                    if (changeId) {
+                        if (d->changeStack.count())
+                            d->changeTracker->setParent(changeId, d->changeStack.top());
+                        KoDeleteChangeMarker *deleteChangemarker = new KoDeleteChangeMarker(d->changeTracker);
+                        deleteChangemarker->setChangeId(changeId);
+                        KoChangeTrackerElement *changeElement = d->changeTracker->elementById(changeId);
+                        changeElement->setEnabled(true);
+                        KoTextDocumentLayout *layout = qobject_cast<KoTextDocumentLayout*>(cursor.block().document()->documentLayout());
+                        if(layout){
+                            KoInlineTextObjectManager *textObjectManager = layout->inlineTextObjectManager();
+                            textObjectManager->insertInlineObject(cursor, deleteChangemarker);
+                        }
+                    }
                     usedParagraph = false;
                 } else if (localName == "p") {    // text paragraph
                     loadParagraph(tag, cursor);
@@ -351,18 +418,6 @@ void KoTextLoader::loadBody(const KoXmlElement &bodyElem, QTextCursor &cursor)
     cursor.endEditBlock();
 }
 
-void KoTextLoader::loadChangedRegion(const KoXmlElement &element, QTextCursor &cursor)
-{
-    Q_UNUSED(cursor)
-    QString id = element.attributeNS(KoXmlNS::text,"change-id");
-    int changeId = d->changeTracker->getLoadedChangeId(id);
-    d->currentChangeId = changeId;
-
-    //debug
-    KoChangeTrackerElement *changeElement = d->changeTracker->elementById(changeId);
-    Q_UNUSED(changeElement)
-}
-
 void KoTextLoader::loadParagraph(const KoXmlElement &element, QTextCursor &cursor)
 {
     // TODO use the default style name a default value?
@@ -442,7 +497,6 @@ void KoTextLoader::loadHeading(const KoXmlElement &element, QTextCursor &cursor)
 
 void KoTextLoader::loadList(const KoXmlElement &element, QTextCursor &cursor)
 {
-    //kDebug() << "in load List";
     const bool numberedParagraph = element.localName() == "numbered-paragraph";
 
     QString styleName = element.attributeNS(KoXmlNS::text, "style-name", QString());
@@ -492,14 +546,13 @@ void KoTextLoader::loadList(const KoXmlElement &element, QTextCursor &cursor)
         if (!numberedParagraph && e.tagName() != "list-item" && !listHeader)
             continue;
 
-        if (!firstTime) {
+        if (!firstTime && !numberedParagraph) {
             // use empty formats to not inherit from the prev parag
             QTextBlockFormat bf;
             QTextCharFormat cf;
             cursor.insertBlock(bf, cf);
-        } else {
-            firstTime = false;
         }
+        firstTime = false;
 
         QTextBlock current = cursor.block();
 
@@ -629,9 +682,9 @@ void KoTextLoader::loadSpan(const KoXmlElement &element, QTextCursor &cursor, bo
                 // we can remove the leading space in the next text
                 *stripLeadingSpace = text[text.length() - 1].isSpace();
 
-                if (d->changeTracker && d->currentChangeId) {
+                if (d->changeTracker && d->changeStack.count()) {
                     QTextCharFormat format;
-                    format.setProperty(KoCharacterStyle::ChangeTrackerId, d->currentChangeId);
+                    format.setProperty(KoCharacterStyle::ChangeTrackerId, d->changeStack.top());
                     cursor.mergeCharFormat(format);
                 }
                 cursor.insertText(text);
@@ -646,11 +699,27 @@ void KoTextLoader::loadSpan(const KoXmlElement &element, QTextCursor &cursor, bo
                 }
             }
         } else if (isTextNS && localName == "change-start") { // text:change-start
-            loadChangedRegion(ts,cursor);
+            d->openChangeRegion(ts);
         } else if (isTextNS && localName == "change-end") {
-            d->currentChangeId = 0;
-            //kDebug() << "change-end";
-        } else if (isTextNS && localName == "span") { // text:span
+            d->closeChangeRegion(ts);
+        }else if(isTextNS && localName == "change") {
+            QString id = ts.attributeNS(KoXmlNS::text,"change-id");
+            int changeId = d->changeTracker->getLoadedChangeId(id);
+            if (changeId) {
+                if (d->changeStack.count())
+                    d->changeTracker->setParent(changeId, d->changeStack.top());
+                KoDeleteChangeMarker *deleteChangemarker = new KoDeleteChangeMarker(d->changeTracker);
+                deleteChangemarker->setChangeId(changeId);
+                KoChangeTrackerElement *changeElement = d->changeTracker->elementById(changeId);
+                changeElement->setEnabled(true);
+                KoTextDocumentLayout *layout = qobject_cast<KoTextDocumentLayout*>(cursor.block().document()->documentLayout());
+
+                if(layout){
+                    KoInlineTextObjectManager *textObjectManager = layout->inlineTextObjectManager();
+                    textObjectManager->insertInlineObject(cursor, deleteChangemarker);
+                }
+            }
+        }else if (isTextNS && localName == "span") { // text:span
 #ifdef KOOPENDOCUMENTLOADER_DEBUG
             kDebug(32500) << "  <span> localName=" << localName;
 #endif
@@ -678,21 +747,24 @@ void KoTextLoader::loadSpan(const KoXmlElement &element, QTextCursor &cursor, bo
         } else if (isTextNS && localName == "tab") { // text:tab
             cursor.insertText("\t");
         } else if (isTextNS && localName == "a") { // text:a
+            QString target = ts.attributeNS(KoXmlNS::xlink, "href");
             QTextCharFormat cf = cursor.charFormat(); // store the current cursor char format
-            QTextCharFormat linkCf(cf);   // and copy it to alter it
-            linkCf.setAnchor(true);
-            linkCf.setAnchorHref(ts.attributeNS(KoXmlNS::xlink, "href"));
+            if (!target.isEmpty()) {
+                QTextCharFormat linkCf(cf);   // and copy it to alter it
+                linkCf.setAnchor(true);
+                linkCf.setAnchorHref(target);
 
-            // TODO make configurable ? Ho, and it will interfere with saving :/
-            QBrush foreground = linkCf.foreground();
-            foreground.setColor(Qt::blue);
-            foreground.setStyle(Qt::Dense1Pattern);
-            linkCf.setForeground(foreground);
-            linkCf.setProperty(KoCharacterStyle::UnderlineStyle, KoCharacterStyle::SolidLine);
-            linkCf.setProperty(KoCharacterStyle::UnderlineType, KoCharacterStyle::SingleLine);
-            linkCf.setFontItalic(true);
+                // TODO make configurable ? Ho, and it will interfere with saving :/
+                QBrush foreground = linkCf.foreground();
+                foreground.setColor(Qt::blue);
+                foreground.setStyle(Qt::Dense1Pattern);
+                linkCf.setForeground(foreground);
+                linkCf.setProperty(KoCharacterStyle::UnderlineStyle, KoCharacterStyle::SolidLine);
+                linkCf.setProperty(KoCharacterStyle::UnderlineType, KoCharacterStyle::SingleLine);
+                linkCf.setFontItalic(true);
 
-            cursor.setCharFormat(linkCf);
+                cursor.setCharFormat(linkCf);
+            }
             loadSpan(ts, cursor, stripLeadingSpace);   // recurse
             cursor.setCharFormat(cf);   // restore the cursor char format
         } else if (isTextNS && localName == "line-break") { // text:line-break
@@ -797,25 +869,29 @@ void KoTextLoader::loadShape(const KoXmlElement &element, QTextCursor &cursor)
         return;
     }
 
-    if (shape->hasAdditionalAttribute("text:anchor-type")) {
-        QString anchorType = shape->additionalAttribute("text:anchor-type");
-        // page anchored shapes are handled differently
-        if (anchorType != "page") {
-            KoTextAnchor *anchor = new KoTextAnchor(shape);
-            anchor->loadOdfFromShape(element);
-            d->textSharedData->shapeInserted(shape, element, d->context);
+    QString anchorType;
+    if (shape->hasAdditionalAttribute("text:anchor-type"))
+        anchorType = shape->additionalAttribute("text:anchor-type");
+    else if (element.hasAttributeNS(KoXmlNS::text, "anchor-type"))
+        anchorType = element.attributeNS(KoXmlNS::text, "anchor-type");
+    else
+        anchorType = "as-char"; // default value
 
-            KoTextDocumentLayout *layout = qobject_cast<KoTextDocumentLayout*>(cursor.block().document()->documentLayout());
-            if (layout) {
-                KoInlineTextObjectManager *textObjectManager = layout->inlineTextObjectManager();
-                if (textObjectManager) {
-                    textObjectManager->insertInlineObject(cursor, anchor);
-                }
+    // page anchored shapes are handled differently
+    if (anchorType != "page") {
+        KoTextAnchor *anchor = new KoTextAnchor(shape);
+        anchor->loadOdfFromShape(element);
+        d->textSharedData->shapeInserted(shape, element, d->context);
+
+        KoTextDocumentLayout *layout = qobject_cast<KoTextDocumentLayout*>(cursor.block().document()->documentLayout());
+        if (layout) {
+            KoInlineTextObjectManager *textObjectManager = layout->inlineTextObjectManager();
+            if (textObjectManager) {
+                textObjectManager->insertInlineObject(cursor, anchor);
             }
         }
-        else {
-            d->textSharedData->shapeInserted(shape, element, d->context);
-        }
+    } else {
+        d->textSharedData->shapeInserted(shape, element, d->context);
     }
 }
 

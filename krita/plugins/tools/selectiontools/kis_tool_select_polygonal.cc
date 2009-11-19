@@ -143,7 +143,7 @@ void KisToolSelectPolygonal::keyPressEvent(QKeyEvent *e)
 
 void KisToolSelectPolygonal::finish()
 {
-    if (currentImage()) {
+    if (currentImage() && m_points.count() > 2) {
         QApplication::setOverrideCursor(KisCursor::waitCursor());
 
         KisCanvas2 * kisCanvas = dynamic_cast<KisCanvas2*>(m_canvas);
@@ -173,21 +173,18 @@ void KisToolSelectPolygonal::finish()
             QUndoCommand* cmd = helper.selectPixelSelection(tmpSel, m_selectAction);
             m_canvas->addCommand(cmd);
         } else {
+            KoPathShape* path = new KoPathShape();
+            path->setShapeId(KoPathShapeId);
 
-            if (m_points.count() > 1) {
-                KoPathShape* path = new KoPathShape();
-                path->setShapeId(KoPathShapeId);
+            QMatrix resolutionMatrix;
+            resolutionMatrix.scale(1 / currentImage()->xRes(), 1 / currentImage()->yRes());
+            path->moveTo(resolutionMatrix.map(m_points[0]));
+            for (int i = 1; i < m_points.count(); i++)
+                path->lineTo(resolutionMatrix.map(m_points[i]));
+            path->close();
+            path->normalize();
 
-                QMatrix resolutionMatrix;
-                resolutionMatrix.scale(1 / currentImage()->xRes(), 1 / currentImage()->yRes());
-                path->moveTo(resolutionMatrix.map(m_points[0]));
-                for (int i = 1; i < m_points.count(); i++)
-                    path->lineTo(resolutionMatrix.map(m_points[i]));
-                path->close();
-                path->normalize();
-
-                helper.addSelectionShape(path);
-            }
+            helper.addSelectionShape(path);
         }
         QApplication::restoreOverrideCursor();
     }
@@ -248,7 +245,7 @@ QWidget* KisToolSelectPolygonal::createOptionWidget()
     Q_ASSERT(canvas);
     m_optWidget = new KisSelectionOptions(canvas);
     m_optWidget->setObjectName(toolId() + " option widget");
-        
+
     Q_CHECK_PTR(m_optWidget);
     m_optWidget->setWindowTitle(i18n("Polygonal Selection"));
 
