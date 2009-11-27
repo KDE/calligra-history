@@ -22,6 +22,9 @@
 #include <QtGui/QDesktopWidget>
 #include <KLocale>
 #include <KDebug>
+#include <QDir>
+#include <kstandarddirs.h>
+#include <QComboBox>
 
 KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *parent) : KDialog(parent)
 {
@@ -32,21 +35,11 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *p
     setCaption( i18n( "Html Export"));
     setButtonText(Ok, i18n("Export"));
 
-    QString slideName = "";
-    for(int i = 0; i < slides.count(); i++){
-        if (slides.at(i)->name() == NULL){
-            slideName = i18n("Slide %1", QString::number(i+1));
-        }else{
-            slideName = slides.at(i)->name();
-        }
-        QListWidgetItem *listItem = new  QListWidgetItem(slideName);
-        listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable);
-        listItem->setCheckState(Qt::Checked);
-        ui.kListBox_slides->addItem(listItem);
-    }
-
     connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ), this, SLOT( checkAllItems()  ) );
     connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ), this, SLOT( uncheckAllItems()) );
+
+    this->generateSlidesNames(slides);
+    this->loadCssList();
 }
 
 QList<KoPAPageBase*> KPrHtmlExportDialog::chekedSlides()
@@ -74,5 +67,53 @@ void KPrHtmlExportDialog::uncheckAllItems()
     int countItems = ui.kListBox_slides->count();
     for(int i = 0; i < countItems; i++){
         ui.kListBox_slides->item(i)->setCheckState(Qt::Unchecked);
+    }
+}
+
+QStringList KPrHtmlExportDialog::slidesNames(){
+    QStringList names;
+    int countItems = ui.kListBox_slides->count();
+    for(int i = 0; i < countItems; i++){
+        names.append(ui.kListBox_slides->item(i)->text());
+    }
+
+    return names;
+}
+
+KUrl KPrHtmlExportDialog::css(){
+    return ui.KurlCombo_css->url();
+}
+
+void KPrHtmlExportDialog::generateSlidesNames(QList<KoPAPageBase*> slides)
+{
+    QString slideName;
+    for(int i = 0; i < slides.count(); i++){
+        if (slides.at(i)->name().isEmpty()){
+            slideName = i18n("Slide %1", QString::number(i+1));
+        } else {
+            slideName = slides.at(i)->name();
+        }
+        QListWidgetItem *listItem = new  QListWidgetItem(slideName);
+        listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable);
+        listItem->setCheckState(Qt::Checked);
+        ui.kListBox_slides->addItem(listItem);
+    }
+}
+
+void KPrHtmlExportDialog::loadCssList()
+{
+    KStandardDirs std;
+    QStringList dirs = std.findDirs("data", "kpresenter/templates/exportHTML");
+    for( QStringList::ConstIterator path=dirs.begin(); path!=dirs.end(); ++path ){
+        QDir dir(*path);
+        dir.setFilter( QDir::Dirs );
+        QStringList entries = dir.entryList();
+        for( QStringList::ConstIterator entry=entries.begin(); entry!=entries.end(); ++entry ){
+            if (*entry != "." && *entry != ".."){
+                if (dir.exists(*entry + "/style.css")){
+                    ui.KurlCombo_css->setUrl(KUrl(*path + *entry + "/style.css"));
+                } 
+            }
+        }        
     }
 }

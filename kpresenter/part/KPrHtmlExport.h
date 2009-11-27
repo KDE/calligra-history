@@ -31,7 +31,7 @@ class KPrHtmlExport:public QObject
         * @param kopaDocument 
         * @param url The destination url
         */
-        KPrHtmlExport(KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl& url, const QString& author, const QString& title);
+        KPrHtmlExport(KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl& url, const QString& author, const QString& title, const KUrl css, const QStringList slidesNames);
         ~KPrHtmlExport();
     private slots:
         void moveResult(KJob *job);
@@ -42,6 +42,8 @@ class KPrHtmlExport:public QObject
         void writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody);
         void copyFromTmpToDest();
     private:
+        QStringList m_slidesNames;
+        KUrl m_css;
         KPrView *m_kprView;
         QList<KoPAPageBase*> m_slides;
         KUrl m_dest_url;

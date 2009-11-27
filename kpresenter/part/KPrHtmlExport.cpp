@@ -25,7 +25,7 @@
 #include <kmessagebox.h>
 #include <krun.h>
 
-KPrHtmlExport::KPrHtmlExport (KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl &url, const QString& author, const QString& title):m_kprView(kprView), m_slides(slides), m_dest_url(url), m_author(author), m_title(title)
+KPrHtmlExport::KPrHtmlExport (KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl &url, const QString& author, const QString& title, const KUrl css, QStringList slidesNames):m_kprView(kprView), m_slides(slides), m_dest_url(url), m_author(author), m_title(title), m_css(css), m_slidesNames(slidesNames)
 { 
     // Create a temporary dir
     KTempDir tmpDir;
@@ -83,7 +83,7 @@ void KPrHtmlExport::generateHtml()
         writeHtmlFileToTmpDir("slide" + QString::number(i) + ".html", content);
         i++;
     }
-    QString style = KStandardDirs::locate( "data","kpresenter/templates/exportHTML/default/style.css" );
+    QString style = m_css.pathOrUrl();
     QFile styleFile;
     styleFile.setFileName(style);
     styleFile.open(QIODevice::ReadOnly);
@@ -96,7 +96,7 @@ void KPrHtmlExport::generateToc()
     QString toc = "<ul>";
     int i = 0;
     foreach(KoPAPageBase* slide, m_slides) {
-        toc.append("<li><a href=\"slide"+QString::number(i)+".html\">"+slide->name()+"</a></li>");
+        toc.append("<li><a href=\"slide"+QString::number(i)+".html\">"+m_slidesNames[i]+"</a></li>");
         i++;
     }
     toc.append("</ul>");
