@@ -105,7 +105,7 @@
 #include "kis_progress_widget.h"
 
 #include <QDebug>
-#include <QMouseEvent>
+#include <QPoint>
 #include "kis_paintop_box.h"
 #include "kis_node_commands_adapter.h"
 #include <kis_paintop_preset.h>
@@ -778,8 +778,17 @@ void KisView2::setFavoriteResourceManager(KisPaintopBox* paintopBox)
 {
     qDebug() << "KisView2: Setting favoriteResourceManager";
     m_d->favoriteResourceManager = new KoFavoriteResourceManager(paintopBox, m_d->canvas->canvasWidget());
-    connect(this, SIGNAL(favoritePaletteCalled(QMouseEvent *)), m_d->favoriteResourceManager, SLOT(slotShowPopupPalette(QMouseEvent *)));
+    connect(this, SIGNAL(favoritePaletteCalled(const QPoint&)), m_d->favoriteResourceManager, SLOT(slotShowPopupPalette(const QPoint&)));
 
+}
+
+void KisView2::slotCanvasDestroyed(QWidget* w)
+{
+    qDebug() << "[KisView2] Resetting popupPalette parent";
+    if (m_d->favoriteResourceManager != 0)
+    {
+        m_d->favoriteResourceManager->resetPopupPaletteParent(w);
+    }
 }
 
 void KisView2::toggleDockers(bool toggle)

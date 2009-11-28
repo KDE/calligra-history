@@ -168,6 +168,12 @@ bool Schedule::usePert() const
     return false;
 }
 
+void Schedule::setAllowOverbooking( bool state )
+{
+    if ( m_parent )
+        m_parent->setAllowOverbooking( state );
+}
+
 bool Schedule::allowOverbooking() const
 {
     if ( m_parent ) {
@@ -219,6 +225,26 @@ void Schedule::calcResourceOverbooked()
             break;
         }
     }
+}
+
+DateTimeInterval Schedule::firstBookedInterval( const DateTimeInterval &interval, const Schedule *node  ) const
+{
+    QList<Appointment*> lst = m_appointments;
+    switch ( m_calculationMode ) {
+        case CalculateForward: lst = m_forward; break;
+        case CalculateBackward: lst = m_backward; break;
+        default: break;
+    }
+    foreach ( Appointment *a, lst ) {
+        if ( a->node() == node ) {
+            AppointmentIntervalList i = a->intervals( interval.first, interval.second );
+            if ( i.isEmpty() ) {
+                break;
+            }
+            return DateTimeInterval( i.values().first().startTime(), i.values().first().endTime() );
+        }
+    }
+    return DateTimeInterval();
 }
 
 QStringList Schedule::overbookedResources() const
@@ -1036,6 +1062,12 @@ bool MainSchedule::isBaselined() const
 bool MainSchedule::usePert() const
 {
     return m_manager == 0 ? false : m_manager->usePert();
+}
+
+void MainSchedule::setAllowOverbooking( bool state )
+{
+    if ( m_manager )
+        m_manager->setAllowOverbooking( state );
 }
 
 bool MainSchedule::allowOverbooking() const

@@ -57,7 +57,7 @@ class KoCompositeOpSubtract : public KoCompositeOpAlphaBase<_CSTraits, KoComposi
                     compositetype srcColor = src[i];
                     compositetype dstColor = dst[i];
 
-                    srcColor -= dstColor;
+                    srcColor = dstColor - srcColor;
                     srcColor = qMax(srcColor, (compositetype)NATIVE_MIN_VALUE);
                     dst[i] = KoColorSpaceMaths<channels_type>::blend(srcColor, dstColor, srcBlend);
                 }

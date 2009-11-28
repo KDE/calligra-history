@@ -349,6 +349,7 @@ void KisOpenGLCanvas2::mouseDoubleClickEvent(QMouseEvent *e)
 {
     if (m_d->blockMouseEvent.isActive()) return;
     m_d->toolProxy->mouseDoubleClickEvent(e, m_d->viewConverter->viewToDocument(widgetToView(e->pos() + m_d->documentOffset)));
+
 }
 
 void KisOpenGLCanvas2::keyPressEvent(QKeyEvent *e)

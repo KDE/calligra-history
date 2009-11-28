@@ -115,6 +115,7 @@ KisToolFreehand::~KisToolFreehand()
 
 void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
 {
+
     //    dbgUI << "mousePressEvent" << m_mode;
     //     if (!currentImage())
     //    return;

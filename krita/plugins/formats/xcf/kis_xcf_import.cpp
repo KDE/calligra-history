@@ -110,7 +110,7 @@ KoFilter::ConversionStatus KisXCFImport::convert(const QByteArray& from, const Q
         uriTF.setPath(tmpFile);
 
         // open the file
-        QFile *fp = new QFile(uriTF.path());
+        QFile *fp = new QFile(uriTF.toLocalFile());
         if (fp->exists()) {
             doc->prepareForImport();
             result = loadFromDevice(fp, doc);
@@ -290,12 +290,12 @@ KoFilter::ConversionStatus KisXCFImport::loadFromDevice(QIODevice* device, KisDo
                     want.t = y + top;
                     want.b = want.t + TILE_HEIGHT;
                     want.r = want.l + TILE_WIDTH;
-                    Tile* tile = getMaskOrLayerTile(&xcflayer.dim, &xcflayer.pixels, want);
+                    Tile* tile = getMaskOrLayerTile(&xcflayer.dim, &xcflayer.mask, want);
                     KisHLineIteratorPixel it = mask->paintDevice()->createHLineIterator(x, y, TILE_WIDTH);
                     rgba* data = tile->pixels;
                     for (int v = 0; v < TILE_HEIGHT; ++v) {
                         while (!it.isDone()) {
-                            it.rawData()[0] = 255 - GET_ALPHA(*data);
+                            it.rawData()[0] = GET_ALPHA(*data);
                             ++data;
                             ++it;
                         }

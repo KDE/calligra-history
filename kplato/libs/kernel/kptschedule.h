@@ -97,6 +97,7 @@ public:
     
     virtual bool isBaselined() const;
     virtual bool usePert() const;
+    virtual void setAllowOverbooking( bool state );
     virtual bool allowOverbooking() const;
     virtual bool checkExternalAppointments() const;
 
@@ -136,6 +137,8 @@ public:
     virtual bool isOverbooked() const { return false; }
     virtual bool isOverbooked( const KDateTime & /*start*/, const KDateTime & /*end*/ ) const { return false; }
     virtual QStringList overbookedResources() const;
+    /// Returns the first booked interval to @p node that intersects @p interval (limited to @p interval)
+    virtual DateTimeInterval firstBookedInterval( const DateTimeInterval &interval, const Schedule *node ) const;
 
     /// Return the resources that has appointments to this schedule
     virtual QList<Resource*> resources() const;
@@ -412,6 +415,7 @@ public:
     virtual bool isDeleted() const { return m_deleted; }
     
     virtual bool isBaselined() const;
+    virtual void setAllowOverbooking( bool state );
     virtual bool allowOverbooking() const;
     virtual bool checkExternalAppointments() const;
     virtual bool usePert() const;

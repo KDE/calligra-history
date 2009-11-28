@@ -32,7 +32,7 @@ class BRUSH_EXPORT KisAutoBrush : public KisBrush
 
 public:
 
-    KisAutoBrush(KisMaskGenerator* img);
+    KisAutoBrush(KisMaskGenerator* img, double angle);
 
     virtual ~KisAutoBrush();
 
@@ -58,6 +58,7 @@ public:
     }
 
     void toXML(QDomDocument& , QDomElement&) const;
+    virtual QPointF hotSpot(double scaleX, double scaleY, double rotation) const;
 
 private:
 

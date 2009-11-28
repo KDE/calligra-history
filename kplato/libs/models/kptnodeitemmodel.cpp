@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-  Copyright (C) 2007 Dag Andersen <danders@get2net.dk>
+  Copyright (C) 2007 - 2009 Dag Andersen <danders@get2net.dk>
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Library General Public
@@ -20,6 +20,7 @@
 #include "kptnodeitemmodel.h"
 
 #include "kptglobal.h"
+#include "kptcommonstrings.h"
 #include "kptcommand.h"
 #include "kptduration.h"
 #include "kptproject.h"
@@ -30,6 +31,7 @@
 #include <QMimeData>
 #include <QModelIndex>
 #include <QWidget>
+#include <QPair>
 
 #include <kicon.h>
 #include <kaction.h>
@@ -110,9 +112,38 @@ QVariant NodeModel::allocation( const Node *node, int role ) const
 {
     switch ( role ) {
         case Qt::DisplayRole:
-        case Qt::EditRole:
-        case Qt::ToolTipRole:
-            return node->requestNameList().join(",");
+        case Qt::EditRole: {
+            QStringList sl;
+            foreach ( Resource *r, node->requests().requestedResources() ) {
+                sl << r->name();
+            }
+            return sl.join( "," );
+        }
+        case Qt::ToolTipRole: {
+            QMap<QString, QStringList> lst;
+            foreach ( ResourceRequest *rr, node->requests().resourceRequests() ) {
+                QStringList sl;
+                foreach( Resource *r, rr->requiredResources() ) {
+                    sl << r->name();
+                }
+                lst.insert( rr->resource()->name(), sl );
+            }
+            if ( lst.isEmpty() ) {
+                return i18nc( "@info:tooltip", "No resources has been allocated" );
+            }
+            QStringList sl;
+            for ( QMap<QString, QStringList>::ConstIterator it = lst.constBegin(); it != lst.constEnd(); ++it ) {
+                if ( it.value().isEmpty() ) {
+                    sl << it.key();
+                } else {
+                    sl << i18nc( "1=resource name, 2=list of resources", "%1 (%2)", it.key(), it.value().join(", ") );
+                }
+            }
+            if ( sl.count() == 1 ) {
+                return i18nc( "@info:tooltip 1=resource name", "Allocated resource: %1", sl.first() );
+            }
+            return i18nc( "@info:tooltip 1=list of resources", "Allocated resources: %1", sl.join( "\n" ) );
+        }
         case Qt::StatusTipRole:
         case Qt::WhatsThisRole:
             return QVariant();
@@ -1853,6 +1884,13 @@ QVariant NodeModel::headerData( int section, int role )
             default: return QVariant();
         }
     }
+    if ( role == Qt::WhatsThisRole ) {
+        switch ( section ) {
+            case NodeNegativeFloat: return WhatsThis::nodeNegativeFloat();
+
+            default: return QVariant();
+        }
+    }
     return QVariant();
 }
 
@@ -2752,6 +2790,8 @@ QVariant NodeItemModel::headerData( int section, Qt::Orientation orientation, in
         }
     }
     if ( role == Qt::ToolTipRole ) {
+        return NodeModel::headerData( section, role );
+    } else if ( role == Qt::WhatsThisRole ) {
         return NodeModel::headerData( section, role );
     }
     return ItemModelBase::headerData(section, orientation, role);

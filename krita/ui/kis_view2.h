@@ -30,7 +30,7 @@
 
 class QDragEnterEvent;
 class QDropEvent;
-class QMouseEvent;
+class QPoint;
 
 class KisPaintOpPreset;
 
@@ -184,7 +184,7 @@ public:  // Krita specific interfaces
 signals:
 
     void sigLoadingFinished();
-    void favoritePaletteCalled(QMouseEvent *);
+    void favoritePaletteCalled(const QPoint&);
 
 protected:
 
@@ -199,6 +199,9 @@ private slots:
     void slotImageSizeChanged();
     void slotTotalRefresh();
     void toggleDockers(bool toggle);
+
+public slots:
+    void slotCanvasDestroyed(QWidget*);
 
 private:
 

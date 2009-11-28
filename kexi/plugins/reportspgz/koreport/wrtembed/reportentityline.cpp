@@ -42,7 +42,12 @@ void ReportEntityLine::init(QGraphicsScene* s, ReportDesigner *r)
     m_reportDesigner = r;
     setPos(0, 0);
 
-    setFlags(ItemIsSelectable | ItemIsMovable);
+#if QT_VERSION >= 0x040600
+      setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsGeometryChanges);
+#else
+      setFlags (ItemIsSelectable | ItemIsMovable);
+#endif
+
     setPen(QPen(Qt::black, 5));
     setAcceptsHoverEvents(true);
 
@@ -240,7 +245,7 @@ int ReportEntityLine::grabHandle(QPointF pos)
 
 void ReportEntityLine::hoverMoveEvent(QGraphicsSceneHoverEvent * event)
 {
-    m_grabAction = 0;
+    //m_grabAction = 0;
     if (isSelected()) {
         m_grabAction = grabHandle(event->pos());
         switch (m_grabAction) {

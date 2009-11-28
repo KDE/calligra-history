@@ -231,22 +231,22 @@ public:
 
     QVector<int> visibleColumnsIDs, globalColumnsIDs;
 
-    bool readOnly : 1;
+    bool readOnly;
 
-    bool insertingEnabled : 1;
+    bool insertingEnabled;
 
     /*! Used in acceptEditor() to avoid infinite recursion,
      eg. when we're calling KexiTableviewData::acceptRowEdit() during cell accepting phase. */
-//  bool inside_acceptEditor : 1;
+//  bool inside_acceptEditor;
 
     //! @see KexiTableviewData::containsROWIDInfo()
-    bool containsROWIDInfo : 1;
+    bool containsROWIDInfo;
 
     //! true if ascending sort order is set
-    bool ascendingOrder : 1;
+    bool ascendingOrder;
 
     //! true if descending sort order is set
-    bool descendingOrder : 1;
+    bool descendingOrder;
 
     int autoIncrementedColumn;
 };
@@ -527,16 +527,14 @@ bool KexiTableViewData::updateRowEditBufferRef(KexiDB::RecordData *record,
 
     kDebug() << "column #" << colnum << " = " << newval.toString();
     if (!col) {
-        kWarning() << "KexiTableViewData::updateRowEditBufferRef(): column #"
-        << colnum << " not found! col==0";
+        kWarning() << "column #" << colnum << "not found! col==0";
         return false;
     }
     if (!d->pRowEditBuffer)
         d->pRowEditBuffer = new KexiDB::RowEditBuffer(isDBAware());
     if (d->pRowEditBuffer->isDBAware()) {
         if (!(col->columnInfo())) {
-            kWarning() << "KexiTableViewData::updateRowEditBufferRef(): column #"
-            << colnum << " not found!";
+            kWarning() << "column #" << colnum << " not found!";
             return false;
         }
         d->pRowEditBuffer->insert(*col->columnInfo(), newval);
@@ -711,7 +709,7 @@ bool KexiTableViewData::deleteRow(KexiDB::RecordData& record, bool repaint)
     int index = indexOf(&record);
     if (index == -1) {
         //aah - this shouldn't be!
-        kWarning() << "KexiTableViewData::deleteRow(): !removeRef() - IMPL. ERROR?";
+        kWarning() << "!removeRef() - IMPL. ERROR?";
         d->result.success = false;
         return false;
     }

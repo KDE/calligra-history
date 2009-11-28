@@ -21,7 +21,8 @@
 
 #include <KoTextEditor.h>
 #include <TextTool.h>
-
+#include "DeleteCommand.h"
+#include <KAction>
 #include <klocale.h>
 
 TextCutCommand::TextCutCommand(TextTool *tool, QUndoCommand *parent) :
@@ -44,6 +45,9 @@ void TextCutCommand::redo()
     } else {
         m_first = false;
         m_tool->copy();
-        m_tool->m_textEditor->deleteChar();
+        if(m_tool->m_actionShowChanges->isChecked())
+          m_tool->m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, m_tool));
+        else
+          m_tool->m_textEditor->deleteChar();
     }
 }

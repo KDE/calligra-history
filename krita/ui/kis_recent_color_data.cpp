@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright 2009 Vera Lukman <vla24@sfu.ca>
+   Copyright 2009 Vera Lukman <shichan.karachu@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -23,6 +23,7 @@
 #include <QIcon>
 #include <QToolButton>
 #include <stdio.h>
+#include <QPalette>
 
 KisRecentColorData::KisRecentColorData(QColor *newColor)
         : m_button (0)
@@ -30,11 +31,18 @@ KisRecentColorData::KisRecentColorData(QColor *newColor)
 {
     m_button = new QToolButton();
 
-    //setting color
-    char str[45];
-    sprintf(str, "* { background-color: rgb(%i,%i,%i) }", color()->red(), color()->green(),color()->blue());
+    //changing button color
+    QPalette p(m_button->palette());
+    p.setColor(QPalette::Button, *newColor);
+    m_button->setPalette(p);
+    m_button->setAutoFillBackground(false);
 
-    m_button->setStyleSheet(str);
+    //setting color
+//    char str[45];
+//    sprintf(str, "* { background-color: rgb(%i,%i,%i) }", color()->red(), color()->green()
+//            ,color()->blue());
+//
+//    m_button->setStyleSheet(str);
 
     m_button->setMinimumSize(KisPopupPalette::BUTTON_SIZE, KisPopupPalette::BUTTON_SIZE);
     m_button->setMaximumSize(KisPopupPalette::BUTTON_SIZE, KisPopupPalette::BUTTON_SIZE);

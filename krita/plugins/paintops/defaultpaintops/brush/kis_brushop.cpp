@@ -57,6 +57,7 @@
 
 #include <kis_brushop_settings.h>
 #include <kis_brushop_settings_widget.h>
+#include <kis_pressure_rotation_option.h>
 
 
 KisBrushOp::KisBrushOp(const KisBrushOpSettings *settings, KisPainter *painter)
@@ -71,6 +72,7 @@ KisBrushOp::KisBrushOp(const KisBrushOpSettings *settings, KisPainter *painter)
         settings->m_options->m_sizeOption->sensor()->reset();
         settings->m_options->m_opacityOption->sensor()->reset();
         settings->m_options->m_darkenOption->sensor()->reset();
+        settings->m_options->m_rotationOption->sensor()->reset();
     }
 }
 
@@ -102,7 +104,9 @@ void KisBrushOp::paintAt(const KisPaintInformation& info)
 
     KisPaintDeviceSP device = painter()->device();
 
-    QPointF hotSpot = brush->hotSpot(scale, scale);
+    double rotation = settings->m_options->m_rotationOption->apply(info);
+    
+    QPointF hotSpot = brush->hotSpot(scale, scale, rotation);
     QPointF pt = info.pos() - hotSpot;
 
     // Split the coordinates into integer plus fractional parts. The integer
@@ -121,11 +125,11 @@ void KisBrushOp::paintAt(const KisPaintInformation& info)
 
     KisFixedPaintDeviceSP dab = cachedDab(device->colorSpace());
     if (brush->brushType() == IMAGE || brush->brushType() == PIPE_IMAGE) {
-        dab = brush->image(device->colorSpace(), scale, 0.0, info, xFraction, yFraction);
+        dab = brush->image(device->colorSpace(), scale, rotation, info, xFraction, yFraction);
     } else {
         KoColor color = painter()->paintColor();
         color.convertTo(dab->colorSpace());
-        brush->mask(dab, color, scale, scale, 0.0, info, xFraction, yFraction);
+        brush->mask(dab, color, scale, scale, rotation, info, xFraction, yFraction);
     }
 
     painter()->bltFixed(QPoint(x, y), dab, dab->bounds());

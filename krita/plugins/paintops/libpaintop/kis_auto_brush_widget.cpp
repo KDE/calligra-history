@@ -62,7 +62,10 @@ KisAutoBrushWidget::KisAutoBrushWidget(QWidget *parent, const char* name, const 
 
     inputSpikes->setSliderEnabled(true);
     connect(inputSpikes, SIGNAL(valueChanged(int)), this, SLOT(paramChanged()));
-
+    
+    inputAngle->setSliderEnabled(true);
+    connect(inputAngle, SIGNAL(valueChanged(int)), this, SLOT(paramChanged()));
+    
     showSlider(inputSpacing, 0.1);
     connect(inputSpacing, SIGNAL(valueChanged(double)), this, SLOT(paramChanged()));
 
@@ -101,7 +104,7 @@ void KisAutoBrushWidget::paramChanged()
         Q_CHECK_PTR(kas);
 
     }
-    m_autoBrush = new KisAutoBrush(kas);
+    m_autoBrush = new KisAutoBrush(kas, inputAngle->value() / 180.0 * M_PI);
     m_autoBrush->setSpacing(inputSpacing->value());
     m_brush = m_autoBrush->img();
 

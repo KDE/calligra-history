@@ -20,6 +20,7 @@
 #include "kptschedulemodel.h"
 
 #include "kptglobal.h"
+#include "kptcommonstrings.h"
 #include "kptcommand.h"
 #include "kptitemmodelbase.h"
 #include "kptduration.h"
@@ -748,7 +749,16 @@ QVariant ScheduleItemModel::headerData( int section, Qt::Orientation orientation
             case ScheduleModel::ScheduleScheduled: return QVariant();
             default: return QVariant();
         }
+    } else if ( role == Qt::WhatsThisRole ) {
+        switch ( section ) {
+            case ScheduleModel::ScheduleDirection: return WhatsThis::schedulingDirection();
+            case ScheduleModel::ScheduleOverbooking: return WhatsThis::scheduleOverbooking();
+            case ScheduleModel::ScheduleDistribution: return WhatsThis::scheduleDistribution();
+            case ScheduleModel::ScheduleScheduler: return WhatsThis::scheduleScheduler();
+            default: return QVariant();
+        }
     }
+
     return ItemModelBase::headerData(section, orientation, role);
 }
 

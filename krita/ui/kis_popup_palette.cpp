@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright 2009 Vera Lukman <vla24@sfu.ca>
+   Copyright 2009 Vera Lukman <shichan.karachu@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -39,6 +39,8 @@ KisPopupPalette::KisPopupPalette(KoFavoriteResourceManager* manager, QWidget *pa
     , m_brushButtonLayout(0)
     , m_colorLayout(0)
 {
+
+    qDebug() << "[KisPopupPalette] I am constructed";
     colorFoo=0;
 
     //FAVORITE BRUSHES
@@ -59,17 +61,14 @@ KisPopupPalette::KisPopupPalette(KoFavoriteResourceManager* manager, QWidget *pa
 
     QWidget* brushButtonWidget = new QWidget();
     brushButtonWidget->setLayout(tempLayout);
-    brushButtonWidget->setStyleSheet("* { background-color: rgba(0,0,0,128) }");
-
-    QColor c(Qt::gray);
-    qDebug() << "Gray " << c.red() << c.green() << c.blue();
+//    brushButtonWidget->setStyleSheet("* { background-color: rgba(0,0,0,128) }");
 
     //RECENT COLORS
     QToolButton* chooseColor = new QToolButton ();
     chooseColor->setMaximumSize(KisPopupPalette::BUTTON_SIZE,KisPopupPalette::BUTTON_SIZE);
     chooseColor->setMinimumSize(KisPopupPalette::BUTTON_SIZE,KisPopupPalette::BUTTON_SIZE);
     chooseColor->setIcon(* (new QIcon (":/images/change_color.gif")));
-    chooseColor->setStyleSheet("* { background-color: rgba(232,231,230,255) }");
+    chooseColor->setAutoFillBackground(false);
     connect(chooseColor, SIGNAL(clicked()), this, SLOT(slotPickNewColor()));
 
     m_colorLayout = new FlowLayout(5);
@@ -81,7 +80,7 @@ KisPopupPalette::KisPopupPalette(KoFavoriteResourceManager* manager, QWidget *pa
 
     QWidget* colorWidget = new QWidget();
     colorWidget->setLayout(tempLayout);
-    colorWidget->setStyleSheet("* { background-color: rgba(0,0,0,128) }");
+//    colorWidget->setStyleSheet("* { background-color: rgba(0,0,0,128) }");
 
     //adding items
     addItem(brushButtonWidget, "Favorite Brushes");
@@ -91,7 +90,7 @@ KisPopupPalette::KisPopupPalette(KoFavoriteResourceManager* manager, QWidget *pa
 //    this->setCurrentIndex(1);
     /****************************REMOVE THIS LATER**********************************/
 
-    setStyleSheet("* { background-color: rgba(0,0,0,0) }");
+//    setStyleSheet("* { background-color: rgba(0,0,0,0) }");
 
     //clean up
     chooseColor = 0;
@@ -99,6 +98,28 @@ KisPopupPalette::KisPopupPalette(KoFavoriteResourceManager* manager, QWidget *pa
     colorWidget = 0;
     brushButtonWidget = 0;
 
+//    setAutoFillBackground(true);
+//    setAttribute(Qt::WA_NoSystemBackground, true);
+//    setAttribute(Qt::WA_OpaquePaintEvent, false);
+
+//    for (int pos=0; pos< 2; pos++){
+//        QWidget *w = widget(pos);
+//        w->setAutoFillBackground(true);
+//    }
+}
+
+void KisPopupPalette::paintEvent(QPaintEvent *event)
+{
+    QPainter painter (this);
+    painter.setOpacity(0.5);
+//    painter.fillRect(rect(), Qt::transparent);
+
+    for (int pos=0; pos< 2; pos++){
+        QWidget *w = widget(pos);
+        QPalette palette(w->palette());
+        palette.setColor(QPalette::Window, QColor(0,0,0,128));
+        w->setPalette(palette);
+    }
 }
 
 void KisPopupPalette::addFavoriteBrushButton(KisFavoriteBrushData* brush)
@@ -201,7 +222,7 @@ void KisPopupPalette::slotPickNewColor()
 
 QSize KisPopupPalette::sizeHint() const
 {
-    return QSize(250, 150);
+    return QSize(200, 125);
 }
 
  void KisPopupPalette::mousePressEvent(QMouseEvent *event)

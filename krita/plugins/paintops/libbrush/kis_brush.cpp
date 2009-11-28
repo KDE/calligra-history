@@ -184,10 +184,10 @@ void KisBrush::setHotSpot(QPointF pt)
     d->hotSpot = QPointF(x, y);
 }
 
-QPointF KisBrush::hotSpot(double scaleX, double scaleY) const
+QPointF KisBrush::hotSpot(double scaleX, double scaleY, double rotation) const
 {
-    double w = width() * scaleX;
-    double h = height() * scaleY;
+    double w = maskWidth( scaleX, rotation);
+    double h = maskHeight( scaleX, rotation);
 
     // The smallest brush we can produce is a single pixel.
     if (w < 1) {
@@ -254,7 +254,10 @@ KisBrushSP KisBrush::fromXML(const QDomElement& element)
 qint32 KisBrush::maskWidth(double scale, double angle) const
 {
     double width_ = width() * scale;
+    if(angle == 0.0) return qint32(width_ + 1);
+    
     double height_ = height() * scale;
+    
     // Add one for sub-pixel shift
     if (angle >= 0.0 && angle < M_PI_2) {
         return qAbs(static_cast<qint32>(ceil(width_ * cos(angle) + height_ * sin(angle)) + 1));
@@ -269,8 +272,11 @@ qint32 KisBrush::maskWidth(double scale, double angle) const
 
 qint32 KisBrush::maskHeight(double scale, double angle) const
 {
-    double width_ = width() * scale;
     double height_ = height() * scale;
+    if(angle == 0.0) return qint32(height_ + 1);
+    
+    double width_ = width() * scale;
+    
     // Add one for sub-pixel shift
     if (angle >= 0.0 && angle < M_PI_2) {
         return qAbs(static_cast<qint32>(ceil(width_ * sin(angle) + height_ * cos(angle)) + 1));
