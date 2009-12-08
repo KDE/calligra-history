@@ -24,6 +24,7 @@
 #include <kstandarddirs.h>
 #include <kmessagebox.h>
 #include <krun.h>
+#include "KPrHtmlExportUiDelegate.h"
 
 KPrHtmlExport::KPrHtmlExport (KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl &url, const QString& author, const QString& title, const KUrl css, QStringList slidesNames):m_kprView(kprView), m_slides(slides), m_dest_url(url), m_author(author), m_title(title), m_css(css), m_slidesNames(slidesNames)
 { 
@@ -135,6 +136,7 @@ void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString
 void KPrHtmlExport::copyFromTmpToDest()
 {
     KIO::CopyJob *job = KIO::move(m_fileUrlList, m_dest_url);
+    job->setUiDelegate(new KPrHtmlExportUiDelegate);
     connect( job, SIGNAL(result( KJob * )), this, SLOT( moveResult( KJob * ) ) );
     job->exec();
 }
