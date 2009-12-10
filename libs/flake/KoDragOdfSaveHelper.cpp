@@ -18,20 +18,28 @@
  */
 
 #include "KoDragOdfSaveHelper.h"
+#include "KoDragOdfSaveHelper_p.h"
 
 KoDragOdfSaveHelper::KoDragOdfSaveHelper()
-        : m_context(0)
+        : d_ptr(new KoDragOdfSaveHelperPrivate())
 {
-}
-KoDragOdfSaveHelper::~KoDragOdfSaveHelper()
-{
-    delete m_context;
 }
 
-KoShapeSavingContext * KoDragOdfSaveHelper::context(KoXmlWriter * bodyWriter, KoGenStyles & mainStyles,
+KoDragOdfSaveHelper::KoDragOdfSaveHelper(KoDragOdfSaveHelperPrivate &dd)
+        : d_ptr(&dd)
+{
+}
+
+KoDragOdfSaveHelper::~KoDragOdfSaveHelper()
+{
+    delete d_ptr;
+}
+
+KoShapeSavingContext *KoDragOdfSaveHelper::context(KoXmlWriter * bodyWriter, KoGenStyles & mainStyles,
         KoEmbeddedDocumentSaver & embeddedSaver)
 {
-    Q_ASSERT(m_context == 0);
-    m_context = new KoShapeSavingContext(*bodyWriter, mainStyles, embeddedSaver);
-    return m_context;
+    Q_D(KoDragOdfSaveHelper);
+    Q_ASSERT(d->context == 0);
+    d->context = new KoShapeSavingContext(*bodyWriter, mainStyles, embeddedSaver);
+    return d->context;
 }

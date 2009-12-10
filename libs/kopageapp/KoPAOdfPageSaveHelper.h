@@ -29,7 +29,7 @@
 class KoPADocument;
 class KoPAPageBase;
 
-class KOPAGEAPP_EXPORT KoPAOdfPageSaveHelper : public KoDragOdfSaveHelper
+class KOPAGEAPP_TEST_EXPORT KoPAOdfPageSaveHelper : public KoDragOdfSaveHelper
 {
 public:
     /**
@@ -47,6 +47,7 @@ public:
 
 private:
     KoPADocument * m_doc;
+    KoShapeSavingContext  *m_context;
     QList<KoPAPageBase *> m_pages;
     QList<KoPAPageBase *> m_masterPages;
 };

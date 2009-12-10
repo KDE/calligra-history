@@ -48,9 +48,30 @@
 #include <KoZoomHandler.h>
 #include <koproperty/EditorView.h>
 #include <KColorScheme>
+#include <QBitmap>
 
 #include <kdebug.h>
 
+static const char *arrow_xpm[] = {
+/* width height num_colors chars_per_pixel */
+"    11    12       2            1",
+/* colors */
+". c None",
+"# c #555555",
+/*   data   */
+"...........",
+"...#####...",
+"...#####...",
+"...#####...",
+"...#####...",
+"...#####...",
+"###########",
+".#########.",
+"..#######.-",
+"...#####...",
+"....###....",
+".....#....."
+};
 
 //
 // ReportSection method implementations
@@ -59,8 +80,11 @@
 ReportSection::ReportSection(ReportDesigner * rptdes, const char * name)
         : QWidget(rptdes)
 {
+    Q_UNUSED(name)
+
     m_sectionData = new KRSectionData();
-    QObject::connect(m_sectionData->properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)), this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+    connect(m_sectionData->properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
+        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
     int dpiY = KoDpi::dpiY();
 
     m_reportDesigner = rptdes;
@@ -79,6 +103,7 @@ ReportSection::ReportSection(ReportDesigner * rptdes, const char * name)
     m_title->setText(i18n("Detail"));
 
     m_sectionRuler = new KoRuler(this, Qt::Vertical, m_reportDesigner->zoomHandler());
+    m_sectionRuler->setUnit(m_reportDesigner->pageUnit());
     m_scene = new ReportScene(m_reportDesigner->pageWidthPx(), dpiY, rptdes);
     m_sceneView = new ReportSceneView(rptdes, m_scene, this, "scene view");
     m_sceneView->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -86,18 +111,13 @@ ReportSection::ReportSection(ReportDesigner * rptdes, const char * name)
     m_resizeBar = new ReportResizeBar(this);
 
     QObject::connect(m_resizeBar, SIGNAL(barDragged(int)), this, SLOT(slotResizeBarDragged(int)));
-
     QObject::connect(m_reportDesigner, SIGNAL(pagePropertyChanged(KoProperty::Set &)), this, SLOT(slotPageOptionsChanged(KoProperty::Set &)));
-
     QObject::connect(m_scene, SIGNAL(clicked()), this, (SLOT(slotSceneClicked())));
-    QObject::connect(m_scene, SIGNAL(lostFocus()), this, (SLOT(slotSceneLostFocus())));
 
     glayout->addWidget(m_title, 0, 0, 1, 2);
     glayout->addWidget(m_sectionRuler, 1, 0);
     glayout->addWidget(m_sceneView , 1, 1);
     glayout->addWidget(m_resizeBar, 2, 0, 1, 2);
-
-    m_title->setMinimumWidth(m_reportDesigner->pageWidthPx() + m_sectionRuler->frameSize().width());
 
     setLayout(glayout);
     slotResizeBarDragged(0);
@@ -115,7 +135,6 @@ void ReportSection::setTitle(const QString & s)
 
 void ReportSection::slotResizeBarDragged(int delta)
 {
-
     if (m_sceneView->designer() && m_sceneView->designer()->propertySet()->property("PageSize").value().toString() == "Labels") {
         return; // we don't want to allow this on reports that are for labels
     }
@@ -129,11 +148,9 @@ void ReportSection::slotResizeBarDragged(int delta)
     m_sectionRuler->setRulerLength(h);
 
     m_scene->setSceneRect(0, 0, m_scene->width(), h);
-    //sceneview->setSceneRect(0, 0, scene->width(), h);
     m_sceneView->resizeContents(QSize(m_scene->width(), h));
 
     m_reportDesigner->setModified(true);
-    //_rd->adjustSize();
 }
 
 void ReportSection::buildXML(QDomDocument & doc, QDomElement & section)
@@ -155,8 +172,6 @@ void ReportSection::buildXML(QDomDocument & doc, QDomElement & section)
             it != list.end(); it++) {
         ReportEntity::buildXML((*it), doc, section);
     }
-
-
 }
 
 void ReportSection::initFromXML(QDomNode & section)
@@ -208,11 +223,13 @@ void ReportSection::initFromXML(QDomNode & section)
 
 QSize ReportSection::sizeHint() const
 {
-    return QSize(m_scene->width()  + m_sectionRuler->frameSize().width(), m_title->frameSize().height() + m_sceneView->sizeHint().height() + m_resizeBar->frameSize().height());;
+    return QSize(m_scene->width()  + m_sectionRuler->frameSize().width(), m_title->frameSize().height() + m_sceneView->sizeHint().height() + m_resizeBar->frameSize().height());
 }
 
 void ReportSection::slotPageOptionsChanged(KoProperty::Set &set)
 {
+    Q_UNUSED(set)
+    
     KoUnit unit = m_reportDesigner->pageUnit();
 
     //update items position with unit
@@ -236,24 +253,21 @@ void ReportSection::slotPageOptionsChanged(KoProperty::Set &set)
 
 void ReportSection::slotSceneClicked()
 {
-    m_title->setFrameStyle(QFrame::Panel | QFrame::Sunken);
+    m_reportDesigner->setActiveScene(m_scene);
     m_reportDesigner->changeSet(m_sectionData->properties());
-}
-
-void ReportSection::slotSceneLostFocus()
-{
-    m_title->setFrameStyle(QFrame::Panel | QFrame::Raised);
 }
 
 void ReportSection::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
-    kDebug();
-    //Handle Position
+    Q_UNUSED(s)
+    
+    //Handle Background Color
     if (p.name() == "BackgroundColor") {
         m_scene->setBackgroundBrush(p.value().value<QColor>());
     }
 
-    if (m_reportDesigner) m_reportDesigner->setModified(true);
+    if (m_reportDesigner)
+        m_reportDesigner->setModified(true);
 
     m_scene->update();
 }
@@ -264,10 +278,9 @@ void ReportSection::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property
 ReportResizeBar::ReportResizeBar(QWidget * parent, Qt::WFlags f)
         : QFrame(parent, f)
 {
-    setMinimumHeight(5);
-    setMaximumHeight(5);
     setCursor(QCursor(Qt::SizeVerCursor));
     setFrameStyle(QFrame::HLine);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 }
 
 void ReportResizeBar::mouseMoveEvent(QMouseEvent * e)
@@ -280,11 +293,10 @@ void ReportResizeBar::mouseMoveEvent(QMouseEvent * e)
 
 ReportSectionTitle::ReportSectionTitle(QWidget*parent) : QLabel(parent)
 {
-    setFrameStyle(QFrame::Panel | QFrame::Raised);
-    //setMaximumHeight(minimumSizeHint().height());
-    //setMinimumHeight(minimumSizeHint().height());
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setFrameStyle(QFrame::Panel | QFrame::Raised);
     setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    setMinimumHeight(20);
 }
 
 ReportSectionTitle::~ReportSectionTitle()
@@ -292,20 +304,30 @@ ReportSectionTitle::~ReportSectionTitle()
 
 }
 
-void ReportSectionTitle::mouseDoubleClickEvent(QMouseEvent * event)
-{
-    emit(doubleClicked());
-}
-
 void ReportSectionTitle::paintEvent(QPaintEvent * event)
 {
     QPainter painter(this);
     KColorScheme colorScheme(QPalette::Active);
-
+    
     QLinearGradient linearGrad(QPointF(0, 0), QPointF(width(), 0));
-    linearGrad.setColorAt(0, colorScheme.decoration(KColorScheme::HoverColor));
-    linearGrad.setColorAt(1, colorScheme.decoration(KColorScheme::FocusColor));
+    
+    ReportSection* _section = dynamic_cast<ReportSection*>(parent());
+
+    if (_section->m_scene == _section->m_reportDesigner->activeScene()) {
+      linearGrad.setColorAt(0, colorScheme.decoration(KColorScheme::HoverColor).color());
+      linearGrad.setColorAt(1, colorScheme.decoration(KColorScheme::FocusColor).color());
+    }
+    else {
+      linearGrad.setColorAt(0, colorScheme.background(KColorScheme::NormalBackground).color());
+      linearGrad.setColorAt(1, colorScheme.foreground(KColorScheme::InactiveText).color());
+    }
      
     painter.fillRect(rect(), linearGrad);
-    QLabel::paintEvent(event);
+    
+    painter.setPen(Qt::black);
+    painter.setBackgroundMode(Qt::TransparentMode);
+    painter.drawPixmap(QPoint(25,(height() - 12) / 2), QPixmap(arrow_xpm));
+    
+    painter.drawText(rect().adjusted(40, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, text());
+    QFrame::paintEvent(event);
 }

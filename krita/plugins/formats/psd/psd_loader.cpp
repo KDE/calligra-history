@@ -26,6 +26,7 @@
 #include <KoColorSpaceRegistry.h>
 #include <KoColorModelStandardIds.h>
 #include <KoColorProfile.h>
+#include <KoCompositeOp.h>
 
 #include <kis_annotation.h>
 #include <kis_types.h>
@@ -36,12 +37,43 @@
 #include <kis_undo_adapter.h>
 #include <kis_group_layer.h>
 #include <kis_paint_device.h>
+#include <kis_transaction.h>
+#include <kis_iterator.h>
 
 #include "psd_header.h"
 #include "psd_colormode_block.h"
 #include "psd_utils.h"
 #include "psd_resource_section.h"
 #include "psd_layer_section.h"
+
+QString psd_blendmode_to_composite_op(const QString& blendmode)
+{
+    if (blendmode == "norm") return COMPOSITE_OVER;    // normal
+    if (blendmode == "dark") return COMPOSITE_DARKEN;  // darken
+    if (blendmode == "lite") return COMPOSITE_LIGHTEN; // lighten
+    if (blendmode == "hue ") return COMPOSITE_HUE;     // hue
+    if (blendmode == "sat ") return COMPOSITE_SATURATION; // saturation
+    if (blendmode == "colr") return COMPOSITE_COLOR; //color
+    if (blendmode == "lum ") return COMPOSITE_LUMINIZE; //luminosity
+    if (blendmode == "mul ") return COMPOSITE_MULT; //multiply
+    if (blendmode == "scrn") return COMPOSITE_SCREEN; //screen
+    if (blendmode == "diss") return COMPOSITE_DISSOLVE; //dissolve
+    if (blendmode == "over") return COMPOSITE_OVERLAY; //overlay
+    if (blendmode == "hLit") return COMPOSITE_HARD_LIGHT; //hard light
+    if (blendmode == "sLit") return COMPOSITE_SOFT_LIGHT; //soft light
+    if (blendmode == "diff") return COMPOSITE_DIFF; //difference
+    if (blendmode == "smud") return COMPOSITE_EXCLUSION; //exclusion
+    if (blendmode == "div ") return COMPOSITE_DIVIDE; // color dodge
+    if (blendmode == "idiv") return COMPOSITE_INVERTED_DIVIDE ; //color burn
+    if (blendmode == "lbrn") return COMPOSITE_BURN ; //linear burn
+    if (blendmode == "lddg") return COMPOSITE_DODGE ; //linear dodge
+    if (blendmode == "vLit") return COMPOSITE_VIVID_LIGHT; //vivid light
+    if (blendmode == "lLit") return COMPOSITE_LINEAR_LIGHT; //linear light
+    if (blendmode == "pLit") return COMPOSITE_PIN_LIGHT; //  pin light
+    if (blendmode == "hMix") return COMPOSITE_HARD_MIX; //hard mix
+
+    return COMPOSITE_UNDEF;
+}
 
 QString psd_colormode_to_colormodelid(PSDHeader::PSDColorMode colormode, quint16 channelDepth)
 {
@@ -82,7 +114,7 @@ QString psd_colormode_to_colormodelid(PSDHeader::PSDColorMode colormode, quint16
 
 PSDLoader::PSDLoader(KisDoc2 *doc, KisUndoAdapter *adapter)
 {
-    m_img = 0;
+    m_image = 0;
     m_doc = doc;
     m_adapter = adapter;
     m_job = 0;
@@ -108,7 +140,7 @@ KisImageBuilder_Result PSDLoader::decode(const KUrl& uri)
 
     PSDHeader header;
     if (!header.read(&f)) {
-        kDebug() << "failed reading header: " << header.error;
+        dbgFile << "failed reading header: " << header.error;
         return KisImageBuilder_RESULT_FAILURE;
     }
 
@@ -117,7 +149,7 @@ KisImageBuilder_Result PSDLoader::decode(const KUrl& uri)
 
     PSDColorModeBlock colorModeBlock(header.m_colormode);
     if (!colorModeBlock.read(&f)) {
-        kDebug() << "failed reading colormode block: " << colorModeBlock.error;
+        dbgFile << "failed reading colormode block: " << colorModeBlock.error;
         return KisImageBuilder_RESULT_FAILURE;
     }
 
@@ -125,7 +157,7 @@ KisImageBuilder_Result PSDLoader::decode(const KUrl& uri)
 
     PSDResourceSection resourceSection;
     if (!resourceSection.read(&f)) {
-        kDebug() << "failed reading resource section: " << resourceSection.error;
+        dbgFile << "failed reading resource section: " << resourceSection.error;
         return KisImageBuilder_RESULT_FAILURE;
     }
 
@@ -133,11 +165,11 @@ KisImageBuilder_Result PSDLoader::decode(const KUrl& uri)
 
     PSDLayerSection layerSection(header);
     if (!layerSection.read(&f)) {
-        kDebug() << "failed reading layer section: " << layerSection.error;
+        dbgFile << "failed reading layer section: " << layerSection.error;
         return KisImageBuilder_RESULT_FAILURE;
     }
 
-    dbgFile << "Read layer section. " << layerSection.layerInfo.nLayers << "layers. pos:" << f.pos();
+    dbgFile << "Read layer section. " << layerSection.nLayers << "layers. pos:" << f.pos();
 
     // Get the right colorspace
     QString colorSpaceId = psd_colormode_to_colormodelid(header.m_colormode, header.m_channelDepth);
@@ -149,27 +181,58 @@ KisImageBuilder_Result PSDLoader::decode(const KUrl& uri)
     if (!cs) return KisImageBuilder_RESULT_UNSUPPORTED_COLORSPACE;
 
     // Creating the KisImageWSP
-    m_img = new KisImage(m_doc->undoAdapter(),  header.m_width, header.m_height, cs, "built image");
-    Q_CHECK_PTR(m_img);
-    m_img->lock();
+    m_image = new KisImage(m_doc->undoAdapter(),  header.m_width, header.m_height, cs, "built image");
+    Q_CHECK_PTR(m_image);
+    m_image->lock();
 
     // Preserve the duotone colormode block for saving back to psd
     if (header.m_colormode == PSDHeader::DuoTone) {
         KisAnnotationSP annotation = new KisAnnotation("Duotone Colormode Block",
                                                        i18n("Duotone Colormode Block"),
                                                        colorModeBlock.m_data);
-        m_img->addAnnotation(annotation);
+        m_image->addAnnotation(annotation);
     }
 
     // read the projection into our single layer
-    if (layerSection.layerInfo.nLayers == 0) {
+    if (layerSection.nLayers == 0) {
         dbgFile << "Position" << f.pos() << "Going to read the projection into the first layer, which Photoshop calls 'Background'";
-        KisPaintLayerSP layer = new KisPaintLayer(m_img, i18n("Background"), OPACITY_OPAQUE);
+        KisPaintLayerSP layer = new KisPaintLayer(m_image, i18n("Background"), OPACITY_OPAQUE);
+        KisTransaction("", layer -> paintDevice());
         //readLayerData(&f, layer->paintDevice(), f.pos(), QRect(0, 0, header.m_width, header.m_height));
-        m_img->addNode(layer, m_img->rootLayer());
+        m_image->addNode(layer, m_image->rootLayer());
     }
     else {
         // read the channels for the various layers
+        for(int i = 0; i < layerSection.nLayers; ++i) {
+
+            // XXX: work out the group layer structure in Photoshop, as well as the adjustment layers
+
+            PSDLayerRecord* layerRecord = layerSection.layers.at(i);
+            dbgFile << "Going to read channels for layer " << i << *layerRecord;
+
+            KisPaintLayerSP layer = new KisPaintLayer(m_image, layerRecord->layerName, layerRecord->opacity);
+
+            QVector<quint8*> planes;
+            for (quint64 row = layerRecord->top; row < layerRecord->bottom; ++row) {
+                for (quint16 channel = 0; channel < layerRecord->nChannels; ++channel) {
+                    quint8* bytes = layerRecord->readChannelData(&f, row, channel);
+                    if (bytes == 0) {
+                        dbgFile << layerRecord->error;
+                        return KisImageBuilder_RESULT_BAD_FETCH;
+                    }
+
+                    // XXX: make sure the order is ok. In photoshop, the first channel is alpha
+                    planes << bytes;
+                }
+                layer->paintDevice()->writePlanarBytes(planes,
+                                                       layerRecord->left,
+                                                       row,
+                                                       layerRecord->right - layerRecord->left,
+                                                       layerRecord->bottom - layerRecord->top);
+
+            }
+            m_image->addNode(layer, m_image->rootLayer());
+        }
     }
 
     return KisImageBuilder_RESULT_OK;
@@ -202,7 +265,7 @@ KisImageBuilder_Result PSDLoader::buildImage(const KUrl& uri)
 
 KisImageWSP PSDLoader::image()
 {
-    return m_img;
+    return m_image;
 }
 
 void PSDLoader::cancel()

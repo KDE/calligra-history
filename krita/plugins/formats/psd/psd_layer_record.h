@@ -31,14 +31,26 @@ class PSDLayerRecord
 {
 public:
 
+    enum CompressionType {
+        Uncompressed = 0,
+        RLE,
+        ZIP,
+        ZIPWithPrediction,
+        Unknown
+    };
+
     PSDLayerRecord(const PSDHeader &header, bool hasTransparency);
+
+    ~PSDLayerRecord()
+    {
+        qDeleteAll(channelInfoRecords);
+    }
+
     bool read(QIODevice* io);
     bool write(QIODevice* io);
     bool valid();
 
     QString error;
-
-    QVector<quint64> channelDataStartPositions;
 
     quint32 top;
     quint32 left;
@@ -49,10 +61,13 @@ public:
 
     struct ChannelInfo {
         qint16 channelId;
+        CompressionType compressionType;
+        quint64 channelDataStart;
         quint64 channelDataLength;
+        QVector<quint32> rleRowLengths;
     };
 
-    QVector<ChannelInfo> channelInfoRecords;
+    QVector<ChannelInfo*> channelInfoRecords;
 
     QString blendModeKey;
 
@@ -76,11 +91,13 @@ public:
     LayerMaskData layerMask;
 
     struct LayerBlendingRanges {
+
+        QByteArray data;
+
         quint8 blackValues[2];
         quint8 whiteValues[2];
         quint32 compositeGrayBlendDestinationRange;
-        QByteArray sourceDestinationRanges;
-        //QVector<QPair<quint32, quint32> > sourceDestinationRanges;
+        QVector<QPair<quint32, quint32> > sourceDestinationRanges;
     };
 
     LayerBlendingRanges blendingRanges;
@@ -92,6 +109,10 @@ public:
     };
 
     QMap<QString, LayerInfoBlock*> infoBlocks;
+
+public:
+
+    quint8* readChannelData(QIODevice* io, quint64 row, quint16 channel);
 
 private:
 

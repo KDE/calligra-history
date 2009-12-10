@@ -90,28 +90,31 @@ KoFilter::ConversionStatus KisTIFFExport::convert(const QByteArray& from, const 
     KUrl url;
     url.setPath(filename);
 
-    KisImageWSP img;
+    KisImageWSP image;
 
     if (options.flatten) {
-        img = new KisImage(0, output->image()->width(), output->image()->height(), output->image()->colorSpace(), "");
-        img->setResolution(output->image()->xRes(), output->image()->yRes());
+        image = new KisImage(0, output->image()->width(), output->image()->height(), output->image()->colorSpace(), "");
+        image->setResolution(output->image()->xRes(), output->image()->yRes());
         KisPaintDeviceSP pd = KisPaintDeviceSP(new KisPaintDevice(*output->image()->projection()));
-        KisPaintLayerSP l = KisPaintLayerSP(new KisPaintLayer(img.data(), "projection", OPACITY_OPAQUE, pd));
-        img->addNode(KisNodeSP(l.data()), img->rootLayer().data());
+        KisPaintLayerSP l = KisPaintLayerSP(new KisPaintLayer(image.data(), "projection", OPACITY_OPAQUE, pd));
+        image->addNode(KisNodeSP(l.data()), image->rootLayer().data());
         l->setDirty();
     } else {
-        img = output->image();
+        image = output->image();
     }
 
+    image->lock();
+    image->refreshGraph();
 
     KisTIFFConverter ktc(output, output->undoAdapter());
-    /*    vKisAnnotationSP_it beginIt = img->beginAnnotations();
-        vKisAnnotationSP_it endIt = img->endAnnotations();*/
+    /*    vKisAnnotationSP_it beginIt = image->beginAnnotations();
+        vKisAnnotationSP_it endIt = image->endAnnotations();*/
     KisImageBuilder_Result res;
-    if ((res = ktc.buildFile(url, img, options)) == KisImageBuilder_RESULT_OK) {
+    if ((res = ktc.buildFile(url, image, options)) == KisImageBuilder_RESULT_OK) {
         dbgFile << "success !";
         return KoFilter::OK;
     }
+    image->unlock();
     dbgFile << " Result =" << res;
     return KoFilter::InternalError;
 }

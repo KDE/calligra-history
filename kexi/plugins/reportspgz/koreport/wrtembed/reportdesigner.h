@@ -70,57 +70,55 @@ public:
     
     void setReportData(KoReportData* kodata);
     
-    ReportSection* getSection(KRSectionData::Section) const;
+    ReportSection* section(KRSectionData::Section) const;
     void removeSection(KRSectionData::Section);
     void insertSection(KRSectionData::Section);
 
-    ReportSectionDetail* detailSection() {
-        return detail;
+    ReportSectionDetail* detailSection() const {
+        return m_detail;
     }
     void setDetail(ReportSectionDetail *rsd);
     void deleteDetail();
 
     void setReportTitle(const QString &);
-//    void setReportDataSource(const QString &);
     void setGridOptions(bool, int);
-    QString reportTitle();
-//    QString reportDataSource();
+    QString reportTitle() const;
 
-    QDomElement document();
+    QDomElement document() const;
 
-    bool isModified();
+    bool isModified() const;
 
-    KexiDB::Connection *theConn() {
+    KexiDB::Connection *theConn() const {
         return m_conn;
     }
-    bool isConnected() {
+    bool isConnected() const {
         return m_conn &&  m_conn->isConnected();
     }
 
     /**
     \return a list of fields in the selected query
     */
-    QStringList fieldList();
+    QStringList fieldList() const;
 
      /**
     \return a list of object scripts in the database
     */
-    QStringList scriptList();
+    QStringList scriptList() const;
     
     /**
     \return the page width in pixels for the current paper size
     */
     int pageWidthPx() const;
 
-    QGraphicsScene* activeScene();
+    QGraphicsScene* activeScene() const;
     void setActiveScene(QGraphicsScene* a);
-    KoProperty::Set* propertySet() {
+    KoProperty::Set* propertySet() const {
         return m_set;
     }
 
     virtual QSize sizeHint() const;
 
-    KoZoomHandler* zoomHandler();
+    KoZoomHandler* zoomHandler() const;
 
     KoUnit pageUnit() const;
 
@@ -128,7 +126,7 @@ public:
     void sectionMouseReleaseEvent(ReportSceneView *, QMouseEvent * e);
 
     void changeSet(KoProperty::Set *);
-    KoProperty::Set* itemPropertySet() {
+    KoProperty::Set* itemPropertySet() const {
         kDebug(); return m_itmset;
     }
 
@@ -161,20 +159,20 @@ public slots:
 protected:
     virtual void closeEvent(QCloseEvent * e);
 
-    ReportSection * reportHead;
-    ReportSection * pageHeadFirst;
-    ReportSection * pageHeadOdd;
-    ReportSection * pageHeadEven;
-    ReportSection * pageHeadLast;
-    ReportSection * pageHeadAny;
+    ReportSection *m_reportHeader;
+    ReportSection *m_pageHeaderFirst;
+    ReportSection *m_pageHeaderOdd;
+    ReportSection *m_pageHeaderEven;
+    ReportSection *m_pageHeaderLast;
+    ReportSection *m_pageHeaderAny;
 
-    ReportSection * pageFootFirst;
-    ReportSection * pageFootOdd;
-    ReportSection * pageFootEven;
-    ReportSection * pageFootLast;
-    ReportSection * pageFootAny;
-    ReportSection * reportFoot;
-    ReportSectionDetail * detail;
+    ReportSection *m_pageFooterFirst;
+    ReportSection *m_pageFooterOdd;
+    ReportSection *m_pageFooterEven;
+    ReportSection *m_pageFooterLast;
+    ReportSection *m_pageFooterAny;
+    ReportSection *m_reportFooter;
+    ReportSectionDetail *m_detail;
 
 private:
     class Private;
@@ -186,7 +184,7 @@ private:
     KexiDB::Connection *m_conn;
     KoReportData *m_kordata;
     
-    QStringList pageFormats();
+    QStringList pageFormats() const;
 
     virtual void resizeEvent(QResizeEvent * event);
 
@@ -195,8 +193,6 @@ private:
     KoProperty::Set* m_set;
     KoProperty::Set* m_itmset;
     KoProperty::Property* m_title;
-//    KoProperty::Property* m_dataSource;
-//    KoProperty::Property* m_externalData;
     KoProperty::Property* m_pageSize;
     KoProperty::Property* m_orientation;
     KoProperty::Property* m_unit;
@@ -213,8 +209,8 @@ private:
     KoProperty::Property* m_interpreter;
     KoProperty::Property* m_script;
 
-    ReportWriterSectionData * m_sectionData;
-    unsigned int selectionCount();
+    ReportWriterSectionData *m_sectionData;
+    unsigned int selectionCount() const;
 
 private slots:
     void slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p);

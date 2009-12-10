@@ -24,7 +24,9 @@
 #include <kis_types.h>
 #include <krita_export.h>
 #include <KoColor.h>
+
 class KisPainter;
+class KisColorSource;
 
 /**
  * The pressure opacity option defines a curve that is used to
@@ -37,6 +39,7 @@ public:
     KisPressureDarkenOption();
 
     KoColor apply(KisPainter * painter, const KisPaintInformation& info) const;
+    void apply(KisColorSource* colorSource, const KisPaintInformation& info) const;
 };
 
 #endif

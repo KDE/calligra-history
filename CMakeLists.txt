@@ -82,6 +82,11 @@ include(MacroLibrary)
 include (MacroAdditionalCleanFiles)
 include (MacroAddFileDependencies)
 
+#
+# Test for KDE >= 4.3.0
+#
+macro_ensure_version( "4.3.0" ${KDE_VERSION} KDE4_3_0 )
+
  ###########################
 ############################
 ## Required dependencies  ##
@@ -252,10 +257,8 @@ configure_file(config-prefix.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-prefix.h
 #          any other include directory
 
 # for config.h and <toplevel/foo.h> includes (if any?)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} )
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR}/interfaces )
 
-# koaction depends on threadweaver
-set(KOACTION_INCLUDES ${CMAKE_SOURCE_DIR}/libs/koaction ${CMAKE_BINARY_DIR}/libs/koaction ${KDE4_INCLUDES})
 
 # kostore is at the bottom of stack, so it has the dependency on the kde4 includes.
 set(KOSTORE_INCLUDES ${CMAKE_SOURCE_DIR}/libs/store ${CMAKE_BINARY_DIR}/libs/store ${KDE4_INCLUDES})
@@ -285,6 +288,7 @@ if (NOT NO_PIGMENT)
     set(PIGMENT_INCLUDES ${KOPLUGIN_INCLUDES}
                    ${CMAKE_SOURCE_DIR}/libs/pigment
                    ${CMAKE_SOURCE_DIR}/libs/pigment/compositeops
+                   ${CMAKE_SOURCE_DIR}/libs/pigment/resources
                    ${QT_INCLUDES}
                    ${KDE4_INCLUDES}
                    ${LCMS_INCLUDE_DIR} )
@@ -308,16 +312,8 @@ set(KOMAIN_INCLUDES ${KDE4_INCLUDES}
                     ${KOTEXT_INCLUDES}
                     ${CMAKE_SOURCE_DIR}/libs/widgets
                     ${CMAKE_SOURCE_DIR}/libs/kocolorwidgets
-                    ${CMAKE_SOURCE_DIR}/libs/koaction
                     ${CMAKE_SOURCE_DIR}/libs/main
-                    ${CMAKE_SOURCE_DIR}/libs/main/config
-                    ${CMAKE_SOURCE_DIR}/libs/resources)
-
-# koresources depends on pigment
-set(KORESOURCES_INCLUDES ${CMAKE_SOURCE_DIR}/libs/resources
-                    ${CMAKE_BINARY_DIR}/libs/resources
-                    ${PIGMENT_INCLUDES}
-                    ${KDE4_INCLUDES})
+                    ${CMAKE_SOURCE_DIR}/libs/main/config)
 
 if(SHOULD_BUILD_SCRIPTING)
   set(KOKROSS_INCLUDES ${CMAKE_SOURCE_DIR}/libs/kokross ${CMAKE_BINARY_DIR}/libs/kokross)
@@ -359,9 +355,9 @@ if(NOT BZIP2_EXECUTABLE )
 endif(NOT BZIP2_EXECUTABLE )
 
 ### Krita: pigment, blitz, eigen2, exiv2
-if(NOT BUILD_pigment OR NOT BLITZ_FOUND OR NOT EIGEN2_FOUND OR NOT EXIV2_FOUND)
+if(NOT BUILD_pigment OR NOT BLITZ_FOUND OR NOT EIGEN2_FOUND OR NOT EXIV2_FOUND OR NOT KDE4_3_0)
    set(SHOULD_BUILD_KRITA FALSE)
-endif(NOT BUILD_pigment OR NOT BLITZ_FOUND OR NOT EIGEN2_FOUND OR NOT EXIV2_FOUND)
+endif(NOT BUILD_pigment OR NOT BLITZ_FOUND OR NOT EIGEN2_FOUND OR NOT EXIV2_FOUND OR NOT KDE4_3_0)
 
 ### KPlato: kdepimlibs
 if(NOT KdepimLibs_FOUND)

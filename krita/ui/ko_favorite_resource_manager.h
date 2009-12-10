@@ -23,19 +23,19 @@
 #include <kis_types.h>
 #include <QQueue>
 #include <QList>
-#include "kis_favorite_brush_data.h"
+#include <QPixmap>
 #include "kis_recent_color_data.h"
 
 class QString;
 class QColor;
+class QStringList;
+class QToolButton;
+class QPoint;
 class KoID;
 class KisPopupPalette;
 class KisPaintopBox;
 class KisPaletteManager;
 class KisView2;
-class QStringList;
-class QToolButton;
-class QPoint;
 
 class KoFavoriteResourceManager : public QObject
 {
@@ -46,14 +46,16 @@ public:
     KoFavoriteResourceManager(KisPaintopBox*, QWidget* = 0);
     ~KoFavoriteResourceManager();
 
-    static const int MAX_FAVORITE_BRUSHES = 10;
+    static const int MAX_FAVORITE_BRUSHES = 9;
     static const int MAX_RECENT_COLORS = 10;
 
     /************************************Popup Palette************************************/
 
     void showPaletteManager();
-    QToolButton* favoriteBrushButton(int);
     void resetPopupPaletteParent(QWidget * = 0);
+    QList<QPixmap> favoriteBrushPixmaps();
+    QPixmap favoriteBrushPixmap(int);
+    bool isPopupPaletteVisible();
 
     /**********************************Favorite Brushes***********************************/
 
@@ -76,16 +78,16 @@ public:
     QQueue<KisRecentColorData*>* recentColorsList();
     
 public slots:
-    void slotChangeCurrentPaintOp(KisPaintOpPresetSP);
     void slotChangePaintopLabel();
-    void slotShowPopupPalette(const QPoint&);
+    void slotShowPopupPalette(const QPoint& = QPoint(0,0));
+    void slotChangeActivePaintop(int);
 
 private:
     KisPaletteManager *m_favoriteBrushManager;
     KisPopupPalette* m_popupPalette;
     KisPaintopBox* m_paintopBox;
 
-    QList<KisFavoriteBrushData*> m_favoriteBrushesList;
+    QList<KisPaintOpPresetSP> m_favoriteBrushesList;
 
     /**The list of recently used colors**/
     QQueue<KisRecentColorData*> m_recentColorsData;

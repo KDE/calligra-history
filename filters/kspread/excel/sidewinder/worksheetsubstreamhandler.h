@@ -32,6 +32,7 @@ typedef std::vector<FormulaToken> FormulaTokens;
 
 class GlobalsSubStreamHandler;
 
+class BOFRecord;
 class BlankRecord;
 class BoolErrRecord;
 class BottomMarginRecord;
@@ -56,6 +57,11 @@ class RStringRecord;
 class SharedFormulaRecord;
 class StringRecord;
 class TopMarginRecord;
+class HLinkRecord;
+class NoteRecord;
+class ObjRecord;
+class DefaultRowHeightRecord;
+class DefaultColWidthRecord;
 
 class WorksheetSubStreamHandler : public SubStreamHandler
 {
@@ -65,6 +71,7 @@ public:
 
     virtual void handleRecord( Record* record );
 private:
+    void handleBOF( BOFRecord* record );
     void handleBlank( BlankRecord* record );
     void handleBoolErr( BoolErrRecord* record );
     void handleBottomMargin( BottomMarginRecord* record );
@@ -89,6 +96,11 @@ private:
     void handleSharedFormula( SharedFormulaRecord* record );
     void handleString( StringRecord* record );
     void handleTopMargin( TopMarginRecord* record );
+    void handleLink( HLinkRecord* record );
+    void handleNote( NoteRecord* record );
+    void handleObj( ObjRecord* record );
+    void handleDefaultRowHeight( DefaultRowHeightRecord* record );
+    void handleDefaultColWidth( DefaultColWidthRecord* record );
 
     UString decodeFormula( unsigned row, unsigned col, const FormulaTokens& tokens );
     UString dataTableFormula( unsigned row, unsigned col, const DataTableRecord* record );

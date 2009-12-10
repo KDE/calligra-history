@@ -45,7 +45,6 @@ public:
     virtual KRTextData * toText();
     virtual int type() const;
 
-    void setTextFlags(Qt::Alignment);
     Qt::Alignment textFlags() const;
     QFont font() const {
         return m_font->value().value<QFont>();
@@ -65,7 +64,7 @@ protected:
     QRect _rect();
 
     KRSize m_size;
-    KoProperty::Property * m_controlSource;
+    KoProperty::Property* m_controlSource;
     KoProperty::Property* m_horizontalAlignment;
     KoProperty::Property* m_verticalAlignment;
     KoProperty::Property* m_font;
@@ -76,7 +75,7 @@ protected:
     KoProperty::Property* m_lineWeight;
     KoProperty::Property* m_lineStyle;
 
-    qreal bpad;
+    qreal m_bottomPadding;
 
 private:
     virtual void createProperties();

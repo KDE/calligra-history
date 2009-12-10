@@ -268,7 +268,6 @@ bool KoColorSpace::convertPixelsTo(const quint8 * src,
 
 void KoColorSpace::bitBlt(quint8 *dst,
                           qint32 dststride,
-                          bool dstAlphaLocked,
                           const KoColorSpace * srcSpace,
                           const quint8 *src,
                           qint32 srcRowStride,
@@ -281,17 +280,16 @@ void KoColorSpace::bitBlt(quint8 *dst,
                           const QBitArray & channelFlags) const
 {
     if ( d->compositeOps.contains( op ) ) {
-        bitBlt(dst, dststride, dstAlphaLocked, srcSpace, src, srcRowStride, srcAlphaMask, maskRowStride, opacity, rows, cols, d->compositeOps.value( op ), channelFlags);
+        bitBlt(dst, dststride, srcSpace, src, srcRowStride, srcAlphaMask, maskRowStride, opacity, rows, cols, d->compositeOps.value( op ), channelFlags);
     }
     else {
-        bitBlt(dst, dststride, dstAlphaLocked, srcSpace, src, srcRowStride, srcAlphaMask, maskRowStride, opacity, rows, cols, d->compositeOps.value( COMPOSITE_OVER ), channelFlags);
+        bitBlt(dst, dststride, srcSpace, src, srcRowStride, srcAlphaMask, maskRowStride, opacity, rows, cols, d->compositeOps.value( COMPOSITE_OVER ), channelFlags);
     }
 
 }
 
 void KoColorSpace::bitBlt(quint8 *dst,
                           qint32 dststride,
-                          bool dstAlphaLocked,
                           const KoColorSpace * srcSpace,
                           const quint8 *src,
                           qint32 srcRowStride,
@@ -303,16 +301,15 @@ void KoColorSpace::bitBlt(quint8 *dst,
                           const QString& op) const
 {
     if ( d->compositeOps.contains( op ) ) {
-        bitBlt(dst, dststride, dstAlphaLocked, srcSpace, src, srcRowStride, srcAlphaMask, maskRowStride, opacity, rows, cols, d->compositeOps.value( op ));
+        bitBlt(dst, dststride, srcSpace, src, srcRowStride, srcAlphaMask, maskRowStride, opacity, rows, cols, d->compositeOps.value( op ));
     }
     else {
-        bitBlt(dst, dststride, dstAlphaLocked, srcSpace, src, srcRowStride, srcAlphaMask, maskRowStride, opacity, rows, cols, d->compositeOps.value( COMPOSITE_OVER ) );
+        bitBlt(dst, dststride, srcSpace, src, srcRowStride, srcAlphaMask, maskRowStride, opacity, rows, cols, d->compositeOps.value( COMPOSITE_OVER ) );
     }
 }
 
 void KoColorSpace::bitBlt(quint8 *dst,
                           qint32 dstRowStride,
-                          bool dstAlphaLocked,
                           const KoColorSpace * srcSpace,
                           const quint8 *src,
                           qint32 srcRowStride,
@@ -328,11 +325,6 @@ void KoColorSpace::bitBlt(quint8 *dst,
 
     if (rows <= 0 || cols <= 0)
         return;
-
-    quint8* alphaBytes = 0;
-    if (dstAlphaLocked) {
-        alphaBytes = getAlphaBytes(dst, dstRowStride, rows, cols);
-    }
 
     if (!(*this == *srcSpace)) {
 
@@ -362,11 +354,6 @@ void KoColorSpace::bitBlt(quint8 *dst,
                        opacity, channelFlags );
     }
 
-    if (dstAlphaLocked) {
-        applyAlphaBytes(dst, alphaBytes, dstRowStride, rows, cols);
-        delete[] alphaBytes;
-    }
-
 }
 
 // XXX: I don't want this code duplication, but also don't want an
@@ -374,7 +361,6 @@ void KoColorSpace::bitBlt(quint8 *dst,
 //      do?
 void KoColorSpace::bitBlt(quint8 *dst,
                           qint32 dstRowStride,
-                          bool dstAlphaLocked,
                           const KoColorSpace * srcSpace,
                           const quint8 *src,
                           qint32 srcRowStride,
@@ -389,11 +375,6 @@ void KoColorSpace::bitBlt(quint8 *dst,
 
     if (rows <= 0 || cols <= 0)
         return;
-
-    quint8* alphaBytes = 0;
-    if (dstAlphaLocked) {
-        alphaBytes = getAlphaBytes(dst, dstRowStride, rows, cols);
-    }
 
     if (this != srcSpace) {
         quint32 conversionBufferStride = cols * pixelSize();
@@ -423,11 +404,6 @@ void KoColorSpace::bitBlt(quint8 *dst,
                        opacity);
     }
 
-    if (dstAlphaLocked) {
-        applyAlphaBytes(dst, alphaBytes, dstRowStride, rows, cols);
-        delete[] alphaBytes;
-    }
-
 }
 
 QVector<quint8> * KoColorSpace::threadLocalConversionCache(quint32 size) const
@@ -451,7 +427,7 @@ KoColorTransformation* KoColorSpace::createColorTransformation( const QString & 
     if(!factory) return 0;
     QPair<KoID, KoID> model( colorModelId(), colorDepthId() );
     QList< QPair<KoID, KoID> > models = factory->supportedModels();
-    if(models.contains(model))
+    if(models.isEmpty() || models.contains(model))
     {
         return factory->createTransformation( this, parameters);
     } else {
@@ -480,42 +456,4 @@ QImage KoColorSpace::convertToQImage(const quint8 *data, qint32 width, qint32 he
         this->convertPixelsTo(const_cast<quint8 *>(data), img.bits(), dstCS, width * height, renderingIntent);
 
     return img;
-}
-
-quint8* KoColorSpace::getAlphaBytes(quint8* pixels, qint32 rowStride, quint32 rows, quint32 columns) const
-{
-    quint8* alphaPixels = new quint8[rows * columns];
-
-    quint8 *dst = pixels;
-    qint32 bytesPerPixel = pixelSize();
-
-    int i = 0;
-    while (rows > 0) {
-        quint8* dstN = dst;
-        int cols = columns;
-        while (cols > 0) {
-            alphaPixels[i] = alpha(dstN);
-            dst += bytesPerPixel;
-            --cols;
-            ++i;
-        }
-        dst += rowStride;
-        --rows;
-    }
-
-    return alphaPixels;
-}
-
-void KoColorSpace::applyAlphaBytes(quint8* pixels, quint8* alpha, qint32 rowStride, quint32 rows, quint32 cols) const
-{
-    quint8 *dst = pixels;
-
-    int i = 0;
-    while (rows > 0) {
-        qDebug() << rows << i << rowStride << pixels << alpha;
-        setAlpha(dst, alpha[i], cols);
-        i += cols;
-        dst += rowStride;
-        --rows;
-    }
 }

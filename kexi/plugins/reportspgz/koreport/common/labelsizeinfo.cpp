@@ -21,7 +21,7 @@
 
 #include "labelsizeinfo.h"
 
-static LabelSizeInfo __labels[] = {
+static LabelSizeInfo s_labels[] = {
 //"LABEL_NAME","Paper Size","COLUMNS","ROWS","WIDTH","HEIGHT","STARTXOFFSET","STARTYOFFSET","HORIZONTALGAP","VERTICALGAP"
     LabelSizeInfo("Avery 5263", "Letter", 2, 5, 400, 200, 25, 50, 0, 0),
     LabelSizeInfo("Avery 5264", "Letter", 2, 3, 400, 333, 25, 75, 0, 0),
@@ -30,19 +30,19 @@ static LabelSizeInfo __labels[] = {
     LabelSizeInfo()               // Null Label Size
 };
 
-const LabelSizeInfo & LabelSizeInfo::getByName(const QString & name)
+LabelSizeInfo LabelSizeInfo::find(const QString & name)
 {
     int i = 0;
-    while (!__labels[i].isNull() && __labels[i]._name != name)
+    while (!s_labels[i].isNull() && s_labels[i].m_name != name)
         i++;
-    return __labels[i];
+    return s_labels[i];
 }
 
-QStringList LabelSizeInfo::getLabelNames()
+QStringList LabelSizeInfo::labelNames()
 {
     QStringList l;
-    for (int i = 0; !__labels[i].isNull(); i++)
-        l.append(__labels[i]._name);
+    for (int i = 0; !s_labels[i].isNull(); i++)
+        l.append(s_labels[i].m_name);
     return l;
 }
 
@@ -50,92 +50,95 @@ LabelSizeInfo::LabelSizeInfo(const QString & n, const QString & p, int c,
                              int r, int w, int h, int sx, int sy, int xg,
                              int yg)
 {
-    _name = n;
-    _paper = p;
+    m_name = n;
+    m_paper = p;
 
-    _columns = c;
-    _rows = r;
+    m_columns = c;
+    m_rows = r;
 
-    _width = w;
-    _height = h;
+    m_width = w;
+    m_height = h;
 
-    _startx = sx;
-    _starty = sy;
+    m_startx = sx;
+    m_starty = sy;
 
-    _xgap = xg;
-    _ygap = yg;
+    m_xgap = xg;
+    m_ygap = yg;
 
-    _null = FALSE;
+    m_null = FALSE;
 }
 
 LabelSizeInfo::LabelSizeInfo()
 {
-    _columns = 0;
-    _rows = 0;
+    m_columns = 0;
+    m_rows = 0;
 
-    _width = 0;
-    _height = 0;
+    m_width = 0;
+    m_height = 0;
 
-    _startx = 0;
-    _starty = 0;
+    m_startx = 0;
+    m_starty = 0;
 
-    _xgap = 0;
-    _ygap = 0;
+    m_xgap = 0;
+    m_ygap = 0;
 
-    _null = TRUE;
+    m_null = TRUE;
 }
 
 LabelSizeInfo::~LabelSizeInfo()
 {
 }
 
-const QString & LabelSizeInfo::name()
+QString LabelSizeInfo::name() const
 {
-    return _name;
+    return m_name;
 }
 
-const QString & LabelSizeInfo::paper()
+QString LabelSizeInfo::paper() const
 {
-    return _paper;
+    return m_paper;
 }
 
-const int LabelSizeInfo::columns()
+int LabelSizeInfo::columns() const
 {
-    return _columns;
+    return m_columns;
 }
-const int LabelSizeInfo::rows()
+int LabelSizeInfo::rows() const
 {
-    return _rows;
-}
-
-const int LabelSizeInfo::width()
-{
-    return _width;
-}
-const int LabelSizeInfo::height()
-{
-    return _height;
+    return m_rows;
 }
 
-const int LabelSizeInfo::startX()
+int LabelSizeInfo::width() const
 {
-    return _startx;
-}
-const int LabelSizeInfo::startY()
-{
-    return _starty;
+    return m_width;
 }
 
-const int LabelSizeInfo::xGap()
+int LabelSizeInfo::height() const
 {
-    return _xgap;
-}
-const int LabelSizeInfo::yGap()
-{
-    return _ygap;
+    return m_height;
 }
 
-bool LabelSizeInfo::isNull()
+int LabelSizeInfo::startX() const
 {
-    return _null;
+    return m_startx;
+}
+
+int LabelSizeInfo::startY() const
+{
+    return m_starty;
+}
+
+int LabelSizeInfo::xGap() const
+{
+    return m_xgap;
+}
+
+int LabelSizeInfo::yGap() const
+{
+    return m_ygap;
+}
+
+bool LabelSizeInfo::isNull() const
+{
+    return m_null;
 }

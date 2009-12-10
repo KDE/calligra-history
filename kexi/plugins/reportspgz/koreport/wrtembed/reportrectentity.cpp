@@ -97,12 +97,13 @@ void ReportRectEntity::setSceneRect(QRectF r)
 
 void ReportRectEntity::mousePressEvent(QGraphicsSceneMouseEvent * event)
 {
-  kDebug();
     //Update and show properties
     m_ppos->setScenePos(QPointF(sceneRect().x(), sceneRect().y()));
     m_reportDesigner->changeSet(m_pset);
     setSelected(true);
     scene()->update();
+    
+    QGraphicsItem::mousePressEvent(event);
 }
 
 void ReportRectEntity::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
@@ -110,7 +111,7 @@ void ReportRectEntity::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
     //Keep the size and position in sync
     m_ppos->setScenePos(pos());
     m_psize->setSceneSize(QSizeF(rect().width(), rect().height()));
-    m_reportDesigner->changeSet(m_pset);
+
     QGraphicsItem::mouseReleaseEvent(event);
 }
 

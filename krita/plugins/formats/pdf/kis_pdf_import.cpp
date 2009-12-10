@@ -49,6 +49,7 @@
 #include <kis_group_layer.h>
 #include <kis_image.h>
 #include <kis_paint_layer.h>
+#include <kis_transaction.h>
 
 // plugins's headers
 #include "kis_pdf_import_widget.h"
@@ -132,14 +133,16 @@ KisPDFImport::ConversionStatus KisPDFImport::convert(const QByteArray& , const Q
     const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace(KoID("RGBA"), "");
     int width = wdg->intWidth->value();
     int height = wdg->intHeight->value();
-    KisImageWSP img = new KisImage(doc->undoAdapter(), width, height, cs, "built image");
-    img->lock();
+    KisImageWSP image = new KisImage(doc->undoAdapter(), width, height, cs, "built image");
+    image->lock();
     // create a layer
     QList<int> pages = wdg->pages();
     for (QList<int>::const_iterator it = pages.constBegin(); it != pages.constEnd(); ++it) {
-        KisPaintLayer* layer = new KisPaintLayer(img.data(),
+        KisPaintLayer* layer = new KisPaintLayer(image.data(),
                 i18n("Page %1", *it + 1),
                 quint8_MAX);
+
+        KisTransaction("", layer->paintDevice());
 
         Poppler::Page* page = pdoc->page(*it);
         for (int x = 0; x < width; x += 1000) {
@@ -150,12 +153,12 @@ KisPDFImport::ConversionStatus KisPDFImport::convert(const QByteArray& , const Q
             }
         }
         delete page;
-        img->addNode(layer, img->rootLayer(), 0);
+        image->addNode(layer, image->rootLayer(), 0);
         layer->setDirty();
     }
 
-    doc->setCurrentImage(img);
-    img->unlock();
+    doc->setCurrentImage(image);
+    image->unlock();
     KIO::NetAccess::removeTempFile(tmpFile);
 
     delete pdoc;

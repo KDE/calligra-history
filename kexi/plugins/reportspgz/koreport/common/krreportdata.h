@@ -43,44 +43,44 @@ class KRReportData : public QObject
     Q_OBJECT
 
 public:
-    KRReportData(const QDomElement & elemSource);
+    explicit KRReportData(const QDomElement & elemSource);
     KRReportData();
     ~KRReportData();
 
-    bool isValid() { return m_valid; }
+    bool isValid() const { return m_valid; }
     
     /**
     \return a list of all objects in the report
     */
-    QList<KRObjectData*> objects();
+    QList<KRObjectData*> objects() const;
 
     /**
     \return a report object given its name
     */
-    KRObjectData* object(const QString&);
+    KRObjectData* object(const QString&) const;
 
     /**
     \return all the sections, including groups and detail
     */
-    QList<KRSectionData*> sections();
+    QList<KRSectionData*> sections() const;
 
     /**
     \return a sectiondata given a section enum
     */
-    KRSectionData* section(KRSectionData::Section);
+    KRSectionData* section(KRSectionData::Section) const;
 
     /**
     \return a sectiondata given its name
     */
-    KRSectionData* section(const QString&);
+    KRSectionData* section(const QString&) const;
 
-    QString query() {
+    QString query() const {
         return m_query;
     }
-    QString script() {
+    QString script() const {
         return m_script;
     };
-    QString interpreter() {
+    QString interpreter() const {
         return m_interpreter;
     }
     
@@ -88,12 +88,12 @@ public:
       return m_externalData;
     }
     
-    KRDetailSectionData* detail() {
-        return detailsection;
+    KRDetailSectionData* detail() const {
+        return m_detailSection;
     }
     
-    void setName(const QString&n){m_name = n;};
-    QString name(){return m_name;};
+    void setName(const QString&n){m_name = n;}
+    QString name() const {return m_name;}
     
 protected:
     QString m_title;
@@ -105,22 +105,22 @@ protected:
 
     ReportPageOptions page;
 
-    KRSectionData * pghead_first;
-    KRSectionData * pghead_odd;
-    KRSectionData * pghead_even;
-    KRSectionData * pghead_last;
-    KRSectionData * pghead_any;
+    KRSectionData * m_pageHeaderFirst;
+    KRSectionData * m_pageHeaderOdd;
+    KRSectionData * m_pageHeaderEven;
+    KRSectionData * m_pageHeaderLast;
+    KRSectionData * m_pageHeaderAny;
 
-    KRSectionData * rpthead;
-    KRSectionData * rptfoot;
+    KRSectionData * m_reportHeader;
+    KRSectionData * m_reportFooter;
 
-    KRSectionData * pgfoot_first;
-    KRSectionData * pgfoot_odd;
-    KRSectionData * pgfoot_even;
-    KRSectionData * pgfoot_last;
-    KRSectionData * pgfoot_any;
+    KRSectionData * m_pageFooterFirst;
+    KRSectionData * m_pageFooterOdd;
+    KRSectionData * m_pageFooterEven;
+    KRSectionData * m_pageFooterLast;
+    KRSectionData * m_pageFooterAny;
 
-    KRDetailSectionData* detailsection;
+    KRDetailSectionData* m_detailSection;
 private:
     bool m_valid;
     void init();

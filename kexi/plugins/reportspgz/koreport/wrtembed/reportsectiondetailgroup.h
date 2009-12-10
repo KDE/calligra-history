@@ -45,21 +45,21 @@ public:
     void setColumn(const QString &);
     QString column();
 
-    void showGroupHead(bool yes = TRUE);
-    bool isGroupHeadShowing();
-    void showGroupFoot(bool yes = TRUE);
-    bool isGroupFootShowing();
+    void setGroupHeaderVisible(bool yes = TRUE);
+    bool groupHeaderVisible() const;
+    void setGroupFooterVisible(bool yes = TRUE);
+    bool groupFooterVisible() const;
     void setPageBreak(int);
     int  pageBreak() const;
 
-    ReportSection * getGroupHead();
-    ReportSection * getGroupFoot();
+    ReportSection * groupHeader() const;
+    ReportSection * groupFooter() const;
 
 protected:
     QString m_column;
 
-    ReportSection * m_head;
-    ReportSection * m_foot;
+    ReportSection * m_groupHeader;
+    ReportSection * m_groupFooter;
 
     ReportSectionDetail * m_reportSectionDetail;
 

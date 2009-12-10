@@ -41,6 +41,7 @@
 #include "KoShapeManager.h"
 
 #include "kis_types.h"
+#include <ko_favorite_resource_manager.h>
 #include "canvas/kis_canvas2.h"
 #include "kis_image.h"
 #include "opengl/kis_opengl.h"
@@ -123,9 +124,9 @@ void KisOpenGLCanvas2::paintGL()
     glClear(GL_COLOR_BUFFER_BIT);
     glShadeModel(GL_FLAT);
 
-    KisImageWSP img = m_d->canvas->image();
+    KisImageWSP image = m_d->canvas->image();
 
-    if (!img) return;
+    if (!image) return;
 
     // Zoom factor
     qreal sx, sy;
@@ -133,8 +134,8 @@ void KisOpenGLCanvas2::paintGL()
 
     // Resolution
     qreal pppx, pppy;
-    pppx = img->xRes();
-    pppy = img->yRes();
+    pppx = image->xRes();
+    pppy = image->yRes();
 
     // Compute the scale factors
     qreal scaleX = sx / pppx;
@@ -175,15 +176,15 @@ void KisOpenGLCanvas2::paintGL()
     glTexCoord2f(0.0, 0.0);
     glVertex2f(0.0, 0.0);
 
-    glTexCoord2f(img->width() / KisOpenGLImageTextures::BACKGROUND_TEXTURE_SIZE, 0.0);
-    glVertex2f(img->width(), 0.0);
+    glTexCoord2f(image->width() / KisOpenGLImageTextures::BACKGROUND_TEXTURE_SIZE, 0.0);
+    glVertex2f(image->width(), 0.0);
 
-    glTexCoord2f(img->width() / KisOpenGLImageTextures::BACKGROUND_TEXTURE_SIZE,
-                 img->height() / KisOpenGLImageTextures::BACKGROUND_TEXTURE_SIZE);
-    glVertex2f(img->width(), img->height());
+    glTexCoord2f(image->width() / KisOpenGLImageTextures::BACKGROUND_TEXTURE_SIZE,
+                 image->height() / KisOpenGLImageTextures::BACKGROUND_TEXTURE_SIZE);
+    glVertex2f(image->width(), image->height());
 
-    glTexCoord2f(0.0, img->height() / KisOpenGLImageTextures::BACKGROUND_TEXTURE_SIZE);
-    glVertex2f(0.0, img->height());
+    glTexCoord2f(0.0, image->height() / KisOpenGLImageTextures::BACKGROUND_TEXTURE_SIZE);
+    glVertex2f(0.0, image->height());
 
     glEnd();
 
@@ -200,10 +201,10 @@ void KisOpenGLCanvas2::paintGL()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     QRectF documentRect = m_d->viewConverter->viewToDocument(QRectF(m_d->documentOffset.x(), m_d->documentOffset.y(), width(), height()));
-    QRect wr = img->documentToIntPixel(documentRect);
-    wr &= QRect(0, 0, img->width(), img->height());
+    QRect wr = image->documentToIntPixel(documentRect);
+    wr &= QRect(0, 0, image->width(), image->height());
 
-    if (img->colorSpace()->hasHighDynamicRange()) {
+    if (image->colorSpace()->hasHighDynamicRange()) {
         if (m_d->openGLImageTextures->usingHDRExposureProgram()) {
             m_d->openGLImageTextures->activateHDRExposureProgram();
         }
@@ -246,7 +247,7 @@ void KisOpenGLCanvas2::paintGL()
         }
     }
 
-    if (img->colorSpace()->hasHighDynamicRange()) {
+    if (image->colorSpace()->hasHighDynamicRange()) {
         if (m_d->openGLImageTextures->usingHDRExposureProgram()) {
             m_d->openGLImageTextures->deactivateHDRExposureProgram();
         }
@@ -277,9 +278,9 @@ void KisOpenGLCanvas2::paintGL()
 
 void KisOpenGLCanvas2::setPixelToViewTransformation(void)
 {
-    KisImageWSP img = m_d->canvas->image();
+    KisImageWSP image = m_d->canvas->image();
 
-    if (!img) return;
+    if (!image) return;
 
     // Zoom factor
     qreal sx, sy;
@@ -287,8 +288,8 @@ void KisOpenGLCanvas2::setPixelToViewTransformation(void)
 
     // Resolution
     qreal pppx, pppy;
-    pppx = img->xRes();
-    pppy = img->yRes();
+    pppx = image->xRes();
+    pppy = image->yRes();
 
     // Compute the scale factors
     qreal scaleX = sx / pppx;
@@ -336,6 +337,11 @@ void KisOpenGLCanvas2::contextMenuEvent(QContextMenuEvent *e)
 void KisOpenGLCanvas2::mousePressEvent(QMouseEvent *e)
 {
     if (m_d->blockMouseEvent.isActive()) return;
+    else if (m_d->canvas->view()->favoriteResourceManager()->isPopupPaletteVisible())
+    {
+        m_d->canvas->view()->favoriteResourceManager()->slotShowPopupPalette();
+        return;
+    }
     m_d->toolProxy->mousePressEvent(e, m_d->viewConverter->viewToDocument(widgetToView(e->pos() + m_d->documentOffset)));
 }
 

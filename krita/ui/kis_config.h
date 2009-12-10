@@ -39,14 +39,14 @@ public:
     bool undoEnabled() const;
     void setUndoEnabled(bool undo);
 
-    qint32 defImgWidth() const;
-    void defImgWidth(qint32 width);
+    qint32 defImageWidth() const;
+    void defImageWidth(qint32 width);
 
-    qint32 defImgHeight() const;
-    void defImgHeight(qint32 height);
+    qint32 defImageHeight() const;
+    void defImageHeight(qint32 height);
 
-    double defImgResolution() const;
-    void defImgResolution(double res);
+    double defImageResolution() const;
+    void defImageResolution(double res);
 
     enumCursorStyle cursorStyle() const;
     enumCursorStyle getDefaultCursorStyle() const;
@@ -99,20 +99,28 @@ public:
 
     quint32 getGridMainStyle();
     void setGridMainStyle(quint32 v);
+
     quint32 getGridSubdivisionStyle();
     void setGridSubdivisionStyle(quint32 v);
+
     QColor getGridMainColor();
     void setGridMainColor(const QColor & v);
+
     QColor getGridSubdivisionColor();
     void setGridSubdivisionColor(const QColor & v);
+
     quint32 getGridHSpacing();
     void setGridHSpacing(quint32 v);
+
     quint32 getGridVSpacing();
     void setGridVSpacing(quint32 v);
+
     quint32 getGridSubdivisions();
     void setGridSubdivisions(quint32 v);
+
     quint32 getGridOffsetX();
     void setGridOffsetX(quint32 v);
+
     quint32 getGridOffsetY();
     void setGridOffsetY(quint32 v);
 
@@ -179,6 +187,9 @@ public:
 
     bool showFilterGallery();
     void setShowFilterGallery(bool showFilterGallery);
+
+    QString defaultPainterlyColorSpace();
+    void setDefaultPainterlyColorSpace(const QString& def);
 
 
 private:

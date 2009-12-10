@@ -32,43 +32,43 @@ public:
     LabelSizeInfo();
     virtual ~LabelSizeInfo();
 
-    const QString & name();
-    const QString & paper();
+    QString name() const;
+    QString paper() const;
 
-    const int columns();
-    const int rows();
+    int columns() const;
+    int rows() const;
 
-    const int width();
-    const int height();
+    int width() const;
+    int height() const;
 
-    const int startX();
-    const int startY();
+    int startX() const;
+    int startY() const;
 
-    const int xGap();
-    const int yGap();
+    int xGap() const;
+    int yGap() const;
 
-    bool isNull();
+    bool isNull() const;
 
-    static const LabelSizeInfo & getByName(const QString &);
-    static QStringList getLabelNames();
+    static LabelSizeInfo find(const QString &);
+    static QStringList labelNames();
 
 protected:
-    QString _name;
-    QString _paper;
+    QString m_name;
+    QString m_paper;
 
-    int _columns;
-    int _rows;
+    int m_columns;
+    int m_rows;
 
-    int _width;
-    int _height;
+    int m_width;
+    int m_height;
 
-    int _startx;
-    int _starty;
+    int m_startx;
+    int m_starty;
 
-    int _xgap;
-    int _ygap;
+    int m_xgap;
+    int m_ygap;
 
-    bool _null;
+    bool m_null;
 };
 
 #endif

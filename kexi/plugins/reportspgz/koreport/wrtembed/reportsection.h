@@ -30,6 +30,7 @@
 #include <koproperty/Property.h>
 #include <krsectiondata.h>
 #include <QGraphicsScene>
+
 #include "reportscene.h"
 
 typedef QList<QGraphicsItem*> QGraphicsItemList;
@@ -75,7 +76,6 @@ private slots:
     void slotPageOptionsChanged(KoProperty::Set &);
     void slotSceneClicked();
     void slotPropertyChanged(KoProperty::Set &, KoProperty::Property &);
-    void slotSceneLostFocus();
 
 protected:
     ReportSectionTitle * m_title;
@@ -87,7 +87,8 @@ protected:
 
 private:
     KRSectionData *m_sectionData;
-
+    
+    friend class ReportSectionTitle;
 };
 
 class ReportResizeBar : public QFrame
@@ -98,8 +99,6 @@ public:
 
 signals:
     void barDragged(int delta);
-    void barPress();
-    void barRelease();
     
 protected:
     void mouseMoveEvent(QMouseEvent * e);
@@ -113,11 +112,7 @@ public:
     ~ReportSectionTitle();
 
 protected:
-    virtual void mouseDoubleClickEvent(QMouseEvent * event);
     virtual void paintEvent(QPaintEvent* event);
-    
-signals:
-    void doubleClicked();
 };
 
 #endif

@@ -24,9 +24,9 @@ set(flake_SRCS
     KoPathShape.cpp
     KoPathPoint.cpp
     KoPathSegment.cpp
-    KoPositionSelector.cpp
     KoSelection.cpp
     KoShape.cpp
+    KoShapeApplicationData.cpp
     KoShapeContainer.cpp
     KoShapeContainerModel.cpp
     KoChildrenData.cpp
@@ -80,10 +80,12 @@ set(flake_SRCS
     KoConnectionShapeFactory.cpp
     KoConnectionShapeConfigWidget.cpp
     KoSnapGuide.cpp
+    KoSnapProxy.cpp
     KoSnapStrategy.cpp
     KoSnapData.cpp
     SnapGuideConfigWidget.cpp
     KoShapeShadow.cpp
+    KoViewConverter.cpp
     KoDevice.cpp
     KoDeviceEvent.cpp
     KoDeviceRegistry.cpp
@@ -96,9 +98,6 @@ set(flake_SRCS
     KoImageData_p.cpp
     KoImageCollection.cpp
     KoOdfWorkaround.cpp
-    KoZoomHandler.cpp
-    KoZoomMode.cpp
-    KoDpi.cpp
     KoFilterEffect.cpp
     KoFilterEffectStack.cpp
     KoFilterEffectFactory.cpp
@@ -143,6 +142,7 @@ set(flake_SRCS
     commands/KoEventActionRemoveCommand.cpp
     commands/KoShapeRenameCommand.cpp
     commands/KoPathPointMergeCommand.cpp
+    commands/KoShapeTransparencyCommand.cpp
     tools/KoCreatePathTool.cpp
     tools/KoCreatePathToolFactory.cpp
     tools/KoCreateShapeStrategy.cpp
@@ -223,7 +223,6 @@ install(
     KoCopyController.h
     KoCutController.h
     KoDataCenter.h
-    KoDpi.h
     KoDockFactory.h
     KoDockRegistry.h
     KoDrag.h
@@ -258,14 +257,12 @@ install(
     KoShapeRegistry.h
     KoShapeSavingContext.h
     KoShapeUserData.h
-    KoSnapData.h
+    KoShapeApplicationData.h
     KoTool.h
     KoToolManager.h
     KoToolFactory.h
     KoToolProxy.h
     KoToolRegistry.h
-    KoZoomHandler.h
-    KoZoomMode.h
     commands/KoEventActionAddCommand.h
     commands/KoEventActionRemoveCommand.h
     commands/KoParameterToPathCommand.h

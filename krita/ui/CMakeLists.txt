@@ -2,7 +2,7 @@ include_directories( ${KOTEXT_INCLUDES}
 	${BLITZ_INCLUDES} 
 	${CMAKE_SOURCE_DIR}/libs/pigment/colorprofiles
 	${CMAKE_CURRENT_SOURCE_DIR}/flake 
-	${CMAKE_CURRENT_SOURCE_DIR}/resources
+	${CMAKE_CURRENT_SOURCE_DIR}/pigment/resources
 	${CMAKE_CURRENT_SOURCE_DIR}/widgets/resources
 	${CMAKE_CURRENT_SOURCE_DIR}/openrastertk
 	${CMAKE_SOURCE_DIR}/krita/image/metadata 
@@ -66,7 +66,6 @@ set(kritaui_LIB_SRCS
     kis_doc2.cc 
     kis_exposure_visitor.cc 
     kis_factory2.cc
-    kis_favorite_brush_data.cpp
     kis_filter_handler.cc 
     kis_filter_manager.cc 
     kis_filters_model.cc

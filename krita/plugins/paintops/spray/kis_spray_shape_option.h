@@ -43,6 +43,7 @@ public:
     qreal heightPerc() const;
     int width() const;
     int height() const;
+    
     /// random size 
     bool jitterShapeSize() const;
 
@@ -55,20 +56,28 @@ public:
     bool followCursor() const;
     qreal followCursorWeigth() const;
     
-    QImage image();
-    
-    /// TODO
+    QImage image() const { return m_image; }
+
+    /// TODO: serialization 
     void writeOptionSetting(KisPropertiesConfiguration* setting) const;
-    /// TODO
     void readOptionSetting(const KisPropertiesConfiguration* setting);
 private:
     KisShapeOptionsWidget * m_options;
-    QImage m_img;
+    QImage m_image;
+    bool m_useAspect;
+    qreal m_aspect;
+    
+private:
+    void setupBrushPreviewSignals();
+    void computeAspect();
 
 private slots:
             void randomValueChanged(int value);
             void followValueChanged(int value);
             void prepareImage();
+            void aspectToggled(bool toggled);
+            void updateHeight(int value);
+            void updateWidth(int value);
 };
 
 #endif // KIS_SPRAY_SHAPE_OPTION_H

@@ -32,6 +32,7 @@
 #include <kis_group_layer.h>
 #include <kis_paint_layer.h>
 #include <kis_paint_device.h>
+#include <kis_transaction.h>
 #include <kis_undo_adapter.h>
 #include <QFileInfo>
 #include <KoColorSpaceRegistry.h>
@@ -221,14 +222,15 @@ KisImageBuilder_Result jp2Converter::decode(const KUrl& uri)
     }
 
     // Create the image
-    if (m_img == 0) {
-        m_img = new KisImage(m_adapter, image->x1, image->y1, colorSpace, "built image");
-        m_img->lock();
+    if (m_image == 0) {
+        m_image = new KisImage(m_adapter, image->x1, image->y1, colorSpace, "built image");
+        m_image->lock();
     }
 
     // Create the layer
-    KisPaintLayerSP layer = new KisPaintLayer(m_img.data(), m_img->nextLayerName(), OPACITY_OPAQUE);
-    m_img->addNode(layer.data(), m_img->rootLayer().data());
+    KisPaintLayerSP layer = new KisPaintLayer(m_image.data(), m_image->nextLayerName(), OPACITY_OPAQUE);
+    KisTransaction("", layer->paintDevice());
+    m_image->addNode(layer.data(), m_image->rootLayer().data());
 
     // Set the data
     int pos = 0;
@@ -257,7 +259,7 @@ KisImageBuilder_Result jp2Converter::decode(const KUrl& uri)
         }
     }
 
-    m_img->unlock();
+    m_image->unlock();
     return KisImageBuilder_RESULT_OK;
 }
 
@@ -287,9 +289,9 @@ KisImageBuilder_Result jp2Converter::buildImage(const KUrl& uri)
 }
 
 
-KisImageWSP jp2Converter::image()
+KisImageWSP jp2Converter::getImage()
 {
-    return m_img;
+    return m_image;
 }
 
 
@@ -298,8 +300,8 @@ KisImageBuilder_Result jp2Converter::buildFile(const KUrl& uri, KisPaintLayerSP 
     if (!layer)
         return KisImageBuilder_RESULT_INVALID_ARG;
 
-    KisImageWSP img = layer -> image();
-    if (!img)
+    KisImageWSP kisimage = layer->image();
+    if (!kisimage)
         return KisImageBuilder_RESULT_EMPTY;
 
     if (uri.isEmpty())
@@ -356,8 +358,8 @@ KisImageBuilder_Result jp2Converter::buildFile(const KUrl& uri, KisPaintLayerSP 
     // Init the image
     opj_image_cmptparm_t image_info[3];
 
-    int width = img->width();
-    int height = img->height();
+    int width = kisimage->width();
+    int height = kisimage->height();
     for (int k = 0; k < components; k++) {
         image_info[k].dx = 1;
         image_info[k].dy = 1;

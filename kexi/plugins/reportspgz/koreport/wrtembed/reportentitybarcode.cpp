@@ -44,7 +44,8 @@ void ReportEntityBarcode::init(QGraphicsScene * scene)
     if (scene)
         scene->addItem(this);
 
-    connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)), this, SLOT(propertyChanged(KoProperty::Set &, KoProperty::Property &)));
+    connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
+        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     setMaxLength(5);
     ReportRectEntity::init(&m_pos, &m_size, m_set);
@@ -55,13 +56,14 @@ ReportEntityBarcode::ReportEntityBarcode(ReportDesigner * rw, QGraphicsScene* sc
         : ReportRectEntity(rw)
 {
     init(scene);
-    m_size.setSceneSize(QSizeF(min_width_total*m_dpiX, min_height*m_dpiY));
+    m_size.setSceneSize(QSizeF(m_minWidthTotal*m_dpiX, m_minHeight*m_dpiY));
     setSceneRect(m_pos.toScene(), m_size.toScene());
 
     m_name->setValue(m_reportDesigner->suggestEntityName("Barcode"));
 }
 
-ReportEntityBarcode::ReportEntityBarcode(QDomNode & element, ReportDesigner * rw, QGraphicsScene* scene) : ReportRectEntity(rw), KRBarcodeData(element)
+ReportEntityBarcode::ReportEntityBarcode(QDomNode & element, ReportDesigner * rw, QGraphicsScene* scene)
+	: KRBarcodeData(element), ReportRectEntity(rw)
 {
     init(scene);
     setSceneRect(m_pos.toScene(), m_size.toScene());
@@ -89,6 +91,9 @@ QRect ReportEntityBarcode::getTextRect()
 
 void ReportEntityBarcode::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
+    
     // store any values we plan on changing so we can restore them
     QPen  p = painter->pen();
 
@@ -163,9 +168,9 @@ void ReportEntityBarcode::buildXML(QDomDocument & doc, QDomElement & parent)
     parent.appendChild(entity);
 }
 
-void ReportEntityBarcode::propertyChanged(KoProperty::Set &s, KoProperty::Property &p)
+void ReportEntityBarcode::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
-    kDebug() << "ReportEntityBarcode::propertyChanged " << s.typeName() << ":" << p.name();
+    kDebug() << s.typeName() << ":" << p.name();
 
     //Handle Position
     if (p.name() == "Position") {

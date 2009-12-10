@@ -40,7 +40,8 @@ void ReportEntityField::init(QGraphicsScene * scene)
     if (scene)
         scene->addItem(this);
 
-    connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)), this, SLOT(propertyChanged(KoProperty::Set &, KoProperty::Property &)));
+    connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
+        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     ReportRectEntity::init(&m_pos, &m_size, m_set);
     setZValue(Z);
@@ -57,7 +58,7 @@ ReportEntityField::ReportEntityField(ReportDesigner * rw, QGraphicsScene * scene
 }
 
 ReportEntityField::ReportEntityField(QDomNode & element, ReportDesigner * d, QGraphicsScene * s)
-        : KRFieldData(element), ReportRectEntity(d)
+        : ReportRectEntity(d), KRFieldData(element)
 {
     init(s);
     setSceneRect(m_pos.toScene(), m_size.toScene());
@@ -86,6 +87,9 @@ QRect ReportEntityField::getTextRect()
 
 void ReportEntityField::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget *widget)
 {
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
+    
     // store any values we plan on changing so we can restore them
     QFont f = painter->font();
     QPen  p = painter->pen();
@@ -188,10 +192,10 @@ void ReportEntityField::buildXML(QDomDocument & doc, QDomElement & parent)
     parent.appendChild(entity);
 }
 
-void ReportEntityField::propertyChanged(KoProperty::Set &s, KoProperty::Property &p)
+void ReportEntityField::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
-    //kDebug() << "ReportEntityField::propertyChanged " << s.typeName() << ":" << p.name() << ":" << p.value();
-
+    Q_UNUSED(s);
+    
     //Handle Position
     if (p.name() == "Position") {
         //TODO _pos.setUnitRect(p.value().value<QRect>() );
@@ -206,10 +210,11 @@ void ReportEntityField::propertyChanged(KoProperty::Set &s, KoProperty::Property
         }
     }
 
-    if (m_reportDesigner) m_reportDesigner->setModified(true);
+    if (m_reportDesigner)
+        m_reportDesigner->setModified(true);
 
-    if (scene()) scene()->update();
-
+    if (scene())
+        scene()->update();
 }
 
 void ReportEntityField::mousePressEvent(QGraphicsSceneMouseEvent * event)

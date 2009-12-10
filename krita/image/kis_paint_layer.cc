@@ -40,34 +40,33 @@ public:
     bool alphaLocked;
 };
 
-KisPaintLayer::KisPaintLayer(KisImageWSP img, const QString& name, quint8 opacity, KisPaintDeviceSP dev)
-        : KisLayer(img, name, opacity)
+KisPaintLayer::KisPaintLayer(KisImageWSP image, const QString& name, quint8 opacity, KisPaintDeviceSP dev)
+        : KisLayer(image, name, opacity)
         , m_d(new Private())
 {
-    Q_ASSERT(img);
+    Q_ASSERT(image);
     Q_ASSERT(dev);
     m_d->paintDevice = dev;
     m_d->alphaLocked = false;
-
 }
 
 
-KisPaintLayer::KisPaintLayer(KisImageWSP img, const QString& name, quint8 opacity)
-        : KisLayer(img, name, opacity)
+KisPaintLayer::KisPaintLayer(KisImageWSP image, const QString& name, quint8 opacity)
+        : KisLayer(image, name, opacity)
         , m_d(new Private())
 {
-    Q_ASSERT(img);
-    m_d->paintDevice = new KisPaintDevice(this, img->colorSpace());
+    Q_ASSERT(image);
+    m_d->paintDevice = new KisPaintDevice(this, image->colorSpace());
     m_d->alphaLocked = false;
 }
 
-KisPaintLayer::KisPaintLayer(KisImageWSP img, const QString& name, quint8 opacity, const KoColorSpace * colorSpace)
-        : KisLayer(img, name, opacity)
+KisPaintLayer::KisPaintLayer(KisImageWSP image, const QString& name, quint8 opacity, const KoColorSpace * colorSpace)
+        : KisLayer(image, name, opacity)
         , m_d(new Private())
 {
     if (!colorSpace) {
-        Q_ASSERT(img);
-        colorSpace = img->colorSpace();
+        Q_ASSERT(image);
+        colorSpace = image->colorSpace();
     }
     Q_ASSERT(colorSpace);
     m_d->paintDevice = new KisPaintDevice(this, colorSpace);
@@ -128,6 +127,9 @@ void KisPaintLayer::copyOriginalToProjection(const KisPaintDeviceSP original,
     if (hasTemporaryTarget()) {
         gc.setOpacity(temporaryOpacity());
         gc.setCompositeOp(temporaryCompositeOp());
+        if (alphaLocked()) {
+            gc.setLockAlpha(true);
+        }
         gc.bitBlt(rect.topLeft(), temporaryTarget(), rect);
     }
 }
@@ -141,7 +143,7 @@ KoDocumentSectionModel::PropertyList KisPaintLayer::sectionModelProperties() con
 {
     KoDocumentSectionModel::PropertyList l = KisLayer::sectionModelProperties();
     // XXX: get right icons
-    l << KoDocumentSectionModel::Property(i18n("Alpha Locked"), KIcon("object-locked-unverified"), KIcon("object-locked-verified"), alphaLocked());
+    l << KoDocumentSectionModel::Property(i18n("Alpha Locked"), KIcon("transparency-locked"), KIcon("transparency-unlocked"), alphaLocked());
     return l;
 }
 

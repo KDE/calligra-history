@@ -69,6 +69,7 @@ public:
 
   bool createStyles( KoOdfWriteStore* store );
   bool createContent( KoOdfWriteStore* store );
+  bool createMeta( KoOdfWriteStore* store );
   bool createManifest( KoOdfWriteStore* store );
 
   int sheetFormatIndex;
@@ -160,6 +161,15 @@ KoFilter::ConversionStatus ExcelImport::convert( const QByteArray& from, const Q
   if ( !d->createContent( &oasisStore ) )
   {
     kWarning() << "Couldn't open the file 'content.xml'.";
+    delete d->workbook;
+    delete storeout;
+    return KoFilter::CreationError;
+  }
+
+  // store meta content
+  if ( !d->createMeta( &oasisStore ) )
+  {
+    kWarning() << "Couldn't open the file 'meta.xml'.";
     delete d->workbook;
     delete storeout;
     return KoFilter::CreationError;
@@ -283,10 +293,84 @@ bool ExcelImport::Private::createStyles( KoOdfWriteStore* store )
   return store->store()->close();
 }
 
+bool ExcelImport::Private::createMeta( KoOdfWriteStore* store )
+{
+  if ( !store->store()->open( "meta.xml" ) )
+    return false;
+
+  KoStoreDevice dev( store->store() );
+  KoXmlWriter* metaWriter = new KoXmlWriter( &dev );
+  metaWriter->startDocument( "office:document-meta" );
+  metaWriter->startElement( "office:document-meta" );
+  metaWriter->addAttribute( "xmlns:office", "urn:oasis:names:tc:opendocument:xmlns:office:1.0" );
+  metaWriter->addAttribute( "xmlns:xlink", "http://www.w3.org/1999/xlink" );
+  metaWriter->addAttribute( "xmlns:dc", "http://purl.org/dc/elements/1.1/" );
+  metaWriter->addAttribute( "xmlns:meta", "urn:oasis:names:tc:opendocument:xmlns:meta:1.0" );
+  metaWriter->startElement( "office:meta" );
+
+  if( workbook->hasProperty( Workbook::PIDSI_TITLE ) ) {
+    metaWriter->startElement( "dc:title" ); 
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_TITLE ).toString() );
+    metaWriter->endElement();
+  }
+  if( workbook->hasProperty( Workbook::PIDSI_SUBJECT ) ) {
+    metaWriter->startElement( "dc:subject", false );
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_SUBJECT ).toString() );
+    metaWriter->endElement();
+  }
+  if( workbook->hasProperty( Workbook::PIDSI_AUTHOR ) ) {
+    metaWriter->startElement( "dc:creator", false );
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_AUTHOR ).toString() );
+    metaWriter->endElement();
+  }
+  if( workbook->hasProperty( Workbook::PIDSI_KEYWORDS ) ) {
+    metaWriter->startElement( "meta:keyword", false );
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_KEYWORDS ).toString() );
+    metaWriter->endElement();
+  }
+  if( workbook->hasProperty( Workbook::PIDSI_COMMENTS ) ) {
+    metaWriter->startElement( "meta:comments", false );
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_COMMENTS ).toString() );
+    metaWriter->endElement();
+  }
+  if( workbook->hasProperty( Workbook::PIDSI_REVNUMBER ) ) {
+    metaWriter->startElement( "meta:editing-cycles", false );
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_REVNUMBER ).toString() );
+    metaWriter->endElement();
+  }
+  if( workbook->hasProperty( Workbook::PIDSI_LASTPRINTED_DTM ) ) {
+    metaWriter->startElement( "dc:print-date", false );
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_LASTPRINTED_DTM ).toString() );
+    metaWriter->endElement();
+  }
+  if( workbook->hasProperty( Workbook::PIDSI_CREATE_DTM ) ) {
+    metaWriter->startElement( "meta:creation-date", false );
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_CREATE_DTM ).toString() );
+    metaWriter->endElement();
+  }
+  if( workbook->hasProperty( Workbook::PIDSI_LASTSAVED_DTM ) ) {
+    metaWriter->startElement( "dc:date", false );
+    metaWriter->addTextNode( workbook->property( Workbook::PIDSI_LASTSAVED_DTM ).toString() );
+    metaWriter->endElement();
+  }
+
+  //if( workbook->hasProperty( Workbook::PIDSI_TEMPLATE )  ) metaWriter->addAttribute( "dc:", workbook->property( Workbook::PIDSI_TEMPLATE ).toString() );
+  //if( workbook->hasProperty( Workbook::PIDSI_LASTAUTHOR )  ) metaWriter->addAttribute( "dc:", workbook->property( Workbook::PIDSI_LASTAUTHOR ).toString() );
+  //if( workbook->hasProperty( Workbook::PIDSI_EDITTIME )  ) metaWriter->addAttribute( "dc:date", workbook->property( Workbook::PIDSI_EDITTIME ).toString() );
+
+  metaWriter->endElement(); // office:meta
+  metaWriter->endElement(); // office:document-meta
+  metaWriter->endDocument();
+
+  delete metaWriter;
+  return store->store()->close();
+}
+
 bool ExcelImport::Private::createManifest( KoOdfWriteStore* store )
 {
   KoXmlWriter* manifestWriter = store->manifestWriter( "application/vnd.oasis.opendocument.spreadsheet" );
 
+  manifestWriter->addManifestEntry( "meta.xml", "text/xml" );
   manifestWriter->addManifestEntry( "styles.xml", "text/xml" );
   manifestWriter->addManifestEntry( "content.xml", "text/xml" );
 
@@ -519,73 +603,180 @@ static bool isPercentageFormat( const QString& valueFormat )
   return valueFormat[valueFormat.length()-1] == QChar('%');
 }
 
-static bool isDateFormat( const QString& valueFormat )
+// Remove via the "\" char escaped characters from the string.
+QString removeEscaped( const QString &text, bool removeOnlyEscapeChar = false )
 {
-  QString vfu = valueFormat.toUpper();
+  QString s( text );
+  int pos = 0;
+  while(true) {
+    pos = s.indexOf('\\', pos);
+    if( pos < 0 )
+      break;
+    if(removeOnlyEscapeChar) {
+      s = s.left(pos) + s.mid(pos + 1);
+      pos++;
+    } else {
+      s = s.left(pos) + s.mid(pos + 2);
+    }
+  }
+  return s;
+}
 
-  if( vfu == "M/D/YY" ) return true;
-  if( vfu == "M/D/YYYY" ) return true;
-  if( vfu == "MM/DD/YY" ) return true;
-  if( vfu == "MM/DD/YYYY" ) return true;
-  if( vfu == "D-MMM-YY" ) return true;
-  if( vfu == "D\\-MMM\\-YY" ) return true;
-  if( vfu == "D-MMM-YYYY" ) return true;
-  if( vfu == "D\\-MMM\\-YYYY" ) return true;
-  if( vfu == "D-MMM" ) return true;
-  if( vfu == "D\\-MMM" ) return true;
-  if( vfu == "D-MM" ) return true;
-  if( vfu == "D\\-MM" ) return true;
-  if( vfu == "MMM/DD" ) return true;
-  if( vfu == "MMM/D" ) return true;
-  if( vfu == "MM/DD" ) return true;
-  if( vfu == "MM/D" ) return true;
-  if( vfu == "MM/DD/YY" ) return true;
-  if( vfu == "MM/DD/YYYY" ) return true;
-  if( vfu == "YYYY/MM/D" ) return true;
-  if( vfu == "YYYY/MM/DD" ) return true;
-  if( vfu == "YYYY-MM-D" ) return true;
-  if( vfu == "YYYY\\-MM\\-D" ) return true;
-  if( vfu == "YYYY-MM-DD" ) return true;
-  if( vfu == "YYYY\\-MM\\-DD" ) return true;
+static bool isCurrencyFormat( const QString& valueFormat )
+{
+  QString vf = removeEscaped(valueFormat);
+
+  // dollar is special cause it starts with a $
+  QRegExp dollarRegEx( "^\"\\$\"[#,]*[\\d]+(|.[0]+)$" );
+  if (dollarRegEx.indexIn(vf)>=0)
+    return true;
+
+  // everything else either has a [$ at the begin or at the end
+  QRegExp beginRegEx( "^[$[\\w]+\\-[0-9\\w]+\\]" );
+  if (beginRegEx.indexIn(vf)>=0)
+    return true;
+  
+  // we need to have such regex's cause [$ can also be a conditional formatting
+  QRegExp endRegEx( "[$[\\w]+.*\\-[0-9\\w]+\\]$" );
+  if (endRegEx.indexIn(vf)>=0)
+    return true;
 
   return false;
 }
 
-static bool isTimeFormat( const QString& valueFormat )
+// extract and return locale and remove locale from time string.
+QString extractLocale( QString &time )
+{
+  QString locale;
+  if( time.startsWith("[$-") ) {
+    int pos = time.indexOf(']');
+    if( pos > 3 ) {
+      locale = time.mid(3, pos - 3);
+      time = time.mid(pos + 1);
+      pos = time.lastIndexOf(';');
+      if( pos >= 0 ) {       
+        time = time.left(pos);        
+      }
+    }
+  }
+  return locale;
+}
+
+static bool isDateFormat( const Value &value, const QString& valueFormat )
+{
+  if( value.type() != Value::Float )
+    return false;
+
+  QString vf = valueFormat;
+  QString locale = extractLocale(vf);
+  Q_UNUSED( locale );
+  vf = removeEscaped(vf);
+  
+  //QString vfu = valueFormat.toUpper();
+  // if( vfu == "M/D/YY" ) return true;
+  // if( vfu == "M/D/YYYY" ) return true;
+  // if( vfu == "MM/DD/YY" ) return true;
+  // if( vfu == "MM/DD/YYYY" ) return true;
+  // if( vfu == "D-MMM-YY" ) return true;
+  // if( vfu == "D\\-MMM\\-YY" ) return true;
+  // if( vfu == "D-MMM-YYYY" ) return true;
+  // if( vfu == "D\\-MMM\\-YYYY" ) return true;
+  // if( vfu == "D-MMM" ) return true;
+  // if( vfu == "D\\-MMM" ) return true;
+  // if( vfu == "D-MM" ) return true;
+  // if( vfu == "D\\-MM" ) return true;
+  // if( vfu == "MMM/DD" ) return true;
+  // if( vfu == "MMM/D" ) return true;
+  // if( vfu == "MM/DD" ) return true;
+  // if( vfu == "MM/D" ) return true;
+  // if( vfu == "MM/DD/YY" ) return true;
+  // if( vfu == "MM/DD/YYYY" ) return true;
+  // if( vfu == "YYYY/MM/D" ) return true;
+  // if( vfu == "YYYY/MM/DD" ) return true;
+  // if( vfu == "YYYY-MM-D" ) return true;
+  // if( vfu == "YYYY\\-MM\\-D" ) return true;
+  // if( vfu == "YYYY-MM-DD" ) return true;
+  // if( vfu == "YYYY\\-MM\\-DD" ) return true;
+
+  QRegExp ex( "(d|m|y)" );
+  return ( ex.indexIn(vf) >= 0 ) && value.asFloat() >= 1.0;
+}
+
+static bool isTimeFormat( const Value &value, const QString& valueFormat )
+{
+  if( value.type() != Value::Float )
+    return false;
+  
+  QString vf = valueFormat;
+  QString locale = extractLocale(vf);
+  Q_UNUSED( locale );
+  vf = removeEscaped(vf);
+
+  // if( vf == "h:mm AM/PM" ) return true;
+  // if( vf == "h:mm:ss AM/PM" ) return true;
+  // if( vf == "h:mm" ) return true;
+  // if( vf == "h:mm:ss" ) return true;
+  // if( vf == "[h]:mm:ss" ) return true;
+  // if( vf == "[h]:mm" ) return true;
+  // if( vf == "[mm]:ss" ) return true;
+  // if( vf == "M/D/YY h:mm" ) return true;
+  // if( vf == "[ss]" ) return true;
+  // if( vf == "mm:ss" ) return true;
+  // if( vf == "mm:ss.0" ) return true;
+  // if( vf == "[mm]:ss" ) return true;
+  // if( vf == "[ss]" ) return true;
+
+  // if there is still a time formatting picture item that was not escaped
+  // and therefore removed above, then we have a time format here.
+  QRegExp ex( "(h|H|m|s)" );
+  return ( ex.indexIn(vf) >= 0 ) && value.asFloat() < 1.0;
+}
+
+static bool isFractionFormat( const QString& valueFormat )
+{
+  QRegExp ex( "^#[?]+/[0-9?]+$" );
+  QString vf = removeEscaped(valueFormat);
+  return ex.indexIn(vf) >= 0;
+}
+
+static QString convertCurrency( double currency, const QString& valueFormat )
+{
+  Q_UNUSED( valueFormat );
+  return QString::number( currency, 'g', 15 );
+}
+
+static QString convertDate( double serialNo, const QString& valueFormat )
 {
   QString vf = valueFormat;
-
-  if( vf == "h:mm AM/PM" ) return true;
-  if( vf == "h:mm:ss AM/PM" ) return true;
-  if( vf == "h:mm" ) return true;
-  if( vf == "h:mm:ss" ) return true;
-  if( vf == "[h]:mm:ss" ) return true;
-  if( vf == "[h]:mm" ) return true;
-  if( vf == "[mm]:ss" ) return true;
-  if( vf == "M/D/YY h:mm" ) return true;
-  if( vf == "[ss]" ) return true;
-  if( vf == "mm:ss" ) return true;
-  if( vf == "mm:ss.0" ) return true;
-  if( vf == "[mm]:ss" ) return true;
-  if( vf == "[ss]" ) return true;
-
-  return false;
-}
-
-static QString convertDate( double serialNo )
-{
+  QString locale = extractLocale(vf);
+  Q_UNUSED( locale ); //TODO http://msdn.microsoft.com/en-us/goglobal/bb964664.aspx
+  Q_UNUSED( vf ); //TODO
+  
   // reference is midnight 30 Dec 1899
   QDate dd( 1899, 12, 30 );
   dd = dd.addDays( (int) serialNo );
+  qDebug() << dd;
   return dd.toString( "yyyy-MM-dd" );
 }
 
-static QString convertTime( double serialNo )
+static QString convertTime( double serialNo, const QString& valueFormat )
 {
+  QString vf = valueFormat;
+  QString locale = extractLocale(vf);
+  Q_UNUSED( locale ); //TODO http://msdn.microsoft.com/en-us/goglobal/bb964664.aspx
+  Q_UNUSED( vf ); //TODO
+
   // reference is midnight 30 Dec 1899
   QTime tt;
   tt = tt.addMSecs( qRound( (serialNo-(int)serialNo) * 86400 * 1000 ) );
-  return tt.toString( "PThhHmmMss,zzz0S" );
+  qDebug()<<tt;
+  return tt.toString( "'PT'hh'H'mm'M'ss'S'" );
+}
+
+static QString convertFraction( double serialNo, const QString& valueFormat )
+{
+  Q_UNUSED( valueFormat );
+  return QString::number( serialNo, 'g', 15 );
 }
 
 void ExcelImport::Private::processCellForBody( Cell* cell, KoXmlWriter* xmlWriter )
@@ -619,35 +810,38 @@ void ExcelImport::Private::processCellForBody( Cell* cell, KoXmlWriter* xmlWrite
   }
   else if( value.isFloat() || value.isInteger() )
   {
-    QString valueFormat = string( cell->format().valueFormat() );
-
-    bool handled = false;
+    const QString valueFormat = string( cell->format().valueFormat() );
 
     if( isPercentageFormat( valueFormat ) )
     {
-      handled = true;
       xmlWriter->addAttribute( "office:value-type", "percentage" );
       xmlWriter->addAttribute( "office:value", QString::number( value.asFloat(), 'g', 15 ) );
     }
-
-    if( isDateFormat( valueFormat ) )
+    else if( isCurrencyFormat( valueFormat ) )
     {
-      handled = true;
-      QString dateValue = convertDate( value.asFloat() );
+      const QString currencyValue = convertCurrency( value.asFloat(), valueFormat );
+      xmlWriter->addAttribute( "office:value-type", "currency" );
+      xmlWriter->addAttribute( "office:value", currencyValue );
+    }
+    else if( isDateFormat( value, valueFormat ) )
+    {
+      const QString dateValue = convertDate( value.asFloat(), valueFormat );
       xmlWriter->addAttribute( "office:value-type", "date" );
       xmlWriter->addAttribute( "office:date-value", dateValue );
     }
-
-    if( isTimeFormat( valueFormat ) )
+    else if( isTimeFormat( value, valueFormat ) )
     {
-      handled = true;
-      QString timeValue = convertTime( value.asFloat() );
+      const QString timeValue = convertTime( value.asFloat(), valueFormat );
       xmlWriter->addAttribute( "office:value-type", "time" );
       xmlWriter->addAttribute( "office:time-value", timeValue );
     }
-
-    // fallback
-    if( !handled )
+    else if( isFractionFormat( valueFormat ) )
+    {
+      const QString fractionValue = convertFraction( value.asFloat(), valueFormat );
+      xmlWriter->addAttribute( "office:value-type", "float" );
+      xmlWriter->addAttribute( "office:value", fractionValue );      
+    }
+    else // fallback
     {
       xmlWriter->addAttribute( "office:value-type", "float" );
       xmlWriter->addAttribute( "office:value", QString::number( value.asFloat(), 'g', 15 ) );
@@ -660,10 +854,31 @@ void ExcelImport::Private::processCellForBody( Cell* cell, KoXmlWriter* xmlWrite
     xmlWriter->addAttribute( "office:string-value", str );
     xmlWriter->startElement( "text:p" );
     xmlWriter->addTextNode( str );
+    
+    if( cell->hasHyperlink() ) {
+      QString displayName = string( cell->hyperlinkDisplayName() );
+      QString location = string(cell->hyperlinkLocation());
+      if( displayName.isEmpty() )
+        displayName = str;
+      xmlWriter->startElement( "text:a" );
+      xmlWriter->addAttribute( "xlink:href", location );
+      if( ! cell->hyperlinkTargetFrameName().isEmpty() )    
+        xmlWriter->addAttribute( "office:target-frame-name", string(cell->hyperlinkTargetFrameName()) );
+      xmlWriter->addTextNode( displayName );
+      xmlWriter->endElement(); // text:a
+    }
+
     xmlWriter->endElement(); //  text:p
   }
 
-  // TODO: handle formula
+  const UString note = cell->note();
+  if( ! note.isEmpty() ) {
+    xmlWriter->startElement( "office:annotation" );
+    xmlWriter->startElement( "text:p" );
+    xmlWriter->addTextNode( string(note) );
+    xmlWriter->endElement(); // text:p
+    xmlWriter->endElement(); // office:annotation
+  }
 
   xmlWriter->endElement(); //  table:[covered-]table-cell
 }
@@ -807,6 +1022,7 @@ void ExcelImport::Private::processFormat( Format* format, KoGenStyle& style )
   }
 }
 
+#if 0
 static void processDateFormatComponent( KoXmlWriter* xmlWriter, const QString& component )
 {
   if( component[0] == 'd' )
@@ -829,20 +1045,21 @@ static void processDateFormatComponent( KoXmlWriter* xmlWriter, const QString& c
     xmlWriter->endElement();  // number:year
   }
 }
+#endif
 
-static void processDateFormatSeparator( KoXmlWriter* xmlWriter, const QString& separator )
+static void processNumberText( KoXmlWriter* xmlWriter, QString& text )
 {
-  xmlWriter->startElement( "number:text");
-  xmlWriter->addTextNode( separator[separator.length() - 1] );
-  xmlWriter->endElement();  // number:text
+  if( ! text.isEmpty() ) {
+    xmlWriter->startElement( "number:text");
+    xmlWriter->addTextNode( removeEscaped(text, true) );
+    xmlWriter->endElement();  // number:text
+    text.clear();
+  }
 }
 
 QString ExcelImport::Private::processValueFormat( const QString& valueFormat )
 {
   QRegExp numberRegEx("(0+)(\\.0+)?(E\\+0+)?");
-  QRegExp percentageRegEx("(0+)(\\.0+)?%");
-  QRegExp dateRegEx("(m{1,3}|d{1,2}|yy|yyyy)(/|-|\\\\-)(m{1,3}|d{1,2}|yy|yyyy)(?:(/|-|\\\\-)(m{1,3}|d{1,2}|yy|yyyy))?");
-
   if( numberRegEx.exactMatch(valueFormat) )
   {
     if( numberRegEx.cap(3).length() )
@@ -850,11 +1067,107 @@ QString ExcelImport::Private::processValueFormat( const QString& valueFormat )
     else
       return KoOdfNumberStyles::saveOdfNumberStyle(*styles, valueFormat, "", "");
   }
-  else if( percentageRegEx.exactMatch(valueFormat) )
+  
+  QRegExp percentageRegEx("(0+)(\\.0+)?%");
+  if( percentageRegEx.exactMatch(valueFormat) )
   {
     return KoOdfNumberStyles::saveOdfPercentageStyle(*styles, valueFormat, "", "");
   }
-  else if( dateRegEx.exactMatch(valueFormat) )
+
+  const QString escapedValueFormat = removeEscaped(valueFormat);
+  QRegExp fractionRegEx( "^#([?]+)/([0-9?]+)$" );
+  if( fractionRegEx.indexIn(escapedValueFormat) >= 0 )
+  {
+    const int minlength = fractionRegEx.cap(1).length(); // numerator
+    const QString denominator = fractionRegEx.cap(2); // denominator
+    bool hasDenominatorValue = false;
+    const int denominatorValue = denominator.toInt(&hasDenominatorValue);
+    
+    KoGenStyle style(KoGenStyle::StyleNumericFraction );
+    QBuffer buffer;
+    buffer.open(QIODevice::WriteOnly);
+    KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level    
+    
+    xmlWriter.startElement( "number:fraction" );
+    xmlWriter.addAttribute( "number:min-numerator-digits", minlength );
+    if( hasDenominatorValue ) {
+      QRegExp rx( "/[?]*([0-9]*)[?]*$" );
+      if(rx.indexIn(escapedValueFormat) >= 0)
+        xmlWriter.addAttribute( "number:min-integer-digits", rx.cap(1).length() );
+      xmlWriter.addAttribute( "number:number:denominator-value", denominatorValue );
+    } else {
+      xmlWriter.addAttribute( "number:min-denominator-digits", denominator.length() );
+    }
+    xmlWriter.endElement(); // number:fraction
+    
+    QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
+    style.addChildElement("number", elementContents); 
+    return styles->lookup(style, "N");
+  }
+
+  QString vf = valueFormat;
+  QString locale = extractLocale(vf);
+  Q_UNUSED( locale );
+  const QString _vf = removeEscaped(vf);
+
+  QRegExp dateRegEx( "(d|M|y)" ); // we don't check for 'm' cause this can be 'month' or 'minute' and if nothing else is defined we assume 'minute'...
+  if( dateRegEx.indexIn(_vf) >= 0 ) {
+    KoGenStyle style(KoGenStyle::StyleNumericDate);
+    QBuffer buffer;
+    buffer.open(QIODevice::WriteOnly);
+    KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
+    
+    QString numberText;
+    int lastPos = -1;
+    while( ++lastPos < vf.count() ) {
+      if( vf[lastPos] == 'd' || vf[lastPos] == 'm' || vf[lastPos] == 'M' || vf[lastPos] == 'y' ) break;
+      numberText += vf[lastPos];
+    }
+    processNumberText(&xmlWriter, numberText);
+
+    while( ++lastPos < vf.count() ) {
+      if (vf[lastPos] == 'd') { // day
+        processNumberText(&xmlWriter, numberText);
+        const bool isLong = lastPos+1 < vf.count() && vf[lastPos + 1] == 'd';
+        if( isLong ) ++lastPos;
+        xmlWriter.startElement( "number:day" );
+        xmlWriter.addAttribute( "number:style", isLong ? "long" : "short" );
+        xmlWriter.endElement();  // number:day
+      } else if (vf[lastPos] == 'm' || vf[lastPos] == 'M') { // month
+        processNumberText(&xmlWriter, numberText);
+        const int length = (lastPos+2 < vf.count() && (vf[lastPos + 2] == 'm' || vf[lastPos + 2] == 'M')) ? 2
+                           : (lastPos+1 < vf.count() && (vf[lastPos + 1] == 'm' || vf[lastPos + 1] == 'M')) ? 1
+                           : 0;
+        xmlWriter.startElement( "number:month" );
+        xmlWriter.addAttribute( "number:textual", length == 2 ? "true" : "false" );
+        xmlWriter.addAttribute( "number:style", length == 1 ? "long" : "short" );
+        xmlWriter.endElement();  // number:month
+        lastPos += length;
+      } else if (vf[lastPos] == 'y') { // year
+        processNumberText(&xmlWriter, numberText);
+        const int length = ( lastPos+3 < vf.count() && vf[lastPos + 3] == 'y') ? 3
+                           : (lastPos+2 < vf.count() && vf[lastPos + 2] == 'y') ? 2
+                           : (lastPos+1 < vf.count() && vf[lastPos + 1] == 'y') ? 1 : 0;
+        xmlWriter.startElement( "number:year" );
+        xmlWriter.addAttribute( "number:style", length>=3 ? "long" : "short" );
+        xmlWriter.endElement();  // number:year
+        lastPos += length;
+      } else {
+        numberText += vf[lastPos];
+      }
+    }
+    processNumberText(&xmlWriter, numberText);
+    
+    QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
+    style.addChildElement("number", elementContents);
+    
+    qDebug()<<elementContents;
+    return styles->lookup(style, "N");
+  }
+  
+  /*
+  QRegExp dateRegEx("(m{1,3}|d{1,2}|yy|yyyy)(/|-|\\\\-)(m{1,3}|d{1,2}|yy|yyyy)(?:(/|-|\\\\-)(m{1,3}|d{1,2}|yy|yyyy))?");
+  if( dateRegEx.exactMatch(valueFormat) )
   {
     KoGenStyle style(KoGenStyle::StyleNumericDate);
     QBuffer buffer;
@@ -875,6 +1188,126 @@ QString ExcelImport::Private::processValueFormat( const QString& valueFormat )
 
     return styles->lookup(style, "N");
   }
+  */
+
+  QRegExp timeRegEx( "(h|hh|H|HH|m|s)" );
+  if( timeRegEx.indexIn(_vf) >= 0 ) {
+    KoGenStyle style(KoGenStyle::StyleNumericTime);
+    QBuffer buffer;
+    buffer.open(QIODevice::WriteOnly);
+    KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
+
+    // look for hours, minutes or seconds. Not for AM/PM cause we need at least one value before.
+    QString numberText;
+    int lastPos = -1;
+    while( ++lastPos < vf.count() ) {
+      if( vf[lastPos] == 'h' || vf[lastPos] == 'H' || vf[lastPos] == 'm' || vf[lastPos] == 's' ) break;
+      numberText += vf[lastPos];
+    }
+    if( ! numberText.isEmpty() ) {
+      xmlWriter.startElement( "number:text");
+      xmlWriter.addTextNode( numberText );
+      xmlWriter.endElement();  // number:text
+      numberText.clear();
+    }
+    if( lastPos < vf.count() ) {
+      // take over hours if defined
+      if( vf[lastPos] == 'h' || vf[lastPos] == 'H' ) {
+        const bool isLong = ++lastPos < vf.count() && ( vf[lastPos] == 'h' || vf[lastPos] == 'H' );
+        if( ! isLong ) --lastPos;
+        xmlWriter.startElement( "number:hours" );
+        xmlWriter.addAttribute( "number:style", isLong ? "long" : "short" );
+        xmlWriter.endElement();  // number:hours
+
+        // look for minutes, seconds or AM/PM definition
+        while( ++lastPos < vf.count() ) {
+          if( vf[lastPos] == 'm' || vf[lastPos] == 's' ) break;
+          const QString s = vf.mid(lastPos);
+          if( s.startsWith("AM/PM") || s.startsWith("am/pm") ) break;
+          numberText += vf[lastPos];
+        }    
+        if( ! numberText.isEmpty() ) {
+          xmlWriter.startElement( "number:text");
+          xmlWriter.addTextNode( numberText );
+          xmlWriter.endElement();  // number:text
+
+          numberText.clear();
+        }    
+      }
+    }
+
+    if( lastPos < vf.count() ) {
+
+      // taker over minutes if defined
+      if( vf[lastPos] == 'm' ) {
+        const bool isLong = ++lastPos < vf.count() && vf[lastPos] == 'm';
+        if( ! isLong ) --lastPos;
+        xmlWriter.startElement( "number:minutes" );
+        xmlWriter.addAttribute( "number:style", isLong ? "long" : "short" );
+        xmlWriter.endElement();  // number:hours
+
+        // look for seconds or AM/PM definition
+        while( ++lastPos < vf.count() ) {
+          if( vf[lastPos] == 's' ) break;
+          const QString s = vf.mid(lastPos);
+          if( s.startsWith("AM/PM") || s.startsWith("am/pm") ) break;
+          numberText += vf[lastPos];
+        }    
+        if( ! numberText.isEmpty() ) {
+          xmlWriter.startElement( "number:text");
+          xmlWriter.addTextNode( numberText );
+          xmlWriter.endElement();  // number:text
+          numberText.clear();
+        }    
+      }
+    }
+
+    if( lastPos < vf.count() ) {
+      // taker over seconds if defined
+      if( vf[lastPos] == 's' ) {
+        const bool isLong = ++lastPos < vf.count() && vf[lastPos] == 's';
+        if( ! isLong ) --lastPos;
+        xmlWriter.startElement( "number:seconds" );
+        xmlWriter.addAttribute( "number:style", isLong ? "long" : "short" );
+        xmlWriter.endElement();  // number:hours
+
+        // look for AM/PM definition
+        while( ++lastPos < vf.count() ) {
+          const QString s = vf.mid(lastPos);
+          if( s.startsWith("AM/PM") || s.startsWith("am/pm") ) break;
+          numberText += vf[lastPos];
+        }    
+        if( ! numberText.isEmpty() ) {
+          xmlWriter.startElement( "number:text");
+          xmlWriter.addTextNode( numberText );
+          xmlWriter.endElement();  // number:text
+          numberText.clear();
+        }    
+      }
+
+      // take over AM/PM definition if defined
+      const QString s = vf.mid(lastPos);
+      if( s.startsWith("AM/PM") || s.startsWith("am/pm") ) {
+        xmlWriter.startElement( "number:am-pm" );
+        xmlWriter.endElement();  // number:am-pm
+        lastPos += 4;
+      }
+    }
+
+    // and take over remaining text
+    if( ++lastPos < vf.count() ) {
+      xmlWriter.startElement( "number:text");
+      xmlWriter.addTextNode( vf.mid(lastPos) );
+      xmlWriter.endElement();  // number:text
+    }    
+
+    QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
+    style.addChildElement("number", elementContents);
+    return styles->lookup(style, "N");
+  }
+  
+  
+  /*
   else if( valueFormat == "h:mm AM/PM" )
   {
     KoGenStyle style(KoGenStyle::StyleNumericTime);
@@ -1159,7 +1592,9 @@ QString ExcelImport::Private::processValueFormat( const QString& valueFormat )
     return styles->lookup(style, "N");
   }
   else
-  {
-    return "";
+  {    
   }
+  */
+
+  return "";
 }

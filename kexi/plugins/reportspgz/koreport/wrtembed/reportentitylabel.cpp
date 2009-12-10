@@ -43,7 +43,8 @@ void ReportEntityLabel::init(QGraphicsScene * scene)
     ReportRectEntity::init(&m_pos, &m_size, m_set);
     kDebug() << getTextRect();
 
-    connect(properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)), this, SLOT(propertyChanged(KoProperty::Set &, KoProperty::Property &)));
+    connect(properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
+        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     setZValue(Z);
 }
@@ -86,6 +87,9 @@ QRectF ReportEntityLabel::getTextRect()
 
 void ReportEntityLabel::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
+    
     // store any values we plan on changing so we can restore them
     QFont f = painter->font();
     QPen  p = painter->pen();
@@ -173,9 +177,10 @@ void ReportEntityLabel::buildXML(QDomDocument & doc, QDomElement & parent)
     parent.appendChild(entity);
 }
 
-void ReportEntityLabel::propertyChanged(KoProperty::Set &s, KoProperty::Property &p)
+void ReportEntityLabel::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
-    kDebug();
+    Q_UNUSED(s);
+    
     //TODO KoProperty needs QPointF and QSizeF and need to sync property with actual size/pos
     if (p.name() == "Position") {
         //_pos.setUnitPos(p.value().value<QPointF>(), false);

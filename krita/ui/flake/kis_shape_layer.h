@@ -55,7 +55,7 @@ class KRITAUI_TEST_EXPORT KisShapeLayer : public KisExternalLayer, public KoShap
 
 public:
 
-    KisShapeLayer(KoShapeContainer * parent, KoShapeControllerBase* shapeController, KisImageWSP img, const QString &name, quint8 opacity);
+    KisShapeLayer(KoShapeContainer * parent, KoShapeControllerBase* shapeController, KisImageWSP image, const QString &name, quint8 opacity);
     KisShapeLayer(const KisShapeLayer& _rhs);
     virtual ~KisShapeLayer();
 private:
@@ -97,6 +97,8 @@ public:
 
     bool saveLayer(KoStore * store) const;
     bool loadLayer(KoStore* store);
+    
+    QUndoCommand* crop(const QRect & rect);
 
 public slots:
     void selectionChanged();

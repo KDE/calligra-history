@@ -643,15 +643,16 @@ View::View( QWidget *_parent, Doc *_doc )
         setZoom( 100, true );
     }
 
+    connect (&d->statusBarOpTimer, SIGNAL(timeout()), this, SLOT(calcStatusBarOp()));
+
     // Delay the setting of the initial position, because
     // we have to wait for the widget to be shown. Otherwise,
     // we get a wrong widget size.
     // This is the last operation for the "View loading" process.
     // The loading flag will be unset at its end.
-    if ( !doc()->map()->sheetList().isEmpty() )
-      QTimer::singleShot(50, this, SLOT(initialPosition()));
-
-    connect (&d->statusBarOpTimer, SIGNAL(timeout()), this, SLOT(calcStatusBarOp()));
+    // Don't try to delay this init cause following operations will assume
+    // the sheets are already fully setup.
+    initialPosition();
 
     new ViewAdaptor(this);
     d->canvas->setFocus();
@@ -673,7 +674,7 @@ View::~View()
     qDeleteAll( d->sheetViews );
 
     d->selection->emitCloseEditor(false);
-    d->selection->endReferenceSelection();
+    d->selection->endReferenceSelection(false);
     d->activeSheet = 0; // set the active sheet to 0 so that when during destruction
     // of embedded child documents possible repaints in Sheet are not
     // performed. The repains can happen if you delete an embedded document,

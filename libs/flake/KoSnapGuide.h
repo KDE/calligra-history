@@ -57,6 +57,19 @@ class KoCanvasBase;
 class FLAKE_EXPORT KoSnapGuide
 {
 public:
+    /// the different possible snap Strategies
+    enum Strategy
+    {
+        OrthogonalSnapping = 1,
+        NodeSnapping = 2,
+        ExtensionSnapping = 4,
+        IntersectionSnapping = 8,
+        GridSnapping = 0x10,
+        BoundingBoxSnapping = 0x20,
+        GuideLineSnapping = 0x40,
+        CustomSnapping = 0x80
+    };
+    Q_DECLARE_FLAGS(Strategies, Strategy)
 
     /// Creates the snap guide to work on the given canvas
     KoSnapGuide(KoCanvasBase * canvas);
@@ -79,10 +92,10 @@ public:
     KoShape * editedShape() const;
 
     /// enables the strategies used for snapping
-    void enableSnapStrategies(int strategies);
+    void enableSnapStrategies(Strategies strategies);
 
     /// returns the enabled snap strategies
-    int enabledSnapStrategies() const;
+    KoSnapGuide::Strategies enabledSnapStrategies() const;
 
     /**
      * Adds a custom snap strategy
@@ -127,34 +140,6 @@ private:
     Private * const d;
 };
 
-/**
- * This class provides access to different shape related snap targets to snap strategies.
- */
-class KoSnapProxy
-{
-public:
-    KoSnapProxy(KoSnapGuide * snapGuide);
-
-    /// returns list of points in given rectangle in document coordinates
-    QList<QPointF> pointsInRect(const QRectF &rect);
-
-    /// returns list of shape in given rectangle in document coordinates
-    QList<KoShape*> shapesInRect(const QRectF &rect, bool omitEditedShape = false);
-
-    /// returns list of points from given shape
-    QList<QPointF> pointsFromShape(KoShape * shape);
-
-    /// returns list of points in given rectangle in document coordinates
-    QList<KoPathSegment> segmentsInRect(const QRectF &rect);
-
-    /// returns list of all shapes
-    QList<KoShape*> shapes(bool omitEditedShape = false);
-
-    /// returns canvas we are working on
-    KoCanvasBase * canvas();
-
-private:
-    KoSnapGuide * m_snapGuide;
-};
+Q_DECLARE_OPERATORS_FOR_FLAGS(KoSnapGuide::Strategies)
 
 #endif // KOSNAPGUIDE_H

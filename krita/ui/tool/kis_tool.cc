@@ -15,8 +15,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-
 #include "kis_tool.h"
+
 #include <QCursor>
 #include <QLabel>
 #include <QWidget>
@@ -285,9 +285,8 @@ KisSelectionSP KisTool::currentSelection() const
 
 void KisTool::notifyModified() const
 {
-    KisImageWSP img = image();
-    if (img) {
-        img->setModified();
+    if (image()) {
+        image()->setModified();
     }
 }
 
@@ -346,7 +345,7 @@ void KisTool::mouseReleaseEvent(KoPointerEvent *event)
     event->ignore();
 }
 
-void KisTool::setupPainter(KisPainter * painter)
+void KisTool::setupPainter(KisPainter* painter)
 {
     Q_ASSERT(currentImage());
     if (!currentImage()) return;
@@ -358,6 +357,13 @@ void KisTool::setupPainter(KisPainter * painter)
     painter->setPattern(currentPattern());
     painter->setGradient(currentGradient());
     painter->setPaintOpPreset(currentPaintOpPreset(), currentImage());
+
+    if (KisPaintLayer* l = dynamic_cast<KisPaintLayer*>(currentNode().data())) {
+        painter->setChannelFlags(l->channelFlags());
+        if (l->alphaLocked()) {
+            painter->setLockAlpha(l->alphaLocked());
+        }
+    }
 
 }
 
@@ -425,7 +431,7 @@ void KisTool::resetCursorStyle()
 #endif
     case CURSOR_STYLE_OUTLINE:
     default:
-        // use tool cursor as default, if the tool support outline, it will set the cursor to blank and show outline
+        // use tool cursor as default, if the tool supports outline, it will set the cursor to blank and show outline
         useCursor(d->cursor, true);
     }
 }

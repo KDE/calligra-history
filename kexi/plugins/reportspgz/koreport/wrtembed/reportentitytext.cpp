@@ -40,11 +40,12 @@
 
 void ReportEntityText::init(QGraphicsScene * scene)
 {
-    setFlags(ItemIsSelectable | ItemIsMovable);
+    //setFlags(ItemIsSelectable | ItemIsMovable);
     if (scene)
         scene->addItem(this);
 
-    connect(properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)), this, SLOT(propertyChanged(KoProperty::Set &, KoProperty::Property &)));
+    connect(properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
+        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     ReportRectEntity::init(&m_pos, &m_size, m_set);
 
@@ -62,7 +63,7 @@ ReportEntityText::ReportEntityText(ReportDesigner * rw, QGraphicsScene * scene)
 }
 
 ReportEntityText::ReportEntityText(QDomNode & element, ReportDesigner * d, QGraphicsScene * s)
-        : ReportRectEntity(d), KRTextData(element)
+        : KRTextData(element), ReportRectEntity(d)
 {
     init(s);
     setSceneRect(m_pos.toScene(), m_size.toScene());
@@ -88,6 +89,9 @@ QRect ReportEntityText::getTextRect()
 
 void ReportEntityText::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
+    Q_UNUSED(option);
+    Q_UNUSED(widget)
+    
     // store any values we plan on changing so we can restore them
     QFont f = painter->font();
     QPen  p = painter->pen();
@@ -136,7 +140,7 @@ void ReportEntityText::buildXML(QDomDocument & doc, QDomElement & parent)
 
     // bottompad
     QDomElement bottompad = doc.createElement("bottompad");
-    qreal h = bpad * 100.0;
+    qreal h = m_bottomPadding * 100.0;
     bottompad.appendChild(doc.createTextNode(QString::number((int) h)));
     entity.appendChild(bottompad);
 
@@ -181,9 +185,10 @@ void ReportEntityText::mousePressEvent(QGraphicsSceneMouseEvent * event)
 }
 
 
-void ReportEntityText::propertyChanged(KoProperty::Set &s, KoProperty::Property &p)
+void ReportEntityText::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
-    kDebug();
+    Q_UNUSED(s);
+    
     //TODO KoProperty needs QPointF and QSizeF and need to sync property with actual size/pos
     if (p.name() == "Position") {
         //_pos.setUnitPos(p.value().value<QPointF>(), false);
@@ -200,6 +205,8 @@ void ReportEntityText::propertyChanged(KoProperty::Set &s, KoProperty::Property 
 
     //setSceneRect(_pos.toScene(), _size.toScene());
 
-    if (m_reportDesigner) m_reportDesigner->setModified(true);
-    if (scene()) scene()->update();
+    if (m_reportDesigner)
+        m_reportDesigner->setModified(true);
+    if (scene())
+        scene()->update();
 }

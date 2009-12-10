@@ -72,7 +72,7 @@ public:
     /**
      * Retrieve the constructed image
      */
-    KisImageWSP image();
+    KisImageWSP getImage();
 private:
     KisImageBuilder_Result decode(const KUrl& uri);
 public slots:
@@ -80,7 +80,7 @@ public slots:
 private:
     int getFileFormat(const KUrl& uri) const;
 private:
-    KisImageWSP m_img;
+    KisImageWSP m_image;
     KisDoc2 *m_doc;
     KisUndoAdapter *m_adapter;
     bool m_stop;

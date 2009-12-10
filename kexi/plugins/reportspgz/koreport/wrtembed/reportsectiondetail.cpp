@@ -30,6 +30,8 @@
 ReportSectionDetail::ReportSectionDetail(ReportDesigner * rptdes, const char * name)
         : QWidget(rptdes)
 {
+    Q_UNUSED(name);
+    
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     m_pageBreak = BreakNone;
     m_vboxlayout = new QVBoxLayout(this);
@@ -56,7 +58,7 @@ void ReportSectionDetail::setPageBreak(int pb)
     m_pageBreak = pb;
 }
 
-ReportSection * ReportSectionDetail::getDetail()
+ReportSection * ReportSectionDetail::detailSection() const
 {
     return m_detail;
 }
@@ -86,15 +88,15 @@ void ReportSectionDetail::buildXML(QDomDocument & doc, QDomElement & section)
         }
 
         //group head
-        if (rsdg->isGroupHeadShowing()) {
-            QDomElement ghead = doc.createElement("head");
-            rsdg->getGroupHead()->buildXML(doc, ghead);
+        if (rsdg->groupHeaderVisible()) {
+            QDomElement ghead = doc.createElement("groupheader");
+            rsdg->groupHeader()->buildXML(doc, ghead);
             grp.appendChild(ghead);
         }
         // group foot
-        if (rsdg->isGroupFootShowing()) {
-            QDomElement gfoot = doc.createElement("foot");
-            rsdg->getGroupFoot()->buildXML(doc, gfoot);
+        if (rsdg->groupFooterVisible()) {
+            QDomElement gfoot = doc.createElement("groupfooter");
+            rsdg->groupFooter()->buildXML(doc, gfoot);
             grp.appendChild(gfoot);
         }
 
@@ -137,21 +139,21 @@ void ReportSectionDetail::initFromXML(QDomNode & section)
                     QString n = elemThis.attribute("when");
                     if ("after foot" == n)
                         rsdg->setPageBreak(ReportSectionDetailGroup::BreakAfterGroupFooter);
-                } else if (gnode.nodeName() == "head") {
-                    rsdg->getGroupHead()->initFromXML(gnode);
-                    rsdg->showGroupHead(true);
+                } else if (gnode.nodeName() == "groupheader") {
+                    rsdg->groupHeader()->initFromXML(gnode);
+                    rsdg->setGroupHeaderVisible(true);
                     show_head = true;
-                } else if (gnode.nodeName() == "foot") {
-                    rsdg->getGroupFoot()->initFromXML(gnode);
-                    rsdg->showGroupFoot(true);
+                } else if (gnode.nodeName() == "groupfooter") {
+                    rsdg->groupFooter()->initFromXML(gnode);
+                    rsdg->setGroupFooterVisible(true);
                     show_foot = true;
                 } else {
                     kDebug() << "encountered unknown element while parsing group element: " << gnode.nodeName();
                 }
             }
             insertSection(groupSectionCount(), rsdg);
-            rsdg->showGroupHead(show_head);
-            rsdg->showGroupFoot(show_foot);
+            rsdg->setGroupHeaderVisible(show_head);
+            rsdg->setGroupFooterVisible(show_foot);
         } else if (n == "detail") {
             m_detail->initFromXML(node);
         } else {
@@ -162,17 +164,17 @@ void ReportSectionDetail::initFromXML(QDomNode & section)
 
 }
 
-ReportDesigner * ReportSectionDetail::reportDesigner()
+ReportDesigner * ReportSectionDetail::reportDesigner() const
 {
     return m_reportDesigner;
 }
 
-int ReportSectionDetail::groupSectionCount()
+int ReportSectionDetail::groupSectionCount() const
 {
     return groupList.count();
 }
 
-ReportSectionDetailGroup * ReportSectionDetail::getSection(int i)
+ReportSectionDetailGroup * ReportSectionDetail::groupSection(int i) const
 {
     return groupList.at(i);
 }
@@ -181,15 +183,15 @@ void ReportSectionDetail::insertSection(int idx, ReportSectionDetailGroup * rsd)
 {
     groupList.insert(idx, rsd);
 
-    rsd->getGroupHead()->setParent(this);
-    rsd->getGroupFoot()->setParent(this);
+    rsd->groupHeader()->setParent(this);
+    rsd->groupFooter()->setParent(this);
 
     idx = 0;
     int gi = 0;
     for (gi = 0; gi < (int) groupList.count(); gi++) {
         rsd = groupList.at(gi);
-        m_vboxlayout->removeWidget(rsd->getGroupHead());
-        m_vboxlayout->insertWidget(idx, rsd->getGroupHead());
+        m_vboxlayout->removeWidget(rsd->groupHeader());
+        m_vboxlayout->insertWidget(idx, rsd->groupHeader());
         idx++;
     }
     m_vboxlayout->removeWidget(m_detail);
@@ -197,8 +199,8 @@ void ReportSectionDetail::insertSection(int idx, ReportSectionDetailGroup * rsd)
     idx++;
     for (gi = ((int) groupList.count() - 1); gi >= 0; gi--) {
         rsd = groupList.at(gi);
-        m_vboxlayout->removeWidget(rsd->getGroupFoot());
-        m_vboxlayout->insertWidget(idx, rsd->getGroupFoot());
+        m_vboxlayout->removeWidget(rsd->groupFooter());
+        m_vboxlayout->insertWidget(idx, rsd->groupFooter());
         idx++;
     }
 
@@ -206,7 +208,7 @@ void ReportSectionDetail::insertSection(int idx, ReportSectionDetailGroup * rsd)
     adjustSize();
 }
 
-int ReportSectionDetail::findSection(const QString & name)
+int ReportSectionDetail::indexOfSection(const QString & name) const
 {
     // find the item by its name
     ReportSectionDetailGroup * rsd = 0;
@@ -221,8 +223,8 @@ void ReportSectionDetail::removeSection(int idx, bool del)
 {
     ReportSectionDetailGroup * rsd = groupList.at(idx);
 
-    m_vboxlayout->removeWidget(rsd->getGroupHead());
-    m_vboxlayout->removeWidget(rsd->getGroupFoot());
+    m_vboxlayout->removeWidget(rsd->groupHeader());
+    m_vboxlayout->removeWidget(rsd->groupFooter());
 
     groupList.removeAt(idx);
 
@@ -237,8 +239,8 @@ QSize ReportSectionDetail::sizeHint() const
     ReportSectionDetailGroup * rsdg = 0;
     for (int gi = 0; gi < (int) groupList.count(); gi++) {
         rsdg = groupList.at(gi);
-        if (rsdg->isGroupHeadShowing()) s += rsdg->getGroupHead()->size();
-        if (rsdg->isGroupFootShowing()) s += rsdg->getGroupFoot()->size();
+        if (rsdg->groupHeaderVisible()) s += rsdg->groupHeader()->size();
+        if (rsdg->groupFooterVisible()) s += rsdg->groupFooter()->size();
     }
     return s += m_detail->size();
 }

@@ -23,6 +23,7 @@
 #include "KoSnapGuide.h"
 #include "SnapGuideConfigWidget.h"
 #include "KoSnapStrategy.h"
+#include "KoSnapGuide.h"
 
 #include "KoPathShape.h"
 #include "KoPathPoint.h"
@@ -53,7 +54,7 @@ class KoCreatePathTool::AngleSnapStrategy : public KoSnapStrategy
 {
 public:
     AngleSnapStrategy( qreal angleStep )
-    : KoSnapStrategy(KoSnapStrategy::Custom), m_angleStep(angleStep), m_active(false)
+    : KoSnapStrategy(KoSnapGuide::CustomSnapping), m_angleStep(angleStep), m_active(false)
     {
     }
 
@@ -192,13 +193,18 @@ void KoCreatePathTool::paint(QPainter &painter, const KoViewConverter &converter
 
 void KoCreatePathTool::mousePressEvent(KoPointerEvent *event)
 {
-    if ((event->buttons() & Qt::RightButton) && m_shape) {
-        // repaint the shape before removing the last point
-        m_canvas->updateCanvas(m_shape->boundingRect());
-        m_shape->removePoint(m_shape->pathPointIndex(m_activePoint));
+    if (event->buttons() & Qt::RightButton) {
+        if(m_shape) {
+            // repaint the shape before removing the last point
+            m_canvas->updateCanvas(m_shape->boundingRect());
+            m_shape->removePoint(m_shape->pathPointIndex(m_activePoint));
 
-        addPathShape();
-        return;
+            addPathShape();
+            return;
+        } else {
+            // Return as otherwise a point would be added
+            return;
+        }
     }
 
     if (m_shape) {

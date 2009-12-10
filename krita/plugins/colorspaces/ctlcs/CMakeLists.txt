@@ -6,10 +6,19 @@ add_subdirectory(ctlmodules)
 add_subdirectory(ctlprofiles)
 add_subdirectory(ctlcolorspaces)
 add_subdirectory(ctlcompositeops)
+add_subdirectory(ctlcolortransformations)
+
+if(HAVE_OPENCTL_913)
+    set( BUFFER_SRCS
+         KoCtlBuffer13.cpp )
+else(HAVE_OPENCTL_913)
+    set( BUFFER_SRCS
+         KoCtlBuffer12.cpp )    
+endif(HAVE_OPENCTL_913)
 
 set( CTLCS_SRCS
+    ${BUFFER_SRCS}
     KoCtlAccumulator.cpp
-    KoCtlBuffer.cpp
     KoCtlChannel.cpp
     KoCtlMixColorsOp.cpp
     KoCtlColorProfile.cpp
@@ -17,11 +26,13 @@ set( CTLCS_SRCS
     KoCtlColorSpace.cpp
     KoCtlColorSpaceFactory.cpp
     KoCtlColorSpaceInfo.cpp
+    KoCtlColorTransformationFactory.cpp
     KoCtlConvolutionOp.cpp
     KoCtlParser.cpp
     ctl_cs_plugin.cpp
     KoCtlCompositeOp.cpp
     KoCtlTemplatesRegistry.cpp
+    KoCtlUtils.cpp
 )
 
 

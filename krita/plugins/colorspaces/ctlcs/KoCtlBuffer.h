@@ -17,22 +17,10 @@
  * Boston, MA 02110-1301, USA.
 */
 
-#ifndef _KO_CTL_BUFFER_H_
-#define _KO_CTL_BUFFER_H_
+#include "OpenCTL/Version.h"
 
-#include <GTLCore/Buffer.h>
-
-class KoCtlBuffer : public GTLCore::Buffer
-{
-public:
-    KoCtlBuffer(char* _buffer, int _size);
-    virtual ~KoCtlBuffer();
-    virtual char * rawData();
-    virtual const char * rawData() const;
-    virtual int size() const;
-private:
-    char * m_buffer;
-    int m_size;
-};
-
+#if OPENCTL_VERSION_MAJOR == 0 && OPENCTL_VERSION_MINOR == 9 && OPENCTL_VERSION_REVISION < 13
+#include "KoCtlBuffer12.h"
+#else
+#include "KoCtlBuffer13.h"
 #endif
