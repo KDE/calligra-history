@@ -29,18 +29,20 @@ class KPrHtmlExportDialog  : public KDialog
 {
     Q_OBJECT
 public:
-    explicit KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *parent=0);
+    explicit KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QWidget *parent=0);
     QList<KoPAPageBase*> chekedSlides();
     QStringList slidesNames();
     KUrl css();
+    QString title();
     
 private slots:
     void checkAllItems();
     void uncheckAllItems();
 
 private:
-    Ui::KPrHtmlExport ui;
     QList<KoPAPageBase*> m_allSlides;
+    QString m_title;
+    Ui::KPrHtmlExport ui;
     void generateSlidesNames(QList<KoPAPageBase*> slides);
     void loadCssList();
 };

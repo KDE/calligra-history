@@ -2,6 +2,7 @@
    Copyright (C) 2006-2007 Thorsten Zachmann <zachmann@kde.org>
    Copyright (C) 2008 Carlos Licea <carlos.licea@kdemail.org>
    Copyright (C) 2009 Benjamin Port <port.benjamin@gmail.com>
+   Copyright (C) 2009 Yannick Motta <yannick.motta@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -285,13 +286,14 @@ void KPrView::configurePresenterView()
 
 void KPrView::exportToHtml()
 {
-	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),this);
+	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),koDocument()->documentInfo()->aboutInfo("title"),this);
     if ( dialog->exec() == QDialog::Accepted &&  !dialog->chekedSlides().isEmpty()){
         // Get the export directory
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
         if(directoryUrl.isValid()){
             directoryUrl.adjustPath(KUrl::AddTrailingSlash);
-            KPrHtmlExport exportHtml(this, dialog->chekedSlides(), directoryUrl, koDocument()->documentInfo()->authorInfo("creator"), koDocument()->documentInfo()->aboutInfo("title"), dialog->css(), dialog->slidesNames());
+            KPrHtmlExport exportHtml;
+            exportHtml.init(this, dialog->chekedSlides(), directoryUrl, koDocument()->documentInfo()->authorInfo("creator"), dialog->title(), dialog->css(), dialog->slidesNames());
         }
    }
 }

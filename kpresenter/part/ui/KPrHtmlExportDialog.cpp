@@ -25,15 +25,16 @@
 #include <QDir>
 #include <kstandarddirs.h>
 #include <QComboBox>
+#include <KoDocument.h>
 
-KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QWidget *parent) : KDialog(parent)
+KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QWidget *parent) : KDialog(parent), m_allSlides(slides), m_title(title) 
 {
-    m_allSlides = slides;
     QWidget *widget = new QWidget( this );
     ui.setupUi( widget );
     setMainWidget( widget );
     setCaption( i18n( "Html Export"));
     setButtonText(Ok, i18n("Export"));
+    ui.klineedit_title->setText(m_title);
 
     connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ), this, SLOT( checkAllItems()  ) );
     connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ), this, SLOT( uncheckAllItems()) );
@@ -90,11 +91,12 @@ void KPrHtmlExportDialog::generateSlidesNames(QList<KoPAPageBase*> slides)
     for(int i = 0; i < slides.count(); i++){
         if (slides.at(i)->name().isEmpty()){
             slideName = i18n("Slide %1", QString::number(i+1));
-        } else {
+        }
+        else {
             slideName = slides.at(i)->name();
         }
         QListWidgetItem *listItem = new  QListWidgetItem(slideName);
-        listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable);
+        listItem->setFlags(listItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
         listItem->setCheckState(Qt::Checked);
         ui.kListBox_slides->addItem(listItem);
     }
@@ -116,4 +118,9 @@ void KPrHtmlExportDialog::loadCssList()
             }
         }        
     }
+}
+
+QString KPrHtmlExportDialog::title()
+{
+    return  ui.klineedit_title->text();
 }

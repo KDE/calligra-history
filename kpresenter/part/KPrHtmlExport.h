@@ -1,5 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2009 Benjamin Port <port.benjamin@gmail.com>
+   Copyright (C) 2009 Yannick Motta <yannick.motta@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,32 +25,33 @@
 
 class KPrHtmlExport:public QObject
 {
-    Q_OBJECT
-    public:
-        /**
-        * @param kprView
-        * @param kopaDocument 
-        * @param url The destination url
-        */
-        KPrHtmlExport(KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl& url, const QString& author, const QString& title, const KUrl css, const QStringList slidesNames);
-        ~KPrHtmlExport();
-    private slots:
-        void moveResult(KJob *job);
-    protected:
-        void generateHtml();
-        void generateToc();
-        void exportImageToTmpDir();
-        void writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody);
-        void copyFromTmpToDest();
-    private:
-        QStringList m_slidesNames;
-        KUrl m_css;
-        KPrView *m_kprView;
-        QList<KoPAPageBase*> m_slides;
-        KUrl m_dest_url;
-        QString m_author;
-        QString m_title;
-        KUrl::List m_fileUrlList;
-        QString m_tmpDirPath;
+Q_OBJECT
+public:
+    /**
+    * @param kprView
+    * @param kopaDocument 
+    * @param url The destination url
+    */
+    KPrHtmlExport();
+    void init(KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl& url, const QString& author, const QString& title, const KUrl css, const QStringList slidesNames);
+    ~KPrHtmlExport();
+protected:
+    void generateHtml();
+    void generateToc();
+    void exportImageToTmpDir();
+    void writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody);
+    void copyFromTmpToDest();
+private slots:
+    void moveResult(KJob *job);
+private:
+    QStringList m_slidesNames;
+    KUrl m_css;
+    KPrView *m_kprView;
+    QList<KoPAPageBase*> m_slides;
+    KUrl m_dest_url;
+    QString m_author;
+    QString m_title;
+    KUrl::List m_fileUrlList;
+    QString m_tmpDirPath;
 };
 #endif /* KPRHTMLEXPORT_H */

@@ -1,5 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2009 Benjamin Port <port.benjamin@gmail.com>
+   Copyright (C) 2009 Yannick Motta <yannick.motta@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -26,8 +27,21 @@
 #include <krun.h>
 #include "KPrHtmlExportUiDelegate.h"
 
-KPrHtmlExport::KPrHtmlExport (KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl &url, const QString& author, const QString& title, const KUrl css, QStringList slidesNames):m_kprView(kprView), m_slides(slides), m_dest_url(url), m_author(author), m_title(title), m_css(css), m_slidesNames(slidesNames)
+KPrHtmlExport::KPrHtmlExport ()
 { 
+
+}
+
+void KPrHtmlExport::init (KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl &url, const QString& author, const QString& title, const KUrl css, QStringList slidesNames)
+{ 
+    m_kprView = kprView;
+    m_slides = slides;
+    m_dest_url = url;
+    m_author = author;
+    m_title = title;
+    m_css = css;
+    m_slidesNames = slidesNames;
+    
     // Create a temporary dir
     KTempDir tmpDir;
     m_tmpDirPath = tmpDir.name();
@@ -95,9 +109,9 @@ void KPrHtmlExport::generateHtml()
 void KPrHtmlExport::generateToc()
 {
     QString toc = "<ul>";
-    int i = 0;
-    foreach(KoPAPageBase* slide, m_slides) {
-        toc.append("<li><a href=\"slide"+QString::number(i)+".html\">"+m_slidesNames[i]+"</a></li>");
+    int i = 0; 
+    foreach(QString slide, m_slidesNames) {
+        toc.append("<li><a href=\"slide"+QString::number(i)+".html\">"+slide+"</a></li>");
         i++;
     }
     toc.append("</ul>");
@@ -137,7 +151,7 @@ void KPrHtmlExport::copyFromTmpToDest()
 {
     KIO::CopyJob *job = KIO::move(m_fileUrlList, m_dest_url);
     job->setUiDelegate(new KPrHtmlExportUiDelegate);
-    connect( job, SIGNAL(result( KJob * )), this, SLOT( moveResult( KJob * ) ) );
+    connect( job, SIGNAL(result(KJob *)), this, SLOT(moveResult(KJob *)));
     job->exec();
 }
 
@@ -146,7 +160,8 @@ void KPrHtmlExport::moveResult(KJob *job)
     KTempDir::removeDir(m_tmpDirPath);
     if(job->error()){
         KMessageBox::error(m_kprView,job->errorText());
-    } else {
+    }
+    else {
         if(KMessageBox::questionYesNo(0,i18n("Open in browser"),i18n("Export successfull")) == KMessageBox::Yes){
             KUrl url = m_dest_url;
             url.addPath("index.html");
