@@ -13,7 +13,7 @@
 
 DEFAULT_OPENOFFICE_PORT = 8100
 
-import sys, os, getopt, time, traceback, popen2, subprocess, signal
+import sys, os, getopt, time, traceback, subprocess, signal
 
 # this was needed to find uno
 sys.path.append("/usr/lib/ooo-2.0/program") 
@@ -30,7 +30,7 @@ class UnoServer:
     def __init__(self, port=DEFAULT_OPENOFFICE_PORT):
         #self.unoConfig._logger.write("Starting OpenOffice.org at %s:%s ...\n" % (self.unoConfig.host,self.unoConfig.port))
         try:
-            self.process = popen2.Popen3([ #subprocess.Popen([
+            self.process = subprocess.Popen([
                 'soffice',
                 '-nologo', #don't show startup screen.
                 '-minimized', #keep startup bitmap minimized.
@@ -39,7 +39,6 @@ class UnoServer:
                 '-headless',
                 "-accept=socket,host=localhost,port=%s;urp;" % port
             ], )
-            time.sleep(5)
         except IOError:
             traceback.print_exc()
             raise
@@ -93,9 +92,15 @@ class DocumentConverter:
     def __init__(self, port=DEFAULT_OPENOFFICE_PORT):
         localContext = uno.getComponentContext()
         resolver = localContext.ServiceManager.createInstanceWithContext("com.sun.star.bridge.UnoUrlResolver", localContext)
-        try:
-            context = resolver.resolve("uno:socket,host=localhost,port=%s;urp;StarOffice.ComponentContext" % port)
-        except NoConnectException:
+        # try 10 seconds to connect
+        tryStartTime = time.time()
+        context = None
+        while tryStartTime + 10 > time.time() and context == None:
+            try:
+                context = resolver.resolve("uno:socket,host=localhost,port=%s;urp;StarOffice.ComponentContext" % port)
+            except NoConnectException:
+                context = None
+        if context == None:
             raise DocumentConversionException, "failed to connect to OpenOffice.org on port %s" % port
         self.desktop = context.ServiceManager.createInstanceWithContext("com.sun.star.frame.Desktop", context)
 

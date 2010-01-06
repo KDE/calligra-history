@@ -118,7 +118,7 @@ public:
      * @see KoShapeFactory::createDefaultShape
      * @see KoShape::init
      */
-    KoShape * createDefaultShapeAndInit(const QMap<QString, KoDataCenter *> & dataCenterMap) const;
+    KoShape *createDefaultShapeAndInit(const QMap<QString, KoDataCenter *> &dataCenterMap) const;
 
     /**
      * This method should be called to create a shape based on a set of properties that are
@@ -140,7 +140,7 @@ public:
      * @see KoShapeTemplate::properties
      * @see KoShape::init
      */
-    KoShape * createShapeAndInit(const KoProperties * params, const QMap<QString, KoDataCenter *> & dataCenterMap) const;
+    KoShape *createShapeAndInit(const KoProperties *params, const QMap<QString, KoDataCenter *> &dataCenterMap) const;
 
     /**
      * Create a list of option panels to show on creating a new shape.
@@ -169,20 +169,20 @@ public:
      *  @endcode
      * @see panelFactories()
      */
-    void setOptionPanels(QList<KoShapeConfigFactory*> &panelFactories);
+    void setOptionPanels(const QList<KoShapeConfigFactory*> &panelFactories);
 
     /**
      * Return the app-specific panels.
      * @see setOptionPanels()
      */
-    const QList<KoShapeConfigFactory*> &panelFactories();
+    QList<KoShapeConfigFactory*> panelFactories();
 
     /**
      * pouplates the dataCenterMap with any datacenters the shapes might need.
      * The default implementation does nothing
      * @param dataCenterMap The map which the shapeControllerBase owns.
      */
-    virtual void populateDataCenterMap(QMap<QString, KoDataCenter *>   & dataCenterMap) {
+    virtual void populateDataCenterMap(QMap<QString, KoDataCenter *>  &dataCenterMap) {
         Q_UNUSED(dataCenterMap)
     }
     /**
@@ -194,7 +194,7 @@ public:
      * Return all the templates this factory knows about.
      * Each template shows a different way to create a shape this factory is specialized in.
      */
-    const QList<KoShapeTemplate> templates() const;
+    QList<KoShapeTemplate> templates() const;
     /**
      * return a translated tooltip Text for a selector of shapes
      * @return a translated tooltip Text
@@ -216,11 +216,11 @@ public:
      */
     QString family() const;
     /// lower prio means the shape is more generic and will be checked later
-    quint32 loadingPriority() const;
+    int loadingPriority() const;
 
     /// The namespace that the elements supported by the shape created
     /// by this factory should be in.
-    const QString & odfNameSpace() const;
+    QString odfNameSpace() const;
 
     /// the name used for quick checking if this shapeFactory is able to
     /// load Odf data identified by the element name.
@@ -228,14 +228,15 @@ public:
 
     /// returns true if this shapeFactory is able to load the ODF type
     /// started at argument element. ('draw:line' / 'draw:frame' / etc)
-    virtual bool supports(const KoXmlElement & e) const;
+    virtual bool supports(const KoXmlElement &element) const;
 
     /**
-     * This functions decides if the shape should be shown in the
-     * shape selector or not.
-     * The default implementation returns false.
+     * The hidden boolean requests if the shape should be hidden in the
+     * shape selector or shown with all its templates.
+     * The default is false
+     * @see setHidden()
      */
-    virtual bool hidden() const;
+    bool hidden() const;
 
 protected:
 
@@ -247,7 +248,7 @@ protected:
      * The default shape position is not relevant, it will be moved by the caller.
      * @return a new shape
      */
-    virtual KoShape * createDefaultShape() const = 0;
+    virtual KoShape *createDefaultShape() const = 0;
 
     /**
      * This method should be implemented by factories to create a shape based on a set of
@@ -256,27 +257,27 @@ protected:
      * @return a new shape
      * @see KoShapeTemplate::properties
      */
-    virtual KoShape * createShape(const KoProperties * params) const = 0;
+    virtual KoShape *createShape(const KoProperties *params) const = 0;
 
     /**
      * Add a template with the properties of a speficic type of shape this factory can generate
      * using the createShape() method.
      * @param params the new template this factory knows to produce
      */
-    void addTemplate(KoShapeTemplate &params);
+    void addTemplate(const KoShapeTemplate &params);
 
     /**
      * Set the tooltip to be used for a selector of shapes
      * @param tooltip the tooltip
      */
-    void setToolTip(const QString & tooltip);
+    void setToolTip(const QString &tooltip);
 
     /**
      * Set an icon to be used in a selector of shapes
      * @param iconName the basename (without extension) of the icon
      * @see KIconLoader
      */
-    void setIcon(const QString & iconName);
+    void setIcon(const QString &iconName);
 
     /**
      * Set the family name of the default shape
@@ -290,7 +291,7 @@ protected:
      * the shape is more specific which means it will be earlier in
      * the queue to try loading a particular odf element.
      */
-    void setLoadingPriority(quint32 priority);
+    void setLoadingPriority(int priority);
 
     /**
      * Set the name used for quick checking whether this shapefactory
@@ -303,7 +304,15 @@ protected:
      * @param elementNames the name of the element itself, like "draw"
      *
      */
-    void setOdfElementNames(const QString & nameSpace, const QStringList & elementNames);
+    void setOdfElementNames(const QString &nameSpace, const QStringList &elementNames);
+
+    /**
+     * The hidden boolean requests if the shape should be hidden in the
+     * shape selector or shown with all its templates.
+     * The default is false
+     * @see hidden()
+     */
+    void setHidden(bool hidden);
 
 private:
     class Private;

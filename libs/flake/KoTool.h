@@ -90,14 +90,14 @@ public:
      *
      * @see m_optionWidgets
      */
-    QMap<QString, QWidget *>  optionWidgets();
+    QMap<QString, QWidget *> optionWidgets();
 
     /**
      * Returns the internal selection option of this tool.
      * Each tool can have a selection which is private to that tool and the specified shape that it comes with.
      * The default returns 0.
      */
-    virtual KoToolSelection* selection();
+    virtual KoToolSelection *selection();
 
     /**
      * Retrieves the entire collection of actions for the tool.
@@ -262,7 +262,7 @@ public:
     QList<QAction*> popupActionList() const;
 
     /// Returns the canvas the tool is working on
-    KoCanvasBase * canvas() const;
+    KoCanvasBase *canvas() const;
 
 public slots:
     /**
@@ -321,7 +321,7 @@ signals:
      * replaced by a colorpicker.
      * @param id the identification of the desired tool
      */
-    void activateTemporary(const QString & id);
+    void activateTemporary(const QString &id);
 
     /**
      * Emitted when the tool has been temporarily activated and wants
@@ -352,11 +352,9 @@ protected:
      * Classes inheriting from this one can call this method to signify which cursor
      * the tool wants to display at this time.  Logical place to call it is after an
      * incoming event has been handled.
-     * @param cursor the new cursor. If this is the same as the previously set cursor
-     *   this call will not do anything.
-     * @param force if true the cursor will be set no matter what.
+     * @param cursor the new cursor.
      */
-    void useCursor(const QCursor &cursor, bool force = false);
+    void useCursor(const QCursor &cursor);
 
     /**
      * Reimplement this if your tool actually has an option widget.

@@ -18,7 +18,6 @@
 
 #include "opengl/kis_opengl_image_textures.h"
 
-
 #ifdef HAVE_OPENGL
 
 #include <ksharedptr.h>
@@ -43,7 +42,6 @@
 #include "kis_image.h"
 #include "kis_layer.h"
 #include "kis_selection.h"
-#include "opengl/kis_opengl.h"
 #include "kis_config.h"
 #include "kis_debug.h"
 
@@ -208,7 +206,7 @@ void KisOpenGLImageTextures::destroyImageTextureTiles()
 
 void KisOpenGLImageTextures::updateImageTextureTiles(const QRect& rect)
 {
-    dbgUI << "updateImageTextureTiles" << rect;
+    //dbgUI << "updateImageTextureTiles" << rect;
 
     QRect updateRect = rect & m_image->bounds();
 
@@ -269,7 +267,7 @@ void KisOpenGLImageTextures::updateImageTextureTiles(const QRect& rect)
 
 #if defined(HAVE_GLEW) && defined(HAVE_OPENEXR)
                     // XXX: generalise
-                    if (m_image->colorSpace()->id() == "RGBAF16HALF") {
+                    if (m_image->colorSpace()->id() == "RgbAF16") {
                         if (m_imageTextureType == GL_FLOAT) {
 
                             // Convert half to float as we don't have ARB_half_float_pixel

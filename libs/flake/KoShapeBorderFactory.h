@@ -30,7 +30,7 @@ class FLAKE_EXPORT KoShapeBorderFactory : public QObject
     Q_OBJECT
 public:
 
-    KoShapeBorderFactory(QObject *parent, const QString &id, const QString &name);
+    KoShapeBorderFactory(QObject *parent, const QString &id);
     virtual ~KoShapeBorderFactory();
 
     /**
@@ -41,18 +41,13 @@ public:
      * The default shape position is not relevant, it will be moved by the caller.
      * @return a new shape
      */
-    virtual KoShapeBorderModel * createBorder() const = 0;
+    virtual KoShapeBorderModel *createBorder() const = 0;
 
     /**
      * return the id for the shape this factory creates.
      * @return the id for the shape this factory creates.
      */
     QString id() const;
-    /**
-     * return the user visible (and translated) name to be seen by the user.
-     * @return the user visible (and translated) name to be seen by the user.
-     */
-    QString name() const;
 
 private:
     class Private;

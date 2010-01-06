@@ -26,11 +26,7 @@
 #include <kis_paintop_options_widget.h>
 #include <kis_image.h>
 
-class KisBrushOption;
-class KisPressureOpacityOption;
-class KisPressureDarkenOption;
-class KisPressureSizeOption;
-class KisPaintActionTypeOption;
+class KisBrushOptionWidget;
 
 class KisPenOpSettingsWidget : public KisPaintOpOptionsWidget
 {
@@ -45,17 +41,9 @@ public:
 
     KisPropertiesConfiguration* configuration() const;
 
-    void setImage(KisImageWSP image);
-
 public:
 
-    KisBrushOption * m_brushOption;
-    KisPressureOpacityOption * m_opacityOption;
-    KisPressureDarkenOption * m_darkenOption;
-    KisPressureSizeOption * m_sizeOption;
-    KisPaintActionTypeOption * m_paintActionTypeOption;
-
-
+    KisBrushOptionWidget * m_brushOption;
 };
 
 

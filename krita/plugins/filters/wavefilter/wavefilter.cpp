@@ -21,7 +21,7 @@
 #include "wavefilter.h"
 #include <stdlib.h>
 #include <vector>
-
+#include <math.h>
 #include <qpoint.h>
 
 #include <kcombobox.h>
@@ -92,9 +92,9 @@ public:
 private:
     int m_amplitude, m_wavelength, m_shift;
 }; KritaWaveFilter::KritaWaveFilter(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
-    setComponentData(KritaWaveFilterFactory::componentData());
+    //setComponentData(KritaWaveFilterFactory::componentData());
     KisFilterRegistry::instance()->add(new KisFilterWave());
 }
 

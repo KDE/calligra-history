@@ -58,9 +58,9 @@ QString ToolHelper::activationShapeId() const
     return m_toolFactory->activationShapeId();
 }
 
-QString ToolHelper::name() const
+QString ToolHelper::toolTip() const
 {
-    return m_toolFactory->name();
+    return m_toolFactory->toolTip();
 }
 
 KoTool *ToolHelper::createTool(KoCanvasBase *canvas) const
@@ -110,4 +110,4 @@ void Connector::selectionChanged()
     emit selectionChanged(m_shapeManager->selection()->selectedShapes());
 }
 
-#include "KoToolManager_p.moc"
+#include <KoToolManager_p.moc>

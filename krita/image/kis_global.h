@@ -19,7 +19,6 @@
 #ifndef KISGLOBAL_H_
 #define KISGLOBAL_H_
 
-#include <lcms.h>
 #include <limits.h>
 
 #include <kglobal.h>
@@ -60,6 +59,12 @@ const double PRESSURE_MIN = 0.0;
 const double PRESSURE_MAX = 1.0;
 const double PRESSURE_DEFAULT = (PRESSURE_MAX - PRESSURE_MIN) / 2;
 const double PRESSURE_THRESHOLD = 5.0 / 255.0;
+
+// copy of lcms.h
+#define INTENT_PERCEPTUAL                 0
+#define INTENT_RELATIVE_COLORIMETRIC      1
+#define INTENT_SATURATION                 2
+#define INTENT_ABSOLUTE_COLORIMETRIC      3
 
 #endif // KISGLOBAL_H_
 

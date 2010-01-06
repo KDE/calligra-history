@@ -71,9 +71,15 @@ public:
     }
     virtual bool completeLoading(KoStore *store);
     virtual bool completeSaving(KoStore*);
+
+    /// Unused
     virtual bool loadOdf(KoOdfReadStore & odfStore);
+    /// Unused
     virtual bool saveOdf(SavingContext &documentContext);
+
+    virtual QDomDocument saveXML();
     virtual bool loadXML(const KoXmlDocument& doc, KoStore* store);
+
     virtual QByteArray mimeType() const;
     virtual QList<KoDocument::CustomDocumentWidgetItem> createCustomDocumentWidgets(QWidget *parent);
 
@@ -82,10 +88,10 @@ public:
      */
     virtual void paintContent(QPainter& painter, const QRect& rect);
 
+    void showStartUpWidget(KoMainWindow* parent, bool alwaysShow);
+
     /// Generate a scaled-down pixmap of the image projection that fits in size
     virtual QPixmap generatePreview(const QSize& size);
-
-    virtual QDomDocument saveXML();
 
     virtual void setUndo(bool undo);
     virtual bool undo() const;
@@ -97,6 +103,8 @@ public slots:
      * @since 1.5
      */
     virtual void initEmpty();
+
+    void showErrorAndDie();
 
 public:
 
@@ -156,22 +164,19 @@ public:
 
 protected slots:
 
+    void slotLoadingFinished();
+
     // Overide KoDocument
     virtual void openExistingFile(const KUrl& url);
     virtual void openTemplate(const KUrl& url);
 
 private slots:
 
-    void slotIOProgress(qint8 percentage);
     void undoIndexChanged(int idx);
 
 private:
 
     bool init();
-
-    void setIOSteps(qint32 nsteps);
-    void IOCompletedStep();
-    void IODone();
 
 private:
 

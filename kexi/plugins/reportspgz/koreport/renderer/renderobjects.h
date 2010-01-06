@@ -29,7 +29,7 @@
 #include <QImage>
 #include <QPen>
 #include <QBrush>
-#include <parsexmlutils.h>
+#include <krobjectdata.h>
 #include <reportpageoptions.h>
 #include <QPicture>
 #include <krreportdata.h>
@@ -228,15 +228,15 @@ public:
     };
     void setText(const QString &);
 
-    ORTextStyleData textStyle() const {
+    KRTextStyleData textStyle() const {
         return m_textStyle;
     }
-    void setTextStyle(const ORTextStyleData&);
+    void setTextStyle(const KRTextStyleData&);
 
-    ORLineStyleData lineStyle() const {
+    KRLineStyleData lineStyle() const {
         return m_lineStyle;
     }
-    void setLineStyle(const ORLineStyleData&);
+    void setLineStyle(const KRLineStyleData&);
 
     void setFont(const QFont &);
 
@@ -252,8 +252,8 @@ public:
 protected:
     QSizeF m_size;
     QString m_text;
-    ORTextStyleData m_textStyle;
-    ORLineStyleData m_lineStyle;
+    KRTextStyleData m_textStyle;
+    KRLineStyleData m_lineStyle;
     Qt::Alignment m_alignment;
     int m_flags; // Qt::AlignmentFlag and Qt::TextFlag OR'd
 };
@@ -278,16 +278,16 @@ public:
     };
     void setEndPoint(const QPointF &);
 
-    ORLineStyleData lineStyle() const {
+    KRLineStyleData lineStyle() const {
         return m_lineStyle;
     };
-    void setLineStyle(const ORLineStyleData&);
+    void setLineStyle(const KRLineStyleData&);
 
     static const int Line;
     virtual OROPrimitive* clone();
 protected:
     QPointF m_endPoint;
-    ORLineStyleData m_lineStyle;
+    KRLineStyleData m_lineStyle;
 };
 
 //
@@ -446,51 +446,52 @@ public:
     virtual OROPrimitive* clone();
     static const int Check;
 
-    void setCheckType(const QString& t){
+    void setCheckType(const QString& t) {
         if (t == "Cross" || t == "Tick" || t == "Dot") {
             m_checkType = t;
-        }
-        else {
+        } else {
             m_checkType = "Cross";
         }
     }
 
-    QString checkType(){return m_checkType;};
+    QString checkType() {
+        return m_checkType;
+    };
 
     QSizeF size() const {
         return m_size;
     }
-    void setSize(const QSizeF &s){
+    void setSize(const QSizeF &s) {
         m_size = s;
     }
 
-    void setValue(bool v){
+    void setValue(bool v) {
         m_value = v;
     }
-    bool value(){
+    bool value() {
         return m_value;
     }
 
-    void setLineStyle(const ORLineStyleData& ls){
+    void setLineStyle(const KRLineStyleData& ls) {
         m_lineStyle = ls;
     }
 
-    ORLineStyleData lineStyle(){
+    KRLineStyleData lineStyle() {
         return m_lineStyle;
     }
-    void setForegroundColor(const QColor& fg){
+    void setForegroundColor(const QColor& fg) {
         m_fgColor = fg;
     }
-    QColor foregroundColor(){
+    QColor foregroundColor() {
         return m_fgColor;
     }
 
-    protected:
-            QSizeF m_size;
-            QString m_checkType;
-            bool m_value;
-            ORLineStyleData m_lineStyle;
-            QColor m_fgColor;
+protected:
+    QSizeF m_size;
+    QString m_checkType;
+    bool m_value;
+    KRLineStyleData m_lineStyle;
+    QColor m_fgColor;
 
 
 };

@@ -964,13 +964,14 @@ QString TestLoading::documentToOdt(QTextDocument *document)
 
     KoGenStyles mainStyles;
     KoStyleManager *styleMan = KoTextDocument(document).styleManager();
+    Q_UNUSED(styleMan);
     KoEmbeddedDocumentSaver embeddedSaver;
 
     KoGenChanges changes;
     KoShapeSavingContext context(xmlWriter, mainStyles, embeddedSaver);
 
     KoSharedSavingData *sharedData = context.sharedData(KOTEXT_SHARED_SAVING_ID);
-    KoTextSharedSavingData *textSharedData;
+    KoTextSharedSavingData *textSharedData = 0;
     if (sharedData) {
         textSharedData = dynamic_cast<KoTextSharedSavingData *>(sharedData);
     }
@@ -1106,4 +1107,4 @@ int main(int argc, char *argv[])
     return QTest::qExec(new TestLoading, argc, argv);
 }
 
-#include "TestLoading.moc"
+#include <TestLoading.moc>

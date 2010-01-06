@@ -40,7 +40,7 @@ public:
 };
 
 ApplicationSettings::ApplicationSettings()
-    : d(new Private)
+        : d(new Private)
 {
     d->gridColor = Qt::lightGray;
     d->pageBorderColor = Qt::red;
@@ -107,7 +107,7 @@ bool ApplicationSettings::showColumnHeader() const
 
 void ApplicationSettings::setShowRowHeader(bool show)
 {
-    d->rowHeader=show;
+    d->rowHeader = show;
 }
 
 bool ApplicationSettings::showRowHeader() const

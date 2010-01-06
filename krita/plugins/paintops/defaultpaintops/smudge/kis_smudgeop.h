@@ -33,11 +33,11 @@
 #include <kis_paintop_factory.h>
 #include <kis_paintop_settings.h>
 #include <kis_paintop_options_widget.h>
+#include <kis_pressure_opacity_option.h>
+#include <kis_pressure_size_option.h>
+#include <kis_pressure_rate_option.h>
 
-class KisBrushOption;
-class KisPressureSizeOption;
-class KisPressureDarkenOption;
-class KisPressureOpacityOption;
+class KisBrushOptionWidget;
 class KisPaintActionTypeOption;
 class KisSmudgeOpSettings;
 class KisSmudgeOpSettingsWidget;
@@ -52,7 +52,7 @@ class KisSmudgeOp : public KisBrushBasedPaintOp
 
 public:
 
-    KisSmudgeOp(const KisSmudgeOpSettings *settings, KisPainter * painter);
+    KisSmudgeOp(const KisSmudgeOpSettings *settings, KisPainter * painter, KisImageWSP image);
     virtual ~KisSmudgeOp();
 
     void paintAt(const KisPaintInformation& info);
@@ -64,8 +64,9 @@ private:
     KisPaintDeviceSP m_source;
     KisPaintDeviceSP m_target;
     KisPaintDeviceSP m_srcdev;
-
-
+    KisPressureSizeOption m_sizeOption;
+    KisPressureOpacityOption m_opacityOption;
+    KisPressureRateOption m_rateOption;
 };
 
 #endif // KIS_SMUDGEOP_H_

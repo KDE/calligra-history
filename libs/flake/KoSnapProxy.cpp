@@ -23,6 +23,7 @@
 #include "KoShapeManager.h"
 #include "KoPathShape.h"
 #include "KoPathPoint.h"
+#include <KoSnapData.h>
 
 KoSnapProxy::KoSnapProxy(KoSnapGuide * snapGuide)
         : m_snapGuide(snapGuide)
@@ -77,7 +78,7 @@ QList<QPointF> KoSnapProxy::pointsFromShape(KoShape * shape)
 
         int subpathCount = path->subpathCount();
         for (int subpathIndex = 0; subpathIndex < subpathCount; ++subpathIndex) {
-            int pointCount = path->pointCountSubpath(subpathIndex);
+            int pointCount = path->subpathPointCount(subpathIndex);
             for (int pointIndex = 0; pointIndex < pointCount; ++pointIndex) {
                 KoPathPoint * p = path->pointByIndex(KoPathPointIndex(subpathIndex, pointIndex));
                 if (! p || ignoredPoints.contains(p))

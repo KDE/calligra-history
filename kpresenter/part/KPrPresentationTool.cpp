@@ -81,6 +81,8 @@ bool KPrPresentationTool::wantsAutoScroll()
 
 void KPrPresentationTool::paint( QPainter &painter, const KoViewConverter &converter )
 {
+    Q_UNUSED(painter);
+    Q_UNUSED(converter);
 }
 
 void KPrPresentationTool::mousePressEvent( KoPointerEvent *event )
@@ -91,9 +93,9 @@ void KPrPresentationTool::mousePressEvent( KoPointerEvent *event )
         KoShape * shapeClicked = m_canvas->shapeManager()->shapeAt( event->point );
         if (shapeClicked) {
             m_eventActions = shapeClicked->eventActions();
-            if ( m_eventActions.size() ) {
+            if (!m_eventActions.isEmpty()) {
                 foreach ( KoEventAction * eventAction, m_eventActions ) {
-                    eventAction->execute( this );
+                    eventAction->start();
                 }
                 // don't do next step if a action was executed
                 return;
@@ -110,14 +112,17 @@ void KPrPresentationTool::mousePressEvent( KoPointerEvent *event )
 
 void KPrPresentationTool::mouseDoubleClickEvent( KoPointerEvent *event )
 {
+    Q_UNUSED(event);
 }
 
 void KPrPresentationTool::mouseMoveEvent( KoPointerEvent *event )
 {
+    Q_UNUSED(event);
 }
 
 void KPrPresentationTool::mouseReleaseEvent( KoPointerEvent *event )
 {
+    Q_UNUSED(event);
 }
 
 void KPrPresentationTool::keyPressEvent( QKeyEvent *event )
@@ -197,7 +202,7 @@ void KPrPresentationTool::deactivate()
 void KPrPresentationTool::finishEventActions()
 {
     foreach ( KoEventAction * eventAction, m_eventActions ) {
-        eventAction->finish( this );
+        eventAction->finish();
     }
 }
 

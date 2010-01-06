@@ -16,6 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#include "KoAlphaColorSpace.h"
 
 #include <limits.h>
 #include <stdlib.h>
@@ -25,9 +26,6 @@
 
 #include <klocale.h>
 
-#include <lcms.h>
-
-#include "KoAlphaColorSpace.h"
 #include "KoChannelInfo.h"
 #include "KoID.h"
 #include "KoIntegerMaths.h"
@@ -35,165 +33,163 @@
 #include "KoCompositeOpErase.h"
 #include "KoCompositeOpAlphaDarken.h"
 
-namespace {
-    const quint8 PIXEL_MASK = 0;
+namespace
+{
+const quint8 PIXEL_MASK = 0;
 
-    class CompositeClear : public KoCompositeOp {
+class CompositeClear : public KoCompositeOp
+{
 
-    public:
+public:
 
-        CompositeClear(KoColorSpace * cs)
-            : KoCompositeOp(cs, COMPOSITE_CLEAR, i18n("Clear" ), KoCompositeOp::categoryMix() )
-            {
+    CompositeClear(KoColorSpace * cs)
+            : KoCompositeOp(cs, COMPOSITE_CLEAR, i18n("Clear"), KoCompositeOp::categoryMix()) {
+    }
+
+public:
+
+    using KoCompositeOp::composite;
+
+    void composite(quint8 *dst,
+                   qint32 dststride,
+                   const quint8 *src,
+                   qint32 srcstride,
+                   const quint8 *maskRowStart,
+                   qint32 maskstride,
+                   qint32 rows,
+                   qint32 cols,
+                   quint8 opacity,
+                   const QBitArray & channelFlags) const {
+        Q_UNUSED(src);
+        Q_UNUSED(srcstride);
+        Q_UNUSED(opacity);
+        Q_UNUSED(channelFlags);
+
+        quint8 *d;
+        qint32 linesize;
+
+        if (rows <= 0 || cols <= 0)
+            return;
+
+        if (maskRowStart == 0) {
+
+            linesize = sizeof(quint8) * cols;
+            d = dst;
+            while (rows-- > 0) {
+
+                memset(d, OPACITY_TRANSPARENT, linesize);
+                d += dststride;
             }
+        } else {
+            while (rows-- > 0) {
 
-    public:
+                const quint8 *mask = maskRowStart;
 
-        using KoCompositeOp::composite;
+                d = dst;
 
-        void composite(quint8 *dst,
-                       qint32 dststride,
-                       const quint8 *src,
-                       qint32 srcstride,
-                       const quint8 *maskRowStart,
-                       qint32 maskstride,
-                       qint32 rows,
-                       qint32 cols,
-                       quint8 opacity,
-                       const QBitArray & channelFlags) const
-            {
-                Q_UNUSED( src );
-                Q_UNUSED( srcstride );
-                Q_UNUSED( opacity );
-                Q_UNUSED( channelFlags );
-
-                quint8 *d;
-                qint32 linesize;
-
-                if (rows <= 0 || cols <= 0)
-                    return;
-
-                if ( maskRowStart == 0 ) {
-
-                    linesize = sizeof(quint8) * cols;
-                    d = dst;
-                    while (rows-- > 0) {
-
-                        memset(d, OPACITY_TRANSPARENT, linesize);
-                        d += dststride;
-                    }
-                }
-                else {
-                    while (rows-- > 0) {
-
-                        const quint8 *mask = maskRowStart;
-
-                        d = dst;
-
-                        for (qint32 i = cols; i > 0; i--, d++) {
-                            // If the mask tells us to completely not
-                            // blend this pixel, continue.
-                            if ( mask != 0 ) {
-                                if ( mask[0] == OPACITY_TRANSPARENT ) {
-                                    mask++;
-                                    continue;
-                                }
-                                mask++;
-                            }
-                            // linesize is uninitialized here, so it just crashes
-                            //memset(d, OPACITY_TRANSPARENT, linesize);
-                        }
-                        dst += dststride;
-                        src += srcstride;
-                        maskRowStart += maskstride;
-                    }
-                }
-
-            }
-
-    };
-
-    class CompositeSubtract : public KoCompositeOp {
-
-    public:
-
-        CompositeSubtract(KoColorSpace * cs)
-            : KoCompositeOp(cs, COMPOSITE_SUBTRACT, i18n("Subtract" ), KoCompositeOp::categoryArithmetic() )
-            {
-            }
-
-    public:
-
-        using KoCompositeOp::composite;
-
-        void composite(quint8 *dst,
-                       qint32 dststride,
-                       const quint8 *src,
-                       qint32 srcstride,
-                       const quint8 *maskRowStart,
-                       qint32 maskstride,
-                       qint32 rows,
-                       qint32 cols,
-                       quint8 opacity,
-                       const QBitArray & channelFlags) const
-            {
-
-                Q_UNUSED( opacity );
-                Q_UNUSED( channelFlags );
-
-
-                quint8 *d;
-                const quint8 *s;
-                qint32 i;
-
-                if (rows <= 0 || cols <= 0)
-                    return;
-
-                while (rows-- > 0) {
-                    const quint8 *mask = maskRowStart;
-                    d = dst;
-                    s = src;
-
-                    for (i = cols; i > 0; i--, d++, s++) {
-
-                        // If the mask tells us to completely not
-                        // blend this pixel, continue.
-                        if ( mask != 0 ) {
-                            if ( mask[0] == OPACITY_TRANSPARENT ) {
-                                mask++;
-                                continue;
-                            }
+                for (qint32 i = cols; i > 0; i--, d++) {
+                    // If the mask tells us to completely not
+                    // blend this pixel, continue.
+                    if (mask != 0) {
+                        if (mask[0] == OPACITY_TRANSPARENT) {
                             mask++;
+                            continue;
                         }
-
-                        if (d[PIXEL_MASK] <= s[PIXEL_MASK]) {
-                            d[PIXEL_MASK] = OPACITY_TRANSPARENT;
-                        } else {
-                            d[PIXEL_MASK] -= s[PIXEL_MASK];
-                        }
+                        mask++;
                     }
+                    // linesize is uninitialized here, so it just crashes
+                    //memset(d, OPACITY_TRANSPARENT, linesize);
+                }
+                dst += dststride;
+                src += srcstride;
+                maskRowStart += maskstride;
+            }
+        }
 
-                    dst += dststride;
-                    src += srcstride;
+    }
 
-                    if(maskRowStart) {
-                        maskRowStart += maskstride;
+};
+
+class CompositeSubtract : public KoCompositeOp
+{
+
+public:
+
+    CompositeSubtract(KoColorSpace * cs)
+            : KoCompositeOp(cs, COMPOSITE_SUBTRACT, i18n("Subtract"), KoCompositeOp::categoryArithmetic()) {
+    }
+
+public:
+
+    using KoCompositeOp::composite;
+
+    void composite(quint8 *dst,
+                   qint32 dststride,
+                   const quint8 *src,
+                   qint32 srcstride,
+                   const quint8 *maskRowStart,
+                   qint32 maskstride,
+                   qint32 rows,
+                   qint32 cols,
+                   quint8 opacity,
+                   const QBitArray & channelFlags) const {
+
+        Q_UNUSED(opacity);
+        Q_UNUSED(channelFlags);
+
+
+        quint8 *d;
+        const quint8 *s;
+        qint32 i;
+
+        if (rows <= 0 || cols <= 0)
+            return;
+
+        while (rows-- > 0) {
+            const quint8 *mask = maskRowStart;
+            d = dst;
+            s = src;
+
+            for (i = cols; i > 0; i--, d++, s++) {
+
+                // If the mask tells us to completely not
+                // blend this pixel, continue.
+                if (mask != 0) {
+                    if (mask[0] == OPACITY_TRANSPARENT) {
+                        mask++;
+                        continue;
                     }
+                    mask++;
+                }
+
+                if (d[PIXEL_MASK] <= s[PIXEL_MASK]) {
+                    d[PIXEL_MASK] = OPACITY_TRANSPARENT;
+                } else {
+                    d[PIXEL_MASK] -= s[PIXEL_MASK];
                 }
             }
-    };
+
+            dst += dststride;
+            src += srcstride;
+
+            if (maskRowStart) {
+                maskRowStart += maskstride;
+            }
+        }
+    }
+};
 
 }
 
 KoAlphaColorSpace::KoAlphaColorSpace() :
-    KoColorSpaceAbstract<AlphaU8Traits>("ALPHA", i18n("Alpha mask") )
+        KoColorSpaceAbstract<AlphaU8Traits>("ALPHA", i18n("Alpha mask"))
 {
     addChannel(new KoChannelInfo(i18n("Alpha"), 0, KoChannelInfo::ALPHA, KoChannelInfo::UINT8));
-    addCompositeOp( new KoCompositeOpOver<AlphaU8Traits>( this ) );
-    addCompositeOp( new CompositeClear( this ) );
-    addCompositeOp( new KoCompositeOpErase<AlphaU8Traits>( this ) );
-    addCompositeOp( new CompositeSubtract( this ) );
-    addCompositeOp( new KoCompositeOpAlphaDarken<AlphaU8Traits>( this ) );
+    addCompositeOp(new KoCompositeOpOver<AlphaU8Traits>(this));
+    addCompositeOp(new CompositeClear(this));
+    addCompositeOp(new KoCompositeOpErase<AlphaU8Traits>(this));
+    addCompositeOp(new CompositeSubtract(this));
+    addCompositeOp(new KoCompositeOpAlphaDarken<AlphaU8Traits>(this));
 }
 
 KoAlphaColorSpace::~KoAlphaColorSpace()
@@ -216,24 +212,10 @@ quint8 KoAlphaColorSpace::difference(const quint8 *src1, const quint8 *src2) con
     return qAbs(src2[PIXEL_MASK] - src1[PIXEL_MASK]);
 }
 
-void KoAlphaColorSpace::mixColors(const quint8 **colors, const quint8 *weights, quint32 nColors, quint8 *dst) const
-{
-    if (nColors > 0) {
-        quint32 total = 0;
-
-        while(nColors)
-        {
-            nColors--;
-            total += *colors[nColors] * weights[nColors];
-        }
-        *dst = total / 255;
-    }
-}
-
 bool KoAlphaColorSpace::convertPixelsTo(const quint8 *src,
-                     quint8 *dst, const KoColorSpace * dstColorSpace,
-                     quint32 numPixels,
-                     KoColorConversionTransformation::Intent /*renderingIntent*/) const
+                                        quint8 *dst, const KoColorSpace * dstColorSpace,
+                                        quint32 numPixels,
+                                        KoColorConversionTransformation::Intent /*renderingIntent*/) const
 {
     // No lcms trickery here, we are only a opacity channel
     qint32 size = dstColorSpace->pixelSize();
@@ -244,8 +226,6 @@ bool KoAlphaColorSpace::convertPixelsTo(const quint8 *src,
     return true;
 
 }
-
-
 
 QString KoAlphaColorSpace::channelValueText(const quint8 *pixel, quint32 channelIndex) const
 {
@@ -263,14 +243,12 @@ QString KoAlphaColorSpace::normalisedChannelValueText(const quint8 *pixel, quint
     return QString().setNum(static_cast<float>(pixel[channelPosition]) / UINT8_MAX);
 }
 
-
-void KoAlphaColorSpace::convolveColors(quint8** colors, qint32 * kernelValues, quint8 *dst, qint32 factor, qint32 offset, qint32 nColors, const QBitArray & channelFlags) const
+void KoAlphaColorSpace::convolveColors(quint8** colors, qreal * kernelValues, quint8 *dst, qreal factor, qreal offset, qint32 nColors, const QBitArray & channelFlags) const
 {
-    qint32 totalAlpha = 0;
+    qreal totalAlpha = 0;
 
-    while (nColors--)
-    {
-        qint32 weight = *kernelValues;
+    while (nColors--) {
+        qreal weight = *kernelValues;
 
         if (weight != 0) {
             totalAlpha += (*colors)[PIXEL_MASK] * weight;
@@ -279,21 +257,21 @@ void KoAlphaColorSpace::convolveColors(quint8** colors, qint32 * kernelValues, q
         kernelValues++;
     }
 
-    if ( channelFlags.isEmpty() || channelFlags.testBit(PIXEL_MASK) )
-        dst[PIXEL_MASK] = CLAMP((totalAlpha/ factor) + offset, 0, SCHAR_MAX);
+    if (channelFlags.isEmpty() || channelFlags.testBit(PIXEL_MASK))
+        dst[PIXEL_MASK] = CLAMP((totalAlpha / factor) + offset, 0, SCHAR_MAX);
 }
 
+
 QImage KoAlphaColorSpace::convertToQImage(const quint8 *data, qint32 width, qint32 height,
-                                   const KoColorProfile *  /*dstProfile*/, KoColorConversionTransformation::Intent /*renderingIntent*/) const
+        const KoColorProfile *  /*dstProfile*/, KoColorConversionTransformation::Intent /*renderingIntent*/) const
 {
     QImage img(width, height, QImage::Format_Indexed8);
     QVector<QRgb> table;
-    for(int i = 0; i < 255; ++i) table.append(qRgb(i,i,i));
+    for (int i = 0; i < 255; ++i) table.append(qRgb(i, i, i));
     img.setColorTable(table);
 
     quint8* data_img = img.bits();
-    for( int i = 0; i < width * height; ++i)
-    {
+    for (int i = 0; i < width * height; ++i) {
         data_img[i] = data[i];
     }
     return img;

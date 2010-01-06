@@ -43,9 +43,9 @@ void ReportEntityLine::init(QGraphicsScene* s, ReportDesigner *r)
     setPos(0, 0);
 
 #if QT_VERSION >= 0x040600
-      setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsGeometryChanges);
+    setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsGeometryChanges);
 #else
-      setFlags (ItemIsSelectable | ItemIsMovable);
+    setFlags(ItemIsSelectable | ItemIsMovable);
 #endif
 
     setPen(QPen(Qt::black, 5));
@@ -55,7 +55,7 @@ void ReportEntityLine::init(QGraphicsScene* s, ReportDesigner *r)
         s->addItem(this);
 
     connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     setZValue(Z);
 }
@@ -65,7 +65,7 @@ ReportEntityLine::ReportEntityLine(ReportDesigner * d, QGraphicsScene * scene)
 {
     init(scene, d);
 
-    m_name->setValue(m_reportDesigner->suggestEntityName("Line"));
+    m_name->setValue(m_reportDesigner->suggestEntityName("line"));
 }
 
 ReportEntityLine::ReportEntityLine(QDomNode & entity, ReportDesigner * d, QGraphicsScene * scene)
@@ -92,7 +92,7 @@ void ReportEntityLine::paint(QPainter* painter, const QStyleOptionGraphicsItem* 
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    
+
     painter->setRenderHint(QPainter::Antialiasing, true);
     QPen p = painter->pen();
     painter->setPen(QPen(m_lineColor->value().value<QColor>(), m_lineWeight->value().toInt(), (Qt::PenStyle)m_lineStyle->value().toInt()));
@@ -112,7 +112,7 @@ void ReportEntityLine::paint(QPainter* painter, const QStyleOptionGraphicsItem* 
 
 void ReportEntityLine::buildXML(QDomDocument & doc, QDomElement & parent)
 {
-    QDomElement entity = doc.createElement("line");
+    QDomElement entity = doc.createElement("report:line");
 
     qreal sx, sy, ex, ey;
 
@@ -121,33 +121,13 @@ void ReportEntityLine::buildXML(QDomDocument & doc, QDomElement & parent)
     ex = m_end.toPoint().x();
     ey = m_end.toPoint().y();
 
-    QDomElement e;
-
-    e = doc.createElement("xstart");
-    e.appendChild(doc.createTextNode(QString::number((int) sx)));
-    entity.appendChild(e);
-
-    e = doc.createElement("ystart");
-    e.appendChild(doc.createTextNode(QString::number((int) sy)));
-    entity.appendChild(e);
-
-    e = doc.createElement("xend");
-    e.appendChild(doc.createTextNode(QString::number((int) ex)));
-    entity.appendChild(e);
-
-    e = doc.createElement("yend");
-    e.appendChild(doc.createTextNode(QString::number((int) ey)));
-    entity.appendChild(e);
-
-    // name
-    QDomElement n = doc.createElement("name");
-    n.appendChild(doc.createTextNode(entityName()));
-    entity.appendChild(n);
-
-    // z
-    QDomElement z = doc.createElement("zvalue");
-    z.appendChild(doc.createTextNode(QString::number(zValue())));
-    entity.appendChild(z);
+    // properties
+    addPropertyAsAttribute(&entity, m_name);
+    entity.setAttribute("report:z-index", zValue());
+    entity.setAttribute("report:xstart", QString::number(sx));
+    entity.setAttribute("report:ystart", QString::number(sy));
+    entity.setAttribute("report:xend", QString::number(ex));
+    entity.setAttribute("report:yend", QString::number(ey));
 
     buildXMLLineStyle(doc, entity, lineStyle());
 
@@ -157,7 +137,7 @@ void ReportEntityLine::buildXML(QDomDocument & doc, QDomElement & parent)
 void ReportEntityLine::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
     Q_UNUSED(s);
-    
+
     //TODO KoProperty does not support QPointF
     if (p.name() == "Start") {
         //setLine ( _start.toScene().x(), _start.toScene().y(), line().p1().x(), line().p1().y() );

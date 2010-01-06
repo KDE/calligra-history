@@ -25,11 +25,11 @@
 
 #include <QList>
 #include <QUndoCommand>
-#include <QtGui/QMatrix>
 
 class KoShape;
 class KoShapeGroup;
 class KoShapeContainer;
+class KoShapeGroupCommandPrivate;
 
 /// The undo / redo command for grouping shapes
 class FLAKE_EXPORT KoShapeGroupCommand : public QUndoCommand
@@ -45,7 +45,7 @@ public:
      * @param parent the parent command if the resulting command is a compound undo command.
      * @param shapes a list of all the shapes that should be grouped.
      */
-    static KoShapeGroupCommand * createCommand(KoShapeGroup *container, QList<KoShape *> shapes, QUndoCommand *parent = 0);
+    static KoShapeGroupCommand *createCommand(KoShapeGroup *container, const QList<KoShape *> &shapes, QUndoCommand *parent = 0);
 
     /**
      * Command to group a set of shapes into a predefined container.
@@ -55,8 +55,8 @@ public:
      *      See KoShapeContainer::childClipped()
      * @param parent the parent command used for macro commands
      */
-    KoShapeGroupCommand(KoShapeContainer *container, QList<KoShape *> shapes, QList<bool> clipped,
-                        QUndoCommand *parent = 0);
+    KoShapeGroupCommand(KoShapeContainer *container, const QList<KoShape *> &shapes,
+            const QList<bool> &clipped, QUndoCommand *parent = 0);
     /**
      * Command to group a set of shapes into a predefined container.
      * Convenience constructor since KoShapeGroup does not allow clipping.
@@ -64,25 +64,16 @@ public:
      * @param parent the parent command if the resulting command is a compound undo command.
      * @param shapes a list of all the shapes that should be grouped.
      */
-    KoShapeGroupCommand(KoShapeGroup *container, QList<KoShape *> shapes, QUndoCommand *parent = 0);
-    virtual ~KoShapeGroupCommand() { }
+    KoShapeGroupCommand(KoShapeGroup *container, const QList<KoShape *> &shapes, QUndoCommand *parent = 0);
+    virtual ~KoShapeGroupCommand();
     /// redo the command
     virtual void redo();
     /// revert the actions done in redo
     virtual void undo();
 
 protected:
-    KoShapeGroupCommand(QUndoCommand* parent = 0); ///< protected constructor for child classes
-    QList<KoShape*> m_shapes; ///<list of shapes to be grouped
-    QList<bool> m_clipped; ///< list of booleas to specify the shape of the same index to eb clipped
-    KoShapeContainer *m_container; ///< the container where the grouping should be for.
-    QList<KoShapeContainer*> m_oldParents; ///< the old parents of the shapes
-    QList<bool> m_oldClipped; ///< if the shape was clipped in the old parent
-    QList<int> m_oldZIndex; ///< the old z-index of the shapes
-
-private:
-    void init();
-    QRectF containerBoundingRect();
+    KoShapeGroupCommandPrivate *d;
+    KoShapeGroupCommand(KoShapeGroupCommandPrivate &, QUndoCommand *parent);
 };
 
 #endif

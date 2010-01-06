@@ -53,7 +53,7 @@ private:
     };
 
     void updateDirection(DirectionButtonState state);
-    void fillListsCombobox();
+    void fillListButtons();
 
     Ui::SimpleStyleWidget widget;
     KoStyleManager *m_styleManager;

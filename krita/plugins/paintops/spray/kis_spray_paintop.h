@@ -53,7 +53,10 @@ private:
     KisPaintDeviceSP m_dab;
     SprayBrush m_sprayBrush;
     double m_xSpacing, m_ySpacing, m_spacing;
-
+    KisPressureRotationOption m_rotationOption;
+    KisPressureSizeOption m_sizeOption;
+    KisPressureOpacityOption m_opacityOption;
+    
 #ifdef BENCHMARK
     int m_total;
     int m_count;

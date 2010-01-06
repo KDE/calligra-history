@@ -24,6 +24,10 @@
 
 #include "kis_spray_paintop_settings_widget.h"
 
+#include <kis_pressure_rotation_option.h>
+#include <kis_pressure_opacity_option.h>
+#include <kis_pressure_size_option.h>
+
 class QWidget;
 class QDomElement;
 class QDomDocument;
@@ -54,15 +58,17 @@ public:
 
     // brush settings
     int diameter() const;
+    qreal aspect() const;
     qreal coverage() const;
     qreal amount() const;
     qreal spacing() const;
     qreal scale() const;
+    qreal brushRotation() const;
     bool jitterMovement() const;
     bool jitterSize() const;    
     bool useDensity() const;
     int particleCount() const;
-
+    
     // color options
     bool useRandomOpacity() const;
     bool useRandomHSV() const;
@@ -79,8 +85,7 @@ public:
     // shape size
     int shape() const;
     bool proportional() const;
-    qreal widthPerc() const;
-    qreal heightPerc() const;
+
     bool jitterShapeSize() const;    
     int width() const;
     int height() const;
@@ -95,6 +100,7 @@ public:
     bool followCursor() const;
     qreal followCursorWeigth() const;
 
+    
     
     // XXX: Hack!
     void setOptionsWidget(KisPaintOpSettingsWidget* widget) {

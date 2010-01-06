@@ -1828,7 +1828,7 @@ tristate KexiMainWindow::closeProject()
     }
 #endif
 
-    //only save nav. visibility setting is project is opened
+    //only save nav. visibility setting if there is project opened
     d->saveSettingsForShowProjectNavigator = d->prj && d->isProjectNavigatorVisible;
 
     if (!d->prj)
@@ -1997,7 +1997,10 @@ void KexiMainWindow::setupProjectNavigator()
     if (!d->isProjectNavigatorVisible)
         return;
 
-    if (!d->nav) {
+    if (d->nav) {
+         d->navDockWidget->show();
+    }
+    else {
         d->navDockWidget = new KexiDockWidget(QString(), d->mainWidget);
         d->navDockWidget->setObjectName("ProjectNavigatorDockWidget");
 //        d->navDockWidget->setMinimumWidth(300);
@@ -2015,13 +2018,11 @@ void KexiMainWindow::setupProjectNavigator()
         d->navDockWidget->setWindowTitle(d->nav->windowTitle());
         d->navDockWidget->setWidget(navDockableWidget);
 
-    const bool showProjectNavigator = mainWindowGroup.readEntry("ShowProjectNavigator", true);
-    if (d->nav) {
+//        const bool showProjectNavigator = mainWindowGroup.readEntry("ShowProjectNavigator", true);
         const QSize projectNavigatorSize = mainWindowGroup.readEntry<QSize>("ProjectNavigatorSize", QSize());
         if (!projectNavigatorSize.isNull()) {
             navDockableWidget->setSizeHint(projectNavigatorSize);
         }
-    }
 
 #ifdef __GNUC__
 #warning TODO d->navToolWindow = addToolWindow(d->nav, KDockWidget::DockLeft, getMainDockWidget(), 20/*, lv, 35, "2"*/);

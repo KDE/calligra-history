@@ -22,6 +22,7 @@
 #include <kis_painter.h>
 #include <kis_paintop_settings.h>
 #include <kis_image.h>
+#include <KoInputDevice.h>
 
 #include "mypaint_paintop_settings_widget.h"
 #include "mypaint_paintop_settings.h"
@@ -107,7 +108,12 @@ QList<MyPaintBrushResource*> MyPaintFactory::brushes() const
 
 MyPaintBrushResource* MyPaintFactory::brush(const QString& fileName) const
 {
-    return m_d->brushes[fileName];
+    if (m_d->brushes.contains(fileName)) {
+        return m_d->brushes[fileName];
+    }
+    else {
+        return m_d->brushes.values()[0];
+    }
 }
 
 

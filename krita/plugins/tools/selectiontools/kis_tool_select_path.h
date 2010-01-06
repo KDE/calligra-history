@@ -21,15 +21,12 @@
 
 #include <KoCreatePathTool.h>
 #include <KoToolFactory.h>
-
-#include "kis_selection.h"
-#include "flake/kis_node_shape.h"
-#include "kis_tool.h"
+#include "kis_tool_select_base.h"
 
 class KisSelectionOptions;
 class KoCanvasBase;
 
-class KisToolSelectPath : public KoCreatePathTool
+class KisToolSelectPath : public KisToolSelectBase
 {
 
     Q_OBJECT
@@ -40,20 +37,30 @@ public:
 
     virtual QWidget * createOptionWidget();
 
-    void addPathShape();
-public slots:
-    virtual void slotSetAction(int);
-    virtual void slotSetSelectionMode(int);
-    virtual void activate(bool);
+    virtual void paint(QPainter &painter, const KoViewConverter &converter);
+    void mousePressEvent(KoPointerEvent *event);
+    void mouseDoubleClickEvent(KoPointerEvent *event);
+    void mouseMoveEvent(KoPointerEvent *event);
+    void mouseReleaseEvent(KoPointerEvent *event);
 
-protected:
+public slots:
+    virtual void activate(bool);
+    virtual void deactivate();
+
+private:
     /// reimplemented
     virtual QMap<QString, QWidget *> createOptionWidgets();
 
-private:
-    KisSelectionOptions * m_optWidget;
-    selectionAction m_selectAction;
-    selectionMode m_selectionMode;
+    class LokalTool : public KoCreatePathTool {
+        friend class KisToolSelectPath;
+    public:
+        LokalTool(KoCanvasBase * canvas, KisToolSelectPath* selectingTool)
+            : KoCreatePathTool(canvas), m_selectingTool(selectingTool) {}
+        void addPathShape();
+    private:
+        KisToolSelectPath* const m_selectingTool;
+    };
+    LokalTool* const m_lokalTool;
 
 };
 
@@ -62,7 +69,7 @@ class KisToolSelectPathFactory : public KoToolFactory
 
 public:
     KisToolSelectPathFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolSelectPath", i18n("Path Selection")) {
+            : KoToolFactory(parent, "KisToolSelectPath") {
         setToolTip(i18n("Select an area of the image with path."));
         setToolType(TOOL_TYPE_SELECTED);
         //setActivationShapeId( KIS_NODE_SHAPE_ID );

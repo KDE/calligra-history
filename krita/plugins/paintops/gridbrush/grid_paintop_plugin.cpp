@@ -27,7 +27,7 @@
 #include <kis_paintop_registry.h>
 
 #include "kis_grid_paintop.h"
-#include "kis_grid_paintop_factory.h"
+#include "kis_simple_paintop_factory.h"
 
 #include "kis_global.h"
 
@@ -36,12 +36,12 @@ K_EXPORT_COMPONENT_FACTORY(kritagridpaintop, GridPaintOpPluginFactory("krita"))
 
 
 GridPaintOpPlugin::GridPaintOpPlugin(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
     //
-    setComponentData(GridPaintOpPluginFactory::componentData());
+    //setComponentData(GridPaintOpPluginFactory::componentData());
     KisPaintOpRegistry *r = KisPaintOpRegistry::instance();
-    r->add(new KisGridPaintOpFactory);
+    r->add(new KisSimplePaintOpFactory<KisGridPaintOp, KisGridPaintOpSettings, KisGridPaintOpSettingsWidget>("gridbrush", i18n("Grid brush"), "krita-grid.png"));
 
 }
 

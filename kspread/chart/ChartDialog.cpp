@@ -27,10 +27,11 @@
 using namespace KSpread;
 
 ChartDialog::ChartDialog(const QList<KChart::ChartShape*> &charts, QWidget *parent)
-    : KPageDialog(parent)
+        : KPageDialog(parent)
 {
-    connect(this, SIGNAL( okClicked() ), this, SLOT( okClicked() ));
-    connect(this, SIGNAL( cancelClicked() ), this, SLOT( cancelClicked() ));
+    Q_UNUSED(charts);
+    connect(this, SIGNAL(okClicked()), this, SLOT(okClicked()));
+    connect(this, SIGNAL(cancelClicked()), this, SLOT(cancelClicked()));
 }
 
 ChartDialog::~ChartDialog()
@@ -46,10 +47,10 @@ void ChartDialog::cancelClicked()
 }
 
 // static
-QList<KoShapeConfigFactory*> ChartDialog::panels( Doc* doc )
+QList<KoShapeConfigFactory*> ChartDialog::panels(Doc* doc)
 {
     QList<KoShapeConfigFactory*> answer;
-    answer.append(new ChartDatabaseSelectorFactory( doc ));
+    answer.append(new ChartDatabaseSelectorFactory(doc));
     return answer;
 }
 

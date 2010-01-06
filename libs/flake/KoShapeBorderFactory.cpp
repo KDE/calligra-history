@@ -23,14 +23,13 @@
 class KoShapeBorderFactory::Private
 {
 public:
-    Private(const QString &i, const QString &n) : id(i), name(n) { }
+    Private(const QString &i) : id(i) { }
     const QString id;
-    const QString name;
 };
 
-KoShapeBorderFactory::KoShapeBorderFactory(QObject *parent, const QString &id, const QString &name)
+KoShapeBorderFactory::KoShapeBorderFactory(QObject *parent, const QString &id)
         : QObject(parent),
-        d(new Private(id, name))
+        d(new Private(id))
 {
 }
 
@@ -39,14 +38,9 @@ KoShapeBorderFactory::~KoShapeBorderFactory()
     delete d;
 }
 
-QString KoShapeBorderFactory::name() const
-{
-    return d->name;
-}
-
 QString KoShapeBorderFactory::id() const
 {
     return d->id;
 }
 
-#include "KoShapeBorderFactory.moc"
+#include <KoShapeBorderFactory.moc>

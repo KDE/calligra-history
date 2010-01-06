@@ -23,7 +23,7 @@
 #include "kis_complexop_settings.h"
 #include "kis_complexop_settings_widget.h"
 
-#include <kis_brush_option.h>
+#include <kis_brush_option_widget.h>
 #include <kis_paintop_options_widget.h>
 #include <kis_pressure_darken_option.h>
 #include <kis_pressure_opacity_option.h>
@@ -41,7 +41,7 @@ KisComplexOpSettings::~KisComplexOpSettings()
 
 bool KisComplexOpSettings::paintIncremental()
 {
-    return m_options->m_paintActionTypeOption->paintActionType() == BUILDUP;
+    return (enumPaintActionType)getInt("PaintOpAction", WASH) == BUILDUP;
 }
 
 void KisComplexOpSettings::fromXML(const QDomElement& elt)
@@ -75,5 +75,3 @@ KisPaintOpSettingsSP KisComplexOpSettings::clone() const
     return settings;
 
 }
-
-#include "kis_complexop_settings.moc"

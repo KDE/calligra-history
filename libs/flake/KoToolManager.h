@@ -21,7 +21,7 @@
 #ifndef KO_TOOL_MANAGER
 #define KO_TOOL_MANAGER
 
-#include <KoInputDevice.h>
+#include "KoInputDevice.h"
 #include "flake_export.h"
 
 #include <QObject>
@@ -38,7 +38,6 @@ class KoShape;
 class KoToolProxy;
 class QToolButton;
 class KoDeviceEvent;
-class KoGuidesTool;
 class KoShapeLayer;
 
 /**
@@ -146,7 +145,7 @@ public:
      *    who's tool you want.
      * @see addController()
      */
-    KoGuidesTool * guidesTool(KoCanvasBase * canvas) const;
+    KoTool *toolById(KoCanvasBase *canvas, const QString id) const;
 
     /// @return the currently active pointing device
     KoInputDevice currentInputDevice() const;
@@ -175,13 +174,23 @@ public:
     QList<Button> createToolList(KoCanvasBase *canvas) const;
 
     /// Request tool activation for the given canvas controller
-    void requestToolActivation(KoCanvasController * controller);
+    void requestToolActivation(KoCanvasController *controller);
 
     /// Injects an input event from a plugin based input device
-    void injectDeviceEvent(KoDeviceEvent * event);
+    void injectDeviceEvent(KoDeviceEvent *event);
 
     /// Returns the toolId of the currently active tool
     QString activeToolId() const;
+
+    class Private;
+    /**
+     * \internal return the private object for the toolmanager.
+     */
+    KoToolManager::Private *priv();
+
+    /// reimplemented from QObject
+    virtual bool eventFilter(QObject *object, QEvent *event);
+
 public slots:
     /**
      * Request switching tool
@@ -203,14 +212,14 @@ signals:
      * @param canvas the currently active canvas.
      * @param types a list of string that are the shape types of the selected objects.
      */
-    void toolCodesSelected(const KoCanvasController *canvas, QList<QString> types);
+    void toolCodesSelected(const KoCanvasController *canvas, const QList<QString> &types);
 
     /**
      * Emitted after the current layer changed either its properties or to a new layer.
      * @param canvas the currently active canvas.
      * @param layer the layer that is selected.
      */
-    void currentLayerChanged(const KoCanvasController *canvas, const KoShapeLayer* layer);
+    void currentLayerChanged(const KoCanvasController *canvas, const KoShapeLayer *layer);
 
     /**
      * Every time a new input device gets used by a tool, this event is emitted.
@@ -222,59 +231,29 @@ signals:
      * Emitted whenever the active canvas changed.
      * @param canvas the new activated canvas (might be 0)
      */
-    void changedCanvas(const KoCanvasBase * canvas);
+    void changedCanvas(const KoCanvasBase *canvas);
 
     /**
      * Emitted whenever the active tool changes the status text.
      * @param statusText the new status text
      */
     void changedStatusText(const QString &statusText);
-protected:
-    friend class KoToolProxy;
-    /**
-     * Request a switch from to the param input device.
-     * This will cause the tool for that device to be selected.
-     */
-    void switchInputDevice(const KoInputDevice &device);
-
-    /**
-     * Whenever a new tool proxy class is instantiated, it will use this method to register itself
-     * so the toolManager can update it to the latest active tool.
-     * @param proxy the proxy to register.
-     * @param canvas which canvas the proxy is associated with; whenever a new tool is selected for that canvas,
-     *        the proxy gets an update.
-     */
-    void registerToolProxy(KoToolProxy *proxy, KoCanvasBase *canvas);
-
-    // make it a friend so we can temporary switch tool from there
-    friend class KoCanvasController;
-    void switchToolByShortcut(QKeyEvent *event);
-
-protected slots:
-    void switchToolTemporaryRequested(const QString &id);
 
 private:
     KoToolManager();
     KoToolManager(const KoToolManager&);
     KoToolManager operator=(const KoToolManager&);
-    void setup();
-    void switchTool(KoTool *tool, bool temporary);
-    void switchTool(const QString &id, bool temporary);
-    void postSwitchTool(bool temporary);
-    bool eventFilter(QObject *object, QEvent *event);
 
-private slots:
-    void toolActivated(ToolHelper *tool);
-    void detachCanvas(KoCanvasController *controller);
-    void attachCanvas(KoCanvasController *controller);
-    void movedFocus(QWidget *from, QWidget *to);
-    void updateCursor(const QCursor &cursor);
-    void switchBackRequested();
-    void selectionChanged(QList<KoShape*> shapes);
-    void currentLayerChanged(const KoShapeLayer *layer);
+    Q_PRIVATE_SLOT(d, void toolActivated(ToolHelper *tool))
+    Q_PRIVATE_SLOT(d, void detachCanvas(KoCanvasController *controller))
+    Q_PRIVATE_SLOT(d, void attachCanvas(KoCanvasController *controller))
+    Q_PRIVATE_SLOT(d, void movedFocus(QWidget *from, QWidget *to))
+    Q_PRIVATE_SLOT(d, void updateCursor(const QCursor &cursor))
+    Q_PRIVATE_SLOT(d, void switchBackRequested())
+    Q_PRIVATE_SLOT(d, void selectionChanged(QList<KoShape*> shapes))
+    Q_PRIVATE_SLOT(d, void currentLayerChanged(const KoShapeLayer *layer))
+    Q_PRIVATE_SLOT(d, void switchToolTemporaryRequested(const QString &id))
 
-private:
-    class Private;
     Private *const d;
 };
 

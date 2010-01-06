@@ -24,7 +24,7 @@
 #include <QBuffer>
 #include <QByteArray>
 
-#include <colorprofiles/KoIccColorProfile.h>
+#include <KoColorProfile.h>
 #include <KoStore.h>
 #include <KoColorSpace.h>
 
@@ -160,13 +160,11 @@ bool KisKraSaveVisitor::visit(KisSelectionMask *mask)
 bool KisKraSaveVisitor::savePaintDevice(KisNode * node)
 {
 
-    //connect(*node->paintDevice(), SIGNAL(ioProgress(qint8)), m_image, SLOT(slotIOProgress(qint8)));
     // Layer data
     if (m_store->open(getLocation(node))) {
         if (!node->paintDevice()->write(m_store)) {
             node->paintDevice()->disconnect();
             m_store->close();
-            //IODone();
             return false;
         }
 
@@ -184,10 +182,8 @@ bool KisKraSaveVisitor::saveAnnotations(KisLayer* layer)
     if (layer->paintDevice()->colorSpace()->profile()) {
         const KoColorProfile *profile = layer->paintDevice()->colorSpace()->profile();
         KisAnnotationSP annotation;
-        if (profile) {
-            const KoIccColorProfile* iccprofile = dynamic_cast<const KoIccColorProfile*>(profile);
-            if (iccprofile && !iccprofile->rawData().isEmpty())
-                annotation = new KisAnnotation(ICC, iccprofile->name(), iccprofile->rawData());
+        if (profile && profile->type() == "icc" && !profile->rawData().isEmpty()) {
+                annotation = new KisAnnotation(ICC, profile->name(), profile->rawData());
         }
 
         if (annotation) {
@@ -215,7 +211,6 @@ bool KisKraSaveVisitor::saveSelection(KisNode* node)
     }
     if (selection->hasPixelSelection()) {
         KisPaintDeviceSP dev = selection->pixelSelection();
-        //connect(*dev, SIGNAL(ioProgress(qint8)), m_image, SLOT(slotIOProgress(qint8)));
         // Layer data
         QString location = getLocation(node, DOT_PIXEL_SELECTION);
         if (m_store->open(location)) {
@@ -247,7 +242,7 @@ bool KisKraSaveVisitor::saveSelection(KisNode* node)
 
 bool KisKraSaveVisitor::saveFilterConfiguration(KisNode* node)
 {
-    KisFilterConfiguration* filter;
+    KisFilterConfiguration* filter = 0;
     if (node->inherits("KisFilterMask")) {
         filter = static_cast<KisFilterMask*>(node)->filter();
     } else if (node->inherits("KisAdjustmentLayer")) {

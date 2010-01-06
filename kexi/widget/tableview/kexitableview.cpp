@@ -3,7 +3,7 @@
    Copyright (C) 2003 Lucijan Busch <lucijan@gmx.at>
    Copyright (C) 2003 Daniel Molkentin <molkentin@kde.org>
    Copyright (C) 2003 Joseph Wenninger <jowenn@kde.org>
-   Copyright (C) 2003-2008 Jarosław Staniek <staniek@kde.org>
+   Copyright (C) 2003-2010 Jarosław Staniek <staniek@kde.org>
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -282,6 +282,7 @@ KexiTableView::KexiTableView(KexiTableViewData* data, QWidget* parent, const cha
     m_verticalHeader->setCurrentRow(-1);
     connect(m_verticalHeader, SIGNAL(rowPressed(uint)), this, SLOT(moveToRecordRequested(uint)));
     connect(m_verticalHeader, SIGNAL(rowHighlighted(int)), this, SLOT(setHighlightedRow(int)));
+/* not needed after #2010-01-05 fix    connect(this, SIGNAL(contentsMoving(int,int)), this, SLOT(slotContentsMoving(int,int)));*/
 
     setMargins(
         qMin(m_horizontalHeader->sizeHint().height(), d->rowHeight),
@@ -487,6 +488,7 @@ void KexiTableView::slotUpdate()
     //updateGeometries();
 // updateContents(0, 0, viewport()->width(), contentsHeight());
 // updateGeometries();
+//    ensureCellVisible(currentRow(), currentColumn());
 }
 
 int KexiTableView::currentLocalSortingOrder() const
@@ -585,8 +587,8 @@ inline void KexiTableView::paintRow(KexiDB::RecordData *record,
     if (!record)
         return;
     
-    kDebug() << "r" << r << "rowp" << rowp << "cx" << cx << "cy" << cy
-        << "colfirst" << colfirst << "collast" << collast << "maxwc" << maxwc;
+    //kDebug() << "r" << r << "rowp" << rowp << "cx" << cx << "cy" << cy
+    //    << "colfirst" << colfirst << "collast" << collast << "maxwc" << maxwc;
 
     // Go through the columns in the row r
     // if we know from where to where, go through [colfirst, collast],
@@ -619,7 +621,9 @@ inline void KexiTableView::paintRow(KexiDB::RecordData *record,
         if (colp == -1)
             continue; //invisible column?
         int colw = columnWidth(c);
-        int translx = colp - cx + contentsX();
+//        kDebug() << "c:" << c << "colp:" << colp << "cx:" << cx << "contentsX():" << contentsX() << "colw:" << colw;
+//(js #2010-01-05) breaks rendering:       int translx = colp - cx + contentsX();
+        int translx = colp;
 
         // Translate painter and draw the cell
         const QTransform oldTr( pb->worldTransform() );
@@ -660,6 +664,9 @@ void KexiTableView::drawContents(QPainter *p, int cx, int cy, int cw, int ch)
 {
     if (d->disableDrawContents)
         return;
+
+//kDebug() << "cx" << cx << "cy" << cy << "cw" << cw << "ch" << ch;
+
     bool paintOnlyInsertRow = false;
     bool inserting = isInsertingEnabled();
     bool plus1row = false; //true if we should show 'inserting' row at the end
@@ -776,6 +783,7 @@ bool KexiTableView::isDefaultValueDisplayed(KexiDB::RecordData *record, int col,
 
 void KexiTableView::paintCell(QPainter* p, KexiDB::RecordData *record, int col, int row, const QRect &cr, bool print)
 {
+//kDebug() << "col/row:" << col << row << "rect:" << cr << p->worldMatrix();
     p->save();
     Q_UNUSED(print);
     int w = cr.width();
@@ -815,7 +823,7 @@ void KexiTableView::paintCell(QPainter* p, KexiDB::RecordData *record, int col, 
     QString txt; //text to draw
 
     if (record == m_insertItem) {
-        kDebug() << "we're at INSERT row...";
+        //kDebug() << "we're at INSERT row...";
     }
 
     KexiTableViewColumn *tvcol = m_data->column(col);
@@ -1007,11 +1015,11 @@ void KexiTableView::paintEmptyArea(QPainter *p, int cx, int cy, int cw, int ch)
 // reg = reg.subtract( QRect( QPoint( 0, 0 ), ts-QSize(0,m_navPanel->isVisible() ? m_navPanel->height() : 0) ) );
     reg = reg.subtract(QRect(QPoint(0, 0), ts
                              - QSize(0, qMax((m_navPanel ? m_navPanel->height() : 0), horizontalScrollBar()->sizeHint().height())
-                                     - (horizontalScrollBar()->isVisible() ? horizontalScrollBar()->sizeHint().height() / 2 : 0)
+                                     /*- (horizontalScrollBar()->isVisible() ? horizontalScrollBar()->sizeHint().height() / 2 : 0)
                                      + (horizontalScrollBar()->isVisible() ? 0 :
                                         d->internal_bottomMargin
 // horizontalScrollBar()->sizeHint().height()/2
-                                       )
+                                       )*/
 //- /*d->bottomMargin */ horizontalScrollBar()->sizeHint().height()*3/2
                                      + contentsY()
 //   - (verticalScrollBar()->isVisible() ? horizontalScrollBar()->sizeHint().height()/2 : 0)
@@ -1657,6 +1665,9 @@ bool KexiTableView::focusNextPrevChild(bool /*next*/)
 
 void KexiTableView::resizeEvent(QResizeEvent *e)
 {
+    if (d->insideResizeEvent)
+        return;
+    d->insideResizeEvent = true;
     Q3ScrollView::resizeEvent(e);
     //updateGeometries();
 
@@ -1684,6 +1695,7 @@ void KexiTableView::resizeEvent(QResizeEvent *e)
     //  m_navPanel->width(), horizontalScrollBar()->height());
 // updateContents(0,0,2000,2000);//js
 // erase(); repaint();
+    d->insideResizeEvent = false;
 }
 
 void KexiTableView::viewportResizeEvent(QResizeEvent *e)
@@ -1722,6 +1734,7 @@ void KexiTableView::showEvent(QShowEvent *e)
     if (m_navPanel)
         m_navPanel->updateGeometry(leftMargin());
 // updateNavPanelGeometry();
+    ensureVisible(0, 0, 0, 0); // needed because for small geometries contents were moved 1/2 of row height up
 }
 
 void KexiTableView::contentsDragMoveEvent(QDragMoveEvent *e)
@@ -1975,7 +1988,8 @@ QSize KexiTableView::tableSize() const
             columnPos(columns() - 1) + columnWidth(columns() - 1),
 //   + verticalScrollBar()->sizeHint().width(),
             rowPos(rows() - 1 + (isInsertingEnabled() ? 1 : 0)) + d->rowHeight
-            + (horizontalScrollBar()->isVisible() ? 0 : horizontalScrollBar()->sizeHint().height())
+            + horizontalScrollBar()->sizeHint().height()
+            //+ (horizontalScrollBar()->isVisible() ? 0 : horizontalScrollBar()->sizeHint().height())
             + d->internal_bottomMargin
 //    horizontalScrollBar()->sizeHint().height()/2
 //   - /*d->bottomMargin */ horizontalScrollBar()->sizeHint().height()*3/2
@@ -1996,6 +2010,7 @@ QSize KexiTableView::tableSize() const
         );
 
 //  kDebug() << rows()-1 <<" "<< (isInsertingEnabled()?1:0) <<" "<< (m_rowEditing?1:0) << " " <<  s;
+kDebug() << s;
         return s;
 //   +horizontalScrollBar()->sizeHint().height() + margin() );
     }
@@ -2623,5 +2638,12 @@ int KexiTableView::lastVisibleRow() const
     return rowAt(contentsY());
 }
 
-#include "kexitableview.moc"
+/* not needed after #2010-01-05 fix
+void KexiTableView::slotContentsMoving(int x, int y)
+{
+    Q_UNUSED(x);
+    Q_UNUSED(y);
+    updateContents(); // (js) needed in Qt 4, no idea why, this fix consumed me hours
+}*/
 
+#include "kexitableview.moc"

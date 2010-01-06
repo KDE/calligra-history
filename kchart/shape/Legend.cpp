@@ -82,7 +82,7 @@ public:
     
     QImage image;
     
-    bool pixmapRepaintRequested;
+    mutable bool pixmapRepaintRequested;
     QSizeF lastSize;
     QPointF lastZoomLevel;
 };
@@ -108,6 +108,7 @@ Legend::Private::~Private()
 
 Legend::Legend( ChartShape *parent )
     : d( new Private() )
+    , QObject( parent )
 {
     Q_ASSERT( parent );
     
@@ -126,10 +127,14 @@ Legend::Legend( ChartShape *parent )
     update();
     
     parent->addChild( this );
+
+    connect ( d->kdLegend, SIGNAL( propertiesChanged() ),
+              this,        SLOT( slotKdLegendChanged() ) );
 }
 
 Legend::~Legend()
 {
+    delete d->kdLegend;
     delete d;
 }
 
@@ -249,12 +254,12 @@ void Legend::setFont( const QFont &font )
     d->pixmapRepaintRequested = true;
 }
 
-double Legend::fontSize() const
+qreal Legend::fontSize() const
 {
     return d->font.pointSizeF();
 }
 
-void Legend::setFontSize( double size )
+void Legend::setFontSize( qreal size )
 {
     d->font.setPointSizeF( size );
 
@@ -285,12 +290,12 @@ void Legend::setTitleFont( const QFont &font )
     d->pixmapRepaintRequested = true;
 }
 
-double Legend::titleFontSize() const
+qreal Legend::titleFontSize() const
 {
     return d->titleFont.pointSizeF();
 }
 
-void Legend::setTitleFontSize( double size )
+void Legend::setTitleFontSize( qreal size )
 {
     d->titleFont.setPointSizeF( size );
 
@@ -570,14 +575,19 @@ KDChart::Legend *Legend::kdLegend() const
     return d->kdLegend;
 }
 
-void Legend::update()
+void Legend::update() const
 {
     d->pixmapRepaintRequested = true;
+    KoShape::update();
+}
+
+void Legend::slotKdLegendChanged()
+{
     // FIXME: Update legend properly by implementing all *DataChanged() slots
     // in KDChartModel. Right now, only yDataChanged() is implemented.
-    d->kdLegend->forceRebuild();
+    //d->kdLegend->forceRebuild();
     QSize size = d->kdLegend->sizeHint();
     // FIXME: Scale size from px to pt?
     setSize( QSizeF( size ) );
-    KoShape::update();
+    update();
 }

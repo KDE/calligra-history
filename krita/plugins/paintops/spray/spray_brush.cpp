@@ -29,7 +29,7 @@
 #include <QHash>
 #include <QTransform>
 #include <QImage>
-
+#include <QMatrix>
 
 #include <kis_random_accessor.h>
 #include <kis_random_sub_accessor.h>
@@ -71,12 +71,10 @@ void SprayBrush::init()
 
 qreal SprayBrush::rotationAngle()
 {
-//    Q_ASSERT(!m_settings);
     qreal rotation = 0.0;
     
-    
     if ( m_settings->fixedRotation() ){
-        rotation = m_settings->fixedAngle() * (M_PI/180.0);
+        rotation = deg2rad( m_settings->fixedAngle() );
     }
     
     if (m_settings->randomRotation() ){
@@ -93,7 +91,9 @@ qreal SprayBrush::rotationAngle()
 
 
 
-void SprayBrush::paint(KisPaintDeviceSP dab, KisPaintDeviceSP source,  const KisPaintInformation& info, const KoColor &color, const KoColor &bgColor)
+void SprayBrush::paint(KisPaintDeviceSP dab, KisPaintDeviceSP source,  
+                       const KisPaintInformation& info,qreal rotation, qreal scale,
+                       const KoColor &color, const KoColor &bgColor)
 {
     // initializing painter
     
@@ -118,10 +118,13 @@ void SprayBrush::paint(KisPaintDeviceSP dab, KisPaintDeviceSP source,  const Kis
     
     m_inkColor = color;
 
+    // apply size sensor 
+    m_radius *= scale;
+    
     // jitter radius, recovered at the end of dab
-    if ( m_settings->jitterSize() ) {
-        m_radius = m_radius * drand48();
-    }
+//     if ( m_settings->jitterSize() ) {
+//         m_radius = m_radius * drand48();
+//     }
 
     // jitter movement
     if ( m_settings->jitterMovement() ) {
@@ -148,6 +151,15 @@ void SprayBrush::paint(KisPaintDeviceSP dab, KisPaintDeviceSP source,  const Kis
         m_painter->setPaintColor(bgColor);
         paintCircle(m_painter,x,y,m_radius,steps);
     }
+
+    QMatrix m;
+    m.reset();
+    // constant user rotation
+    m.rotate( m_settings->brushRotation() );
+    // rotation from the sensor
+    m.rotate( rad2deg(rotation) );
+    m.scale( m_scale, m_scale );
+
     for (int i = 0; i < m_particlesCount; i++){
         // generate random angle
         angle = drand48() * M_PI * 2;
@@ -170,10 +182,12 @@ void SprayBrush::paint(KisPaintDeviceSP dab, KisPaintDeviceSP source,  const Kis
         nx = (m_radius * cos(angle)  * length);
         ny = (m_radius * sin(angle)  * length);
 
-        // transform
-        nx *= m_scale;
-        ny *= m_scale;
+        // compute the height of the ellipse
+        ny *= m_settings->aspect();
 
+        // transform
+        m.map(nx,ny, &nx,&ny);
+        
         // color transformation
         if (shouldColor){
             if (m_settings->sampleInput()){
@@ -274,7 +288,7 @@ void SprayBrush::paint(KisPaintDeviceSP dab, KisPaintDeviceSP source,  const Kis
                 {
                     
                     QMatrix m;
-                    m.rotate(rotationZ * (180/M_PI));
+                    m.rotate(rad2deg(rotationZ));
 
                     if (m_jitterShapeSize){
                         m.scale(random,random);
@@ -412,6 +426,7 @@ void SprayBrush::paintEllipse(KisPainter* painter, qreal x, qreal y, int a, int 
 
 void SprayBrush::paintRectangle(KisPainter* painter, qreal x, qreal y, int width, int height, qreal angle, int steps)
 {
+    Q_UNUSED(steps);
     QPainterPath path;
     QTransform transform;
 

@@ -45,7 +45,7 @@ void ReportEntityBarcode::init(QGraphicsScene * scene)
         scene->addItem(this);
 
     connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     setMaxLength(5);
     ReportRectEntity::init(&m_pos, &m_size, m_set);
@@ -59,11 +59,11 @@ ReportEntityBarcode::ReportEntityBarcode(ReportDesigner * rw, QGraphicsScene* sc
     m_size.setSceneSize(QSizeF(m_minWidthTotal*m_dpiX, m_minHeight*m_dpiY));
     setSceneRect(m_pos.toScene(), m_size.toScene());
 
-    m_name->setValue(m_reportDesigner->suggestEntityName("Barcode"));
+    m_name->setValue(m_reportDesigner->suggestEntityName("barcode"));
 }
 
 ReportEntityBarcode::ReportEntityBarcode(QDomNode & element, ReportDesigner * rw, QGraphicsScene* scene)
-	: KRBarcodeData(element), ReportRectEntity(rw)
+        : KRBarcodeData(element), ReportRectEntity(rw)
 {
     init(scene);
     setSceneRect(m_pos.toScene(), m_size.toScene());
@@ -93,7 +93,7 @@ void ReportEntityBarcode::paint(QPainter* painter, const QStyleOptionGraphicsIte
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    
+
     // store any values we plan on changing so we can restore them
     QPen  p = painter->pen();
 
@@ -131,39 +131,18 @@ void ReportEntityBarcode::paint(QPainter* painter, const QStyleOptionGraphicsIte
 void ReportEntityBarcode::buildXML(QDomDocument & doc, QDomElement & parent)
 {
     //kdDebug() << "ReportEntityField::buildXML()");
-    QDomElement entity = doc.createElement("barcode");
+    QDomElement entity = doc.createElement("report:barcode");
+
+    // properties
+    addPropertyAsAttribute(&entity, m_name);
+    addPropertyAsAttribute(&entity, m_controlSource);
+    addPropertyAsAttribute(&entity, m_horizontalAlignment);
+    addPropertyAsAttribute(&entity, m_format);
+    addPropertyAsAttribute(&entity, m_maxLength);
+    entity.setAttribute("report:z-index", zValue());
 
     // bounding rect
-    buildXMLRect(doc, entity, pointRect());
-
-    // name
-    QDomElement n = doc.createElement("name");
-    n.appendChild(doc.createTextNode(entityName()));
-    entity.appendChild(n);
-
-    // z
-    QDomElement z = doc.createElement("zvalue");
-    z.appendChild(doc.createTextNode(QString::number(zValue())));
-    entity.appendChild(z);
-
-    // format
-    QDomElement fmt = doc.createElement("format");
-    fmt.appendChild(doc.createTextNode(m_format->value().toString()));
-    entity.appendChild(fmt);
-
-    QDomElement maxl = doc.createElement("maxlength");
-    maxl.appendChild(doc.createTextNode(QString::number(m_maxLength->value().toInt())));
-    entity.appendChild(maxl);
-
-    // alignment
-    entity.appendChild(doc.createElement(m_horizontalAlignment->value().toString()));
-
-    // the field data
-    QDomElement data = doc.createElement("data");
-    QDomElement dcolumn = doc.createElement("controlsource");
-    dcolumn.appendChild(doc.createTextNode(m_controlSource->value().toString()));
-    data.appendChild(dcolumn);
-    entity.appendChild(data);
+    buildXMLRect(doc, entity, &m_pos, &m_size);
 
     parent.appendChild(entity);
 }

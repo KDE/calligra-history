@@ -1,5 +1,6 @@
 /* This file is part of the KDE project
  * Copyright (C) Boudewijn Rempt <boud@valdyas.org>, (C) 2008
+ * Copyright (C) Sven Langkamp <sven.langkamp@gmail.com>, (C) 2008
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -17,46 +18,22 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef KIS_BRUSH_OPTION_H
-#define KIS_BRUSH_OPTION_H
 
-#include "kis_paintop_option.h"
-#include <krita_export.h>
 #include "kis_brush.h"
 
-class KisBrushSelectionWidget;
+class KisPropertiesConfiguration;
 
-/**
- * The brush option allows the user to select a particular brush
- * footprint for suitable paintops
- */
-class PAINTOP_EXPORT KisBrushOption : public KisPaintOpOption
+class PAINTOP_EXPORT KisBrushOption
 {
 public:
-
-    KisBrushOption();
-
-    /**
-     * @return the currently selected brush
-     */
-    KisBrushSP brush() const;
-
-    void setAutoBrush(bool on);
-    void setPredefinedBrushes(bool on);
-    void setCustomBrush(bool on);
-    void setTextBrush(bool on);
-
-    void setImage(KisImageWSP image);
-
     void writeOptionSetting(KisPropertiesConfiguration* setting) const;
 
     void readOptionSetting(const KisPropertiesConfiguration* setting);
 
-    void setAutoBrushDiameter(qreal diameter);
-    qreal autoBrushDiameter();
+    KisBrushSP brush() const;
+    
+    void setBrush(KisBrushSP brush);
 private:
-
-    KisBrushSelectionWidget * m_brushSelectionWidget;
+    KisBrushSP m_brush;
 };
 
-#endif

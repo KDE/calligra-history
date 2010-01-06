@@ -26,7 +26,6 @@
 #include <KoUnit.h>
 #include <KoGlobal.h>
 
-#include <parsexmlutils.h>
 #include <renderobjects.h>
 #include <QPainter>
 #include <krscreenrender.h>
@@ -40,7 +39,7 @@ KexiReportPage::KexiReportPage(QWidget *parent, ORODocument *r)
     m_page = 1;
     int pageWidth = 0;
     int pageHeight = 0;
-    
+
     if (m_reportDocument) {
         QString pageSize = r->pageOptions().getPageSize();
 

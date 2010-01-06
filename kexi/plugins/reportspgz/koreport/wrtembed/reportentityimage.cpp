@@ -50,7 +50,7 @@ void ReportEntityImage::init(QGraphicsScene * scene)
         scene->addItem(this);
 
     connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     ReportRectEntity::init(&m_pos, &m_size, m_set);
     setSceneRect(m_pos.toScene(), m_size.toScene());
@@ -65,11 +65,11 @@ ReportEntityImage::ReportEntityImage(ReportDesigner * rw, QGraphicsScene* scene)
     m_size.setSceneSize(QSizeF(100, 100));
     init(scene);
 
-    m_name->setValue(m_reportDesigner->suggestEntityName("Image"));
+    m_name->setValue(m_reportDesigner->suggestEntityName("image"));
 }
 
 ReportEntityImage::ReportEntityImage(QDomNode & element, ReportDesigner * rw, QGraphicsScene* scene)
-	: KRImageData(element), ReportRectEntity(rw)
+        : KRImageData(element), ReportRectEntity(rw)
 {
     init(scene);
 }
@@ -93,14 +93,14 @@ void ReportEntityImage::paint(QPainter* painter, const QStyleOptionGraphicsItem*
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    
+
     // store any values we plan on changing so we can restore them
     QPen  p = painter->pen();
 
     if (isInline()) {
         //QImage t_img = _image;
         QImage t_img = m_staticImage->value().value<QPixmap>().toImage();
-        if (mode() == "Stretch") {
+        if (mode() == "stretch") {
             t_img = t_img.scaled(rect().width(), rect().height(), Qt::KeepAspectRatio);
         }
         painter->drawImage(rect().left(), rect().top(), t_img, 0, 0, rect().width(), rect().height());
@@ -121,36 +121,21 @@ void ReportEntityImage::paint(QPainter* painter, const QStyleOptionGraphicsItem*
 
 void ReportEntityImage::buildXML(QDomDocument & doc, QDomElement & parent)
 {
-    QDomElement entity = doc.createElement("image");
+    QDomElement entity = doc.createElement("report:image");
 
-    buildXMLRect(doc, entity, pointRect());
+    // properties
+    addPropertyAsAttribute(&entity, m_name);
+    addPropertyAsAttribute(&entity, m_resizeMode);
+    entity.setAttribute("report:z-index", zValue());
+    buildXMLRect(doc, entity, &m_pos, &m_size);
 
-    // name
-    QDomElement n = doc.createElement("name");
-    n.appendChild(doc.createTextNode(entityName()));
-    entity.appendChild(n);
-
-    // z
-    QDomElement z = doc.createElement("zvalue");
-    z.appendChild(doc.createTextNode(QString::number(zValue())));
-    entity.appendChild(z);
-    // mode
-    QDomElement md = doc.createElement("mode");
-    md.appendChild(doc.createTextNode(mode()));
-    entity.appendChild(md);
 
     if (isInline()) {
-        QDomElement map = doc.createElement("map");
-//        map.setAttribute("format", _format);
+        QDomElement map = doc.createElement("report:inline-image-data");
         map.appendChild(doc.createTextNode(inlineImageData()));
         entity.appendChild(map);
     } else {
-        // the field data
-        QDomElement data = doc.createElement("data");
-        QDomElement dcolumn = doc.createElement("controlsource");
-        dcolumn.appendChild(doc.createTextNode(column()));
-        data.appendChild(dcolumn);
-        entity.appendChild(data);
+        addPropertyAsAttribute(&entity, m_controlSource);
     }
 
     parent.appendChild(entity);
@@ -174,7 +159,7 @@ void ReportEntityImage::slotPropertyChanged(KoProperty::Set &s, KoProperty::Prop
         }
     }
 
-if (m_reportDesigner) m_reportDesigner->setModified(true);
+    if (m_reportDesigner) m_reportDesigner->setModified(true);
 
     if (scene()) scene()->update();
 

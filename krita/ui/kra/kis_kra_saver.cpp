@@ -29,7 +29,6 @@
 #include <KoDocumentInfo.h>
 #include <KoColorSpace.h>
 #include <KoColorProfile.h>
-#include <KoIccColorProfile.h>
 #include <KoStore.h>
 
 #include <kis_annotation.h>
@@ -78,8 +77,9 @@ QDomElement KisKraSaver::saveXML(QDomDocument& doc,  KisImageWSP image)
     imageElement.setAttribute(COLORSPACE_NAME, image->colorSpace()->id());
     imageElement.setAttribute(DESCRIPTION, m_d->doc->documentInfo()->aboutInfo("comment"));
     // XXX: Save profile as blob inside the image, instead of the product name.
-    if (image->profile() && image->profile()-> valid())
+    if (image->profile() && image->profile()-> valid()) {
         imageElement.setAttribute(PROFILE, image->profile()->name());
+    }
     imageElement.setAttribute(X_RESOLUTION, image->xRes()*72.0);
     imageElement.setAttribute(Y_RESOLUTION, image->yRes()*72.0);
 
@@ -120,10 +120,8 @@ bool KisKraSaver::saveBinaryData(KoStore* store, KisImageWSP image, const QStrin
     if (image->profile()) {
         const KoColorProfile *profile = image->profile();
         KisAnnotationSP annotation;
-        if (profile) {
-            const KoIccColorProfile* iccprofile = dynamic_cast<const KoIccColorProfile*>(profile);
-            if (iccprofile && !iccprofile->rawData().isEmpty())
-                annotation = new  KisAnnotation(ICC, iccprofile->name(), iccprofile->rawData());
+        if (profile && profile->type() == "icc" && !profile->rawData().isEmpty()) {
+                annotation = new  KisAnnotation(ICC, profile->name(), profile->rawData());
         }
 
         if (annotation) {

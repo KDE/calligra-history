@@ -26,6 +26,7 @@
 #include "ui_wdgselectionoptions.h"
 
 class KisCanvas2;
+class QButtonGroup;
 
 class WdgSelectionOptions : public QWidget, public Ui::WdgSelectionOptions
 {
@@ -53,17 +54,17 @@ public:
     bool antiAliasSelection();
     void disableAntiAliasSelectionOption();
     void disableSelectionModeOption();
+    void setAction(int);
 
 signals:
     void actionChanged(int);
     void modeChanged(int);
 
-public slots:
-    void slotActivated();
-
 private:
     WdgSelectionOptions * m_page;
     KisCanvas2* m_canvas;
+    QButtonGroup* m_mode;
+    QButtonGroup* m_action;
 };
 
 #endif

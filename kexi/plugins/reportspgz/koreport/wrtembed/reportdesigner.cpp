@@ -200,21 +200,26 @@ void ReportDesigner::init()
     emit pagePropertyChanged(*m_set);
 
     connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     changeSet(m_set);
 }
 
+ReportDesigner::~ReportDesigner()
+{
+}
+
+///The loading Code
 ReportDesigner::ReportDesigner(QWidget *parent, QDomElement data) : QWidget(parent), d(new Private())
 {
     m_conn = 0;
     m_kordata = 0;
-    
+
     init();
 
-    if (data.tagName() != "koreport") {
+    if (data.tagName() != "report:content") {
         // arg we got an xml file but not one i know of
-        kDebug() << "root element was not <koreport>";;
+        kDebug() << "root element was not <report:content>";;
     }
 
     deleteDetail();
@@ -222,161 +227,69 @@ ReportDesigner::ReportDesigner(QWidget *parent, QDomElement data) : QWidget(pare
     QDomNodeList nlist = data.childNodes();
     QDomNode it;
 
-    for (int i = 0; i < nlist.count(); i++) {
+    for (int i = 0; i < nlist.count(); ++i) {
         it = nlist.item(i);
         // at this level all the children we get should be Elements
         if (it.isElement()) {
             QString n = it.nodeName().toLower();
-	    
-            if (n == "title") {
+            kDebug() << n;
+            if (n == "report:title") {
                 setReportTitle(it.firstChild().nodeValue());
-            } else if (n == "script") {
-                m_interpreter->setValue(it.toElement().attribute("Interpreter"));
+            } else if (n == "report:script") {
+                m_interpreter->setValue(it.toElement().attribute("report:script-interpreter"));
                 m_script->setValue(it.firstChild().nodeValue());
-            } else if (n == "grid") {
-                m_showGrid->setValue(it.toElement().attribute("ShowGrid").toInt() != 0);
-		m_gridSnap->setValue(it.toElement().attribute("GridSnap").toInt() != 0);
-		m_gridDivisions->setValue(it.toElement().attribute("GridDivisions").toInt());
-		m_unit->setValue(it.toElement().attribute("PageUnit"));
-	    }
+            } else if (n == "report:grid") {
+                m_showGrid->setValue(it.toElement().attribute("report:grid-snap", QString::number(1)).toInt() != 0);
+                m_gridSnap->setValue(it.toElement().attribute("report:grid-snap", QString::number(1)).toInt() != 0);
+                m_gridDivisions->setValue(it.toElement().attribute("report:grid-divisions", QString::number(4)).toInt());
+                m_unit->setValue(it.toElement().attribute("report:page-unit", "cm"));
+            }
 
             //TODO Load page options
-            else if (n == "size") {
-                if (it.firstChild().isText()) {
-                    propertySet()->property("PageSize").setValue(it.firstChild().nodeValue());
-                } else {
-                    //bad code! bad code!
-                    // this code doesn't check the elements and assumes they are what they should be.
-                    QDomNode n1 = it.firstChild();
-                    QDomNode n2 = n1.nextSibling();
-                    if (n1.nodeName() == "width") {
-                        propertySet()->property("CustomWidth").setValue(n1.firstChild().nodeValue().toDouble());
+            else if (n == "report:page-style") {
+                QString pagetype = it.firstChild().nodeValue();
 
-                        propertySet()->property("CustomHeight").setValue(n2.firstChild().nodeValue().toDouble());
-                    } else {
-                        propertySet()->property("CustomHeight").setValue(n1.firstChild().nodeValue().toDouble());
+                if (pagetype == "predefined") {
+                    m_pageSize->setValue(it.toElement().attribute("report:page-size", "A4"));
+                } else if (pagetype == "custom") {
+                    m_pageSize->setValue("custom");
+                    m_customHeight->setValue(it.toElement().attribute("report:custom-page-height", "").toDouble());
+                    m_leftMargin->setValue(it.toElement().attribute("report:custom-page-widtht", "").toDouble());
+                } else if (pagetype == "label") {
+                    //TODO
+                }
 
-                        propertySet()->property("CustomWidth").setValue(n2.firstChild().nodeValue().toDouble());
-                    }
-                    propertySet()->property("PageSize").setValue("Custom");
-                }
-            } else if (n == "labeltype") {
-                //TODO Labels
-                //rd->pageOptions->setLabelType ( it.firstChild().nodeValue() );
-            } else if (n == "orientation") {
-                propertySet()->property("Orientation").setValue(it.firstChild().nodeValue());
-            } else if (n == "topmargin") {
-                propertySet()->property("TopMargin").setValue(it.firstChild().nodeValue().toDouble());
-            } else if (n == "bottommargin") {
-                propertySet()->property("BottomMargin").setValue(it.firstChild().nodeValue().toDouble());
-            } else if (n == "leftmargin") {
-                propertySet()->property("LeftMargin").setValue(it.firstChild().nodeValue().toDouble());
-            } else if (n == "rightmargin") {
-                propertySet()->property("RightMargin").setValue(it.firstChild().nodeValue().toDouble());
-            } else if (n == "reportheader") {
-                if (section(KRSectionData::ReportHeader) == 0) {
-                    insertSection(KRSectionData::ReportHeader);
-                    section(KRSectionData::ReportHeader)->initFromXML(it);
-                } else {
-                    kDebug() << "While loading xml tried to add more than one rpthead";
-                }
-            } else if (n == "reportfooter") {
-                if (section(KRSectionData::ReportFooter) == 0) {
-                    insertSection(KRSectionData::ReportFooter);
-                    section(KRSectionData::ReportFooter)->initFromXML(it);
-                } else {
-                    kDebug() << "While loading xml tried to add more than one rpthead";
-                }
-            } else if (n == "pageheader") {
-                // we need to determine which page this is for
-                // firstpage | odd | even | lastpage
-                // or any if none was specified
-                ReportSection * rs = 0;
-                if (!it.namedItem("firstpage").isNull()) {
-                    if (section(KRSectionData::PageHeaderFirst) == 0) {
-                        insertSection(KRSectionData::PageHeaderFirst);
-                        rs = section(KRSectionData::PageHeaderFirst);
+		m_rightMargin->setValue(KoUnit::parseValue(it.toElement().attribute("fo:margin-right", "1.0cm")));
+                m_leftMargin->setValue(KoUnit::parseValue(it.toElement().attribute("fo:margin-left", "1.0cm")));
+                m_topMargin->setValue(KoUnit::parseValue(it.toElement().attribute("fo:margin-top", "1.0cm")));
+                m_bottomMargin->setValue(KoUnit::parseValue(it.toElement().attribute("fo:margin-bottom", "1.0cm")));
+
+                m_orientation->setValue(it.toElement().attribute("report:print-orientation", "portrait"));
+
+            } else if (n == "report:body") {
+                QDomNodeList sectionlist = it.childNodes();
+                QDomNode sec;
+
+                for (int s = 0; s < sectionlist.count(); ++s) {
+                    sec = sectionlist.item(s);
+                    if (sec.isElement()) {
+                        QString sn = sec.nodeName().toLower();
+                        kDebug() << sn;
+                        if (sn == "report:section") {
+                            QString sectiontype = sec.toElement().attribute("report:section-type");
+                            if (section(KRSectionData::sectionTypeFromString(sectiontype)) == 0) {
+                                insertSection(KRSectionData::sectionTypeFromString(sectiontype));
+                                section(KRSectionData::sectionTypeFromString(sectiontype))->initFromXML(sec);
+                            }
+                        } else if (sn == "report:detail") {
+                            ReportSectionDetail * rsd = new ReportSectionDetail(this);
+                            rsd->initFromXML(sec);
+                            setDetail(rsd);
+                        }
                     } else {
-                        kDebug() << "tried to load more than one page head first";
-                    }
-                } else if (!it.namedItem("odd").isNull()) {
-                    if (section(KRSectionData::PageHeaderOdd) == 0) {
-                        insertSection(KRSectionData::PageHeaderOdd);
-                        rs = section(KRSectionData::PageHeaderOdd);
-                    } else {
-                        kDebug() << "tried to load more than one page head odd";
-                    }
-                } else if (!it.namedItem("even").isNull()) {
-                    if (section(KRSectionData::PageHeaderEven) == 0) {
-                        insertSection(KRSectionData::PageHeaderEven);
-                        rs = section(KRSectionData::PageHeaderEven);
-                    } else {
-                        kDebug() << "tried to load more than one page head even";
-                    }
-                } else if (!it.namedItem("lastpage").isNull()) {
-                    if (section(KRSectionData::PageHeaderLast) == 0) {
-                        insertSection(KRSectionData::PageHeaderLast);
-                        rs = section(KRSectionData::PageHeaderLast);
-                    } else {
-                        kDebug() << "tried to load more than one page head last";
-                    }
-                } else {
-                    // we have an any pghead
-                    if (section(KRSectionData::PageHeaderAny) == 0) {
-                        insertSection(KRSectionData::PageHeaderAny);
-                        rs = section(KRSectionData::PageHeaderAny);
-                    } else {
-                        kDebug() << "tried to load more than one page head any";
+                        kDebug() << "Encountered an unknown Element: "  << n;
                     }
                 }
-                if (rs) rs->initFromXML(it);
-            } else if (n == "pagefooter") {
-                // we need to determine which page this is for
-                ReportSection * rs = 0;
-                if (!it.namedItem("firstpage").isNull()) {
-                    if (section(KRSectionData::PageFooterFirst) == 0) {
-                        insertSection(KRSectionData::PageFooterFirst);
-                        rs = section(KRSectionData::PageFooterFirst);
-                    } else {
-                        kDebug() << "tried to load more than one page foot first";
-                    }
-                } else if (!it.namedItem("odd").isNull()) {
-                    if (section(KRSectionData::PageFooterOdd) == 0) {
-                        insertSection(KRSectionData::PageFooterOdd);
-                        rs = section(KRSectionData::PageFooterOdd);
-                    } else {
-                        kDebug() << "tried to load more than one page foot odd";
-                    }
-                } else if (!it.namedItem("even").isNull()) {
-                    if (section(KRSectionData::PageFooterEven) == 0) {
-                        insertSection(KRSectionData::PageFooterEven);
-                        rs = section(KRSectionData::PageFooterEven);
-                    } else {
-                        kDebug() << "tried to load more than one page foot even";
-                    }
-                } else if (!it.namedItem("lastpage").isNull()) {
-                    if (section(KRSectionData::PageFooterLast) == 0) {
-                        insertSection(KRSectionData::PageFooterLast);
-                        rs = section(KRSectionData::PageFooterLast);
-                    } else {
-                        kDebug() << "tried to load more than one page foot last";
-                    }
-                } else {
-                    // we have the any page foot
-                    if (section(KRSectionData::PageFooterAny) == 0) {
-                        insertSection(KRSectionData::PageFooterAny);
-                        rs = section(KRSectionData::PageFooterAny);
-                    } else {
-                        kDebug() << "tried to load more than one page foot any";
-                    }
-                }
-                if (rs) rs->initFromXML(it);
-            } else if (n == "section") {
-                ReportSectionDetail * rsd = new ReportSectionDetail(this);
-                rsd->initFromXML(it);
-                setDetail(rsd);
-            } else {
-                kDebug() << "Encountered an unknown Element: "  << n;
             }
         } else {
             kDebug() << "Encountered a child node of root that is not an Element";
@@ -387,8 +300,80 @@ ReportDesigner::ReportDesigner(QWidget *parent, QDomElement data) : QWidget(pare
     setModified(false);
 }
 
-ReportDesigner::~ReportDesigner()
+///The saving code
+QDomElement ReportDesigner::document() const
 {
+    QDomDocument doc;
+
+    QDomElement content = doc.createElement("report:content");
+    content.setAttribute("xmlns:report", ns);
+    content.setAttribute("xmlns:fo", "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0");
+    content.setAttribute("xmlns:svg", "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0");
+
+    doc.appendChild(content);
+
+    //title
+    content.appendChild(propertyToElement(&doc, m_title));
+
+    QDomElement scr = propertyToElement(&doc, m_script);
+    addPropertyAsAttribute(&scr, m_interpreter);
+    content.appendChild(scr);
+
+    QDomElement grd = doc.createElement("report:grid");
+    addPropertyAsAttribute(&grd, m_showGrid);
+    addPropertyAsAttribute(&grd, m_gridDivisions);
+    addPropertyAsAttribute(&grd, m_gridSnap);
+    addPropertyAsAttribute(&grd, m_unit);
+    content.appendChild(grd);
+
+    // pageOptions
+    // -- size
+    QDomElement pagestyle = doc.createElement("report:page-style");
+
+    if (m_pageSize->value().toString() == "Custom") {
+        pagestyle.appendChild(doc.createTextNode("custom"));
+        pagestyle.setAttribute("report:page-width", QString::number(pageUnit().fromUserValue(m_customWidth->value().toDouble())));
+        pagestyle.setAttribute("report:page-height", QString::number(pageUnit().fromUserValue(m_customWidth->value().toDouble())));
+
+    } else if (m_pageSize->value().toString() == "Label") {
+        pagestyle.appendChild(doc.createTextNode("label"));
+        pagestyle.setAttribute("report:page-label-type", m_labelType->value().toString());
+    } else {
+        pagestyle.appendChild(doc.createTextNode("predefined"));
+	addPropertyAsAttribute(&pagestyle, m_pageSize);
+        //pagestyle.setAttribute("report:page-size", m_pageSize->value().toString());
+    }
+
+    // -- orientation
+    addPropertyAsAttribute(&pagestyle, m_orientation);
+
+    // -- margins
+    pagestyle.setAttribute("fo:margin-top", KoUnit::unit(m_topMargin->option("unit").toString()).toUserStringValue(m_topMargin->value().toDouble()) + m_topMargin->option("unit").toString());
+    pagestyle.setAttribute("fo:margin-bottom", KoUnit::unit(m_bottomMargin->option("unit").toString()).toUserStringValue(m_bottomMargin->value().toDouble()) + m_topMargin->option("unit").toString());
+    pagestyle.setAttribute("fo:margin-right", KoUnit::unit(m_rightMargin->option("unit").toString()).toUserStringValue(m_rightMargin->value().toDouble()) + m_topMargin->option("unit").toString());
+    pagestyle.setAttribute("fo:margin-left", KoUnit::unit(m_leftMargin->option("unit").toString()).toUserStringValue(m_leftMargin->value().toDouble()) + m_topMargin->option("unit").toString());
+
+    content.appendChild(pagestyle);
+
+    QDomElement body = doc.createElement("report:body");
+    QDomElement domsection;
+
+    for (int i = KRSectionData::PageHeaderFirst; i <= KRSectionData::PageFooterAny; ++i) {
+        ReportSection *sec = section((KRSectionData::Section)i);
+        if (sec) {
+            domsection = doc.createElement("report:section");
+            domsection.setAttribute("report:section-type", KRSectionData::sectionTypeString(KRSectionData::Section(i)));
+            sec->buildXML(doc, domsection);
+            body.appendChild(domsection);
+        }
+    }
+
+    QDomElement detail = doc.createElement("report:detail");
+    m_detail->buildXML(doc, detail);
+    body.appendChild(detail);
+
+    content.appendChild(body);
+    return content;
 }
 
 void ReportDesigner::closeEvent(QCloseEvent * e)
@@ -421,7 +406,8 @@ void ReportDesigner::slotSectionEditor()
     delete se;
 }
 
-void ReportDesigner::setReportData(KoReportData* kodata) {
+void ReportDesigner::setReportData(KoReportData* kodata)
+{
     kDebug();
     m_kordata = kodata; m_conn = static_cast<KexiDB::Connection*>(kodata->connection());
     setModified(true);
@@ -468,68 +454,69 @@ ReportSection * ReportDesigner::section(KRSectionData::Section s) const
         sec = m_reportFooter;
         break;
     default:
-        sec = NULL;
+        sec = 0;
     }
     return sec;
 }
 void ReportDesigner::removeSection(KRSectionData::Section s)
 {
     ReportSection* sec = section(s);
-    if (sec != NULL) {
+    if (sec) {
         delete sec;
 
         switch (s) {
         case KRSectionData::PageHeaderAny:
-            m_pageHeaderAny = NULL;
+            m_pageHeaderAny = 0;
             break;
         case KRSectionData::PageHeaderEven:
-            sec = m_pageHeaderEven = NULL;
+            sec = m_pageHeaderEven = 0;
             break;
         case KRSectionData::PageHeaderOdd:
-            m_pageHeaderOdd = NULL;
+            m_pageHeaderOdd = 0;
             break;
         case KRSectionData::PageHeaderFirst:
-            m_pageHeaderFirst = NULL;
+            m_pageHeaderFirst = 0;
             break;
         case KRSectionData::PageHeaderLast:
-            m_pageHeaderLast = NULL;
+            m_pageHeaderLast = 0;
             break;
         case KRSectionData::PageFooterAny:
-            m_pageFooterAny = NULL;
+            m_pageFooterAny = 0;
             break;
         case KRSectionData::PageFooterEven:
-            m_pageFooterEven = NULL;
+            m_pageFooterEven = 0;
             break;
         case KRSectionData::PageFooterOdd:
-            m_pageFooterOdd = NULL;
+            m_pageFooterOdd = 0;
             break;
         case KRSectionData::PageFooterFirst:
-            m_pageFooterFirst = NULL;
+            m_pageFooterFirst = 0;
             break;
         case KRSectionData::PageFooterLast:
-            m_pageFooterLast = NULL;
+            m_pageFooterLast = 0;
             break;
         case KRSectionData::ReportHeader:
-            m_reportHeader = NULL;
+            m_reportHeader = 0;
             break;
         case KRSectionData::ReportFooter:
-            m_reportFooter = NULL;
+            m_reportFooter = 0;
             break;
         default:
-            sec = NULL;
+            sec = 0;
         }
 
         setModified(true);
         adjustSize();
     }
 }
+
 void ReportDesigner::insertSection(KRSectionData::Section s)
 {
     ReportSection* sec = section(s);
-    if (sec == NULL) {
+    if (!sec) {
         int idx = 0;
         for (int i = 1; i <= s; ++i) {
-            if (section((KRSectionData::Section)(i)) != NULL)
+            if (section((KRSectionData::Section)i))
                 idx++;
         }
         if (s > KRSectionData::ReportHeader)
@@ -587,12 +574,12 @@ void ReportDesigner::insertSection(KRSectionData::Section s)
             rs->setTitle(i18n("Report Footer"));
             m_reportFooter = rs;
             break;
-	//These sections cannot be inserted this way
-	case KRSectionData::None:
-	case KRSectionData::GroupHeader:
-	case KRSectionData::GroupFooter:
-	case KRSectionData::Detail:
-	    break;
+            //These sections cannot be inserted this way
+        case KRSectionData::None:
+        case KRSectionData::GroupHeader:
+        case KRSectionData::GroupFooter:
+        case KRSectionData::Detail:
+            break;
         }
 
         rs->show();
@@ -600,174 +587,6 @@ void ReportDesigner::insertSection(KRSectionData::Section s)
         adjustSize();
         emit pagePropertyChanged(*m_set);
     }
-}
-
-static QDomElement propertyToElement(QDomDocument* d, KoProperty::Property* p)
-{
-  QDomElement e = d->createElement(p->name());
-  e.appendChild(d->createTextNode(p->value().toString()));
-  return e;
-}
-
-static void addPropertyAsAttribute(QDomElement* e, KoProperty::Property* p)
-{
-    switch(p->value().type()) {
-	case QVariant::Int :
-	    e->setAttribute(p->name(), p->value().toInt());
-	    break;
-	case QVariant::Double:
-	    e->setAttribute(p->name(), p->value().toDouble());
-	    break;
-	case QVariant::Bool:
-	    e->setAttribute(p->name(), p->value().toInt());
-	    break;
-	default:
-	    e->setAttribute(p->name(), p->value().toString());
-	    break;
-    }
-}
-
-QDomElement ReportDesigner::document() const
-{
-    QDomDocument doc = QDomDocument("");
-    QDomElement root = doc.createElement("koreport");
-    doc.appendChild(root);
-
-    //title
-    root.appendChild(propertyToElement(&doc, m_title));
-
-    QDomElement scr = propertyToElement(&doc, m_script);
-    addPropertyAsAttribute(&scr, m_interpreter);
-    root.appendChild(scr);
-
-    QDomElement grd = doc.createElement("grid");
-    addPropertyAsAttribute(&grd, m_showGrid);
-    addPropertyAsAttribute(&grd, m_gridDivisions);
-    addPropertyAsAttribute(&grd, m_gridSnap);
-    addPropertyAsAttribute(&grd, m_unit);
-    root.appendChild(grd);
-
-    // pageOptions
-    // -- size
-    QDomElement size = doc.createElement("size");
-
-    if (m_pageSize->value().toString() == "Custom") {
-        QDomElement page_width = doc.createElement("width");
-        page_width.appendChild(doc.createTextNode(QString::number(pageUnit().fromUserValue(m_customWidth->value().toInt()))));
-        size.appendChild(page_width);
-        QDomElement page_height = doc.createElement("height");
-        page_height.appendChild(doc.createTextNode(QString::number(pageUnit().fromUserValue(m_customWidth->value().toInt()))));
-        size.appendChild(page_height);
-    } else if (m_pageSize->value().toString() == "Labels") {
-        size.appendChild(doc.createTextNode("Labels"));
-        QDomElement labeltype = doc.createElement("labeltype");
-        labeltype.appendChild(doc.createTextNode(m_labelType->value().toString()));
-        root.appendChild(labeltype);
-    } else {
-        size.appendChild(doc.createTextNode(m_pageSize->value().toString()));
-    }
-    root.appendChild(size);
-    
-    // -- orientation
-    root.appendChild(propertyToElement(&doc, m_orientation));
-    
-    // -- margins
-    root.appendChild(propertyToElement(&doc, m_topMargin));
-    root.appendChild(propertyToElement(&doc, m_bottomMargin));
-    root.appendChild(propertyToElement(&doc, m_rightMargin));
-    root.appendChild(propertyToElement(&doc, m_leftMargin));
-
-    QDomElement section;
-
-    // report head
-    if (m_reportHeader) {
-        section = doc.createElement("reportheader");
-        m_reportHeader->buildXML(doc, section);
-        root.appendChild(section);
-    }
-
-    // page head first
-    if (m_pageHeaderFirst) {
-        section = doc.createElement("pageheader");
-        section.appendChild(doc.createElement("firstpage"));
-        m_pageHeaderFirst->buildXML(doc, section);
-        root.appendChild(section);
-    }
-    // page head odd
-    if (m_pageHeaderOdd) {
-        section = doc.createElement("pageheader");
-        section.appendChild(doc.createElement("odd"));
-        m_pageHeaderOdd->buildXML(doc, section);
-        root.appendChild(section);
-    }
-    // page head even
-    if (m_pageHeaderEven) {
-        section = doc.createElement("pageheader");
-        section.appendChild(doc.createElement("even"));
-        m_pageHeaderEven->buildXML(doc, section);
-        root.appendChild(section);
-    }
-    // page head last
-    if (m_pageHeaderLast) {
-        section = doc.createElement("pageheader");
-        section.appendChild(doc.createElement("lastpage"));
-        m_pageHeaderLast->buildXML(doc, section);
-        root.appendChild(section);
-    }
-    // page head any
-    if (m_pageHeaderAny) {
-        section = doc.createElement("pageheader");
-        m_pageHeaderAny->buildXML(doc, section);
-        root.appendChild(section);
-    }
-
-    section = doc.createElement("section");
-    m_detail->buildXML(doc, section);
-    root.appendChild(section);
-
-    // page foot first
-    if (m_pageFooterFirst) {
-        section = doc.createElement("pagefooter");
-        section.appendChild(doc.createElement("firstpage"));
-        m_pageFooterFirst->buildXML(doc, section);
-        root.appendChild(section);
-    }
-    // page foot odd
-    if (m_pageFooterOdd) {
-        section = doc.createElement("pagefooter");
-        section.appendChild(doc.createElement("odd"));
-        m_pageFooterOdd->buildXML(doc, section);
-        root.appendChild(section);
-    }
-    // page foot even
-    if (m_pageFooterEven) {
-        section = doc.createElement("pagefooter");
-        section.appendChild(doc.createElement("even"));
-        m_pageFooterEven->buildXML(doc, section);
-        root.appendChild(section);
-    }
-    // page foot last
-    if (m_pageFooterLast) {
-        section = doc.createElement("pagefooter");
-        section.appendChild(doc.createElement("lastpage"));
-        m_pageFooterLast->buildXML(doc, section);
-        root.appendChild(section);
-    }
-    // page foot any
-    if (m_pageFooterAny) {
-        section = doc.createElement("pagefooter");
-        m_pageFooterAny->buildXML(doc, section);
-        root.appendChild(section);
-    }
-
-    // report foot
-    if (m_reportFooter) {
-        section = doc.createElement("pagefooter");
-        m_reportFooter->buildXML(doc, section);
-        root.appendChild(section);
-    }
-
-    return root;
 }
 
 void ReportDesigner::setReportTitle(const QString & str)
@@ -790,7 +609,7 @@ bool ReportDesigner::isModified() const
 void ReportDesigner::setModified(bool mod)
 {
     m_modified = mod;
- 
+
     if (m_modified) {
         emit(dirty());
     }
@@ -809,7 +628,7 @@ QStringList ReportDesigner::fieldList() const
 QStringList ReportDesigner::scriptList() const
 {
     QStringList scripts;
-    
+
     if (isConnected()) {
         QList<int> scriptids = m_conn->objectIds(KexiPart::ScriptObjectType);
         QStringList scriptnames = m_conn->objectNames(KexiPart::ScriptObjectType);
@@ -825,11 +644,11 @@ QStringList ReportDesigner::scriptList() const
         scripts << "";
 
         if (isConnected()) {
-            foreach (id, scriptids) {
+            foreach(id, scriptids) {
                 kDebug() << "ID:" << id;
                 tristate res;
                 res = m_conn->loadDataBlock(id, script, QString());
-                if (res == true){
+                if (res == true) {
                     QDomDocument domdoc;
                     bool parsed = domdoc.setContent(script, false);
 
@@ -838,12 +657,10 @@ QStringList ReportDesigner::scriptList() const
                         if (m_interpreter->value().toString() == scriptelem.attribute("language") && scriptelem.attribute("scripttype") == "object") {
                             scripts << scriptnames[i];
                         }
-                    }
-                    else {
+                    } else {
                         kDebug() << "Unable to parse script";
                     }
-                }
-                else{
+                } else {
                     kDebug() << "Unable to loadDataBlock";
                 }
                 ++i;
@@ -860,49 +677,49 @@ void ReportDesigner::createProperties()
     m_set = new KoProperty::Set(0, "Report");
 
     connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     m_title = new KoProperty::Property("Title", "Report", "Title", "Report Title");
 
     keys.clear();
     keys = pageFormats();
-    m_pageSize = new KoProperty::Property("PageSize", keys, keys, "A4", "Page Size");
+    m_pageSize = new KoProperty::Property("page-size", keys, keys, "A4", "Page Size");
 
-    keys.clear();strings.clear();
-    keys << "Portrait" << "Landscape";
+    keys.clear(); strings.clear();
+    keys << "portrait" << "landscape";
     strings << i18n("Portrait") << i18n("Landscape");
-    m_orientation = new KoProperty::Property("Orientation", keys, strings, "Portrait", "Page Orientation");
+    m_orientation = new KoProperty::Property("print-orientation", keys, strings, "Portrait", "Page Orientation");
 
-    keys.clear();strings.clear();
-    
+    keys.clear(); strings.clear();
+
     strings = KoUnit::listOfUnitName();
     QString unit;
-    foreach (unit, strings) {
-	unit = unit.mid(unit.indexOf("(") + 1, 2);
-	keys << unit;
+    foreach(unit, strings) {
+        unit = unit.mid(unit.indexOf("(") + 1, 2);
+        keys << unit;
     }
 
-    m_unit = new KoProperty::Property("PageUnit", keys, strings, "cm", "Page Unit");
+    m_unit = new KoProperty::Property("page-unit", keys, strings, "cm", "Page Unit");
 
-    m_showGrid = new KoProperty::Property("ShowGrid", true, "Show Grid", "Show Grid");
-    m_gridSnap = new KoProperty::Property("GridSnap", true, "Grid Snap", "Grid Snap");
-    m_gridDivisions = new KoProperty::Property("GridDivisions", 4, "Grid Divisions", "Grid Divisions");
+    m_showGrid = new KoProperty::Property("grid-visible", true, "Show Grid", "Show Grid");
+    m_gridSnap = new KoProperty::Property("grid-snap", true, "Grid Snap", "Grid Snap");
+    m_gridDivisions = new KoProperty::Property("grid-divisions", 4, "Grid Divisions", "Grid Divisions");
 
-    m_leftMargin = new KoProperty::Property("LeftMargin", KoUnit::unit("cm").fromUserValue(1.0), "Left Margin", "Left Margin", KoProperty::Double);
-    m_rightMargin = new KoProperty::Property("RightMargin", KoUnit::unit("cm").fromUserValue(1.0), "Right Margin", "Right Margin", KoProperty::Double);
-    m_topMargin = new KoProperty::Property("TopMargin", KoUnit::unit("cm").fromUserValue(1.0), "Top Margin", "Top Margin", KoProperty::Double);
-    m_bottomMargin = new KoProperty::Property("BottomMargin", KoUnit::unit("cm").fromUserValue(1.0), "Bottom Margin", "Bottom Margin", KoProperty::Double);
+    m_leftMargin = new KoProperty::Property("margin-left", KoUnit::unit("cm").fromUserValue(1.0), "Left Margin", "Left Margin", KoProperty::Double);
+    m_rightMargin = new KoProperty::Property("margin-right", KoUnit::unit("cm").fromUserValue(1.0), "Right Margin", "Right Margin", KoProperty::Double);
+    m_topMargin = new KoProperty::Property("margin-top", KoUnit::unit("cm").fromUserValue(1.0), "Top Margin", "Top Margin", KoProperty::Double);
+    m_bottomMargin = new KoProperty::Property("margin-bottom", KoUnit::unit("cm").fromUserValue(1.0), "Bottom Margin", "Bottom Margin", KoProperty::Double);
     m_leftMargin->setOption("unit", "cm");
     m_rightMargin->setOption("unit", "cm");
     m_topMargin->setOption("unit", "cm");
     m_bottomMargin->setOption("unit", "cm");
 
     keys = Kross::Manager::self().interpreters();
-    m_interpreter = new KoProperty::Property("Interpreter", keys, keys, keys[0], "Script Interpreter");
+    m_interpreter = new KoProperty::Property("script-interpreter", keys, keys, keys[0], "Script Interpreter");
 
     keys = scriptList();
-    m_script = new KoProperty::Property("Script", keys, keys, "", "Object Script");
-    
+    m_script = new KoProperty::Property("script", keys, keys, "", "Object Script");
+
     m_set->addProperty(m_title);
     m_set->addProperty(m_pageSize);
     m_set->addProperty(m_orientation);
@@ -916,7 +733,7 @@ void ReportDesigner::createProperties()
     m_set->addProperty(m_bottomMargin);
     m_set->addProperty(m_interpreter);
     m_set->addProperty(m_script);
-    
+
 //    KoProperty::Property* _customHeight;
 //    KoProperty::Property* _customWidth;
 
@@ -930,14 +747,14 @@ void ReportDesigner::slotPropertyChanged(KoProperty::Set &s, KoProperty::Propert
     setModified(true);
     emit pagePropertyChanged(s);
 
-    if (p.name() == "PageUnit") {
+    if (p.name() == "page-unit") {
         d->hruler->setUnit(pageUnit());
-        QString newstr = m_set->property("PageUnit").value().toString().mid(m_set->property("PageUnit").value().toString().indexOf("(") + 1, 2);
-        
-        m_set->property("LeftMargin").setOption("unit", newstr);
-        m_set->property("RightMargin").setOption("unit", newstr);
-        m_set->property("TopMargin").setOption("unit", newstr);
-        m_set->property("BottomMargin").setOption("unit", newstr);
+        QString newstr = m_set->property("page-unit").value().toString();
+
+        m_set->property("margin-left").setOption("unit", newstr);
+        m_set->property("margin-right").setOption("unit", newstr);
+        m_set->property("margin-top").setOption("unit", newstr);
+        m_set->property("margin-bottom").setOption("unit", newstr);
     }
 }
 
@@ -947,7 +764,7 @@ void ReportDesigner::slotPropertyChanged(KoProperty::Set &s, KoProperty::Propert
 void ReportDesigner::slotPageButton_Pressed()
 {
     QStringList sl = scriptList();
-    
+
     m_script->setListData(sl, sl);
     changeSet(m_set);
 }
@@ -1014,16 +831,16 @@ int ReportDesigner::pageWidthPx() const
     int ch = 0;
     int width = 0;
 
-    KoPageFormat::Format pf = KoPageFormat::formatFromString(m_set->property("PageSize").value().toString());
+    KoPageFormat::Format pf = KoPageFormat::formatFromString(m_set->property("page-size").value().toString());
 
     cw = POINT_TO_INCH(MM_TO_POINT(KoPageFormat::width(pf, KoPageFormat::Portrait))) * KoDpi::dpiX();
 
     ch = POINT_TO_INCH(MM_TO_POINT(KoPageFormat::height(pf, KoPageFormat::Portrait))) * KoDpi::dpiY();
 
-    width = (m_set->property("Orientation").value().toString() == "Portrait" ? cw : ch);
+    width = (m_set->property("print-orientation").value().toString() == "portrait" ? cw : ch);
 
-    width = width - POINT_TO_INCH(m_set->property("LeftMargin").value().toDouble()) * KoDpi::dpiX();
-    width = width - POINT_TO_INCH(m_set->property("RightMargin").value().toDouble()) * KoDpi::dpiX();
+    width = width - POINT_TO_INCH(m_set->property("margin-left").value().toDouble()) * KoDpi::dpiX();
+    width = width - POINT_TO_INCH(m_set->property("margin-right").value().toDouble()) * KoDpi::dpiX();
 
     return width;
 }
@@ -1037,7 +854,7 @@ void ReportDesigner::resizeEvent(QResizeEvent * event)
 
 void ReportDesigner::setDetail(ReportSectionDetail *rsd)
 {
-    if (m_detail == NULL) {
+    if (!m_detail) {
         int idx = 0;
         if (m_pageHeaderFirst) idx++;
         if (m_pageHeaderOdd) idx++;
@@ -1051,7 +868,7 @@ void ReportDesigner::setDetail(ReportSectionDetail *rsd)
 }
 void ReportDesigner::deleteDetail()
 {
-    if (m_detail != 0) {
+    if (m_detail) {
         delete m_detail;
         m_detail = 0;
     }
@@ -1139,7 +956,6 @@ void ReportDesigner::sectionMouseReleaseEvent(ReportSceneView * v, QMouseEvent *
                 item = new ReportEntityImage(v->designer(), v->scene());
                 break;
             case KRObjectData::EntityLine :
-                kDebug() << "Adding Line";
                 item = new ReportEntityLine(v->designer(), v->scene());
                 //dynamic_cast<QGraphicsLineItem*>(item)->setLine ( e->x()-10, e->y(), e->x()+10, e->y() );
                 dynamic_cast<QGraphicsLineItem*>(item)->setLine(e->x(), e->y(), e->x() + 20, e->y());
@@ -1179,20 +995,20 @@ void ReportDesigner::sectionMouseReleaseEvent(ReportSceneView * v, QMouseEvent *
 
 unsigned int ReportDesigner::selectionCount() const
 {
-  if (activeScene())
-    return activeScene()->selectedItems().count();
-  else
-    return 0;
+    if (activeScene())
+        return activeScene()->selectedItems().count();
+    else
+        return 0;
 }
 
 void ReportDesigner::changeSet(KoProperty::Set *s)
 {
     //Set the checked state of the report proerties button
-    if (s ==m_set)
-      d->pageButton->setCheckState(Qt::Checked);
+    if (s == m_set)
+        d->pageButton->setCheckState(Qt::Checked);
     else
-      d->pageButton->setCheckState(Qt::Unchecked);
-    
+        d->pageButton->setCheckState(Qt::Unchecked);
+
     m_itmset = s;
     emit(propertySetChanged());
 }
@@ -1218,7 +1034,7 @@ void ReportDesigner::slotItem(const QString &entity)
     if (entity == "action-insert-check") slotItem(KRObjectData::EntityCheck);
     if (entity == "action-insert-image") slotItem(KRObjectData::EntityImage);
     if (entity == "action-insert-shape") slotItem(KRObjectData::EntityShape);
-    
+
 }
 
 void ReportDesigner::slotEditDelete()
@@ -1333,32 +1149,32 @@ void ReportDesigner::slotEditPaste(QGraphicsScene * canvas, const QPointF & pos)
             QPointF o(m_sectionData->selected_x_offset, m_sectionData->selected_y_offset);
             if (type == KRObjectData::EntityLabel) {
                 ReportEntityLabel * ent = dynamic_cast<ReportEntityLabel*>(m_sectionData->copy_list[i])->clone();
-                ent->setEntityName(suggestEntityName("Label"));
+                ent->setEntityName(suggestEntityName("label"));
                 ent->setPos(ent->pos() + o);
                 pasted_ent = ent;
             } else if (type == KRObjectData::EntityField) {
                 ReportEntityField * ent = dynamic_cast<ReportEntityField*>(m_sectionData->copy_list[i])->clone();
                 ent->setPos(ent->pos() + o);
-                ent->setEntityName(suggestEntityName("Field"));
+                ent->setEntityName(suggestEntityName("field"));
                 pasted_ent = ent;
             } else if (type == KRObjectData::EntityText) {
                 ReportEntityText * ent = dynamic_cast<ReportEntityText*>(m_sectionData->copy_list[i])->clone();
                 ent->setPos(ent->pos() + o);
-                ent->setEntityName(suggestEntityName("Text"));
+                ent->setEntityName(suggestEntityName("text"));
                 pasted_ent = ent;
             } else if (type == KRObjectData::EntityLine) {
                 ReportEntityLine * ent = dynamic_cast<ReportEntityLine*>(m_sectionData->copy_list[i])->clone();
-                ent->setEntityName(suggestEntityName("Line"));
+                ent->setEntityName(suggestEntityName("line"));
                 pasted_ent = ent;
             } else if (type == KRObjectData::EntityBarcode) {
                 ReportEntityBarcode * ent = dynamic_cast<ReportEntityBarcode*>(m_sectionData->copy_list[i])->clone();
                 ent->setPos(ent->pos() + o);
-                ent->setEntityName(suggestEntityName("Barcode"));
+                ent->setEntityName(suggestEntityName("barcode"));
                 pasted_ent = ent;
             } else if (type == KRObjectData::EntityImage) {
                 ReportEntityImage * ent = dynamic_cast<ReportEntityImage*>(m_sectionData->copy_list[i])->clone();
                 ent->setPos(ent->pos() + o);
-                ent->setEntityName(suggestEntityName("Image"));
+                ent->setEntityName(suggestEntityName("image"));
                 pasted_ent = ent;
             }
             //TODO add graph
@@ -1405,7 +1221,7 @@ void ReportDesigner::setActiveScene(QGraphicsScene* a)
     if (d->activeScene && d->activeScene != a)
         d->activeScene->clearSelection();
     d->activeScene = a;
-    
+
     //Trigger an update so that the last scene redraws its title;
     update();
 }
@@ -1531,7 +1347,7 @@ QList<QAction*> ReportDesigner::actions()
     act = new QAction(KIcon("feed-subscribe"), i18n("Label"), 0);
     act->setObjectName("action-insert-label");
     actList << act;
-    
+
     act = new QAction(KIcon("edit-rename"), i18n("Field"), 0);
     act->setObjectName("action-insert-field");
     actList << act;
@@ -1543,7 +1359,7 @@ QList<QAction*> ReportDesigner::actions()
     act = new QAction(KIcon("draw-freehand"), i18n("Line"), 0);
     act->setObjectName("action-insert-line");
     actList << act;
-    
+
     act = new QAction(KIcon("insert-barcode"), i18n("Barcode"), 0);
     act->setObjectName("action-insert-barcode");
     actList << act;
@@ -1551,19 +1367,19 @@ QList<QAction*> ReportDesigner::actions()
     act = new QAction(KIcon("insert-image"), i18n("Image"), 0);
     act->setObjectName("action-insert-image");
     actList << act;
-    
+
     act = new QAction(KIcon("office-chart-area"), i18n("Chart"), 0);
     act->setObjectName("action-insert-chart");
     actList << act;
-    
+
     act = new QAction(KIcon("view-statistics"), i18n("Shape"), 0);
     act->setObjectName("action-insert-shape");
     actList << act;
-    
+
     act = new QAction(KIcon("draw-cross"), i18n("Check"), 0);
     act->setObjectName("action-insert-check");
     actList << act;
-    
+
     return actList;
 
 }

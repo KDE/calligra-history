@@ -2,7 +2,6 @@
 #define KRCHECKDATA_H
 
 #include <krobjectdata.h>
-#include "parsexmlutils.h"
 #include <QRect>
 #include <QPainter>
 #include <qdom.h>
@@ -16,22 +15,21 @@ class Check;
 
 class KRCheckData : public KRObjectData
 {
-    public:
-        KRCheckData(){createProperties();};
-        KRCheckData(QDomNode &element);
-        virtual ~KRCheckData();
-        virtual int type() const;
-        virtual KRCheckData * toCheck();
-        bool value();
-        void setValue(bool);
-        ORLineStyleData lineStyle();
+public:
+    KRCheckData() {
+        createProperties();
+    };
+    KRCheckData(QDomNode &element);
+    virtual ~KRCheckData();
+    virtual int type() const;
+    virtual KRCheckData * toCheck();
+    bool value();
+    void setValue(bool);
+    KRLineStyleData lineStyle();
 
-        ORDataData data() {
-        return ORDataData("Data Source", m_controlSource->value().toString());
-        }
-        QString controlSource()const;
+    QString controlSource()const;
 
-    protected:
+protected:
     QRectF _rect();
 
     KRSize m_size;

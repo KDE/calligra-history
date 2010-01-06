@@ -36,10 +36,10 @@ public:
     QPointF start;
 };
 
-AbstractSelectionStrategy::AbstractSelectionStrategy(KoTool* parent, KoCanvasBase* canvas, Selection* selection,
-                                     const QPointF documentPos, Qt::KeyboardModifiers modifiers)
-    : KoInteractionStrategy(parent, canvas)
-    , d(new Private)
+AbstractSelectionStrategy::AbstractSelectionStrategy(KoTool *parent, Selection *selection,
+        const QPointF documentPos, Qt::KeyboardModifiers modifiers)
+        : KoInteractionStrategy(parent)
+        , d(new Private)
 {
     Q_UNUSED(modifiers)
     d->selection = selection;
@@ -54,7 +54,7 @@ AbstractSelectionStrategy::~AbstractSelectionStrategy()
 void AbstractSelectionStrategy::handleMouseMove(const QPointF& documentPos, Qt::KeyboardModifiers modifiers)
 {
     Q_UNUSED(modifiers)
-    const KoShape* shape = m_canvas->shapeManager()->selection()->firstSelectedShape();
+    const KoShape *shape = tool()->canvas()->shapeManager()->selection()->firstSelectedShape();
     const QPointF position = documentPos - (shape ? shape->position() : QPointF(0.0, 0.0));
     // In which cell did the user click?
     double xpos;
@@ -62,23 +62,21 @@ void AbstractSelectionStrategy::handleMouseMove(const QPointF& documentPos, Qt::
     int col = d->selection->activeSheet()->leftColumn(position.x(), xpos);
     int row = d->selection->activeSheet()->topRow(position.y(), ypos);
     // Check boundaries.
-    if (col > KS_colMax || row > KS_rowMax)
-    {
+    if (col > KS_colMax || row > KS_rowMax) {
         kDebug(36005) << "col or row is out of range:" << "col:" << col << " row:" << row;
         return;
     }
     // Test whether mouse is over the Selection.handle
-    const QRectF selectionHandle = d->selection->selectionHandleArea(m_canvas->viewConverter());
-    if (selectionHandle.contains(position))
-    {
+    const QRectF selectionHandle = d->selection->selectionHandleArea(tool()->canvas()->viewConverter());
+    if (selectionHandle.contains(position)) {
         // If the cursor is over the handle, than it might be already on the next cell.
         // Recalculate the cell position!
-        col = d->selection->activeSheet()->leftColumn(position.x() - m_canvas->viewConverter()->viewToDocumentX(2.0), xpos);
-        row = d->selection->activeSheet()->topRow(position.y() - m_canvas->viewConverter()->viewToDocumentY(2.0), ypos);
+        col = d->selection->activeSheet()->leftColumn(position.x() - tool()->canvas()->viewConverter()->viewToDocumentX(2.0), xpos);
+        row = d->selection->activeSheet()->topRow(position.y() - tool()->canvas()->viewConverter()->viewToDocumentY(2.0), ypos);
     }
     // Update the selection.
     d->selection->update(QPoint(col, row));
-    m_parent->repaintDecorations();
+    tool()->repaintDecorations();
 }
 
 QUndoCommand* AbstractSelectionStrategy::createCommand()
@@ -89,7 +87,7 @@ QUndoCommand* AbstractSelectionStrategy::createCommand()
 void AbstractSelectionStrategy::finishInteraction(Qt::KeyboardModifiers modifiers)
 {
     Q_UNUSED(modifiers)
-    m_parent->repaintDecorations();
+    tool()->repaintDecorations();
 }
 
 Selection* AbstractSelectionStrategy::selection() const

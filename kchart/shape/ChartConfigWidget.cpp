@@ -86,7 +86,7 @@ public:
     QVBoxLayout           *leftLayout;
     QVBoxLayout           *rightLayout;
     Ui::ChartConfigWidget  ui;
-    bool                   sourceIsSpreadSheet; // FIXME: Rename to isExternalDataSource?
+    bool                   isExternalDataSource;
     
     // Menus
     QMenu *dataSetBarChartMenu;
@@ -167,10 +167,10 @@ public:
 
 
 ChartConfigWidget::Private::Private( QWidget *parent )
-    : newAxisDialog( parent )
+    : tableEditorDialog( 0 )
+    , newAxisDialog( parent )
     , axisScalingDialog( parent )
     , cellRegionDialog( parent )
-    , tableEditorDialog( 0 )
       
 {
     lastHorizontalAlignment = 1; // Qt::AlignCenter
@@ -181,7 +181,7 @@ ChartConfigWidget::Private::Private( QWidget *parent )
     shape = 0;
     type = KChart::LastChartType;
     subtype = KChart::NoChartSubtype;
-    sourceIsSpreadSheet = false;
+    isExternalDataSource = false;
     cellRegionStringValidator = 0;
     
     dataSetBarChartMenu = 0;
@@ -411,7 +411,7 @@ void ChartConfigWidget::open( KoShape* shape )
 	    // And finally try if it was the legend.
             Legend *legend = dynamic_cast<Legend*>( shape );
             Q_ASSERT( legend );
-            d->shape = dynamic_cast<ChartShape*>( legend->parent() );
+            d->shape = dynamic_cast<ChartShape*>( shape->parent() );
             Q_ASSERT( d->shape );
             d->ui.tabWidget->setCurrentIndex( 2 );
         }
@@ -419,7 +419,7 @@ void ChartConfigWidget::open( KoShape* shape )
 
     KoChart::ChartModel *spreadSheetModel = qobject_cast<KoChart::ChartModel*>( d->shape->model() );
     ChartTableModel *tableModel = qobject_cast<ChartTableModel*>( d->shape->model() );
-    d->sourceIsSpreadSheet = ( spreadSheetModel != 0 && tableModel == 0 );
+    d->isExternalDataSource = ( spreadSheetModel != 0 && tableModel == 0 );
     
     // Update the axis titles
     //d->ui.xAxisTitle->setText( ((KDChart::AbstractCartesianDiagram*)d->shape->chart()->coordinatePlane()->diagram())->axes()[0]->titleText() );
@@ -429,7 +429,7 @@ void ChartConfigWidget::open( KoShape* shape )
     //d->ui.legendTitle->setText( d->shape->legend()->title() );
     
     // Fill the data table
-    if ( d->sourceIsSpreadSheet ) {
+    if ( d->isExternalDataSource ) {
     	d->cellRegionStringValidator = new CellRegionStringValidator( spreadSheetModel );
     	d->cellRegionDialog.labelDataRegion->setValidator( d->cellRegionStringValidator );
     	d->cellRegionDialog.xDataRegion->setValidator( d->cellRegionStringValidator );
@@ -478,8 +478,8 @@ KAction* ChartConfigWidget::createAction()
 
 void ChartConfigWidget::chartTypeSelected( QAction *action )
 {
-    ChartType     type;
-    ChartSubtype  subtype;
+    ChartType     type = LastChartType;
+    ChartSubtype  subtype = NoChartSubtype;
     
     if ( action == d->normalBarChartAction ) {
         type    = BarChartType;
@@ -1035,6 +1035,7 @@ void ChartConfigWidget::slotShowTableEditor( bool show )
 
 void ChartConfigWidget::setLegendOrientation( int boxEntryIndex )
 {
+    Q_UNUSED(boxEntryIndex);
     //emit legendOrientationChanged( ( Qt::Orientation ) ( d->ui.orientation->itemData( boxEntryIndex ).toInt() ) );
 }
 /*
@@ -1051,6 +1052,7 @@ void ChartConfigWidget::setLegendShowTitle( bool show )
 */
 void ChartConfigWidget::setLegendAlignment( int boxEntryIndex )
 {
+    Q_UNUSED(boxEntryIndex);
     if (    d->fixedPosition == KDChart::Position::North
          || d->fixedPosition == KDChart::Position::South ) {
         //d->lastHorizontalAlignment = d->ui.alignment->currentIndex();
@@ -1063,6 +1065,7 @@ void ChartConfigWidget::setLegendAlignment( int boxEntryIndex )
 
 void ChartConfigWidget::setLegendFixedPosition( int buttonGroupIndex )
 {
+    Q_UNUSED(buttonGroupIndex);
     d->lastFixedPosition = d->fixedPosition;
     //d->fixedPosition = buttonIndexToFixedPosition[ buttonGroupIndex ];
     //emit legendFixedPositionChanged( buttonIndexToFixedPosition[ buttonGroupIndex ] );
@@ -1070,6 +1073,7 @@ void ChartConfigWidget::setLegendFixedPosition( int buttonGroupIndex )
 
 void ChartConfigWidget::updateFixedPosition( LegendPosition position )
 {
+    Q_UNUSED(position);
 /*
     if (    position == KDChart::Position::North
          || position == KDChart::Position::South ) {
@@ -1139,12 +1143,12 @@ void ChartConfigWidget::setupDialogs()
              this, SLOT( ui_axisScalingButtonClicked() ) );
     connect( d->axisScalingDialog.logarithmicScaling, SIGNAL( toggled( bool ) ),
              this, SLOT( ui_axisUseLogarithmicScalingChanged( bool ) ) );
-    connect( d->axisScalingDialog.stepWidth, SIGNAL( valueChanged( double ) ),
-             this, SLOT( ui_axisStepWidthChanged( double ) ) );
+    connect( d->axisScalingDialog.stepWidth, SIGNAL( valueChanged( qreal ) ),
+             this, SLOT( ui_axisStepWidthChanged( qreal ) ) );
     connect ( d->axisScalingDialog.automaticStepWidth, SIGNAL( toggled( bool ) ),
               this, SLOT( ui_axisUseAutomaticStepWidthChanged( bool ) ) );
-    connect( d->axisScalingDialog.subStepWidth, SIGNAL( valueChanged( double ) ),
-             this, SLOT( ui_axisSubStepWidthChanged( double ) ) );
+    connect( d->axisScalingDialog.subStepWidth, SIGNAL( valueChanged( qreal ) ),
+             this, SLOT( ui_axisSubStepWidthChanged( qreal ) ) );
     connect ( d->axisScalingDialog.automaticSubStepWidth, SIGNAL( toggled( bool ) ),
               this, SLOT( ui_axisUseAutomaticSubStepWidthChanged( bool ) ) );
 }
@@ -1541,7 +1545,7 @@ void ChartConfigWidget::ui_axisUseLogarithmicScalingChanged( bool b )
     emit axisUseLogarithmicScalingChanged( d->axes[ index ], b );
 }
 
-void ChartConfigWidget::ui_axisStepWidthChanged( double width )
+void ChartConfigWidget::ui_axisStepWidthChanged( qreal width )
 {
     int index = d->ui.axes->currentIndex();
     // Check for valid index
@@ -1552,7 +1556,7 @@ void ChartConfigWidget::ui_axisStepWidthChanged( double width )
     emit axisStepWidthChanged( d->axes[ index ], width );
 }
 
-void ChartConfigWidget::ui_axisSubStepWidthChanged( double width )
+void ChartConfigWidget::ui_axisSubStepWidthChanged( qreal width )
 {
     int index = d->ui.axes->currentIndex();
     // Check for valid index

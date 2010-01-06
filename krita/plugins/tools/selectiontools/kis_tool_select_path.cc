@@ -48,71 +48,74 @@
 
 
 KisToolSelectPath::KisToolSelectPath(KoCanvasBase * canvas)
-        : KoCreatePathTool(canvas)
+        : KisToolSelectBase(canvas), m_lokalTool(new LokalTool(canvas, this))
 {
-    m_optWidget = 0;
-    m_selectAction = SELECTION_REPLACE;
-    m_selectionMode = PIXEL_SELECTION;
 }
 
 KisToolSelectPath::~KisToolSelectPath()
 {
+    delete m_lokalTool;
 }
 
 void KisToolSelectPath::activate(bool tmp)
 {
-    KoCreatePathTool::activate(tmp);
-
-    if (!m_optWidget)
-        return;
-
-    m_optWidget->slotActivated();
+    KisToolSelectBase::activate(tmp);
+    m_lokalTool->activate(tmp);
 }
 
-void KisToolSelectPath::slotSetAction(int action)
+void KisToolSelectPath::deactivate()
 {
-    if (action >= SELECTION_REPLACE && action <= SELECTION_INTERSECT)
-        m_selectAction = (selectionAction)action;
+    KisToolSelectBase::deactivate();
+    m_lokalTool->deactivate();
 }
 
-void KisToolSelectPath::slotSetSelectionMode(int mode)
+void KisToolSelectPath::mousePressEvent(KoPointerEvent *event)
 {
-    m_selectionMode = (selectionMode)mode;
+    Q_ASSERT(m_lokalTool);
+    m_lokalTool->mousePressEvent(event);
+}
 
+void KisToolSelectPath::mouseDoubleClickEvent(KoPointerEvent *event)
+{
+    Q_ASSERT(m_lokalTool);
+    m_lokalTool->mouseDoubleClickEvent(event);
+}
+
+void KisToolSelectPath::mouseMoveEvent(KoPointerEvent *event)
+{
+    Q_ASSERT(m_lokalTool);
+    m_lokalTool->mouseMoveEvent(event);
+}
+
+void KisToolSelectPath::mouseReleaseEvent(KoPointerEvent *event)
+{
+    Q_ASSERT(m_lokalTool);
+    m_lokalTool->mouseReleaseEvent(event);
 }
 
 QWidget* KisToolSelectPath::createOptionWidget()
 {
-    KisCanvas2* canvas = dynamic_cast<KisCanvas2*>(m_canvas);
-    Q_ASSERT(canvas);
-    m_optWidget = new KisSelectionOptions(canvas);
-    Q_CHECK_PTR(m_optWidget);
-    m_optWidget->setObjectName(toolId() + " option widget");
-
+    KisToolSelectBase::createOptionWidget();
     m_optWidget->setWindowTitle(i18n("Path Selection"));
     m_optWidget->disableAntiAliasSelectionOption();
 
-    connect(m_optWidget, SIGNAL(actionChanged(int)), this, SLOT(slotSetAction(int)));
-    connect(m_optWidget, SIGNAL(modeChanged(int)), this, SLOT(slotSetSelectionMode(int)));
-
-
-    QVBoxLayout * l = dynamic_cast<QVBoxLayout*>(m_optWidget->layout());
-    Q_ASSERT(l);
-    if (l) {
-        l->addItem(new QSpacerItem(1, 1, QSizePolicy::Fixed, QSizePolicy::Expanding));
-    }
-    m_optWidget->setFixedHeight(m_optWidget->sizeHint().height());
     return m_optWidget;
+}
+
+void KisToolSelectPath::paint(QPainter &painter, const KoViewConverter &converter)
+{
+    Q_ASSERT(m_lokalTool);
+    m_lokalTool->paint(painter, converter);
 }
 
 QMap<QString, QWidget *> KisToolSelectPath::createOptionWidgets()
 {
-    QMap<QString, QWidget *> map = KoCreatePathTool::createOptionWidgets();
-    map.insert(i18n("Tool Options"), createOptionWidget());
+    QMap<QString, QWidget *> map = m_lokalTool->createOptionWidgets();
+    map.insert(i18n("Tool Options"), KisToolSelectBase::createOptionWidget());
     return map;
 }
 
-void KisToolSelectPath::addPathShape()
+void KisToolSelectPath::LokalTool::addPathShape()
 {
     KisNodeSP currentNode =
         m_canvas->resourceProvider()->resource(KisCanvasResourceProvider::CurrentKritaNode).value<KisNodeSP>();
@@ -133,11 +136,12 @@ void KisToolSelectPath::addPathShape()
 
     KisSelectionToolHelper helper(kisCanvas, currentNode, i18n("Path Selection"));
 
-    if (m_selectionMode == PIXEL_SELECTION) {
+    if (m_selectingTool->m_selectionMode == PIXEL_SELECTION) {
 
         KisPixelSelectionSP tmpSel = KisPixelSelectionSP(new KisPixelSelection());
 
         KisPainter painter(tmpSel);
+        painter.setBounds(m_selectingTool->currentImage()->bounds());
         painter.setPaintColor(KoColor(Qt::black, tmpSel->colorSpace()));
         painter.setFillStyle(KisPainter::FillStyleForegroundColor);
         painter.setStrokeStyle(KisPainter::StrokeStyleNone);
@@ -149,7 +153,7 @@ void KisToolSelectPath::addPathShape()
         matrix.translate(shape->position().x(), shape->position().y());
         painter.fillPainterPath(matrix.map(shape->outline()));
 
-        QUndoCommand* cmd = helper.selectPixelSelection(tmpSel, m_selectAction);
+        QUndoCommand* cmd = helper.selectPixelSelection(tmpSel, m_selectingTool->m_selectAction);
         m_canvas->addCommand(cmd);
 
         delete shape;

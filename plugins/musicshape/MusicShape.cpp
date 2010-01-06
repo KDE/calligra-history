@@ -161,7 +161,7 @@ bool MusicShape::loadOdf( const KoXmlElement & element, KoShapeLoadingContext &c
     return loadOdfFrame(element, context);
 }
 
-bool MusicShape::loadOdfFrameElement( const KoXmlElement & element, KoShapeLoadingContext & context )
+bool MusicShape::loadOdfFrameElement( const KoXmlElement & element, KoShapeLoadingContext & /*context*/ )
 {
     KoXmlElement score = KoXml::namedItemNS(element, "http://www.koffice.org/music", "score-partwise");
     if (score.isNull()) {

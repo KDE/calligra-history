@@ -29,7 +29,7 @@
 #include <kis_paintop_registry.h>
 
 #include "kis_curve_paintop.h"
-#include "kis_curve_paintop_factory.h"
+#include "kis_simple_paintop_factory.h"
 #include "kis_global.h"
 
 typedef KGenericFactory<CurvePaintOpPlugin> CurvePaintOpPluginFactory;
@@ -37,11 +37,11 @@ K_EXPORT_COMPONENT_FACTORY(kritacurvepaintop, CurvePaintOpPluginFactory("krita")
 
 
 CurvePaintOpPlugin::CurvePaintOpPlugin(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
-    setComponentData(CurvePaintOpPluginFactory::componentData());
+    //setComponentData(CurvePaintOpPluginFactory::componentData());
     KisPaintOpRegistry *r = KisPaintOpRegistry::instance();
-    r->add(new KisCurvePaintOpFactory);
+    r->add(new KisSimplePaintOpFactory<KisCurvePaintOp, KisCurvePaintOpSettings, KisCurvePaintOpSettingsWidget>("curvebrush", i18n("Curve brush"), "krita-curve.png"));
 
 }
 

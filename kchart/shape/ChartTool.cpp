@@ -136,7 +136,7 @@ void ChartTool::shapeSelectionChanged()
                 Legend *legend = dynamic_cast<Legend*>( shape );
                 if ( legend ) {
                     selectedShape = legend;
-                    d->shape = dynamic_cast<ChartShape*>( legend->parent() );
+                    d->shape = dynamic_cast<ChartShape*>( shape->parent() );
                 }
             }
         // The selected shape is the chart
@@ -227,7 +227,7 @@ void ChartTool::mouseReleaseEvent( KoPointerEvent *event )
 
 void ChartTool::activate( bool )
 {
-    useCursor( Qt::ArrowCursor, true );
+    useCursor(Qt::ArrowCursor);
 }
 
 void ChartTool::deactivate()
@@ -309,10 +309,10 @@ QWidget *ChartTool::createOptionWidget()
     		 this,   SLOT( setAxisShowGridLines( Axis*, bool ) ) );
     connect( widget, SIGNAL( axisUseLogarithmicScalingChanged( Axis*, bool ) ),
     		 this,   SLOT( setAxisUseLogarithmicScaling( Axis*, bool ) ) );
-    connect( widget, SIGNAL( axisStepWidthChanged( Axis*, double ) ),
-    		 this,   SLOT( setAxisStepWidth( Axis*, double ) ) );
-    connect( widget, SIGNAL( axisSubStepWidthChanged( Axis*, double ) ),
-    		 this,   SLOT( setAxisSubStepWidth( Axis*, double ) ) );
+    connect( widget, SIGNAL( axisStepWidthChanged( Axis*, qreal ) ),
+    		 this,   SLOT( setAxisStepWidth( Axis*, qreal ) ) );
+    connect( widget, SIGNAL( axisSubStepWidthChanged( Axis*, qreal ) ),
+    		 this,   SLOT( setAxisSubStepWidth( Axis*, qreal ) ) );
     connect( widget, SIGNAL( axisUseAutomaticStepWidthChanged( Axis*, bool ) ),
     		 this,   SLOT( setAxisUseAutomaticStepWidth( Axis*, bool ) ) );
     connect( widget, SIGNAL( axisUseAutomaticSubStepWidthChanged( Axis*, bool ) ),
@@ -686,13 +686,13 @@ void ChartTool::setAxisUseLogarithmicScaling( Axis *axis, bool b )
     d->shape->update();
 }
 
-void ChartTool::setAxisStepWidth( Axis *axis, double width )
+void ChartTool::setAxisStepWidth( Axis *axis, qreal width )
 {
     axis->setMajorInterval( width );
     d->shape->update();
 }
 
-void ChartTool::setAxisSubStepWidth( Axis *axis, double width )
+void ChartTool::setAxisSubStepWidth( Axis *axis, qreal width )
 {
     axis->setMinorInterval( width );
     d->shape->update();

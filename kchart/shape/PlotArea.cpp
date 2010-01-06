@@ -44,6 +44,7 @@
 #include <KoViewConverter.h>
 #include <KoShapeBackground.h>
 #include <KoOdfGraphicStyles.h>
+#include <KoDataCenter.h>
 
 // KDChart
 #include <KDChartChart>
@@ -79,6 +80,8 @@
 using namespace KChart;
 
 const int MAX_PIXMAP_SIZE = 1000;
+
+Q_DECLARE_METATYPE( QPointer<QAbstractItemModel> )
 
 class PlotArea::Private
 {
@@ -177,22 +180,19 @@ PlotArea::PlotArea( ChartShape *parent )
     
     Q_ASSERT( d->shape );
     Q_ASSERT( d->shape->proxyModel() );
-    
+
     connect( d->shape->proxyModel(), SIGNAL( modelReset() ),
              this,                   SLOT( dataSetCountChanged() ) );
-    connect( d->shape->proxyModel(), SIGNAL( modelResetComplete() ),
-             this,                   SLOT( update() ) );
-    // FIXME: The following signatures don't match.  Bug?
     connect( d->shape->proxyModel(), SIGNAL( rowsInserted( const QModelIndex, int, int ) ),
              this,                   SLOT( dataSetCountChanged() ) );
     connect( d->shape->proxyModel(), SIGNAL( rowsRemoved( const QModelIndex, int, int ) ),
              this,                   SLOT( dataSetCountChanged() ) );
     connect( d->shape->proxyModel(), SIGNAL( columnsInserted( const QModelIndex, int, int ) ),
-             this,                   SLOT( update() ) );
+             this,                   SLOT( plotAreaUpdate() ) );
     connect( d->shape->proxyModel(), SIGNAL( columnsRemoved( const QModelIndex, int, int ) ),
-             this,                   SLOT( update() ) );
+             this,                   SLOT( plotAreaUpdate() ) );
     connect( d->shape->proxyModel(), SIGNAL( dataChanged() ),
-             this,                   SLOT( update() ) );
+             this,                   SLOT( plotAreaUpdate() ) );
 }
 
 PlotArea::~PlotArea()
@@ -201,7 +201,7 @@ PlotArea::~PlotArea()
 }
 
 
-void PlotArea::init()
+void PlotArea::plotAreaInit()
 {
     d->kdChart->resize( size().toSize() );
     d->kdChart->replaceCoordinatePlane( d->kdPlane );
@@ -553,6 +553,16 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
         proxyModel()->setFirstColumnIsLabel( false );
     }
 
+    QAbstractItemModel *sheetAccessModel = dynamic_cast<QAbstractItemModel*>( d->shape->dataCenterMap()["SheetAccessModel"] );
+
+    if ( sheetAccessModel )
+    {
+        // FIXME: Use the access model's header data to determine what sheet to use
+        QPointer<QAbstractItemModel> firstSheet = sheetAccessModel->data( sheetAccessModel->index( 0, 0 ) ).value< QPointer<QAbstractItemModel> >();
+        Q_ASSERT( firstSheet );
+        d->shape->setModel( firstSheet.data() );
+    }
+
     // Remove all axes before loading new ones
     while( !d->axes.isEmpty() ) {
         Axis *axis = d->axes.takeLast();
@@ -578,7 +588,7 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
     // actual data is not stored here.
     //
     // FIXME: Isn't the proxy model a strange place to store this data?
-    d->shape->proxyModel()->loadOdf( plotAreaElement, context );
+    proxyModel()->loadOdf( plotAreaElement, context );
 
     // Now load the surfaces (wall and possibly floor)
     // FIXME: Use named tags instead of looping?
@@ -591,9 +601,11 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
         }
         else if ( n.localName() == "floor" ) {
             // The floor is not always present, so allocate it if needed.
-            if ( !d->floor )
-                d->floor = new Surface( this );
-            d->floor->loadOdf( n, context );
+            // FIXME: Load floor, even if we don't really support it yet
+            // and save it back to ODF.
+            //if ( !d->floor )
+            //    d->floor = new Surface( this );
+            //d->floor->loadOdf( n, context );
         }
         else if ( n.localName() != "axis" && n.localName() != "series" ) {
             qWarning() << "PlotArea::loadOdf(): Unknown tag name " << n.localName();
@@ -664,8 +676,8 @@ void PlotArea::saveOdf( KoShapeSavingContext &context ) const
 
     // Save the floor and wall of the plotarea.
     d->wall->saveOdf( context, "chart:wall" );
-    if ( d->floor )
-        d->floor->saveOdf( context, "chart:floor" );
+    //if ( d->floor )
+    //    d->floor->saveOdf( context, "chart:floor" );
 
     // TODO chart:series
     // TODO chart:grid
@@ -840,7 +852,7 @@ bool PlotArea::deregisterKdDiagram( KDChart::AbstractDiagram *diagram )
     return true;
 }
 
-void PlotArea::update() const
+void PlotArea::plotAreaUpdate() const
 {
     parent()->legend()->update();
     requestRepaint();

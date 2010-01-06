@@ -32,10 +32,10 @@ class PasteStrategy::Private
 public:
 };
 
-PasteStrategy::PasteStrategy(KoTool* parent, KoCanvasBase* canvas, Selection* selection,
+PasteStrategy::PasteStrategy(KoTool *parent, Selection *selection,
                              const QPointF documentPos, Qt::KeyboardModifiers modifiers)
-    : SelectionStrategy(parent, canvas, selection, documentPos, modifiers)
-    , d(new Private)
+        : SelectionStrategy(parent, selection, documentPos, modifiers)
+        , d(new Private)
 {
 }
 

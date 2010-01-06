@@ -23,39 +23,32 @@
 #include "kis_penop_settings_widget.h"
 #include "kis_penop_settings.h"
 #include <kis_properties_configuration.h>
-#include <kis_brush_option.h>
+#include <kis_brush_option_widget.h>
 #include <kis_paintop_options_widget.h>
 #include <kis_pressure_darken_option.h>
 #include <kis_pressure_opacity_option.h>
 #include <kis_pressure_size_option.h>
 #include <kis_paint_action_type_option.h>
+#include <kis_curve_option_widget.h>
 
 KisPenOpSettingsWidget::KisPenOpSettingsWidget(QWidget* parent)
         : KisPaintOpOptionsWidget(parent)
 {
     setObjectName("brush option widget");
 
-    m_brushOption = new KisBrushOption();
-    m_sizeOption = new KisPressureSizeOption();
-    m_opacityOption = new KisPressureOpacityOption();
-    m_darkenOption = new KisPressureDarkenOption();
-    m_paintActionTypeOption = new KisPaintActionTypeOption();
-
+    m_brushOption = new KisBrushOptionWidget();
+    
     addPaintOpOption(m_brushOption);
-    addPaintOpOption(m_sizeOption);
-    addPaintOpOption(m_opacityOption);
-    addPaintOpOption(m_darkenOption);
-    addPaintOpOption(m_paintActionTypeOption);
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureSizeOption()));
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureOpacityOption()));
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureDarkenOption()));
+    addPaintOpOption(new KisPaintActionTypeOption());
 
 }
 
 KisPenOpSettingsWidget::~KisPenOpSettingsWidget()
 {
     delete m_brushOption;
-    delete m_sizeOption;
-    delete m_opacityOption;
-    delete m_darkenOption;
-    delete m_paintActionTypeOption;
 }
 
 KisPropertiesConfiguration* KisPenOpSettingsWidget::configuration() const
@@ -66,11 +59,5 @@ KisPropertiesConfiguration* KisPenOpSettingsWidget::configuration() const
     writeConfiguration(config);
     return config;
 }
-
-void KisPenOpSettingsWidget::setImage(KisImageWSP image)
-{
-    m_brushOption->setImage(image);
-}
-
 
 #include "kis_penop_settings_widget.moc"

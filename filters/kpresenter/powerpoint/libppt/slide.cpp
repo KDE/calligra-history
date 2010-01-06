@@ -39,6 +39,14 @@ public:
     double pageHeight;
 
     unsigned int slideId;
+
+    int flags;
+    int formatId;
+    //Notes
+    int notesFlags;
+    int notesFormatId;
+    QString styleName;
+    QString userDate;
 };
 
 Slide::Slide(Presentation* pr)
@@ -49,6 +57,10 @@ Slide::Slide(Presentation* pr)
     d->pageWidth = 0.0;
     d->pageHeight = 0.0;
     d->slideId = 0;
+    d->flags = 0;
+    d->formatId = 0;
+    d->notesFlags = 0;
+    d->notesFormatId = 0;
 }
 
 Slide::~Slide()
@@ -153,3 +165,55 @@ void Slide::setSlideId(unsigned int id)
 {
     d->slideId = id;
 }
+
+void  Slide::setHeaderFooterFlags(int flags)
+{
+   d->flags = flags;
+}
+
+int Slide::headerFooterFlags()
+{ 
+  return  d->flags;
+}
+
+void Slide::setStyleName(const QString &name)
+{
+    d->styleName = name;
+}
+
+QString Slide::styleName() const
+{
+    return d->styleName;
+}
+
+void  Slide::setDateTimeFormatId(int formatId)
+{
+   d->formatId = formatId;
+}
+
+int Slide::dateTimeFormatId()
+{ 
+  return  d->formatId;
+}
+
+//Notes
+void  Slide::setNotesHeaderFooterFlags(int notesFlags)
+{
+   d->notesFlags = notesFlags;
+}
+
+int Slide::notesHeaderFooterFlags()
+{ 
+  return  d->notesFlags;
+}
+
+void  Slide::setNotesDateTimeFormatId(int formatId)
+{
+   d->notesFormatId = formatId;
+}
+
+int Slide::notesDateTimeFormatId()
+{ 
+  return  d->notesFormatId;
+}
+

@@ -24,12 +24,14 @@
 #define KIS_BRUSHOP_H_
 
 #include "kis_brush_based_paintop.h"
+#include <kis_pressure_darken_option.h>
+#include <kis_pressure_opacity_option.h>
+#include <kis_pressure_size_option.h>
+#include <kis_paint_action_type_option.h>
+#include <kis_pressure_rotation_option.h>
+#include <kis_pressure_mix_option.h>
 
-class KisBrushOption;
-class KisPressureSizeOption;
-class KisPressureDarkenOption;
-class KisPressureOpacityOption;
-class KisPaintActionTypeOption;
+class KisBrushOptionWidget;
 class KisBrushOpSettings;
 class KisBrushOpSettingsWidget;
 
@@ -44,7 +46,7 @@ class KisBrushOp : public KisBrushBasedPaintOp
 
 public:
 
-    KisBrushOp(const KisBrushOpSettings *settings, KisPainter * painter);
+    KisBrushOp(const KisBrushOpSettings *settings, KisPainter * painter, KisImageWSP image);
     virtual ~KisBrushOp();
 
     void paintAt(const KisPaintInformation& info);
@@ -52,6 +54,11 @@ public:
 private:
     KisColorSource* m_colorSource;
     const KisBrushOpSettings * settings;
+    KisPressureSizeOption m_sizeOption;
+    KisPressureOpacityOption m_opacityOption;
+    KisPressureDarkenOption m_darkenOption;
+    KisPressureRotationOption m_rotationOption;
+    KisPressureMixOption m_mixOption;
 };
 
 #endif // KIS_BRUSHOP_H_

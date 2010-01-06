@@ -36,6 +36,7 @@
 #include <KoXmlNS.h>
 
 #include "libppt.h"
+#include "datetimeformat.h"
 #include <iostream>
 #include <math.h>
 #include "pictures.h"
@@ -64,6 +65,7 @@ public:
     QList<QString> pictureNames;
 
     Presentation *presentation;
+    DateTimeFormat *dateTime;
 };
 
 
@@ -192,10 +194,12 @@ addElement(KoGenStyle& style, const char* name,
                           QString::fromUtf8(buffer.buffer(), buffer.buffer().size()));
 }
 
-void
-PowerPointImport::createMainStyles(KoGenStyles& styles)
+void PowerPointImport::createMainStyles(KoGenStyles& styles)
 {
+    int x = 0;
+    int y = 0;
     Slide* master = d->presentation->masterSlide();
+
     QString pageWidth = QString("%1pt").arg((master) ? master->pageWidth() : 0);
     QString pageHeight = QString("%1pt").arg((master) ? master->pageHeight() : 0);
 
@@ -248,10 +252,100 @@ PowerPointImport::createMainStyles(KoGenStyles& styles)
     addElement(l, "text:list-level-style-bullet", lmap, ltextmap);
     styles.lookup(l, "L");
 
+    //Creating dateTime class object
+    d->dateTime = new DateTimeFormat(master);
+    d->dateTime->addDateTimeAutoStyles(styles);
+
+    KoGenStyle text(KoGenStyle::StyleTextAuto, "text");
+    text.setAutoStyleInStylesDotXml(true);
+    text.addProperty("fo:font-size", "12pt");
+    text.addProperty("fo:language", "en");
+    text.addProperty("fo:country", "US");
+    text.addProperty("style:font-size-asian", "12pt");
+    text.addProperty("style:font-size-complex", "12pt");
+
+
+    KoGenStyle Mpr(KoGenStyle::StylePresentationAuto, "presentation");
+    Mpr.setAutoStyleInStylesDotXml(true);
+    Mpr.addProperty("draw:stroke", "none");
+    Mpr.addProperty("draw:fill", "none");
+    Mpr.addProperty("draw:fill-color", "#bbe0e3");
+    Mpr.addProperty("draw:textarea-horizontal-align", "justify");
+    Mpr.addProperty("draw:textarea-vertical-align", "top");
+    Mpr.addProperty("fo:wrap-option", "wrap");
+    styles.lookup(Mpr, "Mpr");
+
     KoGenStyle s(KoGenStyle::StyleMaster);
     s.addAttribute("style:page-layout-name", styles.lookup(pl));
     s.addAttribute("draw:style-name", styles.lookup(dp));
+
+    if (master) {
+        x = master->pageWidth() - 50;
+        y = master->pageHeight() - 50;
+    }
+
+    addFrame(s, "page-number", "20pt", "20pt",
+
+             QString("%1pt").arg(x), QString("%1pt").arg(y),
+             styles.lookup(p), styles.lookup(text));
+    addFrame(s, "date-time", "200pt", "20pt", "20pt",
+             QString("%1pt").arg(y), styles.lookup(p), styles.lookup(text));
     styles.lookup(s, "Standard", KoGenStyles::DontForceNumbering);
+
+    //Deleting Datetime.
+    delete d->dateTime;
+    d->dateTime = NULL;
+
+}
+
+void PowerPointImport::addFrame(KoGenStyle& style, const char* presentationClass,
+                                QString width, QString height,
+                                QString x, QString y, QString pStyle, QString tStyle)
+{
+    QBuffer buffer;
+    Slide *master = d->presentation->masterSlide();
+    int  headerFooterAtomFlags = master->headerFooterFlags();
+    //QString datetime;
+
+    buffer.open(QIODevice::WriteOnly);
+    KoXmlWriter xmlWriter(&buffer);
+
+    xmlWriter.startElement("draw:frame");
+    xmlWriter.addAttribute("presentation:style-name", "Mpr1");
+    xmlWriter.addAttribute("draw:layer", "layout");
+    xmlWriter.addAttribute("svg:width", width);
+    xmlWriter.addAttribute("svg:height", height);
+    xmlWriter.addAttribute("svg:x", x);
+    xmlWriter.addAttribute("svg:y", y);
+    xmlWriter.addAttribute("presentation:class", presentationClass);
+    xmlWriter.startElement("draw:text-box");
+    xmlWriter.startElement("text:p");
+    xmlWriter.addAttribute("text:style-name", pStyle);
+
+    if (strcmp(presentationClass, "page-number") == 0) {
+        xmlWriter.startElement("text:span");
+        xmlWriter.addAttribute("text:style-name", tStyle);
+        xmlWriter.startElement("text:page-number");
+        xmlWriter.addTextNode("<number>");
+        xmlWriter.endElement();//text:page-number
+        xmlWriter.endElement(); // text:span
+    }
+
+    if (strcmp(presentationClass, "date-time") == 0) {
+        //Same DateTime object so no need to pass style name for date time
+        if (headerFooterAtomFlags && DateTimeFormat::fHasTodayDate) {
+            d->dateTime->addMasterDateTimeSection(xmlWriter, tStyle);
+        } else if (headerFooterAtomFlags && DateTimeFormat::fHasUserDate) {
+            //Future FixedDate format
+        }
+    }
+
+    xmlWriter.endElement(); // text:p
+
+    xmlWriter.endElement(); // draw:text-box
+    xmlWriter.endElement(); // draw:frame
+    style.addChildElement("draw:frame",
+                          QString::fromUtf8(buffer.buffer(), buffer.buffer().size()));
 }
 
 QByteArray PowerPointImport::createContent(KoGenStyles& styles)
@@ -277,10 +371,14 @@ QByteArray PowerPointImport::createContent(KoGenStyles& styles)
 
     // office:automatic-styles
 
+    Slide *master = d->presentation->masterSlide();
+    processDocStyles(master , styles);
+
     for (unsigned c = 0; c < d->presentation->slideCount(); c++) {
         Slide* slide = d->presentation->slide(c);
         processSlideForStyle(c, slide, styles);
     }
+
     styles.saveOdfAutomaticStyles(contentWriter, false);
 
     // office:body
@@ -288,18 +386,56 @@ QByteArray PowerPointImport::createContent(KoGenStyles& styles)
     contentWriter->startElement("office:body");
     contentWriter->startElement("office:presentation");
 
+    int  headerFooterAtomFlags = d->presentation->masterSlide()->headerFooterFlags();
+
+    if (headerFooterAtomFlags && DateTimeFormat::fHasTodayDate) {
+        contentWriter->startElement("presentation:date-time-decl");
+        contentWriter->addAttribute("presentation:name", "dtd1");
+        contentWriter->addAttribute("presentation:source", "current-date");
+        //contentWriter->addAttribute("style:data-style-name", "Dt1");
+        contentWriter->endElement();  // presentation:date-time-decl
+    } else if (headerFooterAtomFlags && DateTimeFormat::fHasUserDate) {
+        contentWriter->startElement("presentation:date-time-decl");
+        contentWriter->addAttribute("presentation:name", "dtd1");
+        contentWriter->addAttribute("presentation:source", "fixed");
+        //Future - Add Fixed date data here
+        contentWriter->endElement();  //presentation:date-time-decl
+    }
+
     for (unsigned c = 0; c < d->presentation->slideCount(); c++) {
-        Slide* slide = d->presentation->slide(c);
-        processSlideForBody(c, slide, contentWriter);
+        processSlideForBody(c, contentWriter);
     }
 
     contentWriter->endElement();  // office:presentation
+
     contentWriter->endElement();  // office:body
 
     contentWriter->endElement();  // office:document-content
     contentWriter->endDocument();
     delete contentWriter;
     return contentData;
+}
+
+void PowerPointImport::processDocStyles(Slide *master, KoGenStyles &styles)
+{
+
+    int  headerFooterAtomFlags = master->headerFooterFlags();
+    KoGenStyle dp(KoGenStyle::StyleDrawingPage, "drawing-page");
+    dp.addProperty("presentation:background-objects-visible", "true");
+
+    if (headerFooterAtomFlags && DateTimeFormat::fHasSlideNumber)
+        dp.addProperty("presentation:display-page-number", "true");
+    else
+        dp.addProperty("presentation:display-page-number", "false");
+
+    if (headerFooterAtomFlags && DateTimeFormat::fHasDate)
+        dp.addProperty("presentation:display-date-time" , "true");
+    else
+        dp.addProperty("presentation:display-date-time" , "false");
+
+    styles.lookup(dp, "dp");
+
+    master->setStyleName(styles.lookup(dp));
 }
 
 void PowerPointImport::processEllipse(DrawObject* drawObject, KoXmlWriter* xmlWriter)
@@ -312,7 +448,7 @@ void PowerPointImport::processEllipse(DrawObject* drawObject, KoXmlWriter* xmlWr
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:ellipse");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -332,7 +468,7 @@ void PowerPointImport::processRectangle(DrawObject* drawObject, KoXmlWriter* xml
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:rect");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     if (drawObject->hasProperty("libppt:rotation")) {
@@ -365,7 +501,7 @@ void PowerPointImport::processRoundRectangle(DrawObject* drawObject, KoXmlWriter
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
 
 
     if (drawObject->hasProperty("libppt:rotation")) {
@@ -446,7 +582,7 @@ void PowerPointImport::processDiamond(DrawObject* drawObject, KoXmlWriter* xmlWr
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -485,7 +621,7 @@ void PowerPointImport::processTriangle(DrawObject* drawObject, KoXmlWriter* xmlW
 
     /* draw IsocelesTriangle or RightTriangle */
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -589,7 +725,7 @@ void PowerPointImport::processTrapezoid(DrawObject* drawObject, KoXmlWriter* xml
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -667,7 +803,7 @@ void PowerPointImport::processParallelogram(DrawObject* drawObject, KoXmlWriter*
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -780,7 +916,7 @@ void PowerPointImport::processHexagon(DrawObject* drawObject, KoXmlWriter* xmlWr
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -843,7 +979,7 @@ void PowerPointImport::processOctagon(DrawObject* drawObject, KoXmlWriter* xmlWr
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -922,7 +1058,7 @@ void PowerPointImport::processArrow(DrawObject* drawObject, KoXmlWriter* xmlWrit
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -1010,7 +1146,7 @@ void PowerPointImport::processLine(DrawObject* drawObject, KoXmlWriter* xmlWrite
     }
 
     xmlWriter->startElement("draw:line");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:y1", y1Str);
     xmlWriter->addAttribute("svg:y2", y2Str);
     xmlWriter->addAttribute("svg:x1", x1Str);
@@ -1030,7 +1166,7 @@ void PowerPointImport::processSmiley(DrawObject* drawObject, KoXmlWriter* xmlWri
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -1094,7 +1230,7 @@ void PowerPointImport::processHeart(DrawObject* drawObject, KoXmlWriter* xmlWrit
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:custom-shape");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -1133,7 +1269,7 @@ void PowerPointImport::processFreeLine(DrawObject* drawObject, KoXmlWriter* xmlW
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:path");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -1161,7 +1297,7 @@ void PowerPointImport::processPictureFrame(DrawObject* drawObject, KoXmlWriter* 
     QString yStr = QString("%1mm").arg(drawObject->top());
 
     xmlWriter->startElement("draw:frame");
-    xmlWriter->addAttribute("draw:style-name", drawObject->styleName());
+    xmlWriter->addAttribute("draw:style-name", drawObject->graphicStyleName());
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -1443,17 +1579,30 @@ void PowerPointImport::processTextObjectForBody(TextObject* textObject, KoXmlWri
     if (!textObject || !xmlWriter) return;
 
     QString classStr = "subtitle";
+
     if (textObject->type() == TextObject::Title)
         classStr = "title";
 
+    if (textObject->type() == TextObject::Body)
+        classStr = "outline";
+
     QString widthStr = QString("%1mm").arg(textObject->width());
+
     QString heightStr = QString("%1mm").arg(textObject->height());
+
     QString xStr = QString("%1mm").arg(textObject->left());
+
     QString yStr = QString("%1mm").arg(textObject->top());
 
     xmlWriter->startElement("draw:frame");
-    xmlWriter->addAttribute("presentation:style-name", "pr1");
+
+    if (!textObject->graphicStyleName().isEmpty()) {
+        xmlWriter->addAttribute("presentation:style-name",
+                textObject->graphicStyleName());
+    }
+
     xmlWriter->addAttribute("draw:layer", "layout");
+
     xmlWriter->addAttribute("svg:width", widthStr);
     xmlWriter->addAttribute("svg:height", heightStr);
     xmlWriter->addAttribute("svg:x", xStr);
@@ -1526,26 +1675,44 @@ void PowerPointImport::processObjectForBody(Object* object, KoXmlWriter* xmlWrit
         processDrawingObjectForBody(static_cast<DrawObject*>(object), xmlWriter);
 }
 
-void PowerPointImport::processSlideForBody(unsigned slideNo, Slide* slide, KoXmlWriter* xmlWriter)
+
+
+void PowerPointImport::processSlideForBody(unsigned slideNo, KoXmlWriter* xmlWriter)
 {
+    Slide* slide = d->presentation->slide(slideNo);
+    Slide* master = d->presentation->masterSlide();
+
     if (!slide || !xmlWriter) return;
 
     QString nameStr = slide->title();
+
     if (nameStr.isEmpty())
         nameStr = QString("page%1").arg(slideNo + 1);
 
-    QString styleNameStr = QString("dp%1").arg(slideNo + 1);
+    //QString styleNameStr = QString("dp%1").arg(slideNo + 1);
 
     xmlWriter->startElement("draw:page");
+
     xmlWriter->addAttribute("draw:master-page-name", "Default");
+
     xmlWriter->addAttribute("draw:name", nameStr);
-    xmlWriter->addAttribute("draw:style-name", styleNameStr);
+
+    xmlWriter->addAttribute("draw:style-name", master->styleName());
+
     xmlWriter->addAttribute("presentation:presentation-page-layout-name", "AL1T0");
 
+    int  headerFooterAtomFlags = d->presentation->masterSlide()->headerFooterFlags();
+
+    if (headerFooterAtomFlags && DateTimeFormat::fHasTodayDate) {
+        xmlWriter->addAttribute("presentation:use-date-time-name", "dtd1");
+    }
+
     GroupObject* root = slide->rootObject();
+
     if (root)
         for (unsigned i = 0; i < root->objectCount(); i++) {
             Object* object = root->object(i);
+
             if (object)
                 processObjectForBody(object, xmlWriter);
         }
@@ -1562,7 +1729,7 @@ void PowerPointImport::processSlideForStyle(unsigned , Slide* slide, KoGenStyles
         for (unsigned int i = 0; i < root->objectCount(); i++) {
             Object* object = root->object(i);
             if (object)
-                processObjectForStyle(object, styles);
+                processObjectForStyle(object, styles); 
         }
 }
 
@@ -1767,6 +1934,8 @@ void PowerPointImport::processTextExceptionsForStyle(TextCFRun *cf,
         placeholderCF = masterTextCFException(textObject->type(),
                                               indentLevel);
     }
+
+
 
     KoGenStyle styleParagraph(KoGenStyle::StyleAuto, "paragraph");
     if (pf && pf->textPFException()->hasLeftMargin()) {
@@ -1986,75 +2155,88 @@ void PowerPointImport::processTextExceptionsForStyle(TextCFRun *cf,
     }
 
     KoGenStyle styleList(KoGenStyle::StyleListAuto, 0);
+
     QBuffer buffer;
     buffer.open(QIODevice::WriteOnly);
     KoXmlWriter elementWriter(&buffer);    // TODO pass indentation level
 
 
     TextPFException9 *pf9 = 0;
+    StyleTextProp9 *prop9 = 0;
+
     if (cf) {
-        StyleTextProp9 *prop9 = textObject->findStyleTextProp9(cf->textCFException());
-        if (prop9) {
-            pf9 = prop9->pf9();
-        }
+        prop9 = textObject->findStyleTextProp9(cf->textCFException());
     }
 
     for (int i = 0;i < indent + 1;i++) {
-        TextCFException *levelCF = masterTextCFException(type,
-                                   i);
+        //TextCFException *levelCF = masterTextCFException(type, i);
+        TextPFException *levelPF = masterTextPFException(type, i);
 
-        TextPFException *levelPF = masterTextPFException(type,
-                                   i);
-
-        if (!levelCF || !levelPF) {
-            //Some text's might not have master style but they have
-            //a specific style (StyleTextPropAtom) instead.
-            continue;
+        if (prop9) {
+            pf9 = prop9->pf9();
+            std::cout << "\npf9 :" << pf9;
         }
 
-        if (pf9 && pf9->bulletHasScheme() && pf9->bulletScheme()) {
+        bool isListLevelStyleNumber =
+                (levelPF && (levelPF->hasBulletFont() || levelPF->bulletFont()))
+                || (pf9 && pf9->bulletHasScheme() && pf9->bulletScheme());
+        if (isListLevelStyleNumber) {
             elementWriter.startElement("text:list-level-style-number");
         } else {
             elementWriter.startElement("text:list-level-style-bullet");
+            // every text:list-level-style-bullet must have a text:bullet-char
+            const char bullet[4] = {0xe2, 0x97, 0x8f, 0};
+            QString bulletChar(QString::fromUtf8(bullet)); //  "●";
+            if (pf && i == pf->textPFException()->indent() &&
+                    pf->textPFException()->hasBulletChar()) {
+                bulletChar = pf->textPFException()->bulletChar();
+            } else if (!isListLevelStyleNumber
+                    && levelPF && levelPF->hasBulletChar()) {
+                bulletChar = levelPF->bulletChar();
+            } else {
+                QString::fromUtf8(bullet);//  "●";
+            }
+            elementWriter.addAttribute("text:bullet-char", bulletChar);
         }
 
         elementWriter.addAttribute("text:level", i + 1);
 
         if (pf9 && pf9->bulletHasScheme() && pf9->bulletScheme()) {
-            elementWriter.addAttribute("style:num-suffix", ".");
-            elementWriter.addAttribute("style:num-format", 1);
-        } else {
-            if (pf && i == pf->textPFException()->indent() &&
-                    pf->textPFException()->hasBulletChar()) {
-                elementWriter.addAttribute("text:bullet-char", pf->textPFException()->bulletChar());
-            } else {
-                if (levelPF->hasBulletChar()) {
-                    elementWriter.addAttribute("text:bullet-char", levelPF->bulletChar());
-                }
-            }
-        }
+            QString numFormat = 0;
+            QString numSuffix = 0;
+            QString numPrefix = 0;
+            processTextAutoNumberScheme(pf9->scheme(), numFormat, numSuffix,
+                numPrefix);
 
+            if (numPrefix != 0) {
+                elementWriter.addAttribute("style:num-prefix", numPrefix);
+            }
+
+            if (numSuffix != 0) {
+                elementWriter.addAttribute("style:num-suffix", numSuffix);
+            }
+
+            elementWriter.addAttribute("style:num-format", numFormat);
+        }
 
         elementWriter.startElement("style:list-level-properties");
 
         if (pf && i == pf->textPFException()->indent() &&
                 pf->textPFException()->hasSpaceBefore()) {
             elementWriter.addAttribute("text:space-before",
-                                       paraSpacingToCm(pf->textPFException()->spaceBefore()));
-        } else {
-            if (levelPF->hasSpaceBefore()) {
-                elementWriter.addAttribute("text:space-before",
-                                           paraSpacingToCm(levelPF->spaceBefore()));
-            }
+                    paraSpacingToCm(pf->textPFException()->spaceBefore()));
+        } else if (levelPF && levelPF->hasSpaceBefore()) {
+            elementWriter.addAttribute("text:space-before",
+                    paraSpacingToCm(levelPF->spaceBefore()));
         }
-
         elementWriter.endElement(); // style:list-level-properties
 
         elementWriter.startElement("style:text-properties");
+
         if (pf && i == pf->textPFException()->indent() &&
                 pf->textPFException()->hasBulletFont()) {
             font = d->presentation->getFont(pf->textPFException()->bulletFontRef());
-        } else if (levelPF->hasBulletFont()) {
+        } else if (levelPF && levelPF->hasBulletFont()) {
             font = d->presentation->getFont(levelPF->bulletFontRef());
         }
 
@@ -2067,7 +2249,7 @@ void PowerPointImport::processTextExceptionsForStyle(TextCFRun *cf,
             elementWriter.addAttribute("fo:color",
                                        colorIndexStructToQColor(pf->textPFException()->bulletColor()).name());
         } else {
-            if (levelPF->hasBulletColor()) {
+            if (levelPF && levelPF->hasBulletColor()) {
                 elementWriter.addAttribute("fo:color",
                                            colorIndexStructToQColor(levelPF->bulletColor()).name());
             }
@@ -2079,7 +2261,7 @@ void PowerPointImport::processTextExceptionsForStyle(TextCFRun *cf,
                                        QString("%1%").arg(pf->textPFException()->bulletSize()));
 
         } else {
-            if (levelPF->hasBulletSize()) {
+            if (levelPF && levelPF->hasBulletSize()) {
                 elementWriter.addAttribute("fo:font-size",
                                            QString("%1%").arg(levelPF->bulletSize()));
             } else {
@@ -2088,6 +2270,7 @@ void PowerPointImport::processTextExceptionsForStyle(TextCFRun *cf,
         }
 
         elementWriter.endElement(); // style:text-properties
+
         elementWriter.endElement();  // text:list-level-style-bullet
 
 
@@ -2112,6 +2295,125 @@ void PowerPointImport::processTextExceptionsForStyle(TextCFRun *cf,
 
 }
 
+void PowerPointImport::processTextAutoNumberScheme(int val, QString& numFormat, QString& numSuffix, QString& numPrefix)
+{
+    switch (val) {
+
+    case ANM_AlphaLcPeriod:         //Example: a., b., c., ...Lowercase Latin character followed by a period.
+        numFormat = "a";
+        numSuffix = ".";
+        break;
+
+    case ANM_AlphaUcPeriod:        //Example: A., B., C., ...Uppercase Latin character followed by a period.
+        numFormat = "A";
+        numSuffix = ".";
+        break;
+
+    case ANM_ArabicParenRight:     //Example: 1), 2), 3), ...Arabic numeral followed by a closing parenthesis.
+        numFormat = "1";
+        numSuffix = ")";
+        break;
+
+    case ANM_ArabicPeriod :        //Example: 1., 2., 3., ...Arabic numeral followed by a period.
+        numFormat = "1";
+        numSuffix = ".";
+        break;
+
+    case ANM_RomanLcParenBoth:     //Example: (i), (ii), (iii), ...Lowercase Roman numeral enclosed in parentheses.
+        numPrefix = "(";
+        numFormat = "i";
+        numSuffix = ")";
+        break;
+
+    case ANM_RomanLcParenRight:    //Example: i), ii), iii), ... Lowercase Roman numeral followed by a closing parenthesis.
+        numFormat = "i";
+        numSuffix = ")";
+        break;
+
+    case ANM_RomanLcPeriod :        //Example: i., ii., iii., ...Lowercase Roman numeral followed by a period.
+        numFormat = "i";
+        numSuffix = ".";
+        break;
+
+    case ANM_RomanUcPeriod:         //Example: I., II., III., ...Uppercase Roman numeral followed by a period.
+        numFormat = "I";
+        numSuffix = ".";
+        break;
+
+    case ANM_AlphaLcParenBoth:      //Example: (a), (b), (c), ...Lowercase alphabetic character enclosed in parentheses.
+        numPrefix = "(";
+        numFormat = "a";
+        numSuffix = ")";
+        break;
+
+    case ANM_AlphaLcParenRight:     //Example: a), b), c), ...Lowercase alphabetic character followed by a closing
+        numFormat = "a";
+        numSuffix = ")";
+        break;
+
+    case ANM_AlphaUcParenBoth:      //Example: (A), (B), (C), ...Uppercase alphabetic character enclosed in parentheses.
+        numPrefix = "(";
+        numFormat = "A";
+        numSuffix = ")";
+        break;
+
+    case ANM_AlphaUcParenRight:     //Example: A), B), C), ...Uppercase alphabetic character followed by a closing
+        numFormat = "A";
+        numSuffix = ")";
+        break;
+
+    case ANM_ArabicParenBoth:       //Example: (1), (2), (3), ...Arabic numeral enclosed in parentheses.
+        numPrefix = "(";
+        numFormat = "1";
+        numSuffix = ")";
+        break;
+
+    case ANM_ArabicPlain:           //Example: 1, 2, 3, ...Arabic numeral.
+        numFormat = "1";
+        break;
+
+    case ANM_RomanUcParenBoth:      //Example: (I), (II), (III), ...Uppercase Roman numeral enclosed in parentheses.
+        numPrefix = "(";
+        numFormat = "I";
+        numSuffix = ")";
+        break;
+
+    case ANM_RomanUcParenRight:     //Example: I), II), III), ...Uppercase Roman numeral followed by a closing parenthesis.
+        numFormat = "I";
+        numSuffix = ")";
+        break;
+
+    default:
+        numFormat = "i";
+        numSuffix = ".";
+        break;
+    }
+}
+
+QString hexname(const Color &c)
+{
+    QColor qc(c.red, c.green, c.blue);
+    return qc.name();
+}
+
+void processGraphicStyles(KoGenStyle& style, Object* object)
+{
+    if (object->hasProperty("draw:fill")) {
+        std::string s = object->getStrProperty("draw:fill");
+        QString ss(s.c_str());
+        style.addProperty("draw:fill", ss, KoGenStyle::GraphicType);
+    }
+
+    if (object->hasProperty("draw:fill-color")) {
+        Color fillColor = object->getColorProperty("draw:fill-color");
+        style.addProperty("draw:fill-color", hexname(fillColor),
+                KoGenStyle::GraphicType);
+    } else {
+        style.addProperty("draw:fill-color", "#99ccff",
+                KoGenStyle::GraphicType);
+    }
+
+}
 
 void PowerPointImport::processTextObjectForStyle(TextObject* textObject,
         KoGenStyles &styles)
@@ -2143,6 +2445,12 @@ void PowerPointImport::processTextObjectForStyle(TextObject* textObject,
         processTextExceptionsForStyle(cf, pf, styles, textObject);
     }
 
+    // set the presentation style
+    QString styleName;
+    KoGenStyle style(KoGenStyle::StyleGraphicAuto, "presentation");
+    processGraphicStyles(style, textObject);
+    styleName = styles.lookup(style);
+    textObject->setGraphicStyleName(styleName);
 }
 
 void PowerPointImport::processGroupObjectForStyle(GroupObject* groupObject,
@@ -2153,12 +2461,6 @@ void PowerPointImport::processGroupObjectForStyle(GroupObject* groupObject,
     for (unsigned int i = 0; i < groupObject->objectCount(); ++i) {
         processObjectForStyle(groupObject->object(i), styles);
     }
-}
-
-QString hexname(const Color &c)
-{
-    QColor qc(c.red, c.green, c.blue);
-    return qc.name();
 }
 
 void PowerPointImport::processDrawingObjectForStyle(DrawObject* drawObject, KoGenStyles &styles)
@@ -2180,6 +2482,10 @@ void PowerPointImport::processDrawingObjectForStyle(DrawObject* drawObject, KoGe
         } else if (drawObject->getStrProperty("draw:stroke") == "solid") {
             style.addProperty("draw:stroke", "solid", KoGenStyle::GraphicType);
         }
+    } else {
+        // default style is a solid line, this must be set explicitly as long
+        // as kpresenter takes draw:stroke="none" as default
+        style.addProperty("draw:stroke", "solid", KoGenStyle::GraphicType);
     }
 
     if (drawObject->hasProperty("svg:stroke-width")) {
@@ -2214,18 +2520,7 @@ void PowerPointImport::processDrawingObjectForStyle(DrawObject* drawObject, KoGe
         style.addProperty("draw:marker-end-width", QString("%1cm").arg(arrowWidth), KoGenStyle::GraphicType);
     }
 
-    if (drawObject->hasProperty("draw:fill")) {
-        std::string s = drawObject->getStrProperty("draw:fill");
-        QString ss(s.c_str());
-        style.addProperty("draw:fill", ss, KoGenStyle::GraphicType);
-    }
-
-    if (drawObject->hasProperty("draw:fill-color")) {
-        Color fillColor = drawObject->getColorProperty("draw:fill-color");
-        style.addProperty("draw:fill-color", hexname(fillColor), KoGenStyle::GraphicType);
-    } else {
-        style.addProperty("draw:fill-color", "#99ccff", KoGenStyle::GraphicType);
-    }
+    processGraphicStyles(style, drawObject);
 
 #if 0
     if (drawObject->hasProperty("draw:shadow-color")) {
@@ -2252,6 +2547,5 @@ void PowerPointImport::processDrawingObjectForStyle(DrawObject* drawObject, KoGe
         style.addProperty("draw:shadow-offset-y", QString("%1cm").arg(offset), KoGenStyle::GraphicType);
     }
 
-    drawObject->setStyleName(styles.lookup(style));
-}
-
+    drawObject->setGraphicStyleName(styles.lookup(style));
+}   

@@ -46,6 +46,7 @@
 #include "KoEventActionRegistry.h"
 #include "KoOdfWorkaround.h"
 #include "KoFilterEffectStack.h"
+#include <KoSnapData.h>
 
 #include <KoXmlReader.h>
 #include <KoXmlWriter.h>
@@ -75,7 +76,7 @@ KoShapePrivate::KoShapePrivate(KoShape *shape)
     appData(0),
     fill(0),
     border(0),
-    q(shape),
+    q_ptr(shape),
     shadow(0),
     filterEffectStack(0),
     transparency(0.0),
@@ -96,6 +97,7 @@ KoShapePrivate::KoShapePrivate(KoShape *shape)
 
 KoShapePrivate::~KoShapePrivate()
 {
+    Q_Q(KoShape);
     if (parent)
         parent->removeChild(q);
     foreach(KoShapeManager *manager, shapeManagers) {
@@ -117,6 +119,7 @@ KoShapePrivate::~KoShapePrivate()
 
 void KoShapePrivate::shapeChanged(KoShape::ChangeType type)
 {
+    Q_Q(KoShape);
     if (parent)
         parent->model()->childChanged(q, type);
     q->shapeChanged(type);
@@ -126,6 +129,7 @@ void KoShapePrivate::shapeChanged(KoShape::ChangeType type)
 
 void KoShapePrivate::updateBorder()
 {
+    Q_Q(KoShape);
     if (border == 0)
         return;
     KoInsets insets;
@@ -144,6 +148,17 @@ void KoShapePrivate::updateBorder()
     q->update(QRectF(-insets.left, inner.height(),
                 inner.width() + insets.left + insets.right, insets.bottom));
 }
+
+void KoShapePrivate::addShapeManager(KoShapeManager *manager)
+{
+    shapeManagers.insert(manager);
+}
+
+void KoShapePrivate::removeShapeManager(KoShapeManager *manager)
+{
+    shapeManagers.remove(manager);
+}
+
 
 // ======== KoShape
 KoShape::KoShape()
@@ -330,9 +345,11 @@ QMatrix KoShape::absoluteTransformation(const KoViewConverter *converter) const
     // apply parents matrix to inherit any transformations done there.
     KoShapeContainer * container = d->parent;
     if (container) {
-        if (container->childClipped(this))
-            matrix = container->absoluteTransformation(0);
-        else {
+        if (container->childClipped(this)) {
+            // We do need to pass the converter here, otherwise the parent's
+            // translation is not inherited.
+            matrix = container->absoluteTransformation(converter);
+        } else {
             QSizeF containerSize = container->size();
             QPointF containerPos = container->absolutePosition() - QPointF(0.5 * containerSize.width(), 0.5 * containerSize.height());
             if (converter)
@@ -638,23 +655,19 @@ QList<QPointF> KoShape::connectionPoints() const
     return points;
 }
 
-void KoShape::addEventAction(KoEventAction * action)
+void KoShape::addEventAction(KoEventAction *action)
 {
     Q_D(KoShape);
-    if (! d->eventActions.contains(action)) {
-        d->eventActions.append(action);
-    }
+    d->eventActions.insert(action);
 }
 
-void KoShape::removeEventAction(KoEventAction * action)
+void KoShape::removeEventAction(KoEventAction *action)
 {
     Q_D(KoShape);
-    if (d->eventActions.contains(action)) {
-        d->eventActions.removeAll(action);
-    }
+    d->eventActions.remove(action);
 }
 
-QList<KoEventAction *> KoShape::eventActions() const
+QSet<KoEventAction *> KoShape::eventActions() const
 {
     Q_D(const KoShape);
     return d->eventActions;
@@ -799,18 +812,6 @@ bool KoShape::collisionDetection()
 {
     Q_D(KoShape);
     return d->detectCollision;
-}
-
-void KoShape::addShapeManager(KoShapeManager * manager)
-{
-    Q_D(KoShape);
-    d->shapeManagers.insert(manager);
-}
-
-void KoShape::removeShapeManager(KoShapeManager * manager)
-{
-    Q_D(KoShape);
-    d->shapeManagers.remove(manager);
 }
 
 KoShapeBorderModel *KoShape::border() const
@@ -1468,4 +1469,10 @@ void KoShape::setFilterEffectStack(KoFilterEffectStack * filterEffectStack)
         d->filterEffectStack->addUser();
     }
     notifyChanged();
+}
+
+KoShapePrivate *KoShape::priv()
+{
+    Q_D(KoShape);
+    return d;
 }

@@ -31,11 +31,10 @@
 #include <kis_paintop_factory.h>
 #include <kis_paintop_settings.h>
 #include <kis_paintop_options_widget.h>
+#include <kis_pressure_opacity_option.h>
+#include <kis_pressure_size_option.h>
 
-class KisBrushOption;
-class KisPressureSizeOption;
-class KisPressureDarkenOption;
-class KisPressureOpacityOption;
+class KisBrushOptionWidget;
 class KisPaintActionTypeOption;
 class KisEraseOpSettings;
 class KisEraseOpSettingsWidget;
@@ -50,7 +49,7 @@ class KisEraseOp : public KisBrushBasedPaintOp
 
 public:
 
-    KisEraseOp(const KisEraseOpSettings *settings, KisPainter * painter);
+    KisEraseOp(const KisEraseOpSettings *settings, KisPainter * painter, KisImageWSP image);
     virtual ~KisEraseOp();
 
     void paintAt(const KisPaintInformation& info);
@@ -58,6 +57,8 @@ public:
 private:
 
     const KisEraseOpSettings * settings;
+    KisPressureOpacityOption m_opacityOption;
+    KisPressureSizeOption m_sizeOption;
 };
 
 #endif // KIS_ERASEOP_H_

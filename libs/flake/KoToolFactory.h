@@ -38,16 +38,16 @@
 class MyToolFactory : public KoToolFactory {
 public:
     MyToolFactory(QObject *parent, const QStringList&)
-        : KoToolFactory(parent, "MyTool", i18n("My Tool")) {
+        : KoToolFactory(parent, "MyTool") {
         setToolTip(i18n("Create object"));
         setToolType("dynamic");
         setPriority(5);
     }
     ~MyToolFactory() {}
-    KoTool* createTool(KoCanvasBase *canvas);
+    KoTool *createTool(KoCanvasBase *canvas);
 };
 K_EXPORT_COMPONENT_FACTORY(myLibrary,
-     KGenericFactory<MyToolFactory>( "MyTool" ) )
+     KGenericFactory<MyToolFactory>("MyTool"))
 </pre>
 
  */
@@ -61,9 +61,8 @@ public:
      * @param parent the parent QObject for memory management usage.
      * @param id a string that will be used internally for referencing the tool, for
      *   example for use by the KoTool::activateTemporary.
-     * @param name the user visible name of the tool this factory creates.
      */
-    KoToolFactory(QObject *parent, const QString &id, const QString &name);
+    KoToolFactory(QObject *parent, const QString &id);
     virtual ~KoToolFactory();
 
     /**
@@ -73,7 +72,7 @@ public:
      * @return a new KoTool instance, or zero if the tool doesn't want to show up.
      * @see canCreateTool()
      */
-    virtual KoTool * createTool(KoCanvasBase *canvas) = 0;
+    virtual KoTool *createTool(KoCanvasBase *canvas) = 0;
 
     /**
      * Returns true if this factory will create a tool instance when called with the same canvas in createTool()
@@ -88,11 +87,6 @@ public:
      * @return the id for the tool this factory creates.
      */
     QString id() const;
-    /**
-     * return the user visible (and translated) name to be seen by the user.
-     * @return the user visible (and translated) name to be seen by the user.
-     */
-    QString name() const;
     /**
      * Returns The priority of this tool in its section in the toolbox
      * @return The priority of this tool.
@@ -208,18 +202,18 @@ protected:
      * Set the tooltip to be used for this tool
      * @param tooltip the tooltip
      */
-    void setToolTip(const QString & tooltip);
+    void setToolTip(const QString &tooltip);
     /**
      * Set the toolType. used to group tools in the toolbox
      * @param toolType the toolType
      */
-    void setToolType(const QString & toolType);
+    void setToolType(const QString &toolType);
     /**
      * Set an icon to be used in the toolBox.
      * @param iconName the basename (without extension) of the icon
      * @see KIconLoader
      */
-    void setIcon(const QString & iconName);
+    void setIcon(const QString &iconName);
     /**
      * Set the priority of this tool, as it is shown in the toolBox; lower number means
      * it will be show more to the front of the list.

@@ -48,6 +48,17 @@ public:
     void setPageHeight(double pageHeight) ;
     unsigned int slideId();
     void setSlideId(unsigned int id);
+    void setHeaderFooterFlags(int flags);
+    int headerFooterFlags();
+    void setStyleName(const QString &name);
+    QString styleName() const;
+    void setDateTimeFormatId(int formatId);
+    int dateTimeFormatId();
+    //Notes
+    void  setNotesHeaderFooterFlags(int notesFlags);
+    int   notesHeaderFooterFlags();
+    void  setNotesDateTimeFormatId(int formatId);
+    int   notesDateTimeFormatId();
 private:
     // no copy or assign
     Slide(const Slide&);

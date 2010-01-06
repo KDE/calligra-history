@@ -285,8 +285,6 @@ void renderCodeEAN13(OROPage * page, const QRectF & r, const QString & _str, int
     tb->setText(rightstr);
     tb->setFlags(Qt::AlignHCenter | Qt::AlignTop);
     page->addPrimitive(tb);
-
-    return;
 }
 
 void renderCodeUPCA(OROPage * page, const QRectF & r, const QString & _str, int align)
@@ -462,11 +460,11 @@ void renderCodeUPCA(OROPage * page, const QRectF & r, const QString & _str, int 
                                          val[7], val[8], val[9], val[10], val[11]);
 
     QFont font("Arial", 6);
-    ORTextStyleData ts;
+    KRTextStyleData ts;
     ts.backgroundColor = Qt::white;
     ts.font = font;
     ts.foregroundColor = Qt::black;
-    ts.backgroundOpacity = 255;
+    ts.backgroundOpacity = 100;
     ts.alignment = Qt::AlignRight | Qt::AlignTop;
 
     OROTextBox * tb = new OROTextBox();
@@ -497,8 +495,6 @@ void renderCodeUPCA(OROPage * page, const QRectF & r, const QString & _str, int 
     tb->setTextStyle(ts);
     tb->setText(chkstr);
     page->addPrimitive(tb);
-
-    return;
 }
 
 void renderCodeEAN8(OROPage * page, const QRectF & r, const QString & _str, int align)
@@ -688,8 +684,6 @@ void renderCodeEAN8(OROPage * page, const QRectF & r, const QString & _str, int 
     tb->setText(rightstr);
     tb->setFlags(Qt::AlignHCenter | Qt::AlignTop);
     page->addPrimitive(tb);
-
-    return;
 }
 
 void renderCodeUPCE(OROPage * page, const QRectF & r, const QString & _str, int align)
@@ -834,11 +828,11 @@ void renderCodeUPCE(OROPage * page, const QRectF & r, const QString & _str, int 
     QString leftstr = QString().sprintf("%d%d%d%d%d%d",
                                         val[1], val[2], val[3], val[4], val[5], val[6]);
     QFont font("Arial", 6);
-    ORTextStyleData ts;
+    KRTextStyleData ts;
     ts.backgroundColor = Qt::white;
     ts.font = font;
     ts.foregroundColor = Qt::black;
-    ts.backgroundOpacity = 255;
+    ts.backgroundOpacity = 100;
     ts.alignment = Qt::AlignRight | Qt::AlignTop;
 
     OROTextBox * tb = new OROTextBox();
@@ -861,6 +855,4 @@ void renderCodeUPCE(OROPage * page, const QRectF & r, const QString & _str, int 
     tb->setTextStyle(ts);
     tb->setText(chkstr);
     page->addPrimitive(tb);
-
-    return;
 }

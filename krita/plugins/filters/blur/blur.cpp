@@ -22,17 +22,19 @@
 #include <kgenericfactory.h>
 
 #include "kis_blur_filter.h"
+#include "kis_gaussian_blur_filter.h"
 #include "filter/kis_filter_registry.h"
 
 typedef KGenericFactory<BlurFilterPlugin> BlurFilterPluginFactory;
 K_EXPORT_COMPONENT_FACTORY(kritablurfilter, BlurFilterPluginFactory("krita"))
 
 BlurFilterPlugin::BlurFilterPlugin(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
-    setComponentData(BlurFilterPluginFactory::componentData());
+    //setComponentData(BlurFilterPluginFactory::componentData());
 
     KisFilterRegistry::instance()->add(new KisBlurFilter());
+    KisFilterRegistry::instance()->add(new KisGaussianBlurFilter());
 
 }
 

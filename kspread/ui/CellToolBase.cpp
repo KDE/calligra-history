@@ -127,6 +127,7 @@
 #include <QBuffer>
 #include <QHash>
 #include <QMenu>
+#include <QPainter>
 #include <QSqlDatabase>
 
 #ifndef NDEBUG
@@ -571,7 +572,7 @@ CellToolBase::CellToolBase(KoCanvasBase* canvas)
     addAction("clearConditional", action);
     connect(action, SIGNAL(triggered(bool)), this, SLOT(clearConditionalStyles()));
 
-    action = new KAction(KIcon("insertHyperlink"), i18n("&Link..."), this);
+    action = new KAction(KIcon("insert-link"), i18n("&Link..."), this);
     addAction("insertHyperlink", action);
     connect(action, SIGNAL(triggered(bool)), this, SLOT(insertHyperlink()));
     action->setToolTip(i18n("Insert an Internet hyperlink"));
@@ -853,7 +854,7 @@ void CellToolBase::mousePressEvent(KoPointerEvent* event)
 
 void CellToolBase::mousePressEvent(KoPointerEvent* event)
 {
-    if( event->modifiers() & Qt::ShiftModifier ) {
+    if (event->modifiers() & Qt::ShiftModifier) {
         // find the cell that the user clicked
         QPointF position = event->point - offset();
         double xpos;
@@ -861,7 +862,7 @@ void CellToolBase::mousePressEvent(KoPointerEvent* event)
         const int col = this->selection()->activeSheet()->leftColumn(position.x(), xpos);
         const int row = this->selection()->activeSheet()->topRow(position.y(), ypos);
 
-        selection()->update( QPoint( col, row ) );
+        selection()->update(QPoint(col, row));
         return;
     }
 
@@ -951,6 +952,7 @@ void CellToolBase::mouseReleaseEvent(KoPointerEvent* event)
 
 void CellToolBase::mouseDoubleClickEvent(KoPointerEvent* event)
 {
+    Q_UNUSED(event);
     if (m_currentStrategy) {
         m_currentStrategy->cancelInteraction();
         delete m_currentStrategy;
@@ -1079,7 +1081,7 @@ void CellToolBase::activate(bool temporary)
         d->initialized = true;
     }
 
-    useCursor(Qt::ArrowCursor, true);
+    useCursor(Qt::ArrowCursor);
 
     // paint the selection rectangle
     selection()->update();
@@ -1120,42 +1122,42 @@ void CellToolBase::init()
 QWidget* CellToolBase::createOptionWidget()
 {
     QWidget* widget = new QWidget(m_canvas->canvasWidget());
-    d->widgetLayout = new QGridLayout (widget);
+    d->widgetLayout = new QGridLayout(widget);
 
     widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
 
     d->userInput = new ExternalEditor;
-    d->userInput->setCellTool (this);
+    d->userInput->setCellTool(this);
 
-    d->formulaButton = new QToolButton (widget);
-    d->formulaButton->setText (i18n ("Formula"));
-    d->formulaButton->setAutoRaise (true);
-    d->formulaButton->setDefaultAction (action ("insertFormula"));
+    d->formulaButton = new QToolButton(widget);
+    d->formulaButton->setText(i18n("Formula"));
+    d->formulaButton->setAutoRaise(true);
+    d->formulaButton->setDefaultAction(action("insertFormula"));
 
-    d->applyButton = new QToolButton (widget);
-    d->applyButton->setText (i18n ("Apply"));
-    d->applyButton->setToolTip (i18n ("Apply changes"));
-    d->applyButton->setAutoRaise (true);
+    d->applyButton = new QToolButton(widget);
+    d->applyButton->setText(i18n("Apply"));
+    d->applyButton->setToolTip(i18n("Apply changes"));
+    d->applyButton->setAutoRaise(true);
     d->applyButton->setIcon(KIcon("dialog-ok"));
 
-    d->cancelButton = new QToolButton (widget);
-    d->cancelButton->setText (i18n ("Cancel"));
-    d->cancelButton->setToolTip (i18n ("Discard changes"));
-    d->cancelButton->setAutoRaise (true);
+    d->cancelButton = new QToolButton(widget);
+    d->cancelButton->setText(i18n("Cancel"));
+    d->cancelButton->setToolTip(i18n("Discard changes"));
+    d->cancelButton->setAutoRaise(true);
     d->cancelButton->setIcon(KIcon("dialog-cancel"));
 
     d->locationComboBox = new LocationComboBox(widget, selection());
     d->locationComboBox->setMinimumWidth(100);
 
-    d->widgetLayout->addWidget (d->formulaButton, 0, 0);
-    d->widgetLayout->addWidget (d->applyButton, 0, 1);
-    d->widgetLayout->addWidget (d->cancelButton, 0, 2);
-    d->widgetLayout->addWidget (d->locationComboBox, 0, 4);
-    d->widgetLayout->setColumnStretch (3, 1);
-    d->relayoutDocker (false);
+    d->widgetLayout->addWidget(d->formulaButton, 0, 0);
+    d->widgetLayout->addWidget(d->applyButton, 0, 1);
+    d->widgetLayout->addWidget(d->cancelButton, 0, 2);
+    d->widgetLayout->addWidget(d->locationComboBox, 0, 4);
+    d->widgetLayout->setColumnStretch(3, 1);
+    d->relayoutDocker(false);
 
     // install an event filter to catch resize events
-    widget->installEventFilter (this);
+    widget->installEventFilter(this);
 
     connect(selection()->activeSheet()->map()->namedAreaManager(), SIGNAL(namedAreaAdded(const QString&)),
             d->locationComboBox, SLOT(slotAddAreaName(const QString&)));
@@ -1176,17 +1178,16 @@ KoInteractionStrategy* CellToolBase::createStrategy(KoPointerEvent* event)
         position.setX(size().width() - position.x());
 
     // Autofilling or merging, if the selection handle was hit.
-    if (selection()->selectionHandleArea(canvas()->viewConverter()).contains(position))
-    {
+    if (selection()->selectionHandleArea(canvas()->viewConverter()).contains(position)) {
         if (event->button() == Qt::LeftButton)
-            return new AutoFillStrategy(this, canvas(), selection(), event->point, event->modifiers());
+            return new AutoFillStrategy(this, selection(), event->point, event->modifiers());
         else if (event->button() == Qt::MidButton)
-            return new MergeStrategy(this, canvas(), selection(), event->point, event->modifiers());
+            return new MergeStrategy(this, selection(), event->point, event->modifiers());
     }
 
     // Pasting with the middle mouse button.
     if (event->button() == Qt::MidButton) {
-        return new PasteStrategy(this, canvas(), selection(), event->point, event->modifiers());
+        return new PasteStrategy(this, selection(), event->point, event->modifiers());
     }
 
     // Check, if the selected area was hit.
@@ -1249,7 +1250,7 @@ KoInteractionStrategy* CellToolBase::createStrategy(KoPointerEvent* event)
                 url = cellView.testAnchor(cell, position.x() - xpos, position.y() - ypos);
             }
             if (!url.isEmpty()) {
-                return new HyperlinkStrategy(this, canvas(), selection(), event->point,
+                return new HyperlinkStrategy(this, selection(), event->point,
                                              event->modifiers(), url, cellView.textRect());
             }
         }
@@ -1257,10 +1258,10 @@ KoInteractionStrategy* CellToolBase::createStrategy(KoPointerEvent* event)
 
     // Drag & drop, if the selected area was hit.
     if (hitSelection) {
-        return new DragAndDropStrategy(this, canvas(), selection(), event->point, event->modifiers());
+        return new DragAndDropStrategy(this, selection(), event->point, event->modifiers());
     }
 
-    return new SelectionStrategy(this, canvas(), selection(), event->point, event->modifiers());
+    return new SelectionStrategy(this, selection(), event->point, event->modifiers());
 }
 
 void CellToolBase::selectionChanged(const Region& region)
@@ -1271,7 +1272,7 @@ void CellToolBase::selectionChanged(const Region& region)
     }
     // if we're in ref viewing mode, do nothing here
     if (editor() && selection()->referenceSelection() && (!selection()->referenceSelectionMode()))
-      return;
+        return;
 
     const Cell cell = Cell(selection()->activeSheet(), selection()->cursor());
     if (!cell) {
@@ -1418,23 +1419,27 @@ void CellToolBase::deleteEditor(bool saveChanges, bool expandMatrix)
     m_canvas->canvasWidget()->setFocus();
 }
 
-bool CellToolBase::eventFilter (QObject *obj, QEvent *event)
+bool CellToolBase::eventFilter(QObject *obj, QEvent *event)
 {
-  if (event->type() != QEvent::Resize)
+    if (event->type() != QEvent::Resize)
+        return QObject::eventFilter(obj, event);
+    QResizeEvent *resizeEvent = static_cast<QResizeEvent *>(event);
+    // relayout the tool docker if needed
+    QSize s = resizeEvent->size();
+    bool needWide = (s.width() > 2 * s.height());
+    if (s.width() < 400) needWide = false;
+    if (needWide != d->hasWideLayout)
+        d->relayoutDocker(needWide);
     return QObject::eventFilter(obj, event);
-  QResizeEvent *resizeEvent = static_cast<QResizeEvent *>(event);
-  // relayout the tool docker if needed
-  QSize s = resizeEvent->size();
-  bool needWide = (s.width() > 2 * s.height());
-  if (s.width() < 400) needWide = false;
-  if (needWide != d->hasWideLayout)
-    d->relayoutDocker (needWide);
-  return QObject::eventFilter(obj, event);
 }
 
 void CellToolBase::activeSheetChanged(Sheet* sheet)
 {
+#ifdef NDEBUG
+    Q_UNUSED(sheet);
+#else
     Q_ASSERT(selection()->activeSheet() == sheet);
+#endif
     if (!selection()->referenceSelectionMode()) {
         return;
     }
@@ -2667,8 +2672,8 @@ void CellToolBase::specialChar(QChar character, const QString& fontName)
 
 void CellToolBase::insertFormula()
 {
-    if( ! d->formulaDialog ) {
-        if( ! createEditor() )
+    if (! d->formulaDialog) {
+        if (! createEditor())
             return;
         d->formulaDialog = new FormulaDialog(m_canvas->canvasWidget(), selection(), editor());
     }
@@ -2973,7 +2978,7 @@ void CellToolBase::initFindReplace()
     int colEnd = !bck ? region.right() : region.left();
     int rowStart = !bck ? region.top() : region.bottom();
     int rowEnd = !bck ? region.bottom() : region.top();
-    
+
     d->findLeftColumn = region.left();
     d->findRightColumn = region.right();
     d->findTopRow = region.top();
@@ -3205,8 +3210,7 @@ void CellToolBase::slotReplace(const QString &newText, int, int, int)
         command->setSheet(d->searchInSheets.currentSheet);
         command->setValue(Value(newText));
         command->add(Region(d->findPos, d->searchInSheets.currentSheet));
-    }
-    else if (d->typeValue == FindOption::Note) {
+    } else if (d->typeValue == FindOption::Note) {
         CommentCommand* command = new CommentCommand(d->replaceCommand);
         command->setComment(newText);
         command->setSheet(d->searchInSheets.currentSheet);

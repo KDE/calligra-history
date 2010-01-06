@@ -20,8 +20,7 @@
 
 #include "kis_dlg_preferences.h"
 
-#include <config-opengl.h>
-#include <config-glew.h>
+#include <opengl/kis_opengl.h>
 
 #include <QBitmap>
 #include <QCheckBox>
@@ -40,8 +39,9 @@
 #include <qgl.h>
 #endif
 
+#include <libs/main/KoDocument.h>
 #include <KoImageResource.h>
-#include <colorprofiles/KoIccColorProfile.h>
+#include <KoColorProfile.h>
 
 #include <kcolorbutton.h>
 #include <kcombobox.h>
@@ -54,6 +54,7 @@
 #include <kpagewidgetmodel.h>
 #include <kicon.h>
 #include <kvbox.h>
+
 #include "widgets/squeezedcombobox.h"
 #include "kis_clipboard.h"
 #include "widgets/kis_cmb_idlist.h"
@@ -61,15 +62,12 @@
 #include "KoColorSpaceRegistry.h"
 #include "kis_cursor.h"
 #include "kis_config.h"
+#include "kis_canvas_resource_provider.h"
 
 #include "kis_factory2.h"
 #include "KoID.h"
 
 #include "KoColorProfile.h"
-
-#ifdef HAVE_OPENGL
-#include "opengl/kis_opengl.h"
-#endif
 
 // for the performance update
 #include "tiles/kis_tilemanager.h"
@@ -85,6 +83,11 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
 
     m_cmbCursorShape->setCurrentIndex(cfg.cursorStyle());
     chkShowRootLayer->setChecked(cfg.showRootLayer());
+
+    int autosaveInterval=cfg.autoSaveInterval();
+    //convert to minutes
+    m_autosaveSpinBox->setValue(autosaveInterval/60);
+    m_autosaveCheckBox->setChecked(autosaveInterval>0);
 }
 
 void GeneralTab::setDefault()
@@ -93,6 +96,9 @@ void GeneralTab::setDefault()
 
     m_cmbCursorShape->setCurrentIndex(cfg.getDefaultCursorStyle());
     chkShowRootLayer->setChecked(false);
+    m_autosaveCheckBox->setChecked(true);
+    //convert to minutes
+    m_autosaveSpinBox->setValue(KoDocument::defaultAutoSave()/60);
 }
 
 enumCursorStyle GeneralTab::cursorStyle()
@@ -103,6 +109,11 @@ enumCursorStyle GeneralTab::cursorStyle()
 bool GeneralTab::showRootLayer()
 {
     return chkShowRootLayer->isChecked();
+}
+
+int GeneralTab::autoSaveInterval() {
+    //convert to seconds
+    return m_autosaveCheckBox->isChecked()?m_autosaveSpinBox->value()*60:0;
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -151,7 +162,7 @@ ColorSettingsTab::ColorSettingsTab(QWidget *parent, const char *name)
 
     m_page->cmbMonitorIntent->setCurrentIndex(cfg.renderIntent());
 
-    if (KoIccColorProfile * profile = KoIccColorProfile::getScreenProfile()) {
+    if (KoColorProfile * profile = KisCanvasResourceProvider::getScreenProfile()) {
         // We've got an X11 profile, don't allow to override
         m_page->cmbMonitorProfile->hide();
         m_page->lblMonitorProfile->setText(i18n("Monitor profile: ") + profile->name());
@@ -170,6 +181,8 @@ void ColorSettingsTab::setDefault()
 
     m_page->cmbPrintingColorSpace->setCurrent("CMYK");
     refillPrintProfiles(KoID("CMYK", ""));
+
+    refillMonitorProfiles(KoID("RGBA", ""));
 
     m_page->chkBlackpoint->setChecked(false);
     m_page->cmbMonitorIntent->setCurrentIndex(INTENT_PERCEPTUAL);
@@ -332,11 +345,12 @@ GridSettingsTab::GridSettingsTab(QWidget* parent) : WdgGridSettingsBase(parent)
 
     intHSpacing->setValue(cfg.getGridHSpacing());
     intVSpacing->setValue(cfg.getGridVSpacing());
+    linkSpacingToggled(cfg.getGridHSpacing()==cfg.getGridVSpacing());
+
     intSubdivision->setValue(cfg.getGridSubdivisions());
     intOffsetX->setValue(cfg.getGridOffsetX());
     intOffsetY->setValue(cfg.getGridOffsetY());
 
-    linkSpacingToggled(true);
     connect(bnLinkSpacing, SIGNAL(toggled(bool)), this, SLOT(linkSpacingToggled(bool)));
 
     connect(intHSpacing, SIGNAL(valueChanged(int)), this, SLOT(spinBoxHSpacingChanged(int)));
@@ -356,6 +370,7 @@ void GridSettingsTab::setDefault()
 
     intHSpacing->setValue(10);
     intVSpacing->setValue(10);
+    linkSpacingToggled(true);
     intSubdivision->setValue(1);
     intOffsetX->setValue(0);
     intOffsetY->setValue(0);
@@ -378,6 +393,7 @@ void GridSettingsTab::spinBoxVSpacingChanged(int v)
 
 void GridSettingsTab::linkSpacingToggled(bool b)
 {
+    bnLinkSpacing->setChecked(b);
     m_linkSpacing = b;
 
     KoImageResource kir;
@@ -400,6 +416,8 @@ KisDlgPreferences::KisDlgPreferences(QWidget* parent, const char* name)
     setDefaultButton(Ok);
     showButtonSeparator(true);
     setFaceType(KPageDialog::List);
+
+    // General
     KVBox *vbox = new KVBox();
     KPageWidgetItem *page = new KPageWidgetItem(vbox, i18n("General"));
     page->setHeader(i18n("General"));
@@ -407,20 +425,23 @@ KisDlgPreferences::KisDlgPreferences(QWidget* parent, const char* name)
     addPage(page);
     m_general = new GeneralTab(vbox);
 
+    // Display
     vbox = new KVBox();
     page = new KPageWidgetItem(vbox, i18n("Display"));
     page->setHeader(i18n("Display"));
     page->setIcon(KIcon("preferences-desktop-display"));
     addPage(page);
-
     m_displaySettings = new DisplaySettingsTab(vbox);
 
+    // Color
     vbox = new KVBox();
     page = new KPageWidgetItem(vbox, i18n("Color Management"));
     page->setHeader(i18n("Color"));
     page->setIcon(KIcon("preferences-desktop-color"));
     addPage(page);
     m_colorSettings = new ColorSettingsTab(vbox);
+
+    // Performance
 #if 0
     vbox = new KVBox();
     page = new KPageWidgetItem(vbox, i18n("Performance"));
@@ -429,13 +450,16 @@ KisDlgPreferences::KisDlgPreferences(QWidget* parent, const char* name)
     addPage(page);
     m_performanceSettings = new PerformanceTab(vbox);
 #endif
+
+    // Grid
     vbox = new KVBox();
     page = new KPageWidgetItem(vbox, i18n("Grid"));
     page->setHeader(i18n("Grid"));
     page->setIcon(KIcon(BarIcon("grid", KIconLoader::SizeMedium)));
     addPage(page);
-
     m_gridSettings = new GridSettingsTab(vbox);
+
+    connect(this, SIGNAL(defaultClicked()), this, SLOT(slotDefault()));
 
 }
 
@@ -447,7 +471,9 @@ void KisDlgPreferences::slotDefault()
 {
     m_general->setDefault();
     m_colorSettings->setDefault();
+#if 0
     m_performanceSettings->setDefault();
+#endif
 #ifdef HAVE_OPENGL
     m_displaySettings->setDefault();
 #endif
@@ -461,9 +487,16 @@ bool KisDlgPreferences::editPreferences()
     dialog = new KisDlgPreferences();
     bool baccept = (dialog->exec() == Accepted);
     if (baccept) {
+        // General settings
         KisConfig cfg;
         cfg.setCursorStyle(dialog->m_general->cursorStyle());
         cfg.setShowRootLayer(dialog->m_general->showRootLayer());
+
+        cfg.setAutoSaveInterval(dialog->m_general->autoSaveInterval());
+        foreach (KoDocument* doc, *KoDocument::documentList()) {
+            doc->setAutoSave(dialog->m_general->autoSaveInterval());
+         }
+
         // Color settings
         cfg.setMonitorProfile(dialog->m_colorSettings->m_page->cmbMonitorProfile->itemHighlighted());
         cfg.setWorkingColorSpace(dialog->m_colorSettings->m_page->cmbWorkingColorSpace->currentText());

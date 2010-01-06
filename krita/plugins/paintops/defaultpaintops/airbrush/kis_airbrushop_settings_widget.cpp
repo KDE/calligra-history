@@ -23,7 +23,7 @@
 #include "kis_airbrushop_settings_widget.h"
 #include "kis_airbrushop_settings.h"
 #include <kis_properties_configuration.h>
-#include <kis_brush_option.h>
+#include <kis_brush_option_widget.h>
 #include <kis_paintop_options_widget.h>
 #include <kis_pressure_darken_option.h>
 #include <kis_pressure_opacity_option.h>
@@ -35,7 +35,7 @@ KisAirbrushOpSettingsWidget::KisAirbrushOpSettingsWidget(QWidget* parent)
 {
     setObjectName("airbrush option widget");
 
-    m_brushOption = new KisBrushOption();
+    m_brushOption = new KisBrushOptionWidget();
 
     m_brushOption->setAutoBrush(true);
     m_brushOption->setPredefinedBrushes(false);
@@ -58,11 +58,6 @@ KisPropertiesConfiguration* KisAirbrushOpSettingsWidget::configuration() const
     config->setProperty("paintop", "airbrush"); // XXX: make this a const id string
     writeConfiguration(config);
     return config;
-}
-
-void KisAirbrushOpSettingsWidget::setImage(KisImageWSP image)
-{
-    m_brushOption->setImage(image);
 }
 
 #include "kis_airbrushop_settings_widget.moc"

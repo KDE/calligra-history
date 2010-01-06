@@ -21,6 +21,7 @@
 #define KOEVENTACTIONREGISTRY_H
 
 #include <QList>
+#include <QSet>
 
 #include "flake_export.h"
 #include "KoXmlReaderForward.h"
@@ -28,7 +29,11 @@ class KoEventAction;
 class KoEventActionFactory;
 class KoShapeLoadingContext;
 
-/// API docs go here
+/**
+ * This singletion keeps a register of all available KoEventActionFactory objects.
+ *
+ * It creates the event actions when loaded from odf.
+ */
 class FLAKE_EXPORT KoEventActionRegistry
 {
 public:
@@ -39,22 +44,22 @@ public:
     /**
      * Return an instance of the KoEventActionRegistry
      */
-    static KoEventActionRegistry * instance();
+    static KoEventActionRegistry *instance();
 
     /**
      * Create action events for the elements given
      */
-    QList<KoEventAction*> createEventActionsFromOdf(const KoXmlElement & e, KoShapeLoadingContext & context) const;
+    QSet<KoEventAction*> createEventActionsFromOdf(const KoXmlElement &element, KoShapeLoadingContext &context) const;
 
     /**
      * Add presentation event action.
      */
-    void addPresentationEventAction(KoEventActionFactory * factory);
+    void addPresentationEventAction(KoEventActionFactory *factory);
 
     /**
      * Add script event action.
      */
-    void addScriptEventAction(KoEventActionFactory * factory);
+    void addScriptEventAction(KoEventActionFactory *factory);
 
     /**
      * Get presentation event actions.

@@ -24,7 +24,7 @@
 #include <kcomponentdata.h>
 #include <kgenericfactory.h>
 #include <KoColorSpaceRegistry.h>
-#include "KoBasicHistogramProducers.h"
+#include <KoBasicHistogramProducers.h>
 #include <KoCtlColorProfile.h>
 #include <kstandarddirs.h>
 
@@ -45,7 +45,7 @@ K_EXPORT_COMPONENT_FACTORY(krita_ctlcs_plugin, CTLCSPluginPluginFactory("krita")
 
 
 CTLCSPlugin::CTLCSPlugin(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
     Q_ASSERT(ctlMutex == 0);
     ctlMutex = new QMutex;

@@ -34,61 +34,25 @@ KRImageData::KRImageData(QDomNode & element)
     QString n;
     QDomNode node;
 
+    m_name->setValue(element.toElement().attribute("report:name"));
+    m_controlSource->setValue(element.toElement().attribute("report:control-source"));
+    m_resizeMode->setValue(element.toElement().attribute("report:resize-mode", "stretch"));
+    Z = element.toElement().attribute("report:z-index").toDouble();
+
     for (int i = 0; i < nl.count(); i++) {
         node = nl.item(i);
         n = node.nodeName();
-        if (n == "data") {
-            // see "string" just below for comments on String vs. Data
-            QDomNodeList dnl = node.childNodes();
-            for (int di = 0; di < dnl.count(); di++) {
-                node = dnl.item(di);
-                n = node.nodeName();
-                if (n == "controlsource") {
-                    m_controlSource->setValue(node.firstChild().nodeValue());
-                } else {
-                    kDebug() << "while parsing field data, encountered unknown element: " << n;
-                }
-            }
-        } else if (n == "name") {
-            m_name->setValue(node.firstChild().nodeValue());
-        } else if (n == "zvalue") {
-            Z = node.firstChild().nodeValue().toDouble();
-        } else if (n == "mode") {
-            setMode(node.firstChild().nodeValue());
-        } else if (n == "map") {
-            // should read the format in but it will just be reset by the setImageData
-            // method
-            kDebug() << "Loading Image Data";
+
+        if (n == "report:rect") {
+            parseReportRect(node.toElement(), &m_pos, &m_size);
+        } else if (n == "report:inline-image-data") {
+
             setInlineImageData(node.firstChild().nodeValue().toLatin1());
-        } else if (n == "rect") {
-            QDomNodeList rnl = node.childNodes();
-            qreal x, y, w, h;
-	    x = y = w = h = 0.0;
-            for (int ri = 0; ri < rnl.count(); ri++) {
-                node = rnl.item(ri);
-                n = node.nodeName();
-                if (n == "x") {
-                    x = node.firstChild().nodeValue().toFloat();
-                    x = ((x - (int) x) < 0.5 ? (int) x : (int) x + 1);
-                } else if (n == "y") {
-                    y = node.firstChild().nodeValue().toFloat();
-                    y = ((y - (int) y) < 0.5 ? (int) y : (int) y + 1);
-                } else if (n == "width") {
-                    w = node.firstChild().nodeValue().toFloat();
-                    w = ((w - (int) w) < 0.5 ? (int) w : (int) w + 1);
-                } else if (n == "height") {
-                    h = node.firstChild().nodeValue().toFloat();
-                    h = ((h - (int) h) < 0.5 ? (int) h : (int) h + 1);
-                } else {
-                    kDebug() << "While parsing rect encountered unknown element: " << n;
-                }
-            }
-            m_pos.setPointPos(QPointF(x, y));
-            m_size.setPointSize(QSizeF(w, h));
         } else {
-            kDebug() << "while parsing image element encountered unknown element: " << n;
+            kDebug() << "while parsing image element encountered unknow element: " << n;
         }
     }
+
 }
 
 bool KRImageData::isInline()
@@ -118,13 +82,13 @@ void KRImageData::setInlineImageData(QByteArray dat, const QString &fn)
         if (!pix.isNull())
             m_staticImage->setValue(pix);
         else {
-            QPixmap blank(1,1);
+            QPixmap blank(1, 1);
             blank.fill();
             m_staticImage->setValue(blank);
         }
     } else {
         const QByteArray binaryStream(KCodecs::base64Decode(dat));
-        const QPixmap pix( QPixmap::fromImage(QImage::fromData(binaryStream), Qt::ColorOnly) );
+        const QPixmap pix(QPixmap::fromImage(QImage::fromData(binaryStream), Qt::ColorOnly));
         m_staticImage->setValue(pix);
     }
 
@@ -145,14 +109,14 @@ void KRImageData::createProperties()
 {
     m_set = new KoProperty::Set(0, "Image");
 
-    m_controlSource = new KoProperty::Property("ControlSource", QStringList(), QStringList(), "", "Control Source");
+    m_controlSource = new KoProperty::Property("control-source", QStringList(), QStringList(), "", "Control Source");
 
     QStringList keys, strings;
-    keys << "Clip" << "Stretch";
+    keys << "clip" << "stretch";
     strings << i18n("Clip") << i18n("Stretch");
-    m_resizeMode = new KoProperty::Property("Mode", keys, strings, "Clip", "Resize Mode");
+    m_resizeMode = new KoProperty::Property("resize-mode", keys, strings, "clip", "Resize Mode");
 
-    m_staticImage = new KoProperty::Property("StaticImage", QPixmap(), "Static Image", "Static Image");
+    m_staticImage = new KoProperty::Property("static-image", QPixmap(), "Static Image", "Static Image");
 
     m_set->addProperty(m_name);
     m_set->addProperty(m_controlSource);

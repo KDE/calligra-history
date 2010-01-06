@@ -117,7 +117,7 @@ private:
     Record& operator=(const Record&);
 };
 
-// Container is a special record, it is for holding another records
+// Container is a special record, it is for holding other records
 class Container: public Record
 {
 public:
@@ -416,7 +416,7 @@ public:
 
 private:
     class Private;
-    Private* d;
+    QSharedDataPointer<Private> d;
 };
 
 /**
@@ -700,6 +700,15 @@ public:
     *
     */
     bool bullet();
+
+    /**
+    * A bit that specifies whether the bulletFlags field of the TextPFException
+    * structure that contains this PFMasks exists and whether
+    * bulletFlags.fBulletHasFont is valid.
+    *
+    */
+    bool bulletFont();
+
 
     /**
     * An optional BulletSize that specifies the size of the bullet. It MUST exist
@@ -2986,6 +2995,7 @@ private:
     Private *d;
 };
 
+// this class is called OfficeArtFOPT in Microsoft documentation
 class msofbtOPTAtom : public Record
 {
 public:
@@ -2994,6 +3004,8 @@ public:
         Pib = 260,
         FillType = 384,
         FillColor = 385,
+        FillBackColor = 387,
+        FillStyleBooleanProperties = 447,
         LineColor = 448,
         LineOpacity = 449,
         LineBackColor = 450,
@@ -3625,6 +3637,7 @@ protected:
     void handleEscherChildAnchorAtom(msofbtChildAnchorAtom* r);
     void handleProgBinaryTagContainer(ProgBinaryTagContainer* r,
                                       unsigned int size);
+    void handleHeaderFooterAtom(HeadersFootersAtom* atom);
 
 
     void loadMainMasterContainer(MainMasterContainer *container);

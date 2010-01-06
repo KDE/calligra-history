@@ -24,15 +24,12 @@
 #define __KIS_TOOL_SELECT_ELLIPTICAL_H__
 
 #include <QPoint>
-
-#include "kis_tool.h"
-#include "kis_selection.h"
 #include "KoToolFactory.h"
-#include "flake/kis_node_shape.h"
+#include "krita/ui/tool/kis_tool_select_base.h"
+#include "kis_tool_ellipse_base.h"
 
-class KisSelectionOptions;
 
-class KisToolSelectElliptical : public KisTool
+class KisToolSelectElliptical : public KisToolSelectBase
 {
 
     Q_OBJECT
@@ -42,33 +39,25 @@ public:
     virtual ~KisToolSelectElliptical();
 
     virtual QWidget * createOptionWidget();
-    virtual QWidget* optionWidget();
-//     virtual enumToolType toolType() { return TOOL_SELECT; }
-
-    virtual void paint(QPainter& gc, const KoViewConverter &converter);
-
-    virtual void mousePressEvent(KoPointerEvent *e);
-    virtual void mouseMoveEvent(KoPointerEvent *e);
-    virtual void mouseReleaseEvent(KoPointerEvent *e);
-
-public slots:
-    virtual void slotSetAction(int);
-    virtual void slotSetSelectionMode(int);
-    virtual void activate(bool);
-
 
 private:
-    void clearSelection();
+    class LokalTool : public KisToolEllipseBase {
+    public:
+        LokalTool(KoCanvasBase * canvas, KisToolSelectElliptical* selectingTool)
+            : KisToolEllipseBase(canvas), m_selectingTool(selectingTool) {}
+        void finishEllipse(const QRectF &rect);
+    private:
+        KisToolSelectElliptical* const m_selectingTool;
+    };
+    LokalTool m_lokalTool;
 
-private:
-    QPointF m_centerPos;
-    QPointF m_startPos;
-    QPointF m_endPos;
-    bool m_selecting;
-    KisSelectionOptions * m_optWidget;
-    selectionAction m_selectAction;
-    selectionMode m_selectionMode;
+    virtual void paint(QPainter& gc, const KoViewConverter &converter) {m_lokalTool.paint(gc, converter);}
+    virtual void mousePressEvent(KoPointerEvent *e) {m_lokalTool.mousePressEvent(e);}
+    virtual void mouseMoveEvent(KoPointerEvent *e) {m_lokalTool.mouseMoveEvent(e);}
+    virtual void mouseReleaseEvent(KoPointerEvent *e) {m_lokalTool.mouseReleaseEvent(e);}
+    virtual void deactivate() {m_lokalTool.deactivate();}
 
+    friend class LokalTool;
 };
 
 class KisToolSelectEllipticalFactory : public KoToolFactory
@@ -76,7 +65,7 @@ class KisToolSelectEllipticalFactory : public KoToolFactory
 
 public:
     KisToolSelectEllipticalFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolSelectElliptical", i18n("Elliptical Selection")) {
+            : KoToolFactory(parent, "KisToolSelectElliptical") {
         setToolTip(i18n("Select an elliptical area"));
         setToolType(TOOL_TYPE_SELECTED);
         //setActivationShapeId( KIS_NODE_SHAPE_ID );

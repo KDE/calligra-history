@@ -294,10 +294,8 @@ KarbonView::KarbonView( KarbonPart* p, QWidget* parent )
     connect( d->canvasController, SIGNAL(canvasOffsetYChanged(int)), this, SLOT(pageOffsetChanged()));
     connect( d->canvasController, SIGNAL(canvasMousePositionChanged(const QPoint &)),
             this, SLOT(mousePositionChanged(const QPoint&)));
-    connect( d->vertRuler, SIGNAL(guideLineCreated(Qt::Orientation,int)),
-             d->canvasController, SLOT( addGuideLine(Qt::Orientation,int) ) );
-    connect( d->horizRuler, SIGNAL(guideLineCreated(Qt::Orientation,int)),
-             d->canvasController, SLOT( addGuideLine(Qt::Orientation,int) ) );
+    d->vertRuler->createGuideToolConnection(d->canvas);
+    d->horizRuler->createGuideToolConnection(d->canvas);
 
     updateRuler();
 
@@ -822,7 +820,7 @@ void KarbonView::pathSnapToGrid()
         uint subpathCount = path->subpathCount();
         for( uint i = 0; i < subpathCount; ++i )
         {
-            uint pointCount = path->pointCountSubpath(i);
+            uint pointCount = path->subpathPointCount(i);
             for( uint j = 0; j < pointCount; ++j )
             {
                 KoPathPointIndex index(i,j);

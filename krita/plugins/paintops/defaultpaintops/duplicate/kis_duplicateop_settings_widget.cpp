@@ -26,9 +26,10 @@
 
 #include <kis_image.h>
 #include <kis_properties_configuration.h>
-#include <kis_brush_option.h>
+#include <kis_brush_option_widget.h>
 #include <kis_paintop_options_widget.h>
 #include <kis_pressure_size_option.h>
+#include <kis_curve_option_widget.h>
 
 
 KisDuplicateOpSettingsWidget::KisDuplicateOpSettingsWidget(QWidget* parent)
@@ -36,19 +37,17 @@ KisDuplicateOpSettingsWidget::KisDuplicateOpSettingsWidget(QWidget* parent)
 {
     setObjectName("brush option widget");
 
-    m_brushOption = new KisBrushOption;
-    m_sizeOption = new KisPressureSizeOption;
+    m_brushOption = new KisBrushOptionWidget;
     m_duplicateOption = new KisDuplicateOpOption;
 
     addPaintOpOption(m_brushOption);
-    addPaintOpOption(m_sizeOption);
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureSizeOption()));
     addPaintOpOption(m_duplicateOption);
 }
 
 KisDuplicateOpSettingsWidget::~KisDuplicateOpSettingsWidget()
 {
     delete m_brushOption;
-    delete m_sizeOption;
     delete m_duplicateOption;
 }
 
@@ -60,12 +59,6 @@ KisPropertiesConfiguration* KisDuplicateOpSettingsWidget::configuration() const
     config->setProperty("paintop", "duplicate"); // XXX: make this a const id string
     writeConfiguration(config);
     return config;
-}
-
-void KisDuplicateOpSettingsWidget::setImage(KisImageWSP image)
-{
-    m_brushOption->setImage(image);
-    m_duplicateOption->setImage(image);
 }
 
 #include "kis_duplicateop_settings_widget.moc"

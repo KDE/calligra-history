@@ -33,8 +33,8 @@ public:
 };
 
 ReadOnlyRegionModel::ReadOnlyRegionModel(const Region& region)
-    : QAbstractProxyModel(region.firstSheet())
-    , d(new Private)
+        : QAbstractProxyModel(region.firstSheet())
+        , d(new Private)
 {
     Q_ASSERT(region.isContiguous());
     d->region = region;
@@ -59,6 +59,8 @@ int ReadOnlyRegionModel::rowCount(const QModelIndex& parent) const
 
 QModelIndex ReadOnlyRegionModel::index(int row, int column, const QModelIndex& parent) const
 {
+    Q_UNUSED(row);
+    Q_UNUSED(column);
     Q_UNUSED(parent);
     return QModelIndex();
 }

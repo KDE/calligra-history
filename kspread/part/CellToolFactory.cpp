@@ -26,23 +26,23 @@
 
 using namespace KSpread;
 
-CellToolFactory::CellToolFactory(QObject* parent, const QString& id, const QString& name)
-    : KoToolFactory(parent, id, name)
+CellToolFactory::CellToolFactory(QObject* parent, const QString& id)
+        : KoToolFactory(parent, id)
 {
-    setToolTip( i18n( "Cell Tool" ) );
-    setIcon( "kspread" );
-    setToolType( "KSpread" );
-    setPriority( 0 );
-    setActivationShapeId( "flake/always" );
+    setToolTip(i18n("Cell Tool"));
+    setIcon("kspread");
+    setToolType("KSpread");
+    setPriority(0);
+    setActivationShapeId("flake/always");
 }
 
 CellToolFactory::~CellToolFactory()
 {
 }
 
-KoTool* CellToolFactory::createTool( KoCanvasBase* canvas )
+KoTool* CellToolFactory::createTool(KoCanvasBase* canvas)
 {
-    return new CellTool( canvas );
+    return new CellTool(canvas);
 }
 
 void CellToolFactory::setPriority(int priority)

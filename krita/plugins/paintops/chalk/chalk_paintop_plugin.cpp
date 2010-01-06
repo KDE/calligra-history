@@ -29,7 +29,7 @@
 
 
 #include "kis_chalk_paintop.h"
-#include "kis_chalk_paintop_factory.h"
+#include "kis_simple_paintop_factory.h"
 
 #include "kis_global.h"
 
@@ -38,12 +38,12 @@ K_EXPORT_COMPONENT_FACTORY(kritachalkpaintop, ChalkPaintOpPluginFactory("krita")
 
 
 ChalkPaintOpPlugin::ChalkPaintOpPlugin(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
     //
-    setComponentData(ChalkPaintOpPluginFactory::componentData());
+    //setComponentData(ChalkPaintOpPluginFactory::componentData());
     KisPaintOpRegistry *r = KisPaintOpRegistry::instance();
-    r->add(new KisChalkPaintOpFactory);
+    r->add(new KisSimplePaintOpFactory<KisChalkPaintOp, KisChalkPaintOpSettings, KisChalkPaintOpSettingsWidget>("chalkbrush", i18n("Chalk brush"), "krita-chalk.png"));
 
 }
 

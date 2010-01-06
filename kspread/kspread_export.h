@@ -25,13 +25,13 @@
 
 #ifndef KSPREAD_EXPORT
 # if defined(MAKE_KSPREADCOMMON_LIB)
-   /* We are building this library */ 
+/* We are building this library */
 #  define KSPREAD_EXPORT KDE_EXPORT
 # elif defined(MAKE_KSPREADSOLVER_LIB)
-   /* We are building this library */ 
+/* We are building this library */
 #  define KSPREAD_EXPORT KDE_EXPORT
 # else
-   /* We are using this library */ 
+/* We are using this library */
 #  define KSPREAD_EXPORT KDE_IMPORT
 # endif
 #endif
@@ -39,5 +39,20 @@
 # ifndef KSPREAD_EXPORT_DEPRECATED
 #  define KSPREAD_EXPORT_DEPRECATED KDE_DEPRECATED KSPREAD_EXPORT
 # endif
+
+// now for tests
+#ifdef COMPILING_TESTS
+#if defined _WIN32 || defined _WIN64
+# if defined(MAKE_KSPREADCOMMON_LIB)
+#       define KSPREAD_TEST_EXPORT KDE_EXPORT
+#   else
+#       define KSPREAD_TEST_EXPORT KDE_IMPORT
+#   endif
+# else /* not windows */
+#   define KSPREAD_TEST_EXPORT KDE_EXPORT
+# endif
+#else /* not compiling tests */
+#   define KSPREAD_TEST_EXPORT
+#endif
 
 #endif

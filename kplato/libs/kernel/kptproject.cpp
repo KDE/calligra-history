@@ -199,6 +199,7 @@ void Project::calculate( const DateTime &dt )
 
 void Project::calculate( ScheduleManager &sm )
 {
+    sm.setScheduling( true );
     m_progress = 0;
     int nodes = 0;
     foreach ( Node *n, nodeIdDict ) {
@@ -239,9 +240,11 @@ void Project::calculate( ScheduleManager &sm )
         setCurrentSchedule( sm.expected()->id() );
     }
     emit sigProgress( maxprogress );
+    emit sigCalculationFinished( this, &sm );
     emit scheduleManagerChanged( &sm );
     emit projectCalculated( &sm );
     emit changed();
+    sm.setScheduling( false );
 }
 
 void Project::calculate( Schedule *schedule )
@@ -353,10 +356,26 @@ void Project::calculate()
     }
 }
 
+void Project::finishCalculation( ScheduleManager &sm )
+{
+    MainSchedule *cs = sm.expected();
+    calcCriticalPath( false );
+    calcResourceOverbooked();
+    cs->notScheduled = false;
+    calcFreeFloat();
+    emit scheduleChanged( cs );
+    emit changed();
+}
+
 void Project::incProgress()
 {
     m_progress += 1;
     emit sigProgress( m_progress );
+}
+
+void Project::emitMaxProgress( int value )
+{
+    emit maxProgress( value );
 }
 
 bool Project::calcCriticalPath( bool fromEnd )
@@ -1061,9 +1080,15 @@ Resource *Project::takeResource( ResourceGroup *group, Resource *resource )
     emit resourceToBeRemoved( resource );
     bool result = removeResourceId( resource->id() );
     Q_ASSERT( result == true );
+    if (!result) {
+        kWarning() << "Could not remove resource with id" << resource->id();
+    }
     resource->removeRequests(); // not valid anymore
     Resource *r = group->takeResource( resource );
     Q_ASSERT( resource == r );
+    if (resource != r) {
+        kWarning() << "Cound not take resource from group";
+    }
     emit resourceRemoved( resource );
     emit changed();
     return r;
@@ -1361,8 +1386,9 @@ Task *Project::createTask( const Task &def, Node* parent )
 
 QString Project::uniqueNodeId( int seed )
 {
+    Q_UNUSED(seed);
     QString ident = KRandom::randomString( 10 );
-    int i = seed;
+//    int i = seed;
     while ( findNode( ident ) ) {
         ident = KRandom::randomString( 10 );
     }
@@ -1382,7 +1408,7 @@ bool Project::removeId( const QString &id )
 {
     //kDebug() <<"id=" << id;
     return ( m_parent ? m_parent->removeId( id ) : nodeIdDict.remove( id ) );
-}
+    }
 
 void Project::insertId( const QString &id, Node *node )
 {

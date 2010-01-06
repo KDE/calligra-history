@@ -25,6 +25,8 @@
 #include "KoCanvasBase.h"
 #include "KoShapeManager.h"
 #include "KoCanvasResourceProvider.h"
+#include "KoViewConverter.h"
+#include "KoSelection.h"
 #include "KoPointerEvent.h"
 #include "commands/KoPathPointTypeCommand.h"
 #include "commands/KoPathPointInsertCommand.h"
@@ -42,7 +44,6 @@
 #include "PathToolOptionWidget.h"
 #include "KoConnectionShape.h"
 #include "KoSnapGuide.h"
-#include "SnapGuideConfigWidget.h"
 
 #include <KAction>
 #include <KIcon>
@@ -173,10 +174,8 @@ QMap<QString, QWidget *>  KoPathTool::createOptionWidgets()
     //connect(this, SIGNAL(pathChanged(KoPathShape*)), widget, SLOT(setSelectedPath(KoPathShape*)));
     updateOptionsWidget();
 
-    SnapGuideConfigWidget * snapOptions = new SnapGuideConfigWidget(m_canvas->snapGuide());
-
     map.insert(i18n("Line/Curve"), toolOptions);
-    map.insert(i18n("Snapping"), snapOptions);
+    map.insert(i18n("Snapping"), m_canvas->createSnapGuideConfigWidget());
 
     return map;
 }
@@ -321,10 +320,10 @@ void KoPathTool::joinPoints()
         KoPathShape * pathShape = pd1.pathShape;
         if (!pathShape->isClosedSubpath(pd1.pointIndex.first) &&
                 (pd1.pointIndex.second == 0 ||
-                 pd1.pointIndex.second == pathShape->pointCountSubpath(pd1.pointIndex.first) - 1) &&
+                 pd1.pointIndex.second == pathShape->subpathPointCount(pd1.pointIndex.first) - 1) &&
                 !pathShape->isClosedSubpath(pd2.pointIndex.first) &&
                 (pd2.pointIndex.second == 0 ||
-                 pd2.pointIndex.second == pathShape->pointCountSubpath(pd2.pointIndex.first) - 1)) {
+                 pd2.pointIndex.second == pathShape->subpathPointCount(pd2.pointIndex.first) - 1)) {
             KoSubpathJoinCommand *cmd = new KoSubpathJoinCommand(pd1, pd2);
             m_canvas->addCommand(cmd);
         }
@@ -349,10 +348,10 @@ void KoPathTool::mergePoints()
     if (path->isClosedSubpath(index1.first) || path->isClosedSubpath(index2.first))
         return;
     // check if first point is an endpoint
-    if (index1.second != 0 && index1.second != path->pointCountSubpath(index1.first)-1)
+    if (index1.second != 0 && index1.second != path->subpathPointCount(index1.first)-1)
         return;
     // check if second point is an endpoint
-    if (index2.second != 0 && index2.second != path->pointCountSubpath(index2.first)-1)
+    if (index2.second != 0 && index2.second != path->subpathPointCount(index2.first)-1)
         return;
 
     // now we can start merging the endpoints
@@ -460,7 +459,7 @@ void KoPathTool::mousePressEvent(KoPointerEvent *event)
             if (segmentAtPoint(event->point, clickedShape, clickedPoint, clickedPointParam)) {
                 KoPathPointIndex index = clickedShape->pathPointIndex(clickedPoint);
                 KoPathPointData data(clickedShape, index);
-                m_currentStrategy = new KoPathSegmentChangeStrategy(this, m_canvas, event->point, data, clickedPointParam);
+                m_currentStrategy = new KoPathSegmentChangeStrategy(this, event->point, data, clickedPointParam);
                 event->accept();
             } else {
                 if ((event->modifiers() & Qt::ControlModifier) == 0) {
@@ -468,7 +467,7 @@ void KoPathTool::mousePressEvent(KoPointerEvent *event)
                 }
                 // start rubberband selection
                 Q_ASSERT(m_currentStrategy == 0);
-                m_currentStrategy = new KoPathPointRubberSelectStrategy(this, m_canvas, event->point);
+                m_currentStrategy = new KoPathPointRubberSelectStrategy(this, event->point);
             }
         }
     }
@@ -833,7 +832,7 @@ void KoPathTool::activate(bool temporary)
         return;
     }
     m_pointSelection.setSelectedShapes(selectedShapes);
-    useCursor(m_selectCursor, true);
+    useCursor(m_selectCursor);
     connect(m_canvas->shapeManager()->selection(), SIGNAL(selectionChanged()), this, SLOT(activate()));
     updateOptionsWidget();
     updateActions();
@@ -933,4 +932,4 @@ KoToolSelection * KoPathTool::selection()
     return &m_pointSelection;
 }
 
-#include "KoPathTool.moc"
+#include <KoPathTool.moc>

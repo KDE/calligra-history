@@ -32,6 +32,9 @@ public:
      */
     void shapeChanged(KoShape::ChangeType type);
 
+    void addShapeManager(KoShapeManager *manager);
+    void removeShapeManager(KoShapeManager *manager);
+
     /// calls update on the shape where the border is.
     void updateBorder();
 
@@ -49,15 +52,15 @@ public:
     KoShapeApplicationData *appData;
     KoShapeBackground * fill; ///< Stands for the background color / fill etc.
     KoShapeBorderModel *border; ///< points to a border, or 0 if there is no border
-    KoShape *q;
+    KoShape *q_ptr;
     QList<KoShape*> dependees; ///< list of shape dependent on this shape
     KoShapeShadow * shadow; ///< the current shape shadow
     QMap<QByteArray, QString> additionalAttributes;
     QMap<QByteArray, QString> additionalStyleAttributes;
-    QList<KoEventAction *> eventActions; ///< list of event actions the shape has
+    QSet<KoEventAction *> eventActions; ///< list of event actions the shape has
     KoFilterEffectStack *filterEffectStack; ///< stack of filter effects applied to the shape
     qreal transparency; ///< the shapes tranparency
-    
+
     static const int MaxZIndex = 32767;
     int zIndex : 16; // keep maxZIndex in sync!
     int visible : 1;
@@ -67,6 +70,8 @@ public:
     int selectable : 1;
     int detectCollision : 1;
     int protectContent : 1;
+
+    Q_DECLARE_PUBLIC(KoShape)
 };
 
 #endif

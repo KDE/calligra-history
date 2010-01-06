@@ -21,10 +21,10 @@
 
 #include <QObject>
 #include <kis_types.h>
+#include "kis_color_data_list.h"
 #include <QQueue>
 #include <QList>
 #include <QPixmap>
-#include "kis_recent_color_data.h"
 
 class QString;
 class QColor;
@@ -47,7 +47,7 @@ public:
     ~KoFavoriteResourceManager();
 
     static const int MAX_FAVORITE_BRUSHES = 9;
-    static const int MAX_RECENT_COLORS = 10;
+//    static const int MAX_RECENT_COLORS = 3;
 
     /************************************Popup Palette************************************/
 
@@ -64,6 +64,9 @@ public:
     Returns the position of the brush on the list otherwise**/
     int addFavoriteBrush (KisPaintOpPresetSP);
     void removeFavoriteBrush(int);
+    void removeFavoriteBrush(KisPaintOpPresetSP);
+    //returns -1 if paintop is not in the list, returns the paintop position otherwise
+    int isFavoriteBrushSaved(KisPaintOpPresetSP paintop);
     int favoriteBrushesTotal();
 
     QStringList favoriteBrushesStringList();
@@ -74,13 +77,18 @@ public:
     /**Checks if newColor is a recently used color.
     Returns -1 if the newColor is not used recently.
     Returns the position of the newColor on the list otherwise**/
-    void addRecentColor(KisRecentColorData*);
-    QQueue<KisRecentColorData*>* recentColorsList();
+    void addRecentColor(QColor*);
+    inline int recentColorsTotal() { return m_colorList->size(); } ;
+    inline const QColor& recentColorAt(int pos) { return m_colorList->guiColor(pos); };
+    void addRecentColorNew(const QColor& color);
+    void addRecentColorUpdate(int guipos);
+    void addRecentColor(const QColor& color);
     
 public slots:
-    void slotChangePaintopLabel();
+    void slotChangePaintopLabel(KisPaintOpPresetSP paintop);
     void slotShowPopupPalette(const QPoint& = QPoint(0,0));
     void slotChangeActivePaintop(int);
+    void slotUpdateRecentColor(int);
 
 private:
     KisPaletteManager *m_favoriteBrushManager;
@@ -90,11 +98,12 @@ private:
     QList<KisPaintOpPresetSP> m_favoriteBrushesList;
 
     /**The list of recently used colors**/
-    QQueue<KisRecentColorData*> m_recentColorsData;
+    KisColorDataList * m_colorList;
 
     bool isFavoriteBrushesFull();
-    int isInRecentColor(QColor&);
     void saveFavoriteBrushes();
+
+    void printColors() { m_colorList->printGuiList(); m_colorList->printPriorityList(); };
 };
 
 #endif // KIS_FAVORITE_BRUSH_DATA_H

@@ -28,12 +28,8 @@
 
 #include "flake_export.h"
 
-class QPainter;
-class QPointF;
-
-class KoCanvasBase;
 class KoTool;
-class KoSnapGuide;
+class KoShapeRubberSelectStrategyPrivate;
 
 /**
  * Implement the rubber band selection of flake objects.
@@ -51,28 +47,19 @@ public:
      * @param clicked the initial point that the user depressed (in pt).
      * @param useSnapToGrid use the snap-to-grid settings while doing the rubberstamp.
      */
-    KoShapeRubberSelectStrategy(KoTool *tool, KoCanvasBase *canvas, const QPointF &clicked, bool useSnapToGrid = false);
-    virtual ~KoShapeRubberSelectStrategy();
+    KoShapeRubberSelectStrategy(KoTool *tool, const QPointF &clicked, bool useSnapToGrid = false);
 
-    void paint(QPainter &painter, const KoViewConverter &converter);
-    void handleMouseMove(const QPointF &mouseLocation, Qt::KeyboardModifiers modifiers);
-    virtual QUndoCommand* createCommand() {
-        return 0;
-    }
+    virtual void paint(QPainter &painter, const KoViewConverter &converter);
+    virtual void handleMouseMove(const QPointF &mouseLocation, Qt::KeyboardModifiers modifiers);
+    virtual QUndoCommand *createCommand();
     virtual void finishInteraction(Qt::KeyboardModifiers modifiers);
 
 protected:
-    /**
-     * Return the rectangle that the user dragged.
-     * The rectangle is normalized and immutable.
-     * @return a rectangle in pt.
-     */
-    const QRectF selectRect() const;
+    /// constructor
+    KoShapeRubberSelectStrategy(KoShapeRubberSelectStrategyPrivate &);
 
 private:
-    QRectF m_selectRect;
-    QPointF m_lastPos;
-    KoSnapGuide * m_snapGuide;
+    Q_DECLARE_PRIVATE(KoShapeRubberSelectStrategy)
 };
 
 #endif /* KODEFRUBBERSELECT_H */

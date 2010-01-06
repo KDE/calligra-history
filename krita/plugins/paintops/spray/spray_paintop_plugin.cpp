@@ -27,7 +27,7 @@
 #include <kis_paintop_registry.h>
 
 #include "kis_spray_paintop.h"
-#include "kis_spray_paintop_factory.h"
+#include "kis_simple_paintop_factory.h"
 
 #include "kis_global.h"
 
@@ -36,12 +36,12 @@ K_EXPORT_COMPONENT_FACTORY(kritaspraypaintop, SprayPaintOpPluginFactory("krita")
 
 
 SprayPaintOpPlugin::SprayPaintOpPlugin(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
     //
-    setComponentData(SprayPaintOpPluginFactory::componentData());
+    //setComponentData(SprayPaintOpPluginFactory::componentData());
     KisPaintOpRegistry *r = KisPaintOpRegistry::instance();
-    r->add(new KisSprayPaintOpFactory);
+    r->add(new KisSimplePaintOpFactory<KisSprayPaintOp, KisSprayPaintOpSettings, KisSprayPaintOpSettingsWidget>("spraybrush", i18n("Spray brush"), "krita-spray.png"));
 
 }
 

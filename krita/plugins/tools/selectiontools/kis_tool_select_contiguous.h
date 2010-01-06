@@ -23,19 +23,14 @@
 #define __KIS_TOOL_SELECT_CONTIGUOUS_H__
 
 #include "KoToolFactory.h"
+#include "krita/ui/tool/kis_tool_select_base.h"
 
-#include "kis_tool.h"
-#include "kis_selection.h"
-#include "flake/kis_node_shape.h"
-
-
-class KisSelectionOptions;
 
 /**
  * The 'magic wand' selection tool -- in fact just
  * a floodfill that only creates a selection.
  */
-class KisToolSelectContiguous : public KisTool
+class KisToolSelectContiguous : public KisToolSelectBase
 {
 
     Q_OBJECT
@@ -45,23 +40,17 @@ public:
     virtual ~KisToolSelectContiguous();
 
     virtual QWidget* createOptionWidget();
-    virtual QWidget* optionWidget();
     virtual void paint(QPainter &painter, const KoViewConverter &converter);
 
     virtual void mousePressEvent(KoPointerEvent *event);
 
 public slots:
     virtual void slotSetFuzziness(int);
-    virtual void slotSetAction(int);
-    virtual void slotSetSampleMerged(int);
-    virtual void activate(bool);
+    virtual void slotLimitToCurrentLayer(int);
 
 private:
-    KisSelectionOptions * m_optWidget;
-
     int m_fuzziness;
-    selectionAction m_selectAction;
-    bool m_sampleMerged;
+    bool m_limitToCurrentLayer;
 };
 
 class KisToolSelectContiguousFactory : public KoToolFactory
@@ -69,7 +58,7 @@ class KisToolSelectContiguousFactory : public KoToolFactory
 
 public:
     KisToolSelectContiguousFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolSelectContiguous", i18n("Select Contiguous Area")) {
+            : KoToolFactory(parent, "KisToolSelectContiguous") {
         setToolTip(i18n("Select a contiguous area of colors"));
         setToolType(TOOL_TYPE_SELECTED);
         setIcon("tool_contiguous_selection");
@@ -80,7 +69,7 @@ public:
     virtual ~KisToolSelectContiguousFactory() {}
 
     virtual KoTool * createTool(KoCanvasBase *canvas) {
-        return  new KisToolSelectContiguous(canvas);
+        return new KisToolSelectContiguous(canvas);
     }
 
 };

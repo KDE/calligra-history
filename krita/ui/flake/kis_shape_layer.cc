@@ -64,7 +64,8 @@
 #include <KoXmlReader.h>
 #include <KoXmlWriter.h>
 #include <KoSelection.h>
-#include <KoShapeMoveCommand.h>s
+#include <KoShapeMoveCommand.h>
+#include <KoShapeTransformCommand.h>
 
 #include <kis_types.h>
 #include <kis_image.h>
@@ -152,6 +153,9 @@ KisShapeLayer::KisShapeLayer(const KisShapeLayer& _rhs)
     KisShapeLayerShapePaste paste(this, m_d->controller);
     bool success = paste.paste(KoOdf::Text, mimeData);
     Q_ASSERT(success);
+    if (!success) {
+        warnUI << "Could not paste shape layer";
+    }
 
 }
 
@@ -455,6 +459,29 @@ QUndoCommand* KisShapeLayer::crop(const QRect & rect) {
         newPositions.append(shape->position() - croppedRect.topLeft());
     }
     return new KoShapeMoveCommand(shapes, previousPositions, newPositions);
+}
+
+QUndoCommand* KisShapeLayer::transform(double  xscale, double  yscale, double  xshear, double  yshear, double angle, qint32  translatex, qint32  translatey) {
+    
+    QPointF transF = m_d->converter->viewToDocument(QPoint(translatex, translatey));;
+    QList<KoShape*> shapes = m_d->canvas->shapeManager()->shapes();
+    if(shapes.isEmpty())
+        return 0;
+
+    QMatrix matrix;
+    matrix.translate(transF.x(), transF.y());
+    matrix.scale(xscale,yscale);
+    matrix.rotate(angle*180/M_PI);
+
+    QList<QMatrix> oldTransformations;
+    QList<QMatrix> newTransformations;
+    foreach(const KoShape* shape, shapes) {
+        QMatrix oldTransform = shape->transformation();
+        oldTransformations.append(oldTransform);
+
+        newTransformations.append(oldTransform*matrix);
+    }
+    return new KoShapeTransformCommand(shapes, oldTransformations, newTransformations);
 }
 
 #include "kis_shape_layer.moc"

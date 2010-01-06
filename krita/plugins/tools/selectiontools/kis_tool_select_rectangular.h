@@ -22,15 +22,13 @@
 #ifndef KIS_TOOL_SELECT_RECTANGULAR_H_
 #define KIS_TOOL_SELECT_RECTANGULAR_H_
 
-#include "kis_tool.h"
-#include "kis_selection.h"
+#include "krita/ui/tool/kis_tool_select_base.h"
 #include "KoToolFactory.h"
-#include "flake/kis_node_shape.h"
+#include "kis_tool_rectangle_base.h"
 
-class KisSelectionOptions;
 class KoCanvasBase;
 
-class KisToolSelectRectangular : public KisTool
+class KisToolSelectRectangular : public KisToolSelectBase
 {
 
     Q_OBJECT
@@ -40,31 +38,24 @@ public:
     virtual ~KisToolSelectRectangular();
 
     virtual QWidget * createOptionWidget();
-    virtual QWidget* optionWidget();
-
-    virtual void paint(QPainter& gc, const KoViewConverter &converter);
-
-    virtual void mousePressEvent(KoPointerEvent *e);
-    virtual void mouseMoveEvent(KoPointerEvent *e);
-    virtual void mouseReleaseEvent(KoPointerEvent *e);
-
-public slots:
-    virtual void slotSetAction(int);
-    virtual void slotSetSelectionMode(int);
-    virtual void activate(bool);
 
 private:
-    void clearSelection();
+    class LokalTool : public KisToolRectangleBase {
+    public:
+        LokalTool(KoCanvasBase * canvas, KisToolSelectRectangular* selectingTool)
+            : KisToolRectangleBase(canvas), m_selectingTool(selectingTool) {}
+    public:
+        void finishRect(const QRectF& rect);
+    private:
+        KisToolSelectRectangular* const m_selectingTool;
+    };
+    LokalTool m_lokalTool;
 
-private:
-    QPointF m_centerPos;
-    QPointF m_startPos;
-    QPointF m_endPos;
-    bool m_selecting;
-    KisSelectionOptions * m_optWidget;
-    selectionAction m_selectAction;
-    selectionMode m_selectionMode;
-
+    virtual void paint(QPainter& gc, const KoViewConverter &converter) {m_lokalTool.paint(gc, converter);}
+    virtual void mousePressEvent(KoPointerEvent *e) {m_lokalTool.mousePressEvent(e);}
+    virtual void mouseMoveEvent(KoPointerEvent *e) {m_lokalTool.mouseMoveEvent(e);}
+    virtual void mouseReleaseEvent(KoPointerEvent *e) {m_lokalTool.mouseReleaseEvent(e);}
+    virtual void deactivate() {m_lokalTool.deactivate();}
 };
 
 class KisToolSelectRectangularFactory : public KoToolFactory
@@ -72,7 +63,7 @@ class KisToolSelectRectangularFactory : public KoToolFactory
 
 public:
     KisToolSelectRectangularFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolSelectRectangular", i18n("Rectangular Selection")) {
+            : KoToolFactory(parent, "KisToolSelectRectangular") {
         setToolTip(i18n("Select a rectangular area"));
         setToolType(TOOL_TYPE_SELECTED);
         //setActivationShapeId( KIS_NODE_SHAPE_ID );

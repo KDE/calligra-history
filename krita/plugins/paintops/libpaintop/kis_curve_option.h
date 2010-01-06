@@ -35,23 +35,29 @@ class KisDynamicSensor;
 /**
  * KisCurveOption is the base class for paintop options that are
  * defined through a curve.
- *
- * XXX; Add a reset button!
  */
-class PAINTOP_EXPORT KisCurveOption : public KisPaintOpOption
+class PAINTOP_EXPORT KisCurveOption
 {
-
-    Q_OBJECT
 
 public:
 
     KisCurveOption(const QString & label, const QString& name, bool checked = true);
-    ~KisCurveOption();
-    void writeOptionSetting(KisPropertiesConfiguration* setting) const;
+    virtual ~KisCurveOption();
+    virtual void writeOptionSetting(KisPropertiesConfiguration* setting) const;
 
-    void readOptionSetting(const KisPropertiesConfiguration* setting);
+    virtual void readOptionSetting(const KisPropertiesConfiguration* setting);
 
-    KisDynamicSensor* sensor();
+    const QString & label() const;
+    
+    void setCurve(QVector<double> curve);
+    
+    KisDynamicSensor* sensor() const;
+    void setSensor(KisDynamicSensor* sensor);
+    
+    bool isCheckable();
+    
+    bool isChecked() const;
+    void setChecked(bool checked);
 protected:
 
     double computeValue(const KisPaintInformation& info) const {
@@ -76,19 +82,14 @@ protected:
         return m_customCurve;
     }
 
-private slots:
-
-    void transferCurve();
-    void setSensor(KisDynamicSensor* sensor);
-
 protected:
-
+    QString m_label;
     KisDynamicSensor* m_sensor;
     bool m_customCurve;
-    QWidget* m_widget;
-    Ui_WdgCurveOption* m_curveOption;
     QVector<double> m_curve;
     QString m_name;
+    bool m_checkable;
+    bool m_checked;
 };
 
 #endif

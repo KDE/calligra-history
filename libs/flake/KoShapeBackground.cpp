@@ -18,24 +18,25 @@
  */
 
 #include "KoShapeBackground.h"
+#include "KoShapeBackground_p.h"
 
-#include <QtCore/QAtomicInt>
-
-class KoShapeBackground::Private
+KoShapeBackgroundPrivate::KoShapeBackgroundPrivate()
+    : refCount(0)
 {
-public:
-    Private() : refCount(0) { }
-    QAtomicInt refCount;
-};
+}
+KoShapeBackground::KoShapeBackground(KoShapeBackgroundPrivate &dd)
+    :d_ptr(&dd)
+{
+}
 
 KoShapeBackground::KoShapeBackground()
-        : d(new Private())
+    : d_ptr(new KoShapeBackgroundPrivate())
 {
 }
 
 KoShapeBackground::~KoShapeBackground()
 {
-    delete d;
+    delete d_ptr;
 }
 
 bool KoShapeBackground::hasTransparency()
@@ -45,15 +46,18 @@ bool KoShapeBackground::hasTransparency()
 
 void KoShapeBackground::addUser()
 {
+    Q_D(KoShapeBackground);
     d->refCount.ref();
 }
 
 bool KoShapeBackground::removeUser()
 {
+    Q_D(KoShapeBackground);
     return d->refCount.deref();
 }
 
 int KoShapeBackground::useCount() const
 {
+    Q_D(const KoShapeBackground);
     return d->refCount;
 }

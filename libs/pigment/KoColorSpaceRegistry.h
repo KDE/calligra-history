@@ -28,12 +28,12 @@
 
 #include <KoGenericRegistry.h>
 #include <KoColorSpace.h>
+#include <KoColorSpaceFactory.h>
 
 class KoColorProfile;
+class KoColorProfileFactory;
 class KoColorConversionSystem;
 class KoColorConversionCache;
-
-// XXX: USE STATIC DELETER! USE STATIC DELETER!
 
 /**
  * The registry for colorspaces and profiles.
@@ -42,7 +42,8 @@ class KoColorConversionCache;
  *      - a registry of singleton colorspace factories.
  *      - a registry of icc profiles
  */
-class PIGMENTCMS_EXPORT KoColorSpaceRegistry : public QObject,  public KoGenericRegistry<KoColorSpaceFactory *> {
+class PIGMENTCMS_EXPORT KoColorSpaceRegistry : public QObject,  public KoGenericRegistry<KoColorSpaceFactory *>
+{
 public:
     enum ColorSpaceListVisibility {
         OnlyUserVisible = 1, ///< Only user visible color space
@@ -58,10 +59,10 @@ public:
     virtual ~KoColorSpaceRegistry();
 
 public:
-   /**
-     * add a color space to the registry
-     * @param item the color space factory to add
-     */
+    /**
+      * add a color space to the registry
+      * @param item the color space factory to add
+      */
     void add(KoColorSpaceFactory* item);
 
     /**
@@ -72,12 +73,26 @@ public:
     void add(const QString &id, KoColorSpaceFactory* item);
 
     /**
+     * Add a profile to the profile map but do not add it to the
+     * color conversion system yet.
+     * @param profile the new profile to be registered.
+     */
+    void addProfileToMap(KoColorProfile *p);
+
+    /**
      * register the profile with the color space registry
      * @param profile the new profile to be registered so it can be combined with
      *  colorspaces.
      */
     void addProfile(KoColorProfile* profile);
     void addProfile(const KoColorProfile* profile);
+
+    /**
+     * create a profile of the specified type.
+     */
+    KoColorProfile* createProfile(const QString& type, QByteArray rawData);
+
+    void addColorProfileFactory(const QString& type, KoColorProfileFactory* factory);
 
     /**
      * Return a profile by its given name, or 0 if none registered.
@@ -107,11 +122,11 @@ public:
      * @return a list of profiles for the factory
      */
     QList<const KoColorProfile *>  profilesFor(const KoID& id);
-    
+
     /**
      * @return a list of color spaces compatible with this profile
      */
-    QList<const KoColorSpaceFactory*> colorSpacesFor( const KoColorProfile* _profile);
+    QList<const KoColorSpaceFactory*> colorSpacesFor(const KoColorProfile* _profile);
 
     /**
      * Return the list of profiles for a colorspace with the argument id.
@@ -161,7 +176,7 @@ public:
      * @return the id of the wanted colorspace, or "" if no colorspace correspond to those ids
      */
     QString colorSpaceId(const KoID& colorModelId, const KoID& colorDepthId);
-    
+
     /**
      * Convenience method to get the often used alpha colorspace
      */
@@ -174,14 +189,14 @@ public:
      * @return the wanted colorspace, or 0 if the color space and profile can not be combined.
      */
     const KoColorSpace * rgb8(const QString &profileName = QString());
-    
+
     /**
      * Convenience method to get an RGBA 8bit colorspace with the given profile.
      * @param profile an RGB profile
      * @return the wanted colorspace, or 0 if the color space and profile can not be combined.
      */
     const KoColorSpace * rgb8(const KoColorProfile * profile);
-    
+
     /**
      * Convenience method to get an RGBA 16bit colorspace. If a profile is not specified,
      * an sRGB profile will be used.
@@ -215,40 +230,47 @@ public:
     /**
      * @return the list of available color models
      */
-    QList<KoID> colorModelsList(ColorSpaceListVisibility option ) const;
+    QList<KoID> colorModelsList(ColorSpaceListVisibility option) const;
 
     /**
      * @return the list of available color models for the given colorModelId
      */
-    QList<KoID> colorDepthList(const KoID& colorModelId, ColorSpaceListVisibility option ) const;
+    QList<KoID> colorDepthList(const KoID& colorModelId, ColorSpaceListVisibility option) const;
 
     /**
      * @return the list of available color models for the given colorModelId
      */
-    QList<KoID> colorDepthList(const QString & colorModelId, ColorSpaceListVisibility option ) const;
-    
+    QList<KoID> colorDepthList(const QString & colorModelId, ColorSpaceListVisibility option) const;
+
     /**
      * @return the color conversion system use by the registry and the color
      * spaces to create color conversion transformation
      */
     const KoColorConversionSystem* colorConversionSystem() const;
-    
+
     /**
      * @return the cache of color conversion transformation to be use by KoColorSpace
      */
     KoColorConversionCache* colorConversionCache() const;
-    
+
     /**
      * @return a permanent colorspace owned by the registry, of the same type and profile
      *         as the one given in argument
      */
-    const KoColorSpace* permanentColorspace( const KoColorSpace* _colorSpace );
+    const KoColorSpace* permanentColorspace(const KoColorSpace* _colorSpace);
+
+    /**
+     * This function return a list of all the keys in KoID format by using the name() method
+     * on the objects stored in the registry.
+     */
+    QList<KoID> listKeys() const;
+
 private:
 
     bool isCached(const QString & csId, const QString & profileName) const;
-    
+
     QString idsToCacheName(const QString & csId, const QString & profileName) const;
-    
+
 private:
     KoColorSpaceRegistry();
     KoColorSpaceRegistry(const KoColorSpaceRegistry&);

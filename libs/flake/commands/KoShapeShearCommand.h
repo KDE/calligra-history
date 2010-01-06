@@ -27,6 +27,7 @@
 #include <QList>
 
 class KoShape;
+class KoShapeShearCommandPrivate;
 
 /// The undo / redo command for shape shearing.
 class FLAKE_EXPORT KoShapeShearCommand : public QUndoCommand
@@ -44,14 +45,16 @@ public:
      * @param newShearYs a list with the same amount of items as shapes with the new values.
      * @param parent the parent command used for macro commands
      */
-    KoShapeShearCommand(const QList<KoShape*> &shapes, QList<qreal> &previousShearXs, QList<qreal> &previousShearYs, QList<qreal> &newShearXs, QList<qreal> &newShearYs, QUndoCommand *parent = 0);
+    KoShapeShearCommand(const QList<KoShape*> &shapes, const QList<qreal> &previousShearXs, const QList<qreal> &previousShearYs, const QList<qreal> &newShearXs, const QList<qreal> &newShearYs, QUndoCommand *parent = 0);
+
+    ~KoShapeShearCommand();
     /// redo the command
     void redo();
     /// revert the actions done in redo
     void undo();
+
 private:
-    QList<KoShape*> m_shapes;
-    QList<qreal> m_previousShearXs, m_previousShearYs, m_newShearXs, m_newShearYs;
+    KoShapeShearCommandPrivate *d;
 };
 
 #endif

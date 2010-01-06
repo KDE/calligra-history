@@ -109,5 +109,15 @@ void KoPAViewMode::changePageLayout( const KoPageLayout &pageLayout, bool applyT
     Q_UNUSED( parent );
 }
 
-#include "KoPAViewMode.moc"
+QPointF KoPAViewMode::origin()
+{
+    return m_origin;
+}
+ 
+void KoPAViewMode::setOrigin(const QPointF &o)
+{
+    m_origin = o;
+}
+
+#include <KoPAViewMode.moc>
 

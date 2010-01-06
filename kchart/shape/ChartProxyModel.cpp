@@ -61,20 +61,23 @@ public:
     bool             firstColumnIsLabel;
     Qt::Orientation  dataDirection;
     int              dataDimensions;
-    QMap<int, int>   dataMap;
+
+    QVector< CellRegion > dataSetRegions;
     
     QList<DataSet*>  dataSets;
     QList<DataSet*>  removedDataSets;
     
     QVector<QRect>   selection;
-};
 
+    bool automaticDataSetCreation;
+};
 
 ChartProxyModel::Private::Private()
 {
     firstRowIsLabel    = false;
     firstColumnIsLabel = false;
     dataDimensions     = 1;
+    automaticDataSetCreation = true;
 
     dataDirection      = Qt::Vertical; // Apparently the default is columns.
 }
@@ -100,8 +103,44 @@ ChartProxyModel::~ChartProxyModel()
 }
 
 
+void ChartProxyModel::setAutomaticDataSetCreation( bool enable )
+{
+    d->automaticDataSetCreation = enable;
+}
+
+bool ChartProxyModel::automaticDataSetCreation() const
+{
+    return d->automaticDataSetCreation;
+}
+
+void ChartProxyModel::beginResetModel()
+{
+#if QT_VERSION  >= 0x040600
+    QAbstractItemModel::beginResetModel();
+#endif
+}
+
+void ChartProxyModel::endResetModel()
+{
+#if QT_VERSION  >= 0x040600
+    QAbstractItemModel::endResetModel();
+#else
+    reset();
+#endif
+}
+
 void ChartProxyModel::rebuildDataMap()
 {
+    if ( !d->automaticDataSetCreation )
+        return;
+
+    invalidateDataSets();
+    d->dataSets = createDataSetsFromRegion( d->removedDataSets );
+}
+
+QList<DataSet*> ChartProxyModel::createDataSetsFromRegion( QList<DataSet*> dataSetsToRecycle )
+{
+    QList<DataSet*> createdDataSets;
     QVector<QRect> dataRegions;
 
     if ( d->selection.isEmpty() ) {
@@ -168,32 +207,42 @@ void ChartProxyModel::rebuildDataMap()
             j.next();
             
             DataSet *dataSet;
-            if ( createdDataSetCount >= d->dataSets.size() ) {
-                if ( !d->removedDataSets.isEmpty() )
-                    dataSet = d->removedDataSets.takeLast();
-                else
-                    dataSet = new DataSet( this );
-
-                d->dataSets.append( dataSet );
-            }
+            if ( !dataSetsToRecycle.isEmpty() )
+                dataSet = dataSetsToRecycle.takeLast();
             else
-                dataSet = d->dataSets[createdDataSetCount];
+                dataSet = new DataSet( this );
+            createdDataSets.append( dataSet );
+
             dataSet->blockSignals( true );
             
             dataSet->setNumber( createdDataSetCount );
             dataSet->setColor( defaultDataSetColor( createdDataSetCount ) );
-            
-            CellRegion yDataRegion( j.value() );
+
             CellRegion labelDataRegion;
-    
+
+            CellRegion xDataRegion;
+            // In case of > 1 data dimensions, x data appears before y data
+            if ( d->dataDimensions > 1 )
+                xDataRegion = CellRegion( j.value() );
+
             //qDebug() << "Creating data set with region" << j.value();
             if ( d->firstColumnIsLabel ) {
-                QPoint labelDataPoint = yDataRegion.pointAtIndex( 0 );
+                CellRegion tmpRegion = CellRegion( j.value() );
+                QPoint labelDataPoint = tmpRegion.pointAtIndex( 0 );
                 labelDataRegion = CellRegion( labelDataPoint );
-                
-                yDataRegion.subtract( labelDataPoint );
             }
+
+            if ( d->dataDimensions > 1 )
+                j.next();
             
+            CellRegion yDataRegion( j.value() );
+
+            if ( d->firstColumnIsLabel ) {
+                xDataRegion.subtract( xDataRegion.pointAtIndex( 0 ) );
+                yDataRegion.subtract( yDataRegion.pointAtIndex( 0 ) );
+            }
+
+            dataSet->setXDataRegion( xDataRegion );
             dataSet->setYDataRegion( yDataRegion );
             dataSet->setCategoryDataRegion( categoryDataRegion );
             dataSet->setLabelDataRegion( labelDataRegion );
@@ -256,33 +305,44 @@ void ChartProxyModel::rebuildDataMap()
         
         while ( j.hasNext() ) {
             j.next();
-            
+
             DataSet *dataSet;
-            if ( createdDataSetCount >= d->dataSets.size() ) {
-                if ( !d->removedDataSets.isEmpty() )
-                    dataSet = d->removedDataSets.takeLast();
-                else
-                    dataSet = new DataSet( this );
-                d->dataSets.append( dataSet );
-            }
+            if ( !dataSetsToRecycle.isEmpty() )
+                dataSet = dataSetsToRecycle.takeLast();
             else
-                dataSet = d->dataSets[createdDataSetCount];
+                dataSet = new DataSet( this );
+            createdDataSets.append( dataSet );
+
             dataSet->blockSignals( true );
             
             dataSet->setNumber( createdDataSetCount );
             dataSet->setColor( defaultDataSetColor( createdDataSetCount ) );
+
+            CellRegion labelDataRegion;
+            
+            CellRegion xDataRegion;
+            // In case of > 1 data dimensions, x data appears before y data
+            if ( d->dataDimensions > 1 )
+                xDataRegion = CellRegion( j.value() );
+
+            //qDebug() << "Creating data set with region" << j.value();
+            if ( d->firstRowIsLabel ) {
+                CellRegion tmpRegion = CellRegion( j.value() );
+                QPoint labelDataPoint = tmpRegion.pointAtIndex( 0 );
+                labelDataRegion = CellRegion( labelDataPoint );
+            }
+
+            if ( d->dataDimensions > 1 )
+                j.next();
             
             CellRegion yDataRegion( j.value() );
-            CellRegion labelDataRegion;
-    
-            //qDebug() << "Creating data set with region " << j.value();
+
             if ( d->firstRowIsLabel ) {
-                QPoint labelDataPoint = yDataRegion.pointAtIndex( 0 );
-                labelDataRegion = CellRegion( labelDataPoint );
-                
-                yDataRegion.subtract( labelDataPoint );
+                xDataRegion.subtract( xDataRegion.pointAtIndex( 0 ) );
+                yDataRegion.subtract( yDataRegion.pointAtIndex( 0 ) );
             }
-            
+
+            dataSet->setXDataRegion( xDataRegion );
             dataSet->setYDataRegion( yDataRegion );
             dataSet->setLabelDataRegion( labelDataRegion );
             dataSet->setCategoryDataRegion( categoryDataRegion );
@@ -290,16 +350,8 @@ void ChartProxyModel::rebuildDataMap()
             dataSet->blockSignals( false );
         }
     }
-    
-    while ( d->dataSets.size() > createdDataSetCount ) {
-    	DataSet *dataSet = d->dataSets.takeLast();
 
-    	// TODO: Restore attached axis when dataset is re-inserted?
-    	if ( dataSet->attachedAxis() )
-    	    dataSet->attachedAxis()->detachDataSet( dataSet, true );
-
-        d->removedDataSets.append( dataSet );
-    }
+    return createdDataSets;
 }
 
 
@@ -307,6 +359,8 @@ void ChartProxyModel::setSourceModel( QAbstractItemModel *sourceModel )
 {
     if ( this->sourceModel() == sourceModel )
         return;
+
+    beginResetModel();
 
     if ( this->sourceModel() ) {
         disconnect( this->sourceModel(), SIGNAL( dataChanged( const QModelIndex&, const QModelIndex& ) ),
@@ -337,28 +391,14 @@ void ChartProxyModel::setSourceModel( QAbstractItemModel *sourceModel )
     QAbstractProxyModel::setSourceModel( sourceModel );
     
     rebuildDataMap();
-
-    // Update the entire data set
-    reset();
+    endResetModel();
 }
 
-void ChartProxyModel::setSourceModel( QAbstractItemModel *sourceModel, 
+void ChartProxyModel::setSourceModel( QAbstractItemModel *model,
                                       const QVector<QRect> &selection )
 {
-    // FIXME: What if we already have a source model?  Don't we have
-    //        to disconnect that one before connecting the new one?
-
-    connect( sourceModel, SIGNAL( dataChanged( const QModelIndex&, const QModelIndex& ) ),
-             this,        SLOT( dataChanged( const QModelIndex&, const QModelIndex& ) ) );
-    
     d->selection = selection;
-
-    QAbstractProxyModel::setSourceModel( sourceModel );
-    
-    rebuildDataMap();
-
-    // Update the entire data set
-    reset();
+    setSourceModel( model );
 }
 
 void ChartProxyModel::setSelection( const QVector<QRect> &selection )
@@ -402,10 +442,26 @@ void ChartProxyModel::saveOdf( KoShapeSavingContext &context ) const
 bool ChartProxyModel::loadOdf( const KoXmlElement &element,
                                KoShapeLoadingContext &context )
 {
+    beginResetModel();
     KoStyleStack &styleStack = context.odfLoadingContext().styleStack();
     styleStack.save();
 
-    d->dataSets.clear();
+    invalidateDataSets();
+
+    QList<DataSet*> createdDataSets;
+    int loadedDataSetCount = 0;
+
+    // A cell range for all data is optional.
+    // If it is specified, use createDataSetsFromRegion() to automatically
+    // turn this data region into consecutive data series.
+    // If cell ranges are in addition specified for one or more of these
+    // data series, they'll be overwritten by these values.
+    if ( element.hasAttributeNS( KoXmlNS::table, "cell-range-address" ) )
+    {
+        QString cellRangeAddress = element.attributeNS( KoXmlNS::table, "cell-range-address" );
+        setSelection( CellRegion::stringToRegion( cellRangeAddress ) );
+        createdDataSets = createDataSetsFromRegion( d->removedDataSets );
+    }
 
     KoXmlElement n;
     forEachElement ( n, element ) {
@@ -413,70 +469,24 @@ bool ChartProxyModel::loadOdf( const KoXmlElement &element,
             continue;
 
         if ( n.localName() == "series" ) {
-            DataSet *dataSet = new DataSet( this );
-            dataSet->setNumber( d->dataSets.size() );
+            DataSet *dataSet;
+            if ( loadedDataSetCount < createdDataSets.size() ) {
+                dataSet = createdDataSets[loadedDataSetCount];
+            } else {
+                dataSet = new DataSet( this );
+                dataSet->setNumber( d->dataSets.size() );
+            }
             d->dataSets.append( dataSet );
+            dataSet->loadOdf( n, context.odfLoadingContext() );
 
-            if ( n.hasAttributeNS( KoXmlNS::chart, "style-name" ) ) {
-                //qDebug() << "HAS style-name:" << n.attributeNS( KoXmlNS::chart, "style-name" );
-                styleStack.clear();
-                context.odfLoadingContext().fillStyleStack( n, KoXmlNS::chart, "style-name", "chart" );
-
-                //styleStack.setTypeProperties( "chart" );
-
-                // FIXME: Load Pie explode factors
-                //if ( styleStack.hasProperty( KoXmlNS::chart, "pie-offset" ) )
-                //    setPieExplodeFactor( dataSet, styleStack.property( KoXmlNS::chart, "pie-offset" ).toInt() );
-
-                styleStack.setTypeProperties( "graphic" );
-
-                if ( styleStack.hasProperty( KoXmlNS::draw, "stroke" ) ) {
-                    qDebug() << "HAS stroke";
-                    QString stroke = styleStack.property( KoXmlNS::draw, "stroke" );
-                    if( stroke == "solid" || stroke == "dash" ) {
-                        QPen pen = KoOdfGraphicStyles::loadOdfStrokeStyle( styleStack, stroke, context.odfLoadingContext().stylesReader() );
-                        dataSet->setPen( pen );
-                    }
-                }
-
-                if ( styleStack.hasProperty( KoXmlNS::draw, "fill" ) ) {
-                    //qDebug() << "HAS fill";
-                    QString fill = styleStack.property( KoXmlNS::draw, "fill" );
-                    QBrush brush;
-                    if ( fill == "solid" || fill == "hatch" ) {
-                        brush = KoOdfGraphicStyles::loadOdfFillStyle( styleStack, fill, context.odfLoadingContext().stylesReader() );
-                    } else if ( fill == "gradient" ) {
-                        brush = KoOdfGraphicStyles::loadOdfGradientStyle( styleStack, context.odfLoadingContext().stylesReader(), QSizeF( 5.0, 60.0 ) );
-                    } else if ( fill == "bitmap" )
-                        brush = KoOdfGraphicStyles::loadOdfPatternStyle( styleStack, context.odfLoadingContext(), QSizeF( 5.0, 60.0 ) );
-                    dataSet->setBrush( brush );
-                } else {
-                    dataSet->setColor( defaultDataSetColor( dataSet->number() ) );
-                }
-            }
-
-            if ( n.hasAttributeNS( KoXmlNS::chart, "values-cell-range-address" ) ) {
-                const QString region = n.attributeNS( KoXmlNS::chart, "values-cell-range-address", QString() );
-                dataSet->setYDataRegionString( region );
-            }
-            if ( n.hasAttributeNS( KoXmlNS::chart, "label-cell-address" ) ) {
-                const QString region = n.attributeNS( KoXmlNS::chart, "label-cell-address", QString() );
-                dataSet->setLabelDataRegionString( region );
-            }
-
-            KoXmlElement m;
-            forEachElement ( m, n ) {
-                if ( m.namespaceURI() != KoXmlNS::chart )
-                    continue;
-                // FIXME: Load data points
-            }
+            loadedDataSetCount++;
         } else {
             qWarning() << "ChartProxyModel::loadOdf(): Unknown tag name \"" << n.localName() << "\"";
         }
     }
 
-    rebuildDataMap();
-    reset();
+    //rebuildDataMap();
+    endResetModel();
 
     styleStack.restore();
     return true;
@@ -617,69 +627,14 @@ QModelIndex ChartProxyModel::parent( const QModelIndex &index ) const
 
 QModelIndex ChartProxyModel::mapFromSource( const QModelIndex &sourceIndex ) const
 {
-    int  row;
-    int  column;
-
-    if ( d->dataDirection == Qt::Horizontal ) {
-        row    = sourceIndex.row();
-        column = sourceIndex.column();
-
-        if ( d->firstRowIsLabel )
-            row--;
-        if ( d->firstColumnIsLabel )
-            column--;
-        
-        // Find the first occurrence of row in the map
-        for ( int i = 0; i < d->dataMap.size(); i++ ) {
-            if ( d->dataMap[i] == row ) {
-                row = i;
-                break;
-            }
-        }
-    }
-    else {
-        // d->dataDirection == Qt::Vertical here
-
-        row    = sourceIndex.column();
-        column = sourceIndex.row();
-
-        if ( d->firstRowIsLabel )
-            row--;
-        if ( d->firstColumnIsLabel )
-            column--;
-        
-        // Find the first occurrence of column in the map
-        for ( int i = 0; i < d->dataMap.size(); i++ ) {
-            if ( d->dataMap[i] == column ) {
-                column = i;
-                break;
-            }
-        }
-    }
-    
-    return sourceModel()->index( row, column );
+    Q_UNUSED( sourceIndex );
+    return QModelIndex();
 }
 
 QModelIndex ChartProxyModel::mapToSource( const QModelIndex &proxyIndex ) const
 {
-    int  row;
-    int  column;
-
-    if ( d->dataDirection == Qt::Horizontal ) {
-        row    = d->dataMap[ proxyIndex.row() ];
-        column = proxyIndex.column();
-    }
-    else {
-        row    = proxyIndex.column();
-        column = d->dataMap[ proxyIndex.row() ];
-    }
-
-    if ( d->firstRowIsLabel )
-        row++;
-    if ( d->firstColumnIsLabel )
-        column++;
-
-    return sourceModel()->index( row, column );
+    Q_UNUSED( proxyIndex );
+    return QModelIndex();
 }
 
 
@@ -771,6 +726,7 @@ int ChartProxyModel::columnCount( const QModelIndex &parent /* = QModelIndex() *
 
 void ChartProxyModel::setFirstRowIsLabel( bool b )
 {
+    beginResetModel();
     if ( b == d->firstRowIsLabel )
         return;
     
@@ -780,7 +736,7 @@ void ChartProxyModel::setFirstRowIsLabel( bool b )
         return;
     
     rebuildDataMap();
-    reset();
+    endResetModel();
 }
  
 
@@ -788,14 +744,15 @@ void ChartProxyModel::setFirstColumnIsLabel( bool b )
 {
     if ( b == d->firstColumnIsLabel )
         return;
-    
+
+    beginResetModel();
     d->firstColumnIsLabel = b;
 
     if ( !sourceModel() )
         return;
     
     rebuildDataMap();
-    reset();
+    endResetModel();
 }
 
 Qt::Orientation ChartProxyModel::dataDirection()
@@ -803,18 +760,36 @@ Qt::Orientation ChartProxyModel::dataDirection()
     return d->dataDirection;
 }
 
+void ChartProxyModel::invalidateDataSets()
+{
+    foreach ( DataSet *dataSet, d->dataSets )
+    {
+        if ( dataSet->attachedAxis() ) {
+            // Remove data sets 'silently'. Once the last data set
+            // has been detached from an axis, the axis will delete
+            // all models and diagrams associated with it, thus we
+            // do not need to propagate these events to any models.
+            dataSet->attachedAxis()->detachDataSet( dataSet, true );
+        }
+    }
+
+    d->removedDataSets = d->dataSets;
+    d->dataSets.clear();
+}
+
 void ChartProxyModel::setDataDirection( Qt::Orientation orientation )
 {
     if ( d->dataDirection == orientation )
         return;
 
+    beginResetModel();
     d->dataDirection = orientation;
 
     if ( !sourceModel() )
         return;
-    
+
     rebuildDataMap();
-    reset();
+    endResetModel();
 }
 
 void ChartProxyModel::setDataDimensions( int dimensions )
@@ -822,10 +797,11 @@ void ChartProxyModel::setDataDimensions( int dimensions )
     if ( d->dataDimensions == dimensions )
         return;
 
+    beginResetModel();
     d->dataDimensions = dimensions;
 
     rebuildDataMap();
-    reset();
+    endResetModel();
 }
 
 bool ChartProxyModel::firstRowIsLabel() const
@@ -850,8 +826,9 @@ void ChartProxyModel::slotRowsInserted( const QModelIndex &parent,
     Q_UNUSED( start );
     Q_UNUSED( end );
 
+    beginResetModel();
     rebuildDataMap();
-    reset();
+    endResetModel();
 }
 
 void ChartProxyModel::slotColumnsInserted( const QModelIndex &parent,
@@ -861,8 +838,9 @@ void ChartProxyModel::slotColumnsInserted( const QModelIndex &parent,
     Q_UNUSED( start );
     Q_UNUSED( end );
 
+    beginResetModel();
     rebuildDataMap();
-    reset();
+    endResetModel();
 }
 
 void ChartProxyModel::slotRowsRemoved( const QModelIndex &parent,
@@ -872,8 +850,9 @@ void ChartProxyModel::slotRowsRemoved( const QModelIndex &parent,
     Q_UNUSED( start );
     Q_UNUSED( end );
 
+    beginResetModel();
     rebuildDataMap();
-    reset();
+    endResetModel();
 }
 
 void ChartProxyModel::slotColumnsRemoved( const QModelIndex &parent,
@@ -883,14 +862,9 @@ void ChartProxyModel::slotColumnsRemoved( const QModelIndex &parent,
     Q_UNUSED( start );
     Q_UNUSED( end );
 
+    beginResetModel();
     rebuildDataMap();
-    reset();
-}
-
-void ChartProxyModel::reset()
-{
-    QAbstractProxyModel::reset();
-    emit modelResetComplete();
+    endResetModel();
 }
 
 

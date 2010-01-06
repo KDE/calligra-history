@@ -21,26 +21,24 @@
 #include <KoShapeFactory.h>
 
 #include "PathShapesPlugin.h"
-#include "star/KoStarShapeFactory.h"
-#include "rectangle/KoRectangleShapeFactory.h"
-#include "ellipse/KoEllipseShapeFactory.h"
-#include "spiral/KoSpiralShapeFactory.h"
-//#include "arrow/KoArrowShapeFactory.h"
-#include "enhancedpath/KoEnhancedPathShapeFactory.h"
+#include "star/StarShapeFactory.h"
+#include "rectangle/RectangleShapeFactory.h"
+#include "ellipse/EllipseShapeFactory.h"
+#include "spiral/SpiralShapeFactory.h"
+#include "enhancedpath/EnhancedPathShapeFactory.h"
 #include <kgenericfactory.h>
 
 K_EXPORT_COMPONENT_FACTORY(pathshapes,
-                           KGenericFactory<PathShapesPlugin>( "PathShapes" ) )
+                           KGenericFactory<PathShapesPlugin>("PathShapes"))
 
-PathShapesPlugin::PathShapesPlugin( QObject *parent, const QStringList& )
+PathShapesPlugin::PathShapesPlugin(QObject *parent, const QStringList&)
     : QObject(parent)
 {
-    KoShapeRegistry::instance()->add( new KoStarShapeFactory( parent));
-    KoShapeRegistry::instance()->add( new KoRectangleShapeFactory( parent));
-    KoShapeRegistry::instance()->add( new KoEllipseShapeFactory( parent));
-    KoShapeRegistry::instance()->add( new KoSpiralShapeFactory( parent));
-    //KoShapeRegistry::instance()->add( new KoArrowShapeFactory( parent));
-    KoShapeRegistry::instance()->add( new KoEnhancedPathShapeFactory(parent));
+    KoShapeRegistry::instance()->add(new StarShapeFactory(parent));
+    KoShapeRegistry::instance()->add(new RectangleShapeFactory(parent));
+    KoShapeRegistry::instance()->add(new EllipseShapeFactory(parent));
+    KoShapeRegistry::instance()->add(new SpiralShapeFactory(parent));
+    KoShapeRegistry::instance()->add(new EnhancedPathShapeFactory(parent));
 }
 
 #include "PathShapesPlugin.moc"

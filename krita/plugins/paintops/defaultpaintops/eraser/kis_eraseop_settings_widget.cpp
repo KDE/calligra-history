@@ -23,32 +23,29 @@
 #include "kis_eraseop_settings_widget.h"
 #include "kis_eraseop_settings.h"
 #include <kis_properties_configuration.h>
-#include <kis_brush_option.h>
+#include <kis_brush_option_widget.h>
 #include <kis_paintop_options_widget.h>
 #include <kis_pressure_opacity_option.h>
 #include <kis_pressure_size_option.h>
 #include <kis_paint_action_type_option.h>
+#include <kis_curve_option_widget.h>
 
 KisEraseOpSettingsWidget::KisEraseOpSettingsWidget(QWidget* parent)
         : KisPaintOpOptionsWidget(parent)
 {
     setObjectName("brush option widget");
 
-    m_brushOption = new KisBrushOption();
-    m_sizeOption = new KisPressureSizeOption();
-    m_opacityOption = new KisPressureOpacityOption();
+    m_brushOption = new KisBrushOptionWidget();
 
     addPaintOpOption(m_brushOption);
-    addPaintOpOption(m_sizeOption);
-    addPaintOpOption(m_opacityOption);
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureSizeOption()));
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureOpacityOption()));
 
 }
 
 KisEraseOpSettingsWidget::~KisEraseOpSettingsWidget()
 {
     delete m_brushOption;
-    delete m_sizeOption;
-    delete m_opacityOption;
 }
 
 KisPropertiesConfiguration* KisEraseOpSettingsWidget::configuration() const
@@ -58,11 +55,6 @@ KisPropertiesConfiguration* KisEraseOpSettingsWidget::configuration() const
     config->setProperty("paintop", "eraser"); // XXX: make this a const id string
     writeConfiguration(config);
     return config;
-}
-
-void KisEraseOpSettingsWidget::setImage(KisImageWSP image)
-{
-    m_brushOption->setImage(image);
 }
 
 #include "kis_eraseop_settings_widget.moc"

@@ -121,10 +121,15 @@ public:
     // only when id is Ref3d
     UString ref3d(const std::vector<UString>& externSheets, unsigned row, unsigned col) const;
 
+    // only when id is Array
+    UString array(unsigned row, unsigned col) const;
+
     // only when id is Area or AreaN
     UString area(unsigned row, unsigned col, bool relative = false) const;
     // only when id is Area3d
     UString area3d(const std::vector<UString>& externSheets, unsigned row, unsigned col) const;
+    // only when id is MemArea
+    UString areaMap(unsigned row, unsigned col);
 
     // only when id is Attr
     unsigned attr() const;
@@ -135,6 +140,8 @@ public:
     // only when id is Matrix (tExp)
     std::pair<unsigned, unsigned> baseFormulaRecord() const;
 
+    void operator=(const FormulaToken& token);
+    
 private:
     class Private;
     Private *d;

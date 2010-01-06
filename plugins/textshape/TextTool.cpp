@@ -30,6 +30,8 @@
 #include "dialogs/InsertCharacter.h"
 #include "dialogs/FontDia.h"
 #include "dialogs/TableDialog.h"
+#include "dialogs/ChangeConfigureDialog.h"
+#include "dialogs/TrackedChangeManager.h"
 #include "commands/TextCommandBase.h"
 #include "commands/TextCutCommand.h"
 #include "commands/TextPasteCommand.h"
@@ -46,9 +48,7 @@
 #include <KoPointerEvent.h>
 #include <KoCanvasResourceProvider.h>
 #include <KoColorBackground.h>
-#ifndef NO_PIGMENT
 #include <KoColorPopupAction.h>
-#endif
 
 #include <KoCharacterStyle.h>
 #include <KoTextDocumentLayout.h>
@@ -69,7 +69,9 @@
 #include <KoTextPaste.h>
 #include <KoTextDocument.h>
 #include <KoTextEditor.h>
+#include <KoGlobal.h>
 
+#include <KConfigGroup>
 #include <kdebug.h>
 #include <KStandardShortcut>
 #include <KFontSizeAction>
@@ -91,6 +93,7 @@
 #include <QUndoCommand>
 #include <QSignalMapper>
 #include <QTextDocumentFragment>
+#include <QTreeView>
 #include <KoGenStyles.h>
 #include <KoEmbeddedDocumentSaver.h>
 #include <KoShapeSavingContext.h>
@@ -99,6 +102,7 @@
 #include <KoChangeTrackerElement.h>
 #include <KoDeleteChangeMarker.h>
 #include <kpassivepopup.h>
+#include <QToolTip>
 
 static bool hit(const QKeySequence &input, KStandardShortcut::StandardShortcut shortcut)
 {
@@ -318,7 +322,6 @@ TextTool::TextTool(KoCanvasBase *canvas)
     addAction("format_fontsize", m_actionFormatFontSize);
     connect(m_actionFormatFontSize, SIGNAL(fontSizeChanged(int)), this, SLOT(setFontSize(int)));
 
-#ifndef NO_PIGMENT
     m_actionFormatTextColor = new KoColorPopupAction(this);
     m_actionFormatTextColor->setIcon(KIcon("format-text-color"));
     m_actionFormatTextColor->setToolTip(i18n("Text Color..."));
@@ -331,7 +334,7 @@ TextTool::TextTool(KoCanvasBase *canvas)
     m_actionFormatBackgroundColor->setText(i18n("Background"));
     addAction("format_backgroundcolor", m_actionFormatBackgroundColor);
     connect(m_actionFormatBackgroundColor, SIGNAL(colorChanged(const KoColor &)), this, SLOT(setBackgroundColor(const KoColor &)));
-#endif
+
     action = new KAction(i18n("Default Format"), this);
     addAction("text_default", action);
     action->setToolTip(i18n("Change text attributes to their default values"));
@@ -379,10 +382,19 @@ TextTool::TextTool(KoCanvasBase *canvas)
     action->setWhatsThis(i18n("Change paragraph margins, text flow, borders, bullets, numbering etc.<p>Select text in multiple paragraphs to change the formatting of all selected paragraphs.<p>If no text is selected, the paragraph where the cursor is located will be changed.</p>"));
     connect(action, SIGNAL(triggered()), this, SLOT(formatParagraph()));
 
-    m_actionShowChanges = new KAction(i18n("Record"), this);
+    m_actionShowChanges = new KAction(i18n("Show Changes"), this);
     m_actionShowChanges->setCheckable(true);
-    addAction("edit_record_changes", m_actionShowChanges);
-    connect(m_actionShowChanges, SIGNAL(triggered(bool)), this, SLOT(toggleTrackChanges(bool)));
+    addAction("edit_show_changes", m_actionShowChanges);
+    connect(m_actionShowChanges, SIGNAL(triggered(bool)), this, SLOT(toggleShowChanges(bool)));
+
+    m_actionRecordChanges = new KAction(i18n("Record Changes"), this);
+    m_actionRecordChanges->setCheckable(true);
+    addAction("edit_record_changes", m_actionRecordChanges);
+    connect(m_actionRecordChanges, SIGNAL(triggered(bool)), this, SLOT(toggleRecordChanges(bool)));
+
+    m_configureChangeTracking = new KAction(i18n("Configure Change Tracking"), this);
+    addAction("configure_change_tracking", m_configureChangeTracking);
+    connect(m_configureChangeTracking, SIGNAL(triggered()), this, SLOT(configureChangeTracking()));
 
     action = new KAction(i18n("Style Manager"), this);
     action->setShortcut(Qt::ALT + Qt::CTRL + Qt::Key_S);
@@ -437,7 +449,7 @@ TextTool::TextTool(KoCanvasBase *canvas)
     m_caretTimer.setInterval(500);
     connect(&m_caretTimer, SIGNAL(timeout()), this, SLOT(blinkCaret()));
 
-    m_changeTipTimer.setInterval(2000);
+    m_changeTipTimer.setInterval(1000);
     m_changeTipTimer.setSingleShot(true);
     connect(&m_changeTipTimer, SIGNAL(timeout()), this, SLOT(showChangeTip()));
 }
@@ -482,12 +494,26 @@ void TextTool::showChangeTip()
     if (m_changeTracker && m_changeTracker->containsInlineChanges(c.charFormat())) {
         KoChangeTrackerElement *element = m_changeTracker->elementById(c.charFormat().property(KoCharacterStyle::ChangeTrackerId).toInt());
         if (element->isEnabled()) {
-            QString change = element->getChangeTitle() + ' ' + element->getDate() + ' ' + element->getCreator();
-            KPassivePopup *popup = new KPassivePopup();
-            popup->setTimeout(5000);
-            popup->setAutoDelete(true);
-            popup->setView("Latest change", change);
-            popup->show(m_changeTipPos);
+            QString changeType;
+            if (element->getChangeType() == KoGenChange::insertChange)
+                changeType = i18n("Insertion");
+            else if (element->getChangeType() == KoGenChange::deleteChange)
+                changeType = i18n("Deletion");
+            else
+                changeType = i18n("Formatting");
+
+            QString change = "<p align=center style=\'white-space:pre\' ><b>" + changeType + "</b><br/>"; 
+            
+            QString date = element->getDate();
+            //Remove the T which separates the Data and Time.
+            date[10] = ' ';
+            change += element->getCreator() + " " + date + "</p>";
+
+            int toolTipWidth = QFontMetrics(QToolTip::font()).boundingRect(element->getDate() + ' ' + element->getCreator()).width();
+            m_changeTipPos.setX(m_changeTipPos.x() - toolTipWidth/2);
+
+            QToolTip::showText(m_changeTipPos,change,m_canvas->canvasWidget());
+
         }
     }
 }
@@ -759,7 +785,7 @@ void TextTool::copy() const
 
 void TextTool::deleteSelection()
 {
-    if(m_actionShowChanges->isChecked())
+    if(m_actionRecordChanges->isChecked())
       m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
     else
       m_textEditor->deleteChar();
@@ -821,13 +847,17 @@ void TextTool::mouseDoubleClickEvent(KoPointerEvent *event)
 
 void TextTool::mouseMoveEvent(KoPointerEvent *event)
 {
-    m_changeTipPos = event->pos();
+    m_changeTipPos = event->globalPos();
 
     useCursor(Qt::IBeamCursor);
     if (event->buttons()) {
         updateSelectedShape(event->point);
-        m_changeTipTimer.stop();
     }
+
+    m_changeTipTimer.stop();
+
+    if (QToolTip::isVisible())
+        QToolTip::hideText();
 
     int position = pointToPosition(event->point);
 
@@ -841,12 +871,8 @@ void TextTool::mouseMoveEvent(KoPointerEvent *event)
         QTextCharFormat fmt = mouseOver.charFormat();
 
         if (m_changeTracker && m_changeTracker->containsInlineChanges(mouseOver.charFormat())) {
-            QTextCursor test(m_textShapeData->document());
-            test.setPosition(m_changeTipCursorPos);
-            if (m_changeTracker->elementById(mouseOver.charFormat().property(KoCharacterStyle::ChangeTrackerId).toInt()) != m_changeTracker->elementById(test.charFormat().property(KoCharacterStyle::ChangeTrackerId).toInt()) || !m_changeTipCursorPos) {
                 m_changeTipTimer.start();
                 m_changeTipCursorPos = position;
-            }
         }
 
         if (cursor.charFormat().isAnchor())
@@ -912,7 +938,7 @@ void TextTool::keyPressEvent(QKeyEvent *event)
         } else if (m_textEditor->position() > 0 || m_textEditor->hasSelection()) {
             if (!m_textEditor->hasSelection() && event->modifiers() & Qt::ControlModifier) // delete prev word.
                 m_textEditor->movePosition(QTextCursor::PreviousWord, QTextCursor::KeepAnchor);
-            if(m_actionShowChanges->isChecked())
+            if(m_actionRecordChanges->isChecked())
               m_textEditor->addCommand(new DeleteCommand(DeleteCommand::PreviousChar, this));
             else
               m_textEditor->deletePreviousChar();
@@ -931,7 +957,7 @@ void TextTool::keyPressEvent(QKeyEvent *event)
             m_textEditor->movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
         // the event only gets through when the Del is not used in the app
         // if the app forwards Del then deleteSelection is used
-        if(m_actionShowChanges->isChecked())
+        if(m_actionRecordChanges->isChecked())
           m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
         else
           m_textEditor->deleteChar();
@@ -1077,6 +1103,8 @@ QVariant TextTool::inputMethodQuery(Qt::InputMethodQuery query, const KoViewConv
     case Qt::ImCurrentSelection:
         // The currently selected text.
         return m_textEditor->selectedText();
+    default:
+        ; // Qt 4.6 adds ImMaximumTextLength and ImAnchorPosition
     }
     return QVariant();
 }
@@ -1086,7 +1114,7 @@ void TextTool::inputMethodEvent(QInputMethodEvent *event)
     if (event->replacementLength() > 0) {
         m_textEditor->setPosition(m_textEditor->position() + event->replacementStart());
         for (int i = event->replacementLength(); i > 0; --i) {
-            if(m_actionShowChanges->isChecked())
+            if(m_actionRecordChanges->isChecked())
               m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
             else
               m_textEditor->deleteChar();
@@ -1144,7 +1172,7 @@ void TextTool::ensureCursorVisible()
 
 void TextTool::keyReleaseEvent(QKeyEvent *event)
 {
-    event->ignore();
+    event->accept();
 }
 
 void TextTool::updateActions()
@@ -1220,7 +1248,7 @@ void TextTool::activate(bool temporary)
         selection->deselect(shape);
     }
     setShapeData(static_cast<KoTextShapeData*>(m_textShape->userData()));
-    useCursor(Qt::IBeamCursor, true);
+    useCursor(Qt::IBeamCursor);
 
     // restore the selection from a previous time we edited this document.
     for (int i = 0; i < m_previousSelections.count(); i++) {
@@ -1240,6 +1268,7 @@ void TextTool::activate(bool temporary)
     updateStyleManager();
     if (m_specialCharacterDocker)
         m_specialCharacterDocker->setEnabled(true);
+    readConfig();
 }
 
 void TextTool::deactivate()
@@ -1654,9 +1683,38 @@ void TextTool::formatParagraph()
     delete dia;
 }
 
-void TextTool::toggleTrackChanges(bool on)//TODO transfer this in KoTextEditor
+void TextTool::toggleShowChanges(bool on)//TODO transfer this in KoTextEditor
 {
-    m_textEditor->addCommand(new ShowChangesCommand(on, this));
+    ShowChangesCommand *command = new ShowChangesCommand(on, m_textShapeData->document());
+    connect(command, SIGNAL(toggledShowChange(bool)), m_actionShowChanges, SLOT(setChecked(bool)));
+    m_textEditor->addCommand(command);
+}
+
+void TextTool::toggleRecordChanges(bool on)
+{
+    m_changeTracker->setRecordChanges(on);
+}
+
+void TextTool::configureChangeTracking()
+{
+    QColor insertionBgColor, deletionBgColor, formatChangeBgColor;
+    insertionBgColor = m_changeTracker->getInsertionBgColor();
+    deletionBgColor = m_changeTracker->getDeletionBgColor();
+    formatChangeBgColor = m_changeTracker->getFormatChangeBgColor();
+
+    ChangeConfigureDialog changeDialog( insertionBgColor, deletionBgColor, formatChangeBgColor, m_canvas->canvasWidget());
+    
+    if (changeDialog.exec()) {
+        m_changeTracker->setInsertionBgColor(changeDialog.getInsertionBgColor());
+        m_changeTracker->setDeletionBgColor(changeDialog.getDeletionBgColor());
+        m_changeTracker->setFormatChangeBgColor(changeDialog.getFormatChangeBgColor());
+        writeConfig();
+    }
+}
+
+void TextTool::testSlot(bool on)
+{
+    kDebug(32500) << "signal received. bool:" << on;
 }
 
 void TextTool::selectAll()
@@ -1877,9 +1935,33 @@ void TextTool::setBackgroundColor(const KoColor &color)
 
 void TextTool::shapeAddedToDoc(KoShape *shape)
 {
+    Q_UNUSED(shape);
     // in case the new frame added is a freshly appended frame
     // allow the layouter to do some work and then optionally move the view to follow the cursor
     QTimer::singleShot(0, this, SLOT(ensureCursorVisible()));
+}
+
+
+void TextTool::readConfig()
+{
+    QColor bgColor, defaultColor;
+    KConfigGroup interface = KoGlobal::kofficeConfig()->group("Change-Tracking");
+    if (interface.exists()) {
+        bgColor = interface.readEntry("insertionBgColor", defaultColor);
+        m_changeTracker->setInsertionBgColor(bgColor);
+        bgColor = interface.readEntry("deletionBgColor", defaultColor);
+        m_changeTracker->setDeletionBgColor(bgColor);
+        bgColor = interface.readEntry("formatChangeBgColor", defaultColor);
+        m_changeTracker->setFormatChangeBgColor(bgColor);
+    }
+}
+
+void TextTool::writeConfig()
+{
+    KConfigGroup interface = KoGlobal::kofficeConfig()->group("Change-Tracking");
+    interface.writeEntry("insertionBgColor", m_changeTracker->getInsertionBgColor());
+    interface.writeEntry("deletionBgColor", m_changeTracker->getDeletionBgColor());
+    interface.writeEntry("formatChangeBgColor", m_changeTracker->getFormatChangeBgColor());
 }
 
 void TextTool::debugTextDocument()

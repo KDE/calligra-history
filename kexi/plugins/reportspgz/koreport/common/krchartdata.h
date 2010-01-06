@@ -25,7 +25,6 @@
 #include <qdom.h>
 #include "krsize.h"
 #include "krpos.h"
-#include <parsexmlutils.h>
 #include <KDChartWidget>
 
 namespace KexiDB
@@ -118,7 +117,7 @@ private:
 
     KexiDB::Cursor *dataSet();
 
-    QMap<QString,QVariant> m_links; //Map of field->value for child/master links
+    QMap<QString, QVariant> m_links; //Map of field->value for child/master links
 
 };
 

@@ -22,6 +22,8 @@ SET ( textshape_SRCS
     ListItemsHelper.cpp
 
     ChangeTracker.cpp
+    ChangeTrackingTool.cpp
+    ChangeTrackingToolFactory.cpp
     TextChanges.cpp
     TextChange.cpp
 
@@ -35,6 +37,7 @@ SET ( textshape_SRCS
     dialogs/ParagraphDecorations.cpp
     dialogs/ParagraphBulletsNumbers.cpp
     dialogs/ParagraphSettingsDialog.cpp
+    dialogs/OptionButton.cpp
     dialogs/ListsSpinBox.cpp
     dialogs/StylesModel.cpp
     dialogs/StyleManager.cpp
@@ -52,6 +55,10 @@ SET ( textshape_SRCS
     dialogs/FormattingPreview.cpp
     dialogs/StyleManagerWelcome.cpp
     dialogs/TableDialog.cpp
+    dialogs/ChangeConfigureDialog.cpp
+    dialogs/TrackedChangeModel.cpp
+    dialogs/TrackedChangeManager.cpp
+    dialogs/modeltest.cpp
 
     commands/ChangeListCommand.cpp
     commands/ChangeListLevelCommand.cpp
@@ -61,6 +68,7 @@ SET ( textshape_SRCS
     commands/TextCutCommand.cpp
     commands/ShowChangesCommand.cpp
     commands/DeleteCommand.cpp
+    commands/AcceptChangeCommand.cpp
 )
 
 kde4_add_ui_files(textshape_SRCS
@@ -81,15 +89,11 @@ kde4_add_ui_files(textshape_SRCS
     dialogs/FontDecorations.ui
     dialogs/FontLayoutTab.ui
     dialogs/LanguageTab.ui
+    dialogs/ChangeConfigureDialog.ui
+    dialogs/TrackedChangeManager.ui
 )
 
 kde4_add_plugin(textshape ${textshape_SRCS})
-
-if (NOT NO_PIGMENT)
-set(EXTRA_LIBS
-    kocolorwidgets
-)
-endif (NOT NO_PIGMENT)
 
 target_link_libraries(textshape kotext komain ${EXTRA_LIBS})
 

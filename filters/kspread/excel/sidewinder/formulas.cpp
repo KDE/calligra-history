@@ -65,6 +65,17 @@ FormulaToken::FormulaToken(const FormulaToken& token)
         d->data[i] = token.d->data[i];
 }
 
+void FormulaToken::operator=(const FormulaToken& token)
+{
+    d = new Private;
+    d->ver = token.d->ver;
+    d->id = token.id();
+    
+    d->data.resize(token.d->data.size());
+    for (unsigned i = 0; i < d->data.size(); i++)
+        d->data[i] = token.d->data[i];
+}
+
 FormulaToken::~FormulaToken()
 {
     delete d;
@@ -90,61 +101,62 @@ const char* FormulaToken::idAsString() const
     const char* s = 0;
 
     switch (d->id) {
-        case Matrix:       s = "Matrix"; break;
-        case Table:        s = "Table"; break;
-        case Add:          s = "Add"; break;
-        case Sub:          s = "Sub"; break;
-        case Mul:          s = "Mul"; break;
-        case Div:          s = "Div"; break;
-        case Power:        s = "Power"; break;
-        case Concat:       s = "Concat"; break;
-        case LT:           s = "LT"; break;
-        case LE:           s = "LE"; break;
-        case EQ:           s = "EQ"; break;
-        case GE:           s = "GE"; break;
-        case GT:           s = "GT"; break;
-        case NE:           s = "NE"; break;
-        case Intersect:    s = "Intersect"; break;
-        case List:         s = "List"; break;
-        case Range:        s = "Range"; break;
-        case UPlus:        s = "UPlus"; break;
-        case UMinus:       s = "UMinus"; break;
-        case Percent:      s = "Percent"; break;
-        case Paren:        s = "Paren"; break;
-        case String:       s = "String"; break;
-        case MissArg:      s = "MissArg"; break;
-        case ErrorCode:    s = "ErrorCode"; break;
-        case Bool:         s = "Bool"; break;
-        case Integer:      s = "Integer"; break;
-        case Array:        s = "Array"; break;
-        case Function:     s = "Function"; break;
-        case FunctionVar:  s = "FunctionVar"; break;
-        case Name:         s = "Name"; break;
-        case Ref:          s = "Ref"; break;
-        case RefErr:       s = "RefErr"; break;
-        case RefN:         s = "RefN"; break;
-        case Area:         s = "Area"; break;
-        case AreaErr:      s = "AreaErr"; break;
-        case AreaN:        s = "AreaN"; break;
-        case NameX:        s = "NameX"; break;
-        case Ref3d:        s = "Ref3d"; break;
-        case RefErr3d:     s = "RefErr3d"; break;
-        case Float:        s = "Float"; break;
-        case Area3d:       s = "Area3d"; break;
-        case AreaErr3d:    s = "AreaErr3d"; break;
-        case NatFormula:   s = "NatFormula"; break;
-        case Sheet:        s = "Sheet"; break;
-        case EndSheet:     s = "EndSheet"; break;
-        case MemArea:      s = "MemArea"; break;
-        case MemErr:       s = "MemErr"; break;
-        case MemNoMem:     s = "MemNoMem"; break;
-        case MemFunc:      s = "MemFunc"; break;
-        case MemAreaN:     s = "MemAreaN"; break;
-        case MemNoMemN:    s = "MemNoMemN"; break;
-        default:
-          s = "Unknown";
-          printf( "Unhandled formula id as string=%i\n", d->id );
-          break;
+    case Matrix:       s = "Matrix"; break;
+    case Table:        s = "Table"; break;
+    case Add:          s = "Add"; break;
+    case Sub:          s = "Sub"; break;
+    case Mul:          s = "Mul"; break;
+    case Div:          s = "Div"; break;
+    case Power:        s = "Power"; break;
+    case Concat:       s = "Concat"; break;
+    case LT:           s = "LT"; break;
+    case LE:           s = "LE"; break;
+    case EQ:           s = "EQ"; break;
+    case GE:           s = "GE"; break;
+    case GT:           s = "GT"; break;
+    case NE:           s = "NE"; break;
+    case Intersect:    s = "Intersect"; break;
+    case List:         s = "List"; break;
+    case Range:        s = "Range"; break;
+    case UPlus:        s = "UPlus"; break;
+    case UMinus:       s = "UMinus"; break;
+    case Percent:      s = "Percent"; break;
+    case Paren:        s = "Paren"; break;
+    case String:       s = "String"; break;
+    case MissArg:      s = "MissArg"; break;
+    case ErrorCode:    s = "ErrorCode"; break;
+    case Bool:         s = "Bool"; break;
+    case Integer:      s = "Integer"; break;
+    case Array:        s = "Array"; break;
+    case Function:     s = "Function"; break;
+    case FunctionVar:  s = "FunctionVar"; break;
+    case Name:         s = "Name"; break;
+    case Ref:          s = "Ref"; break;
+    case RefErr:       s = "RefErr"; break;
+    case RefN:         s = "RefN"; break;
+    case Area:         s = "Area"; break;
+    case AreaErr:      s = "AreaErr"; break;
+    case AreaN:        s = "AreaN"; break;
+    case NameX:        s = "NameX"; break;
+    case Ref3d:        s = "Ref3d"; break;
+    case RefErr3d:     s = "RefErr3d"; break;
+    case Float:        s = "Float"; break;
+    case Area3d:       s = "Area3d"; break;
+    case AreaErr3d:    s = "AreaErr3d"; break;
+    case NatFormula:   s = "NatFormula"; break;
+    case Sheet:        s = "Sheet"; break;
+    case EndSheet:     s = "EndSheet"; break;
+    case MemArea:      s = "MemArea"; break;
+    case MemErr:       s = "MemErr"; break;
+    case MemNoMem:     s = "MemNoMem"; break;
+    case MemFunc:      s = "MemFunc"; break;
+    case MemAreaN:     s = "MemAreaN"; break;
+    case MemNoMemN:    s = "MemNoMemN"; break;
+    case 0:            s = ""; break; // NOPE...
+    default:
+        s = "Unknown";
+        printf("Unhandled formula id %i as string\n", d->id);
+        break;
     }
 
     return s;
@@ -156,82 +168,96 @@ unsigned FormulaToken::size() const
     unsigned s = 0; // on most cases no data
 
     switch (d->id) {
-        case Add:
-        case Sub:
-        case Mul:
-        case Div:
-        case Power:
-        case Concat:
-        case LT:
-        case LE:
-        case EQ:
-        case GE:
-        case GT:
-        case NE:
-        case Intersect:
-        case List:
-        case Range:
-        case UPlus:
-        case UMinus:
-        case Percent:
-        case Paren:
-        case MissArg:
-            s = 0; break;
+    case Add:
+    case Sub:
+    case Mul:
+    case Div:
+    case Power:
+    case Concat:
+    case LT:
+    case LE:
+    case EQ:
+    case GE:
+    case GT:
+    case NE:
+    case Intersect:
+    case List:
+    case Range:
+    case UPlus:
+    case UMinus:
+    case Percent:
+    case Paren:
+    case MissArg:
+        s = 0; break;
 
-        case Attr:
-            s = 3; break;
+    case Attr:
+        s = 3; break;
 
-        case ErrorCode:
-        case Bool:
-            s = 1; break;
+    case ErrorCode:
+    case Bool:
+        s = 1; break;
 
-        case Integer:
-            s = 2; break;
+    case Integer:
+        s = 2; break;
 
-        case Array:
-            s = 7; break;
+    case Array:
+        s = 7; break;
 
-        case Function:
-            s = 2; break;
+    case Function:
+        s = 2; break;
 
-        case FunctionVar:
-            s = 3; break;
+    case FunctionVar:
+        s = 3; break;
 
-        case Matrix:
-        case Table:
-            s = (d->ver == Excel97) ? 4 : 3; break;
+    case Matrix:
+    case Table:
+        s = (d->ver == Excel97) ? 4 : 3; break;
 
-        case Name:
-            s = (d->ver == Excel97) ? 4 : 14; break;
+    case Name:
+        s = (d->ver == Excel97) ? 4 : 14; break;
 
-        case Ref:
-        case RefErr:
-        case RefN:
-            s = (d->ver == Excel97) ? 4 : 3; break;
+    case Ref:
+    case RefErr:
+    case RefN:
+        s = (d->ver == Excel97) ? 4 : 3; break;
 
-        case Area:
-        case AreaErr:
-        case AreaN:
-            s = (d->ver == Excel97) ? 8 : 6; break;
+    case Area:
+    case AreaErr:
+    case AreaN:
+        s = (d->ver == Excel97) ? 8 : 6; break;
 
-        case NameX:
-            s = (d->ver == Excel97) ? 6 : 24; break;
+    case NameX:
+        s = (d->ver == Excel97) ? 6 : 24; break;
 
-        case Ref3d:
-        case RefErr3d:
-            s = (d->ver == Excel97) ? 6 : 17; break;
+    case Ref3d:
+    case RefErr3d:
+        s = (d->ver == Excel97) ? 6 : 17; break;
 
-        case Float:
-            s = 8; break;
+    case Float:
+        s = 8; break;
 
-        case Area3d:
-        case AreaErr3d:
-            s = (d->ver == Excel97) ? 10 : 20; break;
+    case Area3d:
+    case AreaErr3d:
+        s = (d->ver == Excel97) ? 10 : 20; break;
 
-        default:
-            // WARNING this is unhandled case
-            printf( "Unhandled formula token with id %i\n", d->id );
-            break;
+    case MemArea:
+        s = 7; break;
+
+    case 0: // NOPE
+        s = 0; break;
+
+    case NatFormula:
+    case Sheet:
+    case EndSheet:
+    case MemErr:
+    case MemNoMem:
+    case MemFunc:
+    case MemAreaN:
+    case MemNoMemN:
+    default:
+        // WARNING this is unhandled case
+        printf("Unhandled formula token with id %i\n", d->id);
+        break;
     }
 
     return s;
@@ -255,31 +281,31 @@ Value FormulaToken::value() const
 
     // FIXME sanity check: verify size of data
     switch (d->id) {
-        case ErrorCode:
-            result = errorAsValue(buf[0]);
-            break;
+    case ErrorCode:
+        result = errorAsValue(buf[0]);
+        break;
 
-        case Bool:
-            result = Value(buf[0] != 0);
-            break;
+    case Bool:
+        result = Value(buf[0] != 0);
+        break;
 
-        case Integer:
-            result = Value((int)readU16(buf));
-            break;
+    case Integer:
+        result = Value((int)readU16(buf));
+        break;
 
-        case Float:
-            result = Value(readFloat64(buf));
-            break;
+    case Float:
+        result = Value(readFloat64(buf));
+        break;
 
-        case String: {
-            EString estr = (version() == Excel97) ?
+    case String: {
+        EString estr = (version() == Excel97) ?
                        EString::fromUnicodeString(buf, false, d->data.size()) :
                        EString::fromByteString(buf, false, d->data.size());
-            result = Value(estr.str());
-            break;
-        }
+        result = Value(estr.str());
+        break;
+    }
 
-        default: break;
+    default: break;
     }
 
     delete [] buf;
@@ -682,6 +708,21 @@ static const FunctionEntry FunctionEntries[] = {
     { "VARPA",           0 },     // 365
     { "STDEVA",          0 },     // 366
     { "VARA",            0 },     // 367
+
+    { "BAHTTEXT",        1 },     // 368
+    //TODO; following formulas are not supported in KSpread yet
+    { "THAIDAYOFWEEK",   1 },     // 369
+    { "THAIDIGIT",       1 },     // 370
+    { "THAIMONTHOFYEAR", 1 },     // 371
+    { "THAINUMSOUND",    1 },     // 372
+    { "THAINUMSTRING",   1 },     // 373
+    { "THAISTRINGLENGTH",1 },     // 374
+    { "ISTHAIDIGIT",     1 },     // 375
+    { "ROUNDBAHTDOWN",   1 },     // 376
+    { "ROUNDBAHTUP",     1 },     // 377
+    { "THAIYEAR",        1 },     // 378
+    { "RTD",             1 },     // 379
+    { "ISHYPERLINK",     1 }      // 380
 };
 
 const char* FormulaToken::functionName() const
@@ -907,6 +948,43 @@ UString FormulaToken::area3d(const std::vector<UString>& externSheets, unsigned 
     return result;
 }
 
+UString FormulaToken::areaMap(unsigned row, unsigned col)
+{
+    unsigned char buf[4];
+    buf[0] = d->data[0];
+    unsigned ptg = readU8(buf);
+    const int type = (ptg & 0x20 ? 1 : 0) + (ptg & 0x60 ? 2 : 0);
+    //Q_ASSERT(type == 1 || type == 2 || type == 3);
+    buf[0] = d->data[5];
+    buf[1] = d->data[6];
+    unsigned cce = readU16(buf);
+    //printf( "SIZE=%i\n", cce );
+    if (cce < 7) {
+        printf("Error: Invalid size %i for formula areaMap of type %i\n", cce, type);
+        return UString();
+    }
+
+    // remove the first seven elements cause they are done
+    d->data.erase(d->data.begin(), d->data.begin() + 7);
+    //unsigned size, const unsigned char* data
+
+    UString result;
+    switch (type) {
+    case 0x01: // REFERENCE, specifies a reference to a range.
+        result = ref(row, col);
+        break;
+    case 0x02: // VALUE, specifies a single value of a simple type. The type can be a Boolean, a number, a string, or an error code.
+        result = value().asString();
+        break;
+    case 0x03: // ARRAY, specifies an array of values.
+        result = array(row, col);
+        break;
+    }
+
+    //d->data.erase(d->data.begin(), d->data.begin() + cce);
+    return result;
+}
+
 UString FormulaToken::ref(unsigned /*row*/, unsigned /*col*/) const
 {
     // FIXME check data size !
@@ -1064,12 +1142,47 @@ UString FormulaToken::ref3d(const std::vector<UString>& externSheets, unsigned /
     return result;
 }
 
+UString FormulaToken::array(unsigned row, unsigned col) const                                                                           
+{   
+    /*
+    unsigned char buf[2];
+    buf[0] = d->data[1]; // specs say this should be at the first byte but seems its not true...
+    const unsigned opts = readU8(buf);
+    const bool reserved1 = opts & 0x01;
+    const bool reserved2 = opts & 0x02;
+    const bool reserved3 = opts & 0x04;
+    const bool reserved4 = opts & 0x08;
+    const bool reserved5 = opts & 0x10;
+    Q_ASSERT(!reserved1 && !reserved2 && !reserved3 && !reserved4 && !reserved5);
+    const int type = ((opts & 0x20) ? 1 : 0) + ((opts & 0x60) ? 2 : 0);
+    printf("%i\n",type);
+    Q_ASSERT(type == 2 || type == 3);
+    // remove the first two elements cause they are done
+    d->data.erase(d->data.begin(), d->data.begin() + 2);
+    UString result;
+    switch (type) {
+    case 0x01: // REFERENCE, specifies a reference to a range.
+        result = ref(row, col);
+        break;
+    case 0x02: // VALUE, specifies a single value of a simple type. The type can be a Boolean, a number, a string, or an error code.
+        result = value().asString();
+        break;
+    case 0x03: // ARRAY, specifies an array of values.
+        result = array(row, col);
+        break;
+    }
+    //Q_ASSERT(false);
+    return result;
+    */
+    return UString();
+}
+
 std::pair<unsigned, unsigned> FormulaToken::baseFormulaRecord() const
 {
     if (version() == Excel97) {
-        return std::make_pair(readU16(&d->data[0]), readU16(&d->data[2]));
+        return std::make_pair(readU16(&d->data[1]), readU16(&d->data[3]));
     } else {
-        return std::make_pair(readU16(&d->data[0]), (unsigned)d->data[2]);
+        return std::make_pair(readU16(&d->data[1]), (unsigned)d->data[3]);
     }
 }
 

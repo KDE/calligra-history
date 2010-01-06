@@ -35,19 +35,20 @@ class KoPathShape;
 class KoPathSegmentChangeStrategy : public KoInteractionStrategy
 {
 public:
-    KoPathSegmentChangeStrategy(KoPathTool *tool, KoCanvasBase *canvas, const QPointF &pos, const KoPathPointData &segment, qreal segmentParam);
+    KoPathSegmentChangeStrategy(KoPathTool *tool, const QPointF &pos, const KoPathPointData &segment, qreal segmentParam);
     virtual ~KoPathSegmentChangeStrategy();
     virtual void handleMouseMove(const QPointF &mouseLocation, Qt::KeyboardModifiers modifiers);
     virtual void finishInteraction(Qt::KeyboardModifiers modifiers);
-    virtual QUndoCommand* createCommand();
+    virtual QUndoCommand *createCommand();
+
 private:
     QPointF m_originalPosition;
     QPointF m_lastPosition;
     /// the accumulated point move amount
     QPointF m_move;
     /// pointer to the path tool
-    KoPathTool * m_tool;
-    KoPathShape * m_path;
+    KoPathTool *m_tool;
+    KoPathShape *m_path;
     KoPathSegment m_segment;
     qreal m_segmentParam;
     QPointF m_ctrlPoint1Move;

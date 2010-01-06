@@ -91,7 +91,7 @@ OROPage::OROPage(ORODocument * pDocument)
 
 OROPage::~OROPage()
 {
-    if (m_document != 0) {
+    if (m_document) {
         m_document->m_pages.removeAt(page());
         m_document = 0;
     }
@@ -105,7 +105,7 @@ OROPage::~OROPage()
 
 int OROPage::page() const
 {
-    if (m_document != 0) {
+    if (m_document) {
         for (int i = 0; i < m_document->m_pages.size(); i++) {
             if (m_document->m_pages.at(i) == this)
                 return i;
@@ -146,7 +146,7 @@ OROSection::OROSection(ORODocument * pDocument)
 
 OROSection::~OROSection()
 {
-    if (m_document != 0) {
+    if (m_document) {
         m_document->m_sections.removeAt(row());
         m_document = 0;
     }
@@ -218,7 +218,7 @@ OROPrimitive::OROPrimitive(int pType)
 
 OROPrimitive::~OROPrimitive()
 {
-    if (m_page != 0) {
+    if (m_page) {
         m_page->m_primitives.removeAt(m_page->m_primitives.indexOf(this));
         m_page = 0;
     }
@@ -257,12 +257,12 @@ void OROTextBox::setText(const QString & s)
     m_text = s;
 }
 
-void OROTextBox::setTextStyle(const ORTextStyleData & ts)
+void OROTextBox::setTextStyle(const KRTextStyleData & ts)
 {
     m_textStyle = ts;
 }
 
-void OROTextBox::setLineStyle(const ORLineStyleData & ls)
+void OROTextBox::setLineStyle(const KRLineStyleData & ls)
 {
     m_lineStyle = ls;
 }
@@ -315,7 +315,7 @@ void OROLine::setEndPoint(const QPointF & p)
     m_endPoint = p;
 }
 
-void OROLine::setLineStyle(const ORLineStyleData& ls)
+void OROLine::setLineStyle(const KRLineStyleData& ls)
 {
     m_lineStyle = ls;
 }

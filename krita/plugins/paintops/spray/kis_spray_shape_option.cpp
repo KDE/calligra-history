@@ -18,8 +18,6 @@
 #include "kis_spray_shape_option.h"
 #include <klocale.h>
 
-#include <KoImageResource.h>
-
 #include <QImage>
 
 #include "ui_wdgshapeoptions.h"
@@ -30,8 +28,6 @@ public:
     KisShapeOptionsWidget(QWidget *parent = 0)
             : QWidget(parent) {
         setupUi(this);
-        KoImageResource kir;
-        btnAspect->setIcon(QIcon(kir.chain()));
     }
 
 };
@@ -40,12 +36,15 @@ KisSprayShapeOption::KisSprayShapeOption()
         : KisPaintOpOption(i18n("Particle type"), false)
 {
     m_checkable = false;
+    // save this to be able to restore it back
+    m_maxSize = 1000;
+    
     m_options = new KisShapeOptionsWidget();
-    m_useAspect = m_options->btnAspect->isChecked();
+    m_useAspect = m_options->aspectButton->keepAspectRatio();
     computeAspect();
 
     // UI signals
-    connect(m_options->btnAspect, SIGNAL(toggled(bool)), this, SLOT(aspectToggled(bool)));
+    connect(m_options->aspectButton, SIGNAL(keepAspectRatioChanged(bool)), this, SLOT(aspectToggled(bool)));
     connect(m_options->randomSlider,SIGNAL(valueChanged(int)),this,SLOT(randomValueChanged(int)));
     connect(m_options->followSlider,SIGNAL(valueChanged(int)),this,SLOT(followValueChanged(int)));
     connect(m_options->imageUrl,SIGNAL(textChanged(QString)),this,SLOT(prepareImage()));
@@ -53,6 +52,15 @@ KisSprayShapeOption::KisSprayShapeOption()
     connect(m_options->widthSpin, SIGNAL(valueChanged(int)), SLOT(updateHeight(int)));
     connect(m_options->heightSpin, SIGNAL(valueChanged(int)), SLOT(updateWidth(int)));
 
+    connect(m_options->proportionalBox, SIGNAL(clicked(bool)), SLOT(changeSizeUI(bool)));
+    
+    connect(m_options->fixedRotation, SIGNAL(toggled(bool)), m_options->angleSlider, SLOT(setEnabled(bool)));
+    connect(m_options->randomRotation, SIGNAL(toggled(bool)), m_options->randomSlider, SLOT(setEnabled(bool)));
+    connect(m_options->followCursor, SIGNAL(toggled(bool)), m_options->followSlider, SLOT(setEnabled(bool)));
+    connect(m_options->fixedRotation, SIGNAL(toggled(bool)), m_options->fixedRotationSPBox, SLOT(setEnabled(bool)));
+    connect(m_options->randomRotation, SIGNAL(toggled(bool)), m_options->randomWeightSPBox, SLOT(setEnabled(bool)));
+    connect(m_options->followCursor, SIGNAL(toggled(bool)), m_options->followCursorWeightSPBox, SLOT(setEnabled(bool)));
+    
     setConfigurationPage(m_options);
 }
 
@@ -63,10 +71,7 @@ void KisSprayShapeOption::setupBrushPreviewSignals()
     connect(m_options->widthSpin, SIGNAL(valueChanged(int)), SIGNAL(sigSettingChanged()));
     connect(m_options->heightSpin, SIGNAL(valueChanged(int)), SIGNAL(sigSettingChanged()));
     connect(m_options->jitterShape, SIGNAL(toggled(bool)), SIGNAL(sigSettingChanged()));
-    connect(m_options->heightPro, SIGNAL(valueChanged(double)), SIGNAL(sigSettingChanged()));
-    connect(m_options->widthPro, SIGNAL(valueChanged(double)), SIGNAL(sigSettingChanged()));
     connect(m_options->proportionalBox, SIGNAL(toggled(bool)), SIGNAL(sigSettingChanged()));
-    connect(m_options->gaussBox, SIGNAL(toggled(bool)), SIGNAL(sigSettingChanged()));
 }
 
 
@@ -95,16 +100,6 @@ bool KisSprayShapeOption::jitterShapeSize() const
     return m_options->jitterShape->isChecked();
 }
 
-qreal KisSprayShapeOption::heightPerc() const
-{
-    return m_options->heightPro->value();
-}
-
-qreal KisSprayShapeOption::widthPerc() const
-{
-    return m_options->widthPro->value();
-}
-
 bool KisSprayShapeOption::proportional() const
 {
     return m_options->proportionalBox->isChecked();
@@ -123,13 +118,6 @@ void KisSprayShapeOption::readOptionSetting(const KisPropertiesConfiguration* se
 {
     Q_UNUSED(setting);
 }
-
-
-bool KisSprayShapeOption::gaussian() const
-{
-    return m_options->gaussBox->isChecked();
-}
-
 
 bool KisSprayShapeOption::fixedRotation() const
 {
@@ -198,12 +186,6 @@ void KisSprayShapeOption::prepareImage()
 void KisSprayShapeOption::aspectToggled(bool toggled)
 {
     m_useAspect = toggled;
-    KoImageResource kir;
-    if (toggled){
-        m_options->btnAspect->setIcon(QIcon(kir.chain()));
-    } else {
-        m_options->btnAspect->setIcon(QIcon(kir.chainBroken()));
-    }
 }
 
 
@@ -241,4 +223,29 @@ void KisSprayShapeOption::computeAspect()
     qreal w = m_options->widthSpin->value();
     qreal h = m_options->heightSpin->value();
     m_aspect = w / h;
+}
+
+
+
+void KisSprayShapeOption::changeSizeUI(bool proportionalSize)
+{
+    // if proportionalSize is false, pixel size is used
+    if (!proportionalSize){
+        m_options->widthSlider->setMaximum( m_maxSize );
+        m_options->widthSpin->setMaximum( m_maxSize );
+        m_options->widthSpin->setSuffix("");
+        m_options->heightSlider->setMaximum( m_maxSize );
+        m_options->heightSpin->setMaximum( m_maxSize );
+        m_options->heightSpin->setSuffix("");
+    }else{
+        m_options->widthSlider->setMaximum( 100 );
+        m_options->widthSpin->setMaximum( 100 );
+        m_options->widthSpin->setSuffix("%");
+        m_options->heightSlider->setMaximum( 100 );
+        m_options->heightSpin->setMaximum( 100 );
+        m_options->heightSpin->setSuffix("%");
+    }
+    
+    m_options->widthSlider->setPageStep( m_options->widthSlider->maximum() / 10 );
+    m_options->heightSlider->setPageStep( m_options->widthSlider->maximum() / 10 );
 }

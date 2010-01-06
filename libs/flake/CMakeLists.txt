@@ -26,6 +26,7 @@ set(flake_SRCS
     KoPathSegment.cpp
     KoSelection.cpp
     KoShape.cpp
+    KoShapeControllerBase.cpp
     KoShapeApplicationData.cpp
     KoShapeContainer.cpp
     KoShapeContainerModel.cpp
@@ -58,7 +59,6 @@ set(flake_SRCS
     KoShapeSavingContext.cpp
     KoShapeLoadingContext.cpp
     KoLoadingShapeUpdater.cpp
-    KoSvgPathParser.cpp
     KoPathShapeLoader.cpp
     ShapeDeleter_p.cpp
     KoShapeBorderModel.cpp
@@ -85,15 +85,14 @@ set(flake_SRCS
     KoSnapData.cpp
     SnapGuideConfigWidget.cpp
     KoShapeShadow.cpp
+    KoSharedSavingData.cpp
     KoViewConverter.cpp
     KoDevice.cpp
     KoDeviceEvent.cpp
     KoDeviceRegistry.cpp
     KoEventAction.cpp
-    KoEventActionData.cpp
     KoEventActionFactory.cpp
     KoEventActionRegistry.cpp
-    KoEventActionWidget.cpp
     KoImageData.cpp
     KoImageData_p.cpp
     KoImageCollection.cpp
@@ -168,7 +167,6 @@ set(flake_SRCS
     tools/KoCreateShapesToolFactory.cpp
     tools/KoShapeRubberSelectStrategy.cpp
     tools/KoPathSegmentChangeStrategy.cpp
-    tools/KoGuidesTool.cpp
 )
 
 kde4_add_ui_files(flake_SRCS
@@ -180,15 +178,9 @@ kde4_add_ui_files(flake_SRCS
 
 kde4_add_library(flake SHARED ${flake_SRCS})
 
-if(NOT NO_PIGMENT)
-    set(EXTRA_LIBS pigmentcms)
-else(NOT NO_PIGMENT)
-    set(EXTRA_LIBS koplugin)
-endif(NOT NO_PIGMENT)
+target_link_libraries(flake ${KDE4_KDEUI_LIBS} pigmentcms koodf)
 
-target_link_libraries(flake ${KDE4_KDEUI_LIBS} ${EXTRA_LIBS} koodf)
-
-target_link_libraries(flake LINK_INTERFACE_LIBRARIES ${EXTRA_LIBS} koodf)
+target_link_libraries(flake LINK_INTERFACE_LIBRARIES pigmentcms koodf)
 
 if(HAVE_OPENGL)
     target_link_libraries(flake ${OPENGL_LIBRARIES} ${QT_QTOPENGL_LIBRARY})
@@ -214,7 +206,6 @@ install( FILES
 install(
     FILES
     flake_export.h
-    FlakeColor.h
     KoCanvasBase.h
     KoCanvasController.h
     KoCanvasObserver.h
@@ -258,6 +249,7 @@ install(
     KoShapeSavingContext.h
     KoShapeUserData.h
     KoShapeApplicationData.h
+    KoSharedSavingData.h
     KoTool.h
     KoToolManager.h
     KoToolFactory.h
@@ -284,8 +276,6 @@ install(
     commands/KoShapeDeleteCommand.h
     commands/KoShapeDistributeCommand.h
     commands/KoShapeGroupCommand.h
-    commands/KoShapeKeepAspectRatioCommand.h
-    commands/KoShapeLockCommand.h
     commands/KoShapeMoveCommand.h
     commands/KoShapeRenameCommand.h
     commands/KoShapeReorderCommand.h

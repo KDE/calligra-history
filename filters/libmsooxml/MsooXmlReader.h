@@ -28,6 +28,7 @@
 
 #include <QXmlStreamReader>
 #include <QStack>
+#include <QUrl>
 
 #include <KLocale>
 #include <KDebug>
@@ -35,7 +36,8 @@
 #include <KoFilter.h>
 #include <KoOdfExporter.h>
 
-namespace MSOOXML {
+namespace MSOOXML
+{
 
 class MsooXmlRelationships;
 
@@ -64,14 +66,18 @@ public:
 
     //! Sets filename for the document being read.
     //! Only for error reporting purposes, used in raiseError().
-    void setFileName(const QString &fileName) { m_fileName = fileName; }
+    void setFileName(const QString &fileName) {
+        m_fileName = fileName;
+    }
 
     //! @return filename for the document being read.
     //! Only for error reporting purposes, used in raiseError().
-    QString fileName() const  { return m_fileName; }
+    QString fileName() const  {
+        return m_fileName;
+    }
 
     //! Reimplemented after QXmlStreamReader: adds line, column and filename information
-    void raiseError( const QString & message = QString() );
+    void raiseError(const QString & message = QString());
 
     //! Reimplemented after QXmlStreamReader for supporting undo read and for debugging purposes
     TokenType readNext();
@@ -90,7 +96,7 @@ protected:
     void raiseUnexpectedAttributeValueError(const QString& value, const char* attrName);
 
     //! Used by read_b(), read_i(), etc.
-    bool readBooleanAttr(const char* attrName);
+    bool readBooleanAttr(const char* attrName, bool defaultValue = false);
 
     QString m_defaultNamespace; //!< stores namespace (for optimization)
 
@@ -103,6 +109,7 @@ protected:
     static const char* constOff;
     static const char* constTrue;
     static const char* constFalse;
+    static const char* constNone;
     static const char* const1;
     static const char* const0;
     static const char* constAuto;

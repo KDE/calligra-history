@@ -40,10 +40,8 @@ KisPaintOpSettingsSP KisChalkPaintOpSettings::clone() const
 
 bool KisChalkPaintOpSettings::paintIncremental()
 {
-    return m_options->m_paintActionTypeOption->paintActionType() == BUILDUP;
+    return (enumPaintActionType)getInt("PaintOpAction", WASH) == BUILDUP;
 }
-
-
 
 void KisChalkPaintOpSettings::fromXML(const QDomElement& elt)
 {
@@ -94,14 +92,6 @@ int KisChalkPaintOpSettings::radius() const
 {
     return m_options->m_chalkOption->radius();
 }
-
-
-KisPressureOpacityOption* KisChalkPaintOpSettings::opacityOption() const
-{
-    return m_options->m_opacityOption;
-}
-
-
 
 bool KisChalkPaintOpSettings::inkDepletion() const
 {

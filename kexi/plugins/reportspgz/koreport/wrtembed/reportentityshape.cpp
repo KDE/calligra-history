@@ -44,7 +44,7 @@ void ReportEntityShape::init(QGraphicsScene * scene)
     ReportRectEntity::init(&m_pos, &m_size, m_set);
 
     connect(properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     setZValue(Z);
 }
@@ -55,7 +55,7 @@ ReportEntityShape::ReportEntityShape(ReportDesigner* d, QGraphicsScene * scene)
 {
     init(scene);
     setSceneRect(QPointF(0, 0), QSizeF(100, 100));
-    m_name->setValue(m_reportDesigner->suggestEntityName("Shape"));
+    m_name->setValue(m_reportDesigner->suggestEntityName("shape"));
 
 }
 
@@ -84,7 +84,7 @@ void ReportEntityShape::paint(QPainter* painter, const QStyleOptionGraphicsItem*
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    
+
     QList<KoShape*> shapes;
     painter->setRenderHint(QPainter::Antialiasing);
 
@@ -109,7 +109,7 @@ void ReportEntityShape::buildXML(QDomDocument & doc, QDomElement & parent)
     QDomElement entity = doc.createElement("shape");
 
     // bounding rect
-    buildXMLRect(doc, entity, pointRect());
+    buildXMLRect(doc, entity, &m_pos, &m_size);
 
     // name
     QDomElement n = doc.createElement("name");
@@ -127,7 +127,7 @@ void ReportEntityShape::buildXML(QDomDocument & doc, QDomElement & parent)
 void ReportEntityShape::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
     Q_UNUSED(s);
-    
+
     //TODO KoProperty needs QPointF and QSizeF and need to sync property with actual size/pos
     if (p.name() == "Position") {
         //_pos.setUnitPos(p.value().value<QPointF>(), false);

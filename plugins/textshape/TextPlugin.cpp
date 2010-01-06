@@ -18,6 +18,7 @@
  */
 #include "TextPlugin.h"
 #include "TextToolFactory.h"
+#include "ChangeTrackingToolFactory.h"
 #include "TextShapeFactory.h"
 
 #include <KoShapeRegistry.h>
@@ -31,6 +32,7 @@ TextPlugin::TextPlugin(QObject * parent, const QStringList &)
         : QObject(parent)
 {
     KoToolRegistry::instance()->add(new TextToolFactory(parent));
+    KoToolRegistry::instance()->add(new ChangeTrackingToolFactory(parent));
     KoShapeRegistry::instance()->add(new TextShapeFactory(parent));
 }
 

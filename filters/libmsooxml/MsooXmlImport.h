@@ -38,7 +38,8 @@ class KZip;
 class KoOdfWriteStore;
 class KoStore;
 
-namespace MSOOXML {
+namespace MSOOXML
+{
 
 class MsooXmlReader;
 class MsooXmlReaderContext;
@@ -49,21 +50,21 @@ class MSOOXML_EXPORT MsooXmlImport : public KoOdfExporter
 {
     Q_OBJECT
 public:
-    MsooXmlImport( const QString& bodyContentElement, QObject * parent );
+    MsooXmlImport(const QString& bodyContentElement, QObject * parent);
 
     virtual ~MsooXmlImport();
 
     //! KoFilter::UsageError is returned if this method is called outside
     //! of the importing process, i.e. not from within parseParts().
     KoFilter::ConversionStatus loadAndParseDocument(MsooXmlReader *reader, const QString& path,
-                                                    MsooXmlReaderContext* context = 0);
+            MsooXmlReaderContext* context = 0);
 
     //! KoFilter::UsageError is returned if this method is called outside
     //! of the importing process, i.e. not from within parseParts().
     KoFilter::ConversionStatus loadAndParseDocument(MsooXmlReader *reader, const QString& path,
-                                                    QString& errorMessage,
-                                                    MsooXmlReaderContext* context = 0);
-    
+            QString& errorMessage,
+            MsooXmlReaderContext* context = 0);
+
     /*! Copies file @a sourceName from the input archive to the output document
      under @a destinationName name. @return KoFilter::OK on success.
      On failure @a errorMessage is set.
@@ -74,14 +75,20 @@ public:
 
 protected:
     virtual KoFilter::ConversionStatus createDocument(KoStore *outputStore,
-                                                      KoOdfWriters *writers);
+            KoOdfWriters *writers);
 
     virtual KoFilter::ConversionStatus parseParts(KoOdfWriters *writers,
-        MsooXmlRelationships *relationships, QString& errorMessage) = 0;
+            MsooXmlRelationships *relationships, QString& errorMessage) = 0;
 
     //! KoFilter::UsageError is returned if this method is called outside
     //! of the importing process, i.e. not from within parseParts().
     KoFilter::ConversionStatus loadAndParseDocument(
+        const QByteArray& contentType, MsooXmlReader *reader, KoOdfWriters *writers,
+        QString& errorMessage, MsooXmlReaderContext* context = 0);
+
+    //! Like @ref loadAndParseDocument(const QByteArray&, MsooXmlReader*, KoOdfWriters*, QString&, MsooXmlReaderContext*)
+    //! but return KoFilter::OK if the document for the content type is not found.
+    KoFilter::ConversionStatus loadAndParseDocumentIfExists(
         const QByteArray& contentType, MsooXmlReader *reader, KoOdfWriters *writers,
         QString& errorMessage, MsooXmlReaderContext* context = 0);
 
@@ -92,6 +99,10 @@ private:
 
     KoFilter::ConversionStatus loadAndParse(const QString& filename,
                                             KoXmlDocument& doc, QString& errorMessage);
+
+    KoFilter::ConversionStatus loadAndParseDocumentInternal(
+        const QByteArray& contentType, MsooXmlReader *reader, KoOdfWriters *writers,
+        QString& errorMessage, MsooXmlReaderContext* context, bool *pathFound);
 
     KZip* m_zip; //!< Input zip file
 

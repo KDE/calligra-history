@@ -42,13 +42,6 @@ public:
     ~KoGuidesData();
 
     /**
-     * @brief Set the positions of the horizontal and vertical guide lines
-     *
-     * @param horizontalLines a list of positions of the horizontal guide lines
-     * @param verticalLines a list of positions of the vertical guide lines
-     */
-    void setGuideLines(const QList<qreal> &horizontalLines, const QList<qreal> &verticalLines);
-    /**
      * @brief Set the positions of the horizontal guide lines
      *
      * @param lines a list of positions of the horizontal guide lines
@@ -63,12 +56,12 @@ public:
     void setVerticalGuideLines(const QList<qreal> &lines);
 
     /**
-     * @brief Add a guide line
+     * @brief Add a guide line to the canvas.
      *
-     * @param p the orientation of the guide line
-     * @param p the position of the guide line
+     * @param orientation the orientation of the guide line
+     * @param position the position in document coordinates of the guide line
      */
-    void addGuideLine(Qt::Orientation o, qreal pos);
+    void addGuideLine(Qt::Orientation orientation, qreal position);
 
     /**
      * @brief Display or not guide lines
@@ -105,7 +98,7 @@ public:
     QColor guidesColor() const;
 
     /// Loads guide lines from the given setting xml document
-    bool loadOdfSettings(const KoXmlDocument & settingsDoc);
+    bool loadOdfSettings(const KoXmlDocument &settingsDoc);
 
     /// Saves guide lines to the given settings xml writer
     void saveOdfSettings(KoXmlWriter &settingsWriter);

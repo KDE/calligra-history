@@ -44,7 +44,7 @@ void ReportEntityLabel::init(QGraphicsScene * scene)
     kDebug() << getTextRect();
 
     connect(properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     setZValue(Z);
 }
@@ -56,7 +56,7 @@ ReportEntityLabel::ReportEntityLabel(ReportDesigner* d, QGraphicsScene * scene)
     init(scene);
     setSceneRect(getTextRect());
 
-    m_name->setValue(m_reportDesigner->suggestEntityName("Label"));
+    m_name->setValue(m_reportDesigner->suggestEntityName("label"));
 }
 
 ReportEntityLabel::ReportEntityLabel(QDomNode & element, ReportDesigner * d, QGraphicsScene * s)
@@ -89,16 +89,15 @@ void ReportEntityLabel::paint(QPainter* painter, const QStyleOptionGraphicsItem*
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    
+
     // store any values we plan on changing so we can restore them
     QFont f = painter->font();
     QPen  p = painter->pen();
 
     painter->setFont(font());
-    //painter->setBackgroundMode ( Qt::OpaqueMode );
 
     QColor bg = m_backgroundColor->value().value<QColor>();
-    bg.setAlpha(m_backgroundOpacity->value().toInt());
+    bg.setAlpha((m_backgroundOpacity->value().toInt() / 100) * 255);
 
     painter->setBackground(bg);
     painter->setPen(m_foregroundColor->value().value<QColor>());
@@ -127,24 +126,18 @@ void ReportEntityLabel::paint(QPainter* painter, const QStyleOptionGraphicsItem*
 void ReportEntityLabel::buildXML(QDomDocument & doc, QDomElement & parent)
 {
     kDebug();
-    //kdDebug() << "ReportEntityLabel::buildXML()");
-    QDomElement entity = doc.createElement("label");
+
+    QDomElement entity = doc.createElement("report:label");
+
+    // properties
+    addPropertyAsAttribute(&entity, m_name);
+    addPropertyAsAttribute(&entity, m_text);
+    addPropertyAsAttribute(&entity, m_verticalAlignment);
+    addPropertyAsAttribute(&entity, m_horizontalAlignment);
+    entity.setAttribute("report:z-index", zValue());
 
     // bounding rect
-    buildXMLRect(doc, entity, pointRect());
-
-    // name
-    QDomElement n = doc.createElement("name");
-    n.appendChild(doc.createTextNode(entityName()));
-    entity.appendChild(n);
-
-    // z
-    QDomElement z = doc.createElement("zvalue");
-    z.appendChild(doc.createTextNode(QString::number(zValue())));
-    entity.appendChild(z);
-
-    // font info
-    //buildXMLFont ( doc,entity,font() );
+    buildXMLRect(doc, entity, &m_pos, &m_size);
 
     //text style info
     buildXMLTextStyle(doc, entity, textStyle());
@@ -152,35 +145,13 @@ void ReportEntityLabel::buildXML(QDomDocument & doc, QDomElement & parent)
     //Line Style
     buildXMLLineStyle(doc, entity, lineStyle());
 
-    // text alignment
-    int align = textFlags();
-    // horizontal
-    if ((align & Qt::AlignRight) == Qt::AlignRight)
-        entity.appendChild(doc.createElement("right"));
-    else if ((align & Qt::AlignHCenter) == Qt::AlignHCenter)
-        entity.appendChild(doc.createElement("hcenter"));
-    else // Qt::AlignLeft
-        entity.appendChild(doc.createElement("left"));
-    // vertical
-    if ((align & Qt::AlignBottom) == Qt::AlignBottom)
-        entity.appendChild(doc.createElement("bottom"));
-    else if ((align & Qt::AlignVCenter) == Qt::AlignVCenter)
-        entity.appendChild(doc.createElement("vcenter"));
-    else // Qt::AlignTop
-        entity.appendChild(doc.createElement("top"));
-
-    // the text string
-    QDomElement string = doc.createElement("string");
-    string.appendChild(doc.createTextNode(text()));
-    entity.appendChild(string);
-
     parent.appendChild(entity);
 }
 
 void ReportEntityLabel::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
     Q_UNUSED(s);
-    
+
     //TODO KoProperty needs QPointF and QSizeF and need to sync property with actual size/pos
     if (p.name() == "Position") {
         //_pos.setUnitPos(p.value().value<QPointF>(), false);

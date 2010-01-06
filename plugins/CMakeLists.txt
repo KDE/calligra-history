@@ -11,7 +11,7 @@ include_directories(
 
 IF (NOT TINY)
     macro_optional_add_subdirectory( scan )
-    macro_optional_add_subdirectory( colorspaces )
+    macro_optional_add_subdirectory( colorengines )
     macro_optional_add_subdirectory( paragraphtool )
     macro_optional_add_subdirectory( musicshape )
     macro_optional_add_subdirectory( divineProportion )
@@ -32,5 +32,7 @@ add_subdirectory( defaultTools )
 add_subdirectory( pathshapes )
 add_subdirectory( pictureshape )
 add_subdirectory( textshape )
-add_subdirectory( emfshape )
+
+# as the vector shape depends on filters subdir (not really intuitive) lets allow disabling
+macro_optional_add_subdirectory( vectorshape )
 

@@ -59,7 +59,7 @@ void ListItemNumberingCommand::redo()
 {
     if (!m_first) {
         TextCommandBase::redo();
-        UndoRedoFinalizer finalizer(this, m_tool);
+        UndoRedoFinalizer finalizer(this);
         KoTextBlockData *userData = dynamic_cast<KoTextBlockData*>(m_block.userData());
         if (userData)
             userData->setCounterWidth(-1.0);
@@ -73,7 +73,7 @@ void ListItemNumberingCommand::redo()
 void ListItemNumberingCommand::undo()
 {
     TextCommandBase::undo();
-    UndoRedoFinalizer finalizer(this, m_tool);
+    UndoRedoFinalizer finalizer(this);
     
     KoTextBlockData *userData = dynamic_cast<KoTextBlockData*>(m_block.userData());
     if (userData)
@@ -82,5 +82,6 @@ void ListItemNumberingCommand::undo()
 
 bool ListItemNumberingCommand::mergeWith(const QUndoCommand *other)
 {
+    Q_UNUSED(other);
     return false;
 }

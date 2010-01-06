@@ -20,16 +20,18 @@
 #ifndef KOSHAREDSAVINGDATA_H
 #define KOSHAREDSAVINGDATA_H
 
+#include "flake_export.h"
+
 /**
  * The KoSharedSavingData class is used to share data between shapes during saving.
  * These data can be added to the KoShapeSavingContext using KoShapeSavingContext::addSharedData().
  * A different shape can then get the data from the context using KoShapeSavingContext::sharedData().
  */
-class KoSharedSavingData
+class FLAKE_EXPORT KoSharedSavingData
 {
 public:
-    KoSharedSavingData() {}
-    virtual ~KoSharedSavingData() {}
+    KoSharedSavingData();
+    virtual ~KoSharedSavingData();
 };
 
 #endif /* KOSHAREDSAVINGDATA_H */

@@ -30,10 +30,10 @@ public:
     QRect initialSelection;
 };
 
-MergeStrategy::MergeStrategy(KoTool* parent, KoCanvasBase* canvas, Selection* selection,
-                                   const QPointF documentPos, Qt::KeyboardModifiers modifiers)
-    : AbstractSelectionStrategy(parent, canvas, selection, documentPos, modifiers)
-    , d(new Private)
+MergeStrategy::MergeStrategy(KoTool *parent, Selection *selection,
+                             const QPointF documentPos, Qt::KeyboardModifiers modifiers)
+        : AbstractSelectionStrategy(parent, selection, documentPos, modifiers)
+        , d(new Private)
 {
     d->initialSelection = selection->lastRange();
 }

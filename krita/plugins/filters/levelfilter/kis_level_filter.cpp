@@ -79,8 +79,6 @@ KoColorTransformation* KisLevelFilter::createTransformation(const KoColorSpace* 
 
     Q_ASSERT(config);
 
-    KoColorTransformation * adjustment = 0;
-
     int blackvalue = config->getInt("blackvalue");
     int whitevalue = config->getInt("whitevalue", 255);
     double gammavalue = config->getDouble("gammavalue", 1.0);
@@ -178,7 +176,7 @@ void KisLevelConfigWidget::slotDrawHistogram(bool logarithmic)
     pix.fill();
     QPainter p(&pix);
 
-    p.setPen(QPen::QPen(Qt::gray, 1, Qt::SolidLine));
+    p.setPen(QPen(Qt::gray, 1, Qt::SolidLine));
 
     double highest = (double)histogram->calculations().getHighest();
     qint32 bins = histogram->producer()->numberOfBins();

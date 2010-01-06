@@ -63,15 +63,14 @@ public:
 
 void PrintSettings::Private::calculatePageDimensions()
 {
-    if (pageLayout.format != KoPageFormat::CustomSize)
-    {
+    if (pageLayout.format != KoPageFormat::CustomSize) {
         pageLayout.width =  MM_TO_POINT(KoPageFormat::width(pageLayout.format, pageLayout.orientation));
         pageLayout.height = MM_TO_POINT(KoPageFormat::height(pageLayout.format, pageLayout.orientation));
     }
 }
 
 PrintSettings::PrintSettings()
-    : d(new Private)
+        : d(new Private)
 {
     d->pageLayout = KoPageLayout::standardLayout();
     d->printGrid = false;
@@ -90,7 +89,7 @@ PrintSettings::PrintSettings()
 }
 
 PrintSettings::PrintSettings(const PrintSettings& other)
-    : d(new Private)
+        : d(new Private)
 {
     d->pageLayout = other.d->pageLayout;
     d->printGrid = other.d->printGrid;
@@ -140,7 +139,7 @@ void PrintSettings::setPageOrientation(KoPageFormat::Orientation orientation)
 
 double PrintSettings::printWidth() const
 {
-     return d->pageLayout.width - d->pageLayout.leftMargin - d->pageLayout.rightMargin;
+    return d->pageLayout.width - d->pageLayout.leftMargin - d->pageLayout.rightMargin;
 }
 
 double PrintSettings::printHeight() const
@@ -319,7 +318,7 @@ void PrintSettings::setRepeatedRows(const QPair<int, int>& repeatedRows)
     d->repeatedRows = repeatedRows;
 }
 
-void PrintSettings::operator=(const PrintSettings& other)
+void PrintSettings::operator=(const PrintSettings & other)
 {
     d->pageLayout = other.d->pageLayout;
     d->printGrid = other.d->printGrid;

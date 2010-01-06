@@ -80,10 +80,10 @@ KisPerChannelConfigWidget::KisPerChannelConfigWidget(QWidget * parent, KisPaintD
     m_page->vgradient->setPixmap(createGradient(Qt::Vertical));
 
     // init histogram calculator
-    QList<KoID> keys =
-        KoHistogramProducerFactoryRegistry::instance()->listKeysCompatibleWith(m_dev->colorSpace());
+    QList<QString> keys =
+        KoHistogramProducerFactoryRegistry::instance()->keysCompatibleWith(m_dev->colorSpace());
     KoHistogramProducerFactory *hpf;
-    hpf = KoHistogramProducerFactoryRegistry::instance()->get(keys.at(0).id());
+    hpf = KoHistogramProducerFactoryRegistry::instance()->get(keys.at(0));
     m_histogram = new KisHistogram(m_dev, hpf->generate(), LINEAR);
 
     connect(m_page->curveWidget, SIGNAL(modified()), this, SIGNAL(sigConfigurationItemChanged()));
@@ -121,7 +121,7 @@ inline QPixmap KisPerChannelConfigWidget::createGradient(Qt::Orientation orient 
 
     QPixmap gradientpix(width, height);
     QPainter p(&gradientpix);
-    p.setPen(QPen::QPen(QColor(0, 0, 0), 1, Qt::SolidLine));
+    p.setPen(QPen(QColor(0, 0, 0), 1, Qt::SolidLine));
     for (; *i < 256; (*i)++, col += inc) {
         p.setPen(QColor(col, col, col));
         p.drawPoint(x, y);
@@ -136,7 +136,7 @@ inline QPixmap KisPerChannelConfigWidget::getHistogram()
     QPixmap pix(256, height);
     pix.fill();
     QPainter p(&pix);
-    p.setPen(QPen::QPen(Qt::gray, 1, Qt::SolidLine));
+    p.setPen(QPen(Qt::gray, 1, Qt::SolidLine));
 
     m_histogram->setChannel(m_activeCh);
 

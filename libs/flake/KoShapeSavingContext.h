@@ -24,11 +24,8 @@
 
 #include "flake_export.h"
 
-#include <QFlags>
-#include <QMap>
-#include <QSet>
-#include <QString>
-#include <QPixmap>
+#include <QImage>
+#include <QMatrix>
 
 class KoShape;
 class KoXmlWriter;
@@ -39,6 +36,7 @@ class KoImageData;
 class KoShapeLayer;
 class KoStore;
 class KoSharedSavingData;
+class KoShapeSavingContextPrivate;
 
 /**
  * The set of data for the ODF file format used during saving of a shape.
@@ -46,8 +44,6 @@ class KoSharedSavingData;
 class FLAKE_EXPORT KoShapeSavingContext
 {
 public:
-    enum SavingMode { Store, Flat };
-
     /// The Style used for saving the shape
     enum ShapeSavingOption {
         /**
@@ -79,8 +75,8 @@ public:
      * @param embeddedSaver for saving embedded documents
      * @param savingMode either Store (a KoStore will be used) or Flat (all data must be inline in the XML)
      */
-    KoShapeSavingContext(KoXmlWriter &xmlWriter, KoGenStyles& mainStyles,
-                         KoEmbeddedDocumentSaver& embeddedSaver, SavingMode savingMode = Store);
+    KoShapeSavingContext(KoXmlWriter &xmlWriter, KoGenStyles &mainStyles,
+                         KoEmbeddedDocumentSaver &embeddedSaver);
     virtual ~KoShapeSavingContext();
 
     /**
@@ -88,7 +84,7 @@ public:
      *
      * @return xmlWriter
      */
-    KoXmlWriter & xmlWriter();
+    KoXmlWriter &xmlWriter();
 
     /**
      * @brief Set the xml writer
@@ -98,21 +94,21 @@ public:
      *
      * @param xmlWriter to use
      */
-    void setXmlWriter(KoXmlWriter & xmlWriter);
+    void setXmlWriter(KoXmlWriter &xmlWriter);
 
     /**
      * @brief Get the main styles
      *
      * @return main styles
      */
-    KoGenStyles & mainStyles();
+    KoGenStyles &mainStyles();
 
     /**
      * @brief Get the embedded document saver
      *
      * @return embedded document saver
      */
-    KoEmbeddedDocumentSaver & embeddedSaver();
+    KoEmbeddedDocumentSaver &embeddedSaver();
 
     /**
      * @brief Check if an option is set
@@ -151,7 +147,7 @@ public:
      *
      * @return the draw id for the shape or and empty string if it was not found
      */
-    const QString drawId(const KoShape * shape, bool insert = true);
+    QString drawId(const KoShape *shape, bool insert = true);
 
     /**
      * @brief Clear out all given draw ids
@@ -167,12 +163,12 @@ public:
      * Adds a layer to save into a layer-set in styles.xml according to 9.1.2/9.1.3 odf spec
      * @param layer the layer to save
      */
-    void addLayerForSaving(const KoShapeLayer * layer);
+    void addLayerForSaving(const KoShapeLayer *layer);
 
     /**
      * Saves the layers added with addLayerForSaving to the xml writer
      */
-    void saveLayerSet(KoXmlWriter & xmlWriter) const;
+    void saveLayerSet(KoXmlWriter &xmlWriter) const;
 
     /**
      * remove all layers
@@ -184,7 +180,7 @@ public:
     /**
      * Get the image href under which the image will be saved in the store
      */
-    QString imageHref(KoImageData * image);
+    QString imageHref(KoImageData *image);
 
     /**
      * Get the image href under which the image will be save in the store
@@ -192,7 +188,7 @@ public:
      * This should only be used for temporary images that are onle there during
      * saving, e.g. a pixmap representation of a draw:frame
      */
-    QString imageHref(QImage & image);
+    QString imageHref(QImage &image);
 
     /**
      * Get the images that needs to be saved to the store
@@ -202,7 +198,7 @@ public:
     /**
      * Add data center
      */
-    void addDataCenter(KoDataCenter * dataCenter);
+    void addDataCenter(KoDataCenter *dataCenter);
 
     /**
      * Save the data centers
@@ -210,7 +206,7 @@ public:
      * This calls KoDataCenter::completeSaving()
      * @returns false if an error occurred, which typically cancels the save.
      */
-    bool saveDataCenter(KoStore *store, KoXmlWriter* manifestWriter);
+    bool saveDataCenter(KoStore *store, KoXmlWriter *manifestWriter);
 
     /**
      * Add shared data
@@ -229,7 +225,7 @@ public:
      *
      * @see KoSharedSavingData
      */
-    void addSharedData(const QString & id, KoSharedSavingData * data);
+    void addSharedData(const QString &id, KoSharedSavingData *data);
 
     /**
      * Get the shared data.
@@ -239,25 +235,25 @@ public:
      * @param id The id used to identify the shared data.
      * @return The shared data for the id or 0 if there is no shared data for the id.
      */
-    KoSharedSavingData * sharedData(const QString & id) const;
+    KoSharedSavingData *sharedData(const QString &id) const;
 
-    /**
+    /*
      * Add an offset that will be applied to the shape position when saved
      *
      * This is needed e.g. for shapes anchored to a text shape as the position is
      * saved as offset to the anchor.
      *
      * @param shape The shape for which the offset should be added.
-     * @param m The offset which should be applied on saving the position.
+     * @param matrix The offset which should be applied on saving the position.
      */
-    void addShapeOffset(const KoShape * shape, const QMatrix & m);
+    void addShapeOffset(const KoShape *shape, const QMatrix &matrix);
 
     /**
      * Remove an offset from the saved offset list
      *
      * @param shape The shape for which the offset should be removed.
      */
-    void removeShapeOffset(const KoShape * shape);
+    void removeShapeOffset(const KoShape *shape);
 
     /**
      * Get the offest that will be applied to the shape position when saved.
@@ -265,24 +261,10 @@ public:
      * @param shape The shape for which the offset should be get.
      * @return the saved offset or QMatrix() when offset is not set.
      */
-    QMatrix shapeOffset(const KoShape * shape) const;
+    QMatrix shapeOffset(const KoShape *shape) const;
 
 private:
-    KoXmlWriter *m_xmlWriter;
-    KoShapeSavingOptions m_savingOptions;
-    QMap<const KoShape *, QString> m_drawIds;
-    QList<const KoShapeLayer*> m_layers;
-    QSet<KoDataCenter *> m_dataCenter;
-    int m_drawId;
-    QMap<QString, KoSharedSavingData*> m_sharedData;
-    QMap<qint64, QString> m_imageNames;
-    int m_imageId;
-    QMap<QString, QImage> m_images;
-    QHash<const KoShape *, QMatrix> m_shapeOffsets;
-
-    KoGenStyles& m_mainStyles;
-    KoEmbeddedDocumentSaver& m_embeddedSaver;
-    SavingMode m_savingMode;
+    KoShapeSavingContextPrivate *d;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(KoShapeSavingContext::KoShapeSavingOptions)

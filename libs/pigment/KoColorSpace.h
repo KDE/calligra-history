@@ -31,6 +31,7 @@
 #include "KoColorSpaceConstants.h"
 #include "KoColorConversionTransformation.h"
 #include <KoChannelInfo.h>
+#include <KoColorSpace.h>
 #include <KoID.h>
 #include "pigment_export.h"
 
@@ -55,52 +56,9 @@ enum ColorSpaceIndependence {
     TO_RGBA16
 };
 
-/**
- * Base class of the mix color operation. It's defined by
- * sum(colors[i] * weights[i]) / 255. You access the KoMixColorsOp
- * of a colorspace by calling KoColorSpace::mixColorsOp.
- */
-class KoMixColorsOp {
-public:
-    virtual ~KoMixColorsOp() { }
-    /**
-     * Mix the colors.
-     * @param colors a pointer toward the source pixels
-     * @param weights the coeffient of the source pixels
-     * @param nColors the number of pixels in the colors array
-     * @param dst the destination pixel
-     */
-    virtual void mixColors(const quint8 * const*colors, const qint16 *weights, quint32 nColors, quint8 *dst) const = 0;
-};
 
-/**
- * Base class of a convolution operation. A convolution operation is
- * defined by sum(colors[i] * kernelValues[i]) / factor + offset). The
- * most well known convolution is the gaussian blur.
- *
- * You access the KoConvolutionOp of a colorspace by calling
- * KoColorSpace::convolutionOp.
- */
-class KoConvolutionOp {
-public:
-    virtual ~KoConvolutionOp() { }
-    /**
-     * Convolve the colors.
-     *
-     * @param colors a pointer toward the source pixels
-     * @param kernelValues the coeffient of the source pixels
-     * @param dst the destination pixel
-     * @param factor usually the factor is equal to the sum of kernelValues
-     * @param offset the offset which is added to the result, useful
-     *        when the sum of kernelValues is equal to 0
-     * @param nColors the number of pixels in the colors array
-     * @param channelFlags determines which channels are affected in pixel order
-     *
-     * This function is thread-safe.
-     *
-     */
-    virtual void convolveColors(const quint8* const* colors, const qint32* kernelValues, quint8 *dst, qint32 factor, qint32 offset, qint32 nColors, const QBitArray & channelFlags) const = 0;
-};
+#include "KoMixColorsOp.h"
+#include "KoConvolutionOp.h"
 
 /**
  * A KoColorSpace is the definition of a certain color space.
@@ -129,7 +87,8 @@ public:
  * Some subclasses implement only some parts and are named Traits
  *
  */
-class PIGMENTCMS_EXPORT KoColorSpace {
+class PIGMENTCMS_EXPORT KoColorSpace
+{
     friend class KoColorSpaceRegistry;
 protected:
     /// Only for use by classes that serve as baseclass for real color spaces
@@ -138,7 +97,7 @@ protected:
 public:
 
     /// Should be called by real color spaces
-    KoColorSpace(const QString &id, const QString &name, KoMixColorsOp* mixColorsOp, KoConvolutionOp* convolutionOp );
+    KoColorSpace(const QString &id, const QString &name, KoMixColorsOp* mixColorsOp, KoConvolutionOp* convolutionOp);
     virtual ~KoColorSpace();
 
     virtual bool operator==(const KoColorSpace& rhs) const;
@@ -272,7 +231,7 @@ public:
     /**
      * @return true if the profile given in argument can be used by this color space
      */
-    virtual bool profileIsCompatible(const KoColorProfile* profile) const =0;
+    virtual bool profileIsCompatible(const KoColorProfile* profile) const = 0;
 
     /**
      * If false, images in this colorspace will degrade considerably by
@@ -349,10 +308,6 @@ public:
 
     /**
      * Convert the pixels in data to (8-bit BGRA) QImage using the specified profiles.
-     * The pixels are supposed to be encoded in this color model. The default implementation
-     * will convert the pixels using either the profiles or the default profiles for the
-     * current colorstrategy and the RGBA colorstrategy. If that is not what you want,
-     * or if you think you can do better than lcms, reimplement this methods.
      *
      * @param data A pointer to a contiguous memory region containing width * height pixels
      * @param width in pixels
@@ -532,7 +487,7 @@ public:
     /**
      * Create a mathematical toolbox compatible with this colorspace
      */
-    virtual KoID mathToolboxId() const =0;
+    virtual KoID mathToolboxId() const = 0;
 
     /**
      * Compose two arrays of pixels together. If source and target
@@ -627,7 +582,7 @@ public:
      *                 element is <color />
      * @param doc is the document containing colorElt
      */
-    virtual void colorToXML( const quint8* pixel, QDomDocument& doc, QDomElement& colorElt) const = 0;
+    virtual void colorToXML(const quint8* pixel, QDomDocument& doc, QDomElement& colorElt) const = 0;
 
     /**
      * Unserialize a color following Create's swatch color specification available
@@ -638,9 +593,9 @@ public:
      * @return the unserialize color, or an empty color object if the function failed
      *         to unserialize the color
      */
-    virtual void colorFromXML( quint8* pixel, const QDomElement& elt) const = 0;
+    virtual void colorFromXML(quint8* pixel, const QDomElement& elt) const = 0;
 
-    KoColorTransformation* createColorTransformation( const QString & id, const QHash<QString, QVariant> & parameters) const;
+    KoColorTransformation* createColorTransformation(const QString & id, const QHash<QString, QVariant> & parameters) const;
 
 protected:
 
@@ -664,87 +619,6 @@ private:
 
     struct Private;
     Private * const d;
-};
-
-/**
- * This class is used to create color spaces.
- */
-class KoColorSpaceFactory {
-public:
-     virtual ~KoColorSpaceFactory() {}
-     /**
-      * Return the unchanging name of this color space
-      */
-     virtual QString id() const = 0;
-
-     /**
-      * return the i18n'able description.
-      */
-     virtual QString name() const = 0;
-
-     /**
-      * @return true if the color space should be shown in an User Interface, or false
-      *         other wise.
-      */
-     virtual bool userVisible() const =0;
-
-     /**
-      * @return a string that identify the color model (for instance "RGB" or "CMYK" ...)
-      * @see KoColorModelStandardIds.h
-      */
-     virtual KoID colorModelId() const = 0;
-
-     /**
-      * @return a string that identify the bit depth (for instance "U8" or "F16" ...)
-      * @see KoColorModelStandardIds.h
-      */
-     virtual KoID colorDepthId() const = 0;
-
-     /**
-      * @param profile a pointer to a color profile
-      * @return true if the color profile can be used by a color space created by
-      * this factory
-      */
-     virtual bool profileIsCompatible(const KoColorProfile* profile) const =0;
-
-     /**
-      * creates a color space using the given profile.
-      */
-     virtual KoColorSpace *createColorSpace(const KoColorProfile *) const = 0;
-
-     /**
-      * @return the name of the color space engine for this color space, or "" if none
-      */
-     virtual QString colorSpaceEngine() const = 0;
-
-     /**
-      * @return true if the color space supports High-Dynamic Range.
-      */
-     virtual bool isHdr() const = 0;
-
-     /**
-      * @return the reference depth, that is for a color space where all channels have the same
-      * depth, this is the depth of one channel, for a color space with different bit depth for
-      * each channel, it's usually the higest bit depth. This value is used by the Color
-      * Conversion System to check if a lost of bit depth during a color conversion is
-      * acceptable, for instance when converting from RGB32bit to XYZ16bit, it's acceptable to go
-      * through a conversion to RGB16bit, while it's not the case for RGB32bit to XYZ32bit.
-      */
-     virtual int referenceDepth() const = 0;
-
-     /**
-      * @return the list of color conversion provided by this colorspace, the factories
-      * constructed by this functions are owned by the caller of the function
-      */
-     virtual QList<KoColorConversionTransformationFactory*> colorConversionLinks() const = 0;
-
-     /**
-      * Returns the default icc profile for use with this colorspace. This may be ""
-      *
-      * @return the default icc profile name
-      */
-     virtual QString defaultProfile() const = 0;
-
 };
 
 #endif // KOCOLORSPACE_H

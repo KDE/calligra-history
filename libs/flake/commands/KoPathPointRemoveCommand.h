@@ -28,6 +28,7 @@
 #include "flake_export.h"
 
 class KoShapeController;
+class KoPathPointRemoveCommandPrivate;
 
 /// The undo / redo command for removing path points.
 class FLAKE_TEST_EXPORT KoPathPointRemoveCommand : public QUndoCommand
@@ -44,7 +45,7 @@ public:
      * @param shapeController shape controller in charge
      * @param parent the parent command used for macro commands
      */
-    static QUndoCommand * createCommand(const QList<KoPathPointData> & pointDataList, KoShapeController * shapeController, QUndoCommand *parent = 0);
+    static QUndoCommand *createCommand(const QList<KoPathPointData> &pointDataList, KoShapeController *shapeController, QUndoCommand *parent = 0);
 
     /**
      * @brief Command to remove a points from path shapes
@@ -54,7 +55,7 @@ public:
      * @param pointDataList List of point data to remove.
      * @param parent the parent command used for macro commands
      */
-    explicit KoPathPointRemoveCommand(const QList<KoPathPointData> & pointDataList, QUndoCommand *parent = 0);
+    explicit KoPathPointRemoveCommand(const QList<KoPathPointData> &pointDataList, QUndoCommand *parent = 0);
     ~KoPathPointRemoveCommand();
 
     /// redo the command
@@ -63,9 +64,7 @@ public:
     void undo();
 
 private:
-    QList<KoPathPointData> m_pointDataList;
-    QList<KoPathPoint*> m_points;
-    bool m_deletePoints;
+    KoPathPointRemoveCommandPrivate *d;
 };
 
 #endif // KOPATHPOINTREMOVECOMMAND_H

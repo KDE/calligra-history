@@ -45,14 +45,20 @@ public:
     virtual ~KisPaintOpOption();
 
     QString & label() const;
-    bool isCheckable() {
+    virtual bool isCheckable() {
         return m_checkable;
     }
-    bool isChecked() const;
+    
+    virtual bool isChecked() const;
+
+    /**
+     * Reimplement this to use the image in the option widget
+     */   
+    virtual void setImage(KisImageWSP image);
 
 public slots:
 
-    void setChecked(bool checked);
+    virtual void setChecked(bool checked);
 
     void setConfigurationPage(QWidget * page);
     QWidget * configurationPage() const;

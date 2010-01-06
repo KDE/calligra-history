@@ -40,7 +40,7 @@ KisPaintOpSettingsSP KisSprayPaintOpSettings::clone() const
 
 bool KisSprayPaintOpSettings::paintIncremental()
 {
-    return m_options->m_paintActionTypeOption->paintActionType() == BUILDUP;
+    return (enumPaintActionType)getInt("PaintOpAction", WASH) == BUILDUP;
 }
 
 
@@ -64,6 +64,11 @@ int KisSprayPaintOpSettings::diameter() const
     return m_options->m_sprayOption->diameter();
 }
 
+qreal KisSprayPaintOpSettings::aspect() const
+{
+    return m_options->m_sprayOption->aspect();
+}
+
 qreal KisSprayPaintOpSettings::coverage() const
 {
     return m_options->m_sprayOption->coverage();
@@ -84,16 +89,17 @@ qreal KisSprayPaintOpSettings::scale() const
     return m_options->m_sprayOption->scale();
 }
 
+
+qreal KisSprayPaintOpSettings::brushRotation() const
+{
+    return m_options->m_sprayOption->rotation();
+}
+
+
 bool KisSprayPaintOpSettings::jitterMovement() const
 {
     return m_options->m_sprayOption->jitterMovement();
 }
-
-bool KisSprayPaintOpSettings::jitterSize() const
-{
-    return m_options->m_sprayOption->jitterSize();
-}
-
 
 int KisSprayPaintOpSettings::width() const
 {
@@ -117,19 +123,9 @@ bool KisSprayPaintOpSettings::jitterShapeSize() const
     return m_options->m_sprayShapeOption->jitterShapeSize();
 }
 
-qreal KisSprayPaintOpSettings::heightPerc() const
-{
-    return m_options->m_sprayShapeOption->heightPerc();
-}
-
 bool KisSprayPaintOpSettings::proportional() const
 {
     return m_options->m_sprayShapeOption->proportional();
-}
-
-qreal KisSprayPaintOpSettings::widthPerc() const
-{
-    return m_options->m_sprayShapeOption->widthPerc();
 }
 
 bool KisSprayPaintOpSettings::useDensity() const
@@ -174,24 +170,28 @@ bool KisSprayPaintOpSettings::useRandomHSV() const
 QRectF KisSprayPaintOpSettings::paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const
 {
     if (_mode != CURSOR_IS_OUTLINE) return QRectF();
-    qreal size = diameter() * scale();
-    size += 10;
-    return image->pixelToDocument(QRectF(0, 0, size, size).translated(- QPoint(size * 0.5, size * 0.5))).translated(pos);
+    qreal width = diameter() * scale();
+    qreal height = diameter() * aspect() * scale();
+    width += 10;
+    height += 10;
+    QRectF rc = QRectF(0, 0, width, height);
+    return image->pixelToDocument(rc.translated(- QPoint(width * 0.5, height * 0.5))).translated(pos);
 }
 
 void KisSprayPaintOpSettings::paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const
 {
     if (_mode != CURSOR_IS_OUTLINE) return;
-    qreal size = diameter() * scale();
+    qreal width = diameter() * scale();
+    qreal height = diameter() * aspect() * scale();
     painter.setPen(QColor(255,128,255));
     painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
-    painter.drawEllipse(converter.documentToView(image->pixelToDocument(QRectF(0, 0, size, size).translated(- QPoint(size * 0.5, size * 0.5))).translated(pos)));
+    painter.drawEllipse(converter.documentToView(image->pixelToDocument(QRectF(0, 0, width, height).translated(- QPoint(width * 0.5, height * 0.5))).translated(pos)));
 }
 
 
 bool KisSprayPaintOpSettings::gaussian() const
 {
-    return m_options->m_sprayShapeOption->gaussian();
+    return m_options->m_sprayOption->gaussian();
 }
 
 

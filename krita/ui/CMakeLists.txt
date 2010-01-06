@@ -47,7 +47,6 @@ set(kritaui_LIB_SRCS
     flake/kis_shape_selection_canvas.cpp
     flake/kis_shape_selection_model.cpp 
     flake/kis_layermap_visitor.cpp
-    flowlayout.cpp
     kis_autogradient.cc
     kis_autogradient_resource.cc
     kis_bookmarked_configurations_editor.cc
@@ -58,6 +57,7 @@ set(kritaui_LIB_SRCS
     kis_clipboard.cc 
     kis_config.cc
     kis_config_notifier.cpp 
+    kis_color_data_list.cpp
     kis_control_frame.cpp
     kis_composite_ops_model.cc
     kis_cursor.cc
@@ -84,8 +84,7 @@ set(kritaui_LIB_SRCS
     kis_palette_manager.cpp
     kis_popup_palette.cpp
     kis_png_converter.cpp
-    kis_print_job.cpp 
-    kis_recent_color_data.cpp
+    kis_print_job.cpp
     kis_resource_server_provider.cpp 
     kis_selection_decoration.cc
     kis_selection_manager.cc 
@@ -118,6 +117,10 @@ set(kritaui_LIB_SRCS
     tool/kis_tool_freehand_p.cpp
     tool/kis_tool_paint.cc 
     tool/kis_tool_shape.cc
+    tool/kis_tool_select_base.cpp
+    tool/kis_tool_ellipse_base.cpp
+    tool/kis_tool_rectangle_base.cpp
+    tool/kis_tool_polygon_base.cpp
     widgets/kis_channelflags_widget.cpp 
     widgets/kis_cmb_composite.cc
     widgets/kis_cmb_idlist.cc 
@@ -200,7 +203,7 @@ kde4_add_ui_files(kritaui_LIB_SRCS
 
 kde4_add_library(kritaui SHARED ${kritaui_LIB_SRCS} )
 
-target_link_libraries(kritaui ${KDE4_KDE3SUPPORT_LIBS} ${BLITZ_LIBRARIES} ${KDE4_THREADWEAVER_LIBRARIES} kritaimage komain kocolorwidgets ${PNG_LIBRARIES} ${EXIV2_LIBRARIES})
+target_link_libraries(kritaui ${KDE4_KDE3SUPPORT_LIBS} ${BLITZ_LIBRARIES} ${KDE4_THREADWEAVER_LIBRARIES} kritaimage komain kowidgets ${PNG_LIBRARIES} ${EXIV2_LIBRARIES})
 
 if(HAVE_OPENGL)
     target_link_libraries(kritaui ${OPENGL_LIBRARIES} ${QT_QTOPENGL_LIBRARY} ${OPENEXR_LIBRARIES})
@@ -210,7 +213,7 @@ if(HAVE_OPENGL)
     endif(HAVE_GLEW)
 endif(HAVE_OPENGL)
 
-target_link_libraries(kritaui LINK_INTERFACE_LIBRARIES kritaimage komain ${GL_INTERFACE_LIBRARIES} kocolorwidgets)
+target_link_libraries(kritaui LINK_INTERFACE_LIBRARIES kritaimage komain ${GL_INTERFACE_LIBRARIES} )
 
 set_target_properties(kritaui
     PROPERTIES VERSION ${GENERIC_KOFFICE_LIB_VERSION} SOVERSION ${GENERIC_KOFFICE_LIB_SOVERSION}

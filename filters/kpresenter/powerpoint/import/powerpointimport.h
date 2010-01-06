@@ -28,6 +28,10 @@
 
 using namespace Libppt;
 
+
+
+
+
 class KoXmlWriter;
 
 class PowerPointImport : public KoFilter
@@ -35,6 +39,7 @@ class PowerPointImport : public KoFilter
     Q_OBJECT
 
 public:
+
     PowerPointImport(QObject *parent, const QStringList&);
     virtual ~PowerPointImport();
     virtual KoFilter::ConversionStatus convert(const QByteArray& from,
@@ -47,7 +52,7 @@ private:
     void createMainStyles(KoGenStyles& styles);
     QByteArray createContent(KoGenStyles& styles);
 
-    void processSlideForBody(unsigned slideNo, Slide* slide, KoXmlWriter* xmlWriter);
+    void processSlideForBody(unsigned slideNo, KoXmlWriter* xmlWriter);
     void processObjectForBody(Object* object, KoXmlWriter* xmlWriter);
     void processGroupObjectForBody(GroupObject* groupObject, KoXmlWriter* xmlWriter);
     void processDrawingObjectForBody(DrawObject* drawObject, KoXmlWriter* xmlWriter);
@@ -58,6 +63,30 @@ private:
     void processGroupObjectForStyle(GroupObject* groupObject, KoGenStyles &styles);
     void processDrawingObjectForStyle(DrawObject* drawObject, KoGenStyles &styles);
     void processTextObjectForStyle(TextObject* textObject, KoGenStyles &styles);
+
+    /**
+    * @brief Write styles (KoGenStyle& style) meant for the whole presentation 
+    * @param KoGenStyle& style To represent the style
+    * @param Slide master - master slide
+    */
+    void processDocStyles(Slide *master, KoGenStyles &styles);
+
+    /**
+    * @brief Write Frame element (KoGenStyle& style,const char* presentation_class,
+    *  QString width, QString height, QString x, QString y) specified amount into the 
+    *  styles.xml for page-number represtation
+    * @param KoGenStyle& style To represent the style
+    * @param presentaton_class represent the class for ex: page-number etc
+    * @param width - width of the frame
+    * @param height - Height of the frame
+    * @param x - X cordinate
+    * @param y - Y cordinate
+    * @param pStyle - paragraph style
+    * @param tStyle - text style
+    */
+    void addFrame(KoGenStyle& style,const char* presentationName, 
+                  QString width, QString height, QString x, QString y,
+                  QString pStyle, QString tStyle);
 
     /**
     * @brief Write itendation element (text:list and text:list-item) specified
@@ -176,7 +205,7 @@ private:
     * @return value converted to centimeters
     */
     QString paraSpacingToCm(int value) const;
-
+    
     /**
     * @brief Convert TextAlignmentEnum value to a string from ODF specification
     * An enumeration that specifies paragraph alignments.
@@ -226,6 +255,43 @@ private:
     * @return QColor value
     */
     QColor colorIndexStructToQColor(const ColorIndexStruct &color);
+
+    /**
+    * TextAutoNumberSchemeEnum
+    * Referenced by: TextAutoNumberScheme
+    * An enumeration that specifies the character sequence and delimiters to use for automatic
+    * numbering.
+    */
+    enum {
+        ANM_AlphaLcPeriod,                  //0x0000     Example: a., b., c., ...Lowercase Latin character followed by a period.
+        ANM_AlphaUcPeriod ,                 //0x0001     Example: A., B., C., ...Uppercase Latin character followed by a period.
+        ANM_ArabicParenRight,               //0x0002     Example: 1), 2), 3), ...Arabic numeral followed by a closing parenthesis.
+        ANM_ArabicPeriod,                   //0x0003     Example: 1., 2., 3., ...Arabic numeral followed by a period.
+        ANM_RomanLcParenBoth,               //0x0004     Example: (i), (ii), (iii), ...Lowercase Roman numeral enclosed in parentheses.
+        ANM_RomanLcParenRight,              //0x0005     Example: i), ii), iii), ... Lowercase Roman numeral followed by a closing parenthesis.
+        ANM_RomanLcPeriod,                  //0x0006     Example: i., ii., iii., ...Lowercase Roman numeral followed by a period.
+        ANM_RomanUcPeriod ,                 //0x0007     Example: I., II., III., ...Uppercase Roman numeral followed by a period.
+        ANM_AlphaLcParenBoth,               //0x0008     Example: (a), (b), (c), ...Lowercase alphabetic character enclosed in parentheses.
+        ANM_AlphaLcParenRight,              //0x0009     Example: a), b), c), ...Lowercase alphabetic character followed by a closing
+        ANM_AlphaUcParenBoth,               //0x000A     Example: (A), (B), (C), ...Uppercase alphabetic character enclosed in parentheses.
+        ANM_AlphaUcParenRight,              //0x000B     Example: A), B), C), ...Uppercase alphabetic character followed by a closing
+        ANM_ArabicParenBoth,                //0x000C     Example: (1), (2), (3), ...Arabic numeral enclosed in parentheses.
+        ANM_ArabicPlain,                    //0x000D     Example: 1, 2, 3, ...Arabic numeral.
+        ANM_RomanUcParenBoth,               //0x000E     Example: (I), (II), (III), ...Uppercase Roman numeral enclosed in parentheses.
+        ANM_RomanUcParenRight,              //0x000F     Example: I), II), III), ...Uppercase Roman numeral followed by a closing parenthesis.
+        //Future
+    }TextAutoNumberSchemeEnum;
+
+    /**
+    * @brief processTextAutoNumberScheme : process the Textautoscheme to display the Bullet and numbering.
+    * @param TextAutomNumberSchemeEnum - enum values of textautoscheme.
+    * @param numFormat - Format of the bulletand numbering scheme
+    * @param numSuffix - Suffix of the numFormat
+    * @param numPrefix - suffix of prefix
+    * @return none
+    */
+    void   processTextAutoNumberScheme(int val, QString& numFormat, QString& numSuffix, QString& numPrefix);
+
 
     void processEllipse(DrawObject* drawObject, KoXmlWriter* xmlWriter);
     void processRectangle(DrawObject* drawObject, KoXmlWriter* xmlWriter);

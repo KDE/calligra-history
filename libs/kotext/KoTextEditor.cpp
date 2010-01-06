@@ -330,7 +330,7 @@ void KoTextEditor::registerTrackedChange(QTextCursor &selection, KoGenChange::Ty
     Q_ASSERT(layout);
     Q_ASSERT(layout->inlineTextObjectManager());
 #endif
-    if (!KoTextDocument(d->document).changeTracker() || !KoTextDocument(d->document).changeTracker()->isEnabled()) {
+    if (!KoTextDocument(d->document).changeTracker() || !KoTextDocument(d->document).changeTracker()->recordChanges()) {
         d->clearCharFormatProperty(KoCharacterStyle::ChangeTrackerId);
         return;
     }
@@ -1079,4 +1079,4 @@ void KoTextEditor::endEditBlock()
     d->caret.endEditBlock();
 }
 
-#include "KoTextEditor.moc"
+#include <KoTextEditor.moc>

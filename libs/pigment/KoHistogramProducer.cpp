@@ -27,30 +27,32 @@
 
 #include "KoColorSpace.h"
 
-KoHistogramProducerFactoryRegistry::KoHistogramProducerFactoryRegistry() {
+KoHistogramProducerFactoryRegistry::KoHistogramProducerFactoryRegistry()
+{
 }
 
-KoHistogramProducerFactoryRegistry::~KoHistogramProducerFactoryRegistry() {
+KoHistogramProducerFactoryRegistry::~KoHistogramProducerFactoryRegistry()
+{
 }
 
-KoHistogramProducerFactoryRegistry* KoHistogramProducerFactoryRegistry::instance() {
+KoHistogramProducerFactoryRegistry* KoHistogramProducerFactoryRegistry::instance()
+{
     K_GLOBAL_STATIC(KoHistogramProducerFactoryRegistry, s_instance);
     return s_instance;
 
 }
 
-QList<KoID> KoHistogramProducerFactoryRegistry::listKeysCompatibleWith(
-        const KoColorSpace* colorSpace) const
+QList<QString> KoHistogramProducerFactoryRegistry::keysCompatibleWith(const KoColorSpace* colorSpace) const
 {
-    QList<KoID> list;
+    QList<QString> list;
     QList<float> preferredList;
-    foreach(const KoID & id, listKeys()) {
-        KoHistogramProducerFactory *f = value(id.id());
+    foreach(const QString &id, keys()) {
+        KoHistogramProducerFactory *f = value(id);
         if (f->isCompatibleWith(colorSpace)) {
             float preferred = f->preferrednessLevelWith(colorSpace);
             QList<float>::iterator pit = preferredList.begin();
             QList<float>::iterator pend = preferredList.end();
-            QList<KoID>::iterator lit = list.begin();
+            QList<QString>::iterator lit = list.begin();
 
             while (pit != pend && preferred <= *pit) {
                 ++pit;

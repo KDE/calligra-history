@@ -2,6 +2,7 @@
  * Copyright (C) 2007 Boudewijn Rempt <boud@kde.org>
  * Copyright (C) 2007 Thorsten Zachmann <zachmann@kde.org>
  * Copyright (C) 2007 Jan Hambrecht <jaham@gmx.net>
+ * Copyright (C) 2009 Thomas Zander <zander@kde.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,14 +23,13 @@
 #ifndef KO_CONNECTION_SHAPE_H
 #define KO_CONNECTION_SHAPE_H
 
-#include <KoParameterShape.h>
+#include "KoParameterShape.h"
 
 #include "flake_export.h"
 
 #define KOCONNECTIONSHAPEID "KoConnectionShape"
 
-/// A connection to a connection point of a shape
-typedef QPair<KoShape*, int> KoConnection;
+class KoConnectionShapePrivate;
 
 /// API docs go here
 class FLAKE_EXPORT KoConnectionShape : public KoParameterShape
@@ -42,97 +42,85 @@ public:
         Curve     ///< a single curved line between connected shapes
     };
 
-    explicit KoConnectionShape();
+    KoConnectionShape();
     virtual ~KoConnectionShape();
 
     // reimplemented
-    virtual void paint(QPainter& painter, const KoViewConverter& converter);
+    virtual void saveOdf(KoShapeSavingContext &context) const;
 
     // reimplemented
-    virtual void saveOdf(KoShapeSavingContext & context) const;
+    virtual bool loadOdf(const KoXmlElement &element, KoShapeLoadingContext &context);
 
     // reimplemented
-    virtual bool loadOdf(const KoXmlElement & element, KoShapeLoadingContext &context);
+    virtual QString pathShapeId() const;
 
-    // reimplemented
-    inline QString pathShapeId() const {
-        return KOCONNECTIONSHAPEID;
-    }
-
-    // reimplemented
-    virtual bool hitTest(const QPointF &position) const;
+    /// reimplemented
+    virtual void shapeChanged(ChangeType type, KoShape *shape);
 
     /**
-     * Sets the first shape the connector is connected to
+     * Sets the first shape this connector is connected to
      *
-     * Passing a null pointer as the first parameter will reset the connection.
+     * Passing a null pointer as the first parameter will sever the connection.
      *
-     * @param shape1 the shape to connect to or null to reset the connection
-     * @param connectionPointIndex1 the index of the connection point to connect to
+     * @param shape the shape to connect to or null to reset the connection
+     * @param connectionPointIndex the index of the connection point to connect to
      * @return true if connection could be established, otherwise false
      */
-    bool setConnection1(KoShape * shape1, int connectionPointIndex);
+    bool connectFirst(KoShape *shape, int connectionPointIndex);
 
     /**
     * Sets the second shape the connector is connected to
     *
-    * Passing a null pointer as the first parameter will reset the connection.
+    * Passing a null pointer as the first parameter will sever the connection.
     *
-    * @param shape2 the shape to connect to or null to reset the connection
-    * @param connectionPointIndex2 the index of the connection point to connect to
+    * @param shape the shape to connect to or null to reset the connection
+    * @param connectionPointIndex the index of the connection point to connect to
     * @return true if connection could be established, otherwise false
     */
-    bool setConnection2(KoShape * shape2, int connectionPointIndex);
+    bool connectSecond(KoShape *shape, int connectionPointIndex);
 
-    /// Returns the connection to the first shape
-    KoConnection connection1() const;
+    /**
+     * Return the first shape this connection is attached to, or null if none.
+     */
+    KoShape *firstShape() const;
 
-    /// Returns the connection to the second shape
-    KoConnection connection2() const;
+    /**
+     * Return the connection-index in the first shape we are connected to.
+     * In case we are not connected to a first shape the return value is undefined.
+     * @see firstShape(), KoShape::connectionPoints()
+     */
+    int firstConnectionIndex() const;
+
+    /**
+     * Return the second shape this connection is attached to, or null if none.
+     */
+    KoShape *secondShape() const;
+
+    /**
+     * Return the connection-index in the second shape we are connected to.
+     * In case we are not connected to a second shape the return value is undefined.
+     * @see firstShape(), KoShape::connectionPoints()
+     */
+    int secondConnectionIndex() const;
 
     /// Updates connections to shapes
     void updateConnections();
 
     /// Returns connection type
-    Type connectionType() const;
+    Type type() const;
 
     /// Sets the connection type
-    void setConnectionType(Type connectionType);
+    void setType(Type connectionType);
 
 protected:
     /// reimplemented
-    void moveHandleAction(int handleId, const QPointF & point, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+    void moveHandleAction(int handleId, const QPointF &point, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
     /// reimplemented
     void updatePath(const QSizeF &size);
 
-    /// Returns if given handle is connected to a shape
-    bool handleConnected(int handleId) const;
-
-    /// Returns escape direction of given handle
-    QPointF escapeDirection(int handleId) const;
-
-    /// Checks if rays from given points into given directions intersect
-    bool intersects(const QPointF &p1, const QPointF &d1, const QPointF &p2, const QPointF &d2, QPointF &isect);
-
-    /// Returns perpendicular direction from given point p1 and direction d1 toward point p2
-    QPointF perpendicularDirection(const QPointF &p1, const QPointF &d1, const QPointF &p2);
-
-    /// reimplemented
-    virtual void shapeChanged(ChangeType type, KoShape * shape);
-
-    /// Populate the path list by a normal way
-    void normalPath( const qreal MinimumEscapeLength );
-
 private:
-    qreal scalarProd(const QPointF &v1, const QPointF &v2);
-    qreal crossProd(const QPointF &v1, const QPointF &v2);
-
-    QList<QPointF> m_path; // TODO move to d-pointer
-    bool m_hasMoved; // TODO move to d-pointer
-
-    class Private;
-    Private * const d;
+    Q_DECLARE_PRIVATE(KoConnectionShape)
 };
 
 

@@ -23,22 +23,21 @@
 #include <KoFilter.h>
 #include <KoStore.h>
 
-#include <q3cstring.h>
-
-class ExcelImport : public KoFilter {
+class ExcelImport : public KoFilter
+{
 
     Q_OBJECT
 
 public:
 
-    ExcelImport ( QObject *parent, const QStringList& );
+    ExcelImport(QObject *parent, const QStringList&);
     virtual ~ExcelImport();
 
-    virtual KoFilter::ConversionStatus convert( const QByteArray& from, const QByteArray& to );
+    virtual KoFilter::ConversionStatus convert(const QByteArray& from, const QByteArray& to);
 
 private:
-  class Private;
-  Private* d;
+    class Private;
+    Private* d;
 
 };
 

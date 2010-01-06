@@ -49,27 +49,25 @@
 #include <kis_paintop.h>
 #include <kis_properties_configuration.h>
 #include <kis_selection.h>
-#include <kis_brush_option.h>
+#include <kis_brush_option_widget.h>
 #include <kis_paintop_options_widget.h>
-#include <kis_pressure_opacity_option.h>
-#include <kis_pressure_size_option.h>
 #include <kis_paint_action_type_option.h>
 
 #include <kis_eraseop_settings.h>
 #include <kis_eraseop_settings_widget.h>
 
 
-KisEraseOp::KisEraseOp(const KisEraseOpSettings *settings, KisPainter *painter)
-        : KisBrushBasedPaintOp(painter)
+KisEraseOp::KisEraseOp(const KisEraseOpSettings *settings, KisPainter *painter, KisImageWSP image)
+        : KisBrushBasedPaintOp(settings, painter)
         , settings(settings)
 {
+    Q_UNUSED(image);
     Q_ASSERT(settings);
     Q_ASSERT(painter);
-    if (settings->m_options) {
-        m_brush = settings->m_options->m_brushOption->brush();
-        settings->m_options->m_sizeOption->sensor()->reset();
-        settings->m_options->m_opacityOption->sensor()->reset();
-    }
+    m_sizeOption.readOptionSetting(settings);
+    m_opacityOption.readOptionSetting(settings);
+    m_sizeOption.sensor()->reset();
+    m_opacityOption.sensor()->reset();
 }
 
 KisEraseOp::~KisEraseOp()
@@ -99,21 +97,15 @@ void KisEraseOp::paintAt(const KisPaintInformation& info)
 // with the combination.
 
     if (!painter()->device()) return;
-    if (!settings->m_options) return;
 
     KisBrushSP brush = m_brush;
-    if (!m_brush) {
-        if (settings->m_options) {
-            m_brush = settings->m_options->m_brushOption->brush();
-            brush = m_brush;
-        } else {
-            return;
-        }
-    }
+    if (!m_brush)
+        return;
+    
     if (! brush->canPaintFor(info))
         return;
 
-    double scale = KisPaintOp::scaleForPressure(settings->m_options->m_sizeOption->apply(info));
+    double scale = KisPaintOp::scaleForPressure(m_sizeOption.apply(info));
     if ((scale * brush->width()) <= 0.01 || (scale * brush->height()) <= 0.01) return;
 
     KisPaintDeviceSP device = painter()->device();
@@ -130,7 +122,7 @@ void KisEraseOp::paintAt(const KisPaintInformation& info)
 
     KisFixedPaintDeviceSP dab = cachedDab(device->colorSpace());
 
-    quint8 origOpacity = settings->m_options->m_opacityOption->apply(painter(), info);
+    quint8 origOpacity = m_opacityOption.apply(painter(), info);
 
     QRect dabRect = QRect(0, 0, brush->maskWidth(scale, 0.0), brush->maskHeight(scale, 0.0));
     QRect dstRect = QRect(x, y, dabRect.width(), dabRect.height());

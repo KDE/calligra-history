@@ -61,13 +61,13 @@ KisFilterOption::KisFilterOption()
     m_layout = new QGridLayout(m_options->grpFilterOptions);
 
     // Check which filters support painting
-    QList<KoID> l = KisFilterRegistry::instance()->listKeys();
+    QList<QString> l = KisFilterRegistry::instance()->keys();
     QList<KoID> l2;
-    QList<KoID>::iterator it;
+    QList<QString>::iterator it;
     for (it = l.begin(); it !=  l.end(); ++it) {
-        KisFilterSP f = KisFilterRegistry::instance()->value((*it).id());
+        KisFilterSP f = KisFilterRegistry::instance()->value((*it));
         if (f->supportsPainting()) {
-            l2.push_back(*it);
+            l2.push_back(KoID(*it, f->name()));
         }
     }
     m_options->filtersList->setIDList(l2);
@@ -170,6 +170,7 @@ void KisFilterOption::updateFilterConfigWidget()
 
 void KisFilterOption::writeOptionSetting(KisPropertiesConfiguration* setting) const
 {
+    Q_UNUSED(setting);
 #ifdef __GNUC__
 #warning "KisFilterOption::writeOptionSetting: write the filter option setting"
 #endif
@@ -177,6 +178,7 @@ void KisFilterOption::writeOptionSetting(KisPropertiesConfiguration* setting) co
 
 void KisFilterOption::readOptionSetting(const KisPropertiesConfiguration* setting)
 {
+    Q_UNUSED(setting);
 #ifdef __GNUC__
 #warning "KisFilterOption::readOptionSetting: restore the filter option setting"
 #endif

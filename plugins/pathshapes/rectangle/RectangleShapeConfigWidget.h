@@ -24,7 +24,7 @@
 
 #include <KoShapeConfigWidgetBase.h>
 
-class KoRectangleShape;
+class RectangleShape;
 
 class RectangleShapeConfigWidget : public KoShapeConfigWidgetBase
 {
@@ -40,11 +40,11 @@ public:
     /// reimplemented
     virtual bool showOnShapeCreate() { return false; }
     /// reimplemented
-    virtual QUndoCommand * createCommand();
+    virtual QUndoCommand *createCommand();
 
 private:
     Ui::RectangleShapeConfigWidget widget;
-    KoRectangleShape * m_rectangle;
+    RectangleShape *m_rectangle;
 };
 
 #endif // RECTANGLESHAPECONFIGWIDGET_H

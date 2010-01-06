@@ -53,6 +53,11 @@ public slots:
                                  const QVector<QRect> &selection );
 
     void setSelection( const QVector<QRect> &selection );
+    
+    void setAutomaticDataSetCreation( bool enable );
+    bool automaticDataSetCreation() const;
+
+    QList<DataSet*> createDataSetsFromRegion( QList<DataSet*> dataSetsToRecycle );
 
     /**
     * Load series from ODF
@@ -96,21 +101,25 @@ public slots:
 
     QList<DataSet*> dataSets() const;
 
+    void invalidateDataSets();
+    /**
+     * Discards old and creates new data sets from the current region selection
+     * if and only if automaticDataSetCreation() returns true.
+     */
     void rebuildDataMap();
 
 signals:
     void dataChanged();
 
-    // Emitted after modelReset(), to signalize that all the internal
-    // data has been updated properly, and that we can now do a repaint.
-    void modelResetComplete();
+protected:
+    // TODO: Remove once we depend on Qt 4.6
+    // For compatability with Qt < 4.6
+    void beginResetModel();
+    void endResetModel();
 
 private:
     class Private;
     Private *const d;
-    
-    // overwrites QAbstractItemModel::reset()
-    void reset();
 };
 
 } // namespace KChart

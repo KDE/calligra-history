@@ -50,11 +50,8 @@
 #include <kis_paintop.h>
 #include <kis_properties_configuration.h>
 #include <kis_selection.h>
-#include <kis_brush_option.h>
+#include <kis_brush_option_widget.h>
 #include <kis_paintop_options_widget.h>
-#include <kis_pressure_darken_option.h>
-#include <kis_pressure_opacity_option.h>
-#include <kis_pressure_size_option.h>
 #include <kis_paint_action_type_option.h>
 #include <kis_bidirectional_mixing_option.h>
 
@@ -62,15 +59,14 @@
 #include "kis_complexop_settings_widget.h"
 
 KisComplexOp::KisComplexOp(const KisComplexOpSettings *settings, KisPainter *painter)
-        : KisBrushBasedPaintOp(painter)
+        : KisBrushBasedPaintOp(settings, painter)
         , settings(settings)
 {
     Q_ASSERT(settings);
     Q_ASSERT(painter);
-    if (settings && settings->m_options) {
-        Q_ASSERT(settings->m_options->m_brushOption);
-        m_brush = settings->m_options->m_brushOption->brush();
-    }
+    m_sizeOption.readOptionSetting(settings);
+    m_darkenOption.readOptionSetting(settings);
+    m_opacityOption.readOptionSetting(settings);
 }
 
 KisComplexOp::~KisComplexOp()
@@ -82,19 +78,13 @@ void KisComplexOp::paintAt(const KisPaintInformation& info)
     if (!painter()->device()) return;
 
     KisBrushSP brush = m_brush;
-    if (!m_brush) {
-        if (settings->m_options) {
-            m_brush = settings->m_options->m_brushOption->brush();
-            brush = m_brush;
-        } else {
-            return;
-        }
-    }
+    if (!m_brush)
+        return;
 
     if (! brush->canPaintFor(info))
         return;
 
-    double scale = KisPaintOp::scaleForPressure(settings->m_options->m_sizeOption->apply(info));
+    double scale = KisPaintOp::scaleForPressure(m_sizeOption.apply(info));
 
     KisPaintDeviceSP device = painter()->device();
 
@@ -112,8 +102,8 @@ void KisComplexOp::paintAt(const KisPaintInformation& info)
     splitCoordinate(pt.x(), &x, &xFraction);
     splitCoordinate(pt.y(), &y, &yFraction);
 
-    quint8 origOpacity = settings->m_options->m_opacityOption->apply(painter(), info);
-    KoColor origColor = settings->m_options->m_darkenOption->apply(painter(), info);
+    quint8 origOpacity = m_opacityOption.apply(painter(), info);
+    KoColor origColor = m_darkenOption.apply(painter(), info);
 
     QRect dabRect = QRect(0, 0, brush->maskWidth(scale, 0.0), brush->maskHeight(scale, 0.0));
     QRect dstRect = QRect(x, y, dabRect.width(), dabRect.height());

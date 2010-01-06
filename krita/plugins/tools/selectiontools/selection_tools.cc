@@ -35,15 +35,16 @@
 #include "kis_tool_select_contiguous.h"
 #include "kis_tool_select_elliptical.h"
 #include "kis_tool_select_path.h"
+#include "kis_tool_select_similar.h"
 
 typedef KGenericFactory<SelectionTools> SelectionToolsFactory;
 K_EXPORT_COMPONENT_FACTORY(kritaselectiontools, SelectionToolsFactory("krita"))
 
 
 SelectionTools::SelectionTools(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
-    setComponentData(SelectionToolsFactory::componentData());
+    //setComponentData(SelectionToolsFactory::componentData());
 
     KoToolRegistry * r = KoToolRegistry::instance();
 
@@ -53,6 +54,7 @@ SelectionTools::SelectionTools(QObject *parent, const QStringList &)
     r->add(new KisToolSelectEllipticalFactory(r, QStringList()));
     r->add(new KisToolSelectContiguousFactory(r, QStringList()));
     r->add(new KisToolSelectPathFactory(r, QStringList()));
+    r->add(new KisToolSelectSimilarFactory(r, QStringList()));
 }
 
 SelectionTools::~SelectionTools()

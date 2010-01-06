@@ -23,39 +23,33 @@
 #include "kis_smudgeop_settings_widget.h"
 #include "kis_smudgeop_settings.h"
 #include <kis_properties_configuration.h>
-#include <kis_brush_option.h>
+#include <kis_brush_option_widget.h>
 #include <kis_paintop_options_widget.h>
 #include <kis_pressure_darken_option.h>
 #include <kis_pressure_opacity_option.h>
 #include <kis_pressure_size_option.h>
 #include <kis_pressure_rate_option.h>
+#include <kis_curve_option_widget.h>
+#include <kis_pressure_rate_option_widget.h>
 
 KisSmudgeOpSettingsWidget::KisSmudgeOpSettingsWidget(QWidget* parent)
         : KisPaintOpOptionsWidget(parent)
 {
     setObjectName("brush option widget");
 
-    m_brushOption = new KisBrushOption();
-    m_sizeOption = new KisPressureSizeOption();
-    m_opacityOption = new KisPressureOpacityOption();
-    m_darkenOption = new KisPressureDarkenOption();
-    m_rateOption = new KisPressureRateOption();
+    m_brushOption = new KisBrushOptionWidget();
 
     addPaintOpOption(m_brushOption);
-    addPaintOpOption(m_sizeOption);
-    addPaintOpOption(m_opacityOption);
-    addPaintOpOption(m_darkenOption);
-    addPaintOpOption(m_rateOption);
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureSizeOption()));
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureOpacityOption()));
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureDarkenOption));
+    addPaintOpOption(new KisPressureRateOptionWidget());
 
 }
 
 KisSmudgeOpSettingsWidget::~KisSmudgeOpSettingsWidget()
 {
     delete m_brushOption;
-    delete m_sizeOption;
-    delete m_opacityOption;
-    delete m_darkenOption;
-    delete m_rateOption;
 }
 
 KisPropertiesConfiguration* KisSmudgeOpSettingsWidget::configuration() const
@@ -65,11 +59,6 @@ KisPropertiesConfiguration* KisSmudgeOpSettingsWidget::configuration() const
     config->setProperty("paintop", "smudge"); // XXX: make this a const id string
     writeConfiguration(config);
     return config;
-}
-
-void KisSmudgeOpSettingsWidget::setImage(KisImageWSP image)
-{
-    m_brushOption->setImage(image);
 }
 
 

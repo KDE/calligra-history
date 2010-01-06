@@ -24,8 +24,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include <lcms.h>
-
 #include <QImage>
 #include <QPainter>
 #include <QSize>
@@ -39,7 +37,7 @@
 #include "KoColorSpaceRegistry.h"
 #include "KoColor.h"
 #include "KoColorConversionTransformation.h"
-#include "colorprofiles/KoIccColorProfile.h"
+#include "KoColorProfile.h"
 
 #include "recorder/kis_action_recorder.h"
 #include "kis_adjustment_layer.h"
@@ -1117,14 +1115,17 @@ vKisAnnotationSP_it KisImage::beginAnnotations()
     KisAnnotationSP annotation;
 
     if (profile) {
-        // XXX we hardcode icc, this is correct for lcms?
+#ifdef __GNUC__
+#warning "KisImage::beginAnnotations: make it possible to save any profile, not just icc profiles."
+#endif
+#if 0
+        // XXX we hardcode icc, this is correct for icc?
         // XXX productName(), or just "ICC Profile"?
-        if (profile->valid()) {
-            const KoIccColorProfile* iccprofile = dynamic_cast<const KoIccColorProfile*>(profile);
-            if (iccprofile && !iccprofile->rawData().isEmpty()) {
-                annotation = new  KisAnnotation("icc", iccprofile->name(), iccprofile->rawData());
+        if (profile->valid() && profile->type() == "icc" && !profile->rawData().isEmpty()) {
+                annotation = new  KisAnnotation("icc", profile->name(), profile->rawData());
             }
         }
+#endif        
     }
 
     if (annotation)

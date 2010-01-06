@@ -41,7 +41,7 @@ public:
     explicit KoPathSegment(KoPathPoint * first = 0, KoPathPoint * second = 0);
 
     /// Constructs segment by copying another segment
-    KoPathSegment(const KoPathSegment & segment);
+    KoPathSegment(const KoPathSegment &segment);
 
     /// Creates a new line segment
     KoPathSegment(const QPointF &p0, const QPointF &p1);
@@ -51,28 +51,28 @@ public:
     KoPathSegment(const QPointF &p0, const QPointF &p1, const QPointF &p2, const QPointF &p3);
 
     /// Assigns segment
-    KoPathSegment& operator=(const KoPathSegment &rhs);
+    KoPathSegment& operator=(const KoPathSegment &other);
 
     /// Destroys the path segment
     ~KoPathSegment();
 
     /// Returns the first point of the segment
-    KoPathPoint * first() const;
+    KoPathPoint *first() const;
 
     /// Sets the first segment point
-    void setFirst(KoPathPoint * first);
+    void setFirst(KoPathPoint *first);
 
     /// Returns the second point of the segment
-    KoPathPoint * second() const;
+    KoPathPoint *second() const;
 
     /// Sets the second segment point
-    void setSecond(KoPathPoint * second);
+    void setSecond(KoPathPoint *second);
 
     /// Returns if segment is valid, e.g. has two valid points
     bool isValid() const;
 
     /// Compare operator
-    bool operator == (const KoPathSegment &rhs) const;
+    bool operator==(const KoPathSegment &other) const;
 
     /// Returns the degree of the segment: 1 = line, 2 = quadratic, 3 = cubic, -1 = invalid
     int degree() const;
@@ -96,7 +96,7 @@ public:
     QRectF controlPointRect() const;
 
     /// Returns transformed segment
-    KoPathSegment mapped(const QMatrix & matrix) const;
+    KoPathSegment mapped(const QMatrix &matrix) const;
 
     /// Returns cubic bezier curve segment of this segment
     KoPathSegment toCubic() const;
@@ -136,7 +136,7 @@ public:
      * @param point the point to find nearest point to
      * @return the parameter of the curve point nearest to the given point
      */
-    qreal nearestPoint( const QPointF &point ) const;
+    qreal nearestPoint(const QPointF &point) const;
 
     /// Returns ordered list of control points
     QList<QPointF> controlPoints() const;
@@ -145,41 +145,9 @@ public:
      * Interpolates quadric bezier curve.
      * @return the interpolated bezier segment
      */
-    static KoPathSegment interpolate( const QPointF &p0, const QPointF &p1, const QPointF &p2, qreal t );
-
-    /// Converts to cubic segment
-    KoPathSegment convertToCubic() const;
-
-    void printDebug() const;
+    static KoPathSegment interpolate(const QPointF &p0, const QPointF &p1, const QPointF &p2, qreal t);
 
 private:
-
-    /// calculates signed distance of given point from segment chord
-    qreal distanceFromChord(const QPointF &point) const;
-
-    /// Returns the chord length, i.e. the distance between first and last control point
-    qreal chordLength() const;
-
-    /// Returns intersection of lines if one exists
-    QList<QPointF> linesIntersection(const KoPathSegment &segment) const;
-
-    /// Returns parameters for curve extrema
-    QList<qreal> extrema() const;
-
-    /// Returns parameters for curve roots
-    QList<qreal> roots() const;
-
-    /**
-     * The DeCasteljau algorithm for parameter t.
-     * @param t the parameter to evaluate at
-     * @param p1 the new control point of the segment start (for cubic curves only)
-     * @param p2 the first control point at t
-     * @param p3 the new point at t
-     * @param p4 the second control point at t
-     * @param p3 the new control point of the segment end (for cubic curbes only)
-     */
-    void deCasteljau(qreal t, QPointF *p1, QPointF *p2, QPointF *p3, QPointF *p4, QPointF *p5) const;
-
     class Private;
     Private * const d;
 };

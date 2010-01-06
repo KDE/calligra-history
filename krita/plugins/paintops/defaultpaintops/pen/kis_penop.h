@@ -27,8 +27,11 @@
 
 #include <kis_paintop_factory.h>
 #include <kis_paintop_settings.h>
+#include <kis_pressure_darken_option.h>
+#include <kis_pressure_opacity_option.h>
+#include <kis_pressure_size_option.h>
 
-class KisBrushOption;
+class KisBrushOptionWidget;
 class KisPenOpSettings;
 
 
@@ -37,7 +40,7 @@ class KisPenOp : public KisBrushBasedPaintOp
 
 public:
 
-    KisPenOp(const KisPenOpSettings *settings, KisPainter * painter);
+    KisPenOp(const KisPenOpSettings *settings, KisPainter * painter, KisImageWSP image);
     virtual ~KisPenOp();
 
     void paintAt(const KisPaintInformation& info);
@@ -45,6 +48,9 @@ public:
 private:
 
     const KisPenOpSettings * settings;
+    KisPressureOpacityOption m_opacityOption;
+    KisPressureDarkenOption m_darkenOption;
+    KisPressureSizeOption m_sizeOption;
 };
 
 #endif // KIS_PENOP_H_

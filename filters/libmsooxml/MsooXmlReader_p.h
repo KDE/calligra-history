@@ -30,15 +30,13 @@
 
 #define TRY_READ_WITH_ARGS_INTERNAL(name, args) \
     args \
-    const KoFilter::ConversionStatus result = read_ ## name (); \
-    if (result != KoFilter::OK) \
-        return result;
+    RETURN_IF_ERROR( read_ ## name () )
 
 #define TRY_READ_WITH_ARGS(name, args) \
     TRY_READ_WITH_ARGS_INTERNAL(name, m_read_ ## name ## _args = args)
 
 #define TRY_READ(name) \
-        TRY_READ_WITH_ARGS_INTERNAL(name,)
+    TRY_READ_WITH_ARGS_INTERNAL(name,)
 
 #define PASTE2(a, b) a##b
 #define PASTE(a, b) PASTE2( a, b) // indirection needed because only function-like macro parameters can be pasted
@@ -62,12 +60,12 @@
 #ifndef NDEBUG
 # define PUSH_NAME \
     kDebug() << (m_callsNames.isEmpty() ? QByteArray("top level") : m_callsNames.top()).constData() \
-        << "==>" << STRINGIFY(CURRENT_EL); \
+    << "==>" << STRINGIFY(CURRENT_EL); \
     m_callsNames.push(STRINGIFY(CURRENT_EL));
 # define POP_NAME \
     m_callsNames.pop(); \
     kDebug() << (m_callsNames.isEmpty() ? QByteArray("top level") : m_callsNames.top()).constData() \
-        << "<==" << STRINGIFY(CURRENT_EL);
+    << "<==" << STRINGIFY(CURRENT_EL);
 #else
 # define PUSH_NAME
 # define POP_NAME
@@ -144,6 +142,10 @@
     raiseError(i18n("Element \"%1\" not found", QString(el))); \
     return KoFilter::WrongFormat;
 
+#define ERROR_UNEXPECTED_SECOND_OCCURENCE(el) \
+    raiseError(i18n("Unexpected second occurence of \"%1\" element", QLatin1String(STRINGIFY(el)))); \
+    return KoFilter::WrongFormat;
+
 #define ERROR_NO_ATTRIBUTE(attr) \
     raiseError(i18n("Attribute \"%1\" not found", QString(attr))); \
     return KoFilter::WrongFormat;
@@ -179,8 +181,9 @@
     destination = attrs.value(JOIN(STRINGIFY(ns) ":", atrname)).toString(); \
     kDebug() << "TRY_READ_ATTR_WITH_NS_INTO: " STRINGIFY(destination) << "=" << destination;
 
-inline QString atrToString(const QXmlStreamAttributes& attrs, const char* atrname) {
-    const QStringRef v( attrs.value(atrname) );
+inline QString atrToString(const QXmlStreamAttributes& attrs, const char* atrname)
+{
+    const QStringRef v(attrs.value(atrname));
     return v.isNull() ? QString() : v.toString();
 }
 
@@ -277,7 +280,7 @@ inline QString atrToString(const QXmlStreamAttributes& attrs, const char* atrnam
     QString atrname( attrs.value(m_defaultNamespace + atrname).toString() );
 
 ////! Like @ref READ_ATTR_WITHOUT_NS(atrname) but reads the attribute into the variable @a destination.
-//#define TRY_READ_ATTR_WITH_NS_INTO(ns, atrname, destination) 
+//#define TRY_READ_ATTR_WITH_NS_INTO(ns, atrname, destination)
 //    destination = attrs.value(JOIN(STRINGIFY(ns) ":", atrname)).toString();
 
 //! Like @ref TRY_READ_ATTR_WITHOUT_NS(atrname) but reads the attribute into the variable @a destination.
@@ -288,12 +291,12 @@ inline QString atrToString(const QXmlStreamAttributes& attrs, const char* atrnam
     readBooleanAttr(QUALIFIED_NAME(CURRENT_EL))
 
 //! converts @a string into integer @a destination; returns KoFilter::WrongFormat on failure
-#define STRING_TO_INT(string, destination) \
-    { \
+#define STRING_TO_INT(string, destination, debugElement) \
+    if (string.isEmpty()) {} else { \
         bool ok; \
         const int val = string.toInt(&ok); \
         if (!ok) { \
-            kDebug() << "STRING_TO_INT: error converting" << string << "to int"; \
+            kDebug() << "STRING_TO_INT: error converting" << string << "to int (attribute" << debugElement << ")"; \
             return KoFilter::WrongFormat; \
         } \
         destination = val; \

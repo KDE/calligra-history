@@ -22,11 +22,11 @@
 class KoToolFactory::Private
 {
 public:
-    Private(const QString &i, const QString &n)
+    Private(const QString &i)
             : priority(100),
             inputDeviceAgnostic(true),
-            id(i),
-            name(n) {
+            id(i)
+    {
     }
     int priority;
     bool inputDeviceAgnostic;
@@ -34,14 +34,14 @@ public:
     QString tooltip;
     QString activationId;
     QString icon;
-    const QString id, name;
+    const QString id;
     KShortcut shortcut;
 };
 
 
-KoToolFactory::KoToolFactory(QObject *parent, const QString &id, const QString &name)
+KoToolFactory::KoToolFactory(QObject *parent, const QString &id)
         : QObject(parent),
-        d(new Private(id, name))
+        d(new Private(id))
 {
 }
 
@@ -115,11 +115,6 @@ void KoToolFactory::setShortcut(const KShortcut & shortcut)
     d->shortcut = shortcut;
 }
 
-QString KoToolFactory::name() const
-{
-    return d->name;
-}
-
 void KoToolFactory::setInputDeviceAgnostic(bool agnostic)
 {
     d->inputDeviceAgnostic = agnostic;
@@ -135,4 +130,4 @@ bool KoToolFactory::canCreateTool(KoCanvasBase *) const
     return true;
 }
 
-#include "KoToolFactory.moc"
+#include <KoToolFactory.moc>

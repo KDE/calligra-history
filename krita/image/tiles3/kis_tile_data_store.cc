@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 #include "kis_tile_data_store.h"
-
+#include "kis_debug.h"
 
 /**
  * TODO:
@@ -149,6 +149,7 @@ void KisTileDataStore::freeTileData(KisTileData *td)
 
 void KisTileDataStore::ensureTileDataLoaded(const KisTileData *td)
 {
+    Q_UNUSED(td);
     /* Swapping isn't implemented yet */
     Q_ASSERT(td->m_state == KisTileData::NORMAL);
 }
@@ -158,10 +159,10 @@ void KisTileDataStore::debugPrintList()
 {
     KisTileData *iter;
     tileListForEach(iter, tileListHead(), tileListTail()) {
-        printf("-------------------------\n");
-        printf("TileData:\t\t\t%X\n", (quintptr)iter);
-        printf("  refCount:\t0x%X\n", (quintptr)iter->m_refCount);
-        printf("  next:    \t0x%X\n", (quintptr)iter->m_nextTD);
-        printf("  prev:    \t0x%X\n", (quintptr)iter->m_prevTD);
+        dbgTiles << "-------------------------\n"
+                 << "TileData:\t\t\t" << iter
+                 << "\n  refCount:\t" << iter->m_refCount
+                 << "\n  next:    \t" << iter->m_nextTD
+                 << "\n  prev:    \t" << iter->m_prevTD;
     }
 }

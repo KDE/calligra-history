@@ -1,0 +1,9 @@
+[Desktop Entry]
+Icon=
+Name=Krita exr Export Filter
+X-KDE-ServiceTypes=KOfficeFilter
+Type=Service
+# X-KDE-Export=image/x-exr
+X-KDE-Import=application/x-krita
+X-KDE-Library=libkritaexrexport
+X-KDE-Weight=1

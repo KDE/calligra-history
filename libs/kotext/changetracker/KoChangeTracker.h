@@ -52,11 +52,11 @@ public:
 
     ~KoChangeTracker();
 
-    void setEnabled(bool enabled);
-    bool isEnabled();
+    void setRecordChanges(bool enabled);
+    bool recordChanges();
 
-    void setDisplayDeleted(bool enabled);
-    bool displayDeleted();
+    void setDisplayChanges(bool enabled);
+    bool displayChanges();
 
     /// returns the changeId of the changeElement registered for the given change. This may be an already existing changeId, if the change could be merged.
     int getChangeId(QString &title, KoGenChange::Type type, QTextCursor &selection, QTextFormat &newFormat, int prevCharChangeId, int nextCharChangeId);
@@ -73,6 +73,14 @@ public:
 
     bool containsInlineChanges(const QTextFormat &format);
     int mergeableId(KoGenChange::Type type, QString &title, int existingId);
+
+    const QColor& getInsertionBgColor();
+    const QColor& getDeletionBgColor();
+    const QColor& getFormatChangeBgColor();
+
+    void setInsertionBgColor(const QColor& bgColor);
+    void setDeletionBgColor(const QColor& color);
+    void setFormatChangeBgColor(const QColor& color);
 
     /// Splits a changeElement. This creates a duplicate changeElement with a different changeId. This is used because we do not support overlapping change regions. The function returns the new changeId
     int split(int changeId);

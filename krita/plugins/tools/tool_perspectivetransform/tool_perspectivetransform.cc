@@ -46,16 +46,12 @@ K_EXPORT_COMPONENT_FACTORY(kritatoolperspectivetransform, ToolPerspectiveTransfo
 
 
 ToolPerspectiveTransform::ToolPerspectiveTransform(QObject *parent, const QStringList &)
-        : KParts::Plugin(parent)
+        : QObject(parent)
 {
-    setComponentData(ToolPerspectiveTransformFactory::componentData());
+    //setComponentData(ToolPerspectiveTransformFactory::componentData());
 
-    if (parent->inherits("KoToolRegistry")) {
-        dbgPlugins << " add perspective transform tool to the registry";
-        KoToolRegistry * r = dynamic_cast<KoToolRegistry*>(parent);
-        r->add(new KisToolPerspectiveTransformFactory());
-    }
-
+    KoToolRegistry * r = KoToolRegistry::instance();
+    r->add(new KisToolPerspectiveTransformFactory(r, QStringList()));
 }
 
 ToolPerspectiveTransform::~ToolPerspectiveTransform()

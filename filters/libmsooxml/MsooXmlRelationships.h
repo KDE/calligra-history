@@ -28,7 +28,8 @@
 
 struct KoOdfWriters;
 
-namespace MSOOXML {
+namespace MSOOXML
+{
 class MsooXmlImport;
 
 //! Global document relationships handler.
@@ -42,6 +43,8 @@ public:
     ~MsooXmlRelationships();
 
     QString target(const QString& path, const QString& file, const QString& id);
+
+    QString link_target(const QString& id);
 
 private:
     class Private;

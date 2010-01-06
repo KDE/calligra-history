@@ -28,6 +28,9 @@
 #include <kis_types.h>
 #include <kis_paintop.h>
 
+#include <kis_pressure_rotation_option.h>
+#include <kis_pressure_opacity_option.h>
+#include <kis_pressure_size_option.h>
 
 #ifdef BENCHMARK
 #include <QTime>
@@ -42,12 +45,19 @@ KisSprayPaintOp::KisSprayPaintOp(const KisSprayPaintOpSettings *settings, KisPai
     Q_ASSERT(settings);
     Q_ASSERT(painter);
 
+    m_rotationOption.readOptionSetting(settings);
+    m_opacityOption.readOptionSetting(settings);
+    m_sizeOption.readOptionSetting(settings);
+    m_rotationOption.sensor()->reset();
+    m_opacityOption.sensor()->reset();
+    m_sizeOption.sensor()->reset();
+    
     m_sprayBrush.setDiameter(settings->diameter());
     m_sprayBrush.setJitterShapeSize(settings->jitterShapeSize());
 
     if (settings->proportional()) {
-        m_sprayBrush.setObjectDimension(settings->widthPerc()  / 100.0 * settings->diameter() * settings->scale(),
-                                        settings->heightPerc() / 100.0 * settings->diameter() * settings->scale());
+        m_sprayBrush.setObjectDimension(settings->width()  / 100.0 * settings->diameter() * settings->scale(),
+                                        settings->height() / 100.0 * settings->diameter() * settings->aspect() * settings->scale());
     } else {
         m_sprayBrush.setObjectDimension(settings->width(), settings->height());
     }
@@ -109,14 +119,21 @@ void KisSprayPaintOp::paintAt(const KisPaintInformation& info)
         m_dab->clear();
     }
 
+    double rotation = m_rotationOption.apply(info);
+    quint8 origOpacity = m_opacityOption.apply(painter(), info);
+    double scale = KisPaintOp::scaleForPressure(m_sizeOption.apply(info));
+    
     m_sprayBrush.paint( m_dab,
                         m_settings->node()->paintDevice(), 
                         info, 
+                        rotation,
+                        scale,
                         painter()->paintColor(), 
                         painter()->backgroundColor());
 
     QRect rc = m_dab->extent();
     painter()->bitBlt(rc.topLeft(), m_dab, rc);
+    painter()->setOpacity(origOpacity);
 
 #ifdef BENCHMARK
     int msec = time.elapsed();

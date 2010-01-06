@@ -157,17 +157,10 @@ bool isCartesian( ChartType type )
     return !isPolar( type );
 }
 
-// FIXME: Rename Title to TitleLabelType and so on
-enum OdfLabelType {
-    Title,
-    SubTitle,
-    Footer
-};
-
 
 QString saveOdfFont( KoGenStyles& mainStyles,
-                                 const QFont& font,
-                                 const QColor& color )
+                     const QFont& font,
+                     const QColor& color )
 {
     KoGenStyle::PropertyType tt = KoGenStyle::TextType;
     KoGenStyle autoStyle( KoGenStyle::StyleAuto, "chart", 0 );
@@ -202,7 +195,7 @@ bool loadOdfLabel( KoShape *label, KoXmlElement &labelElement, KoShapeLoadingCon
 }
 
 void saveOdfLabel( KoShape *label, KoXmlWriter &bodyWriter,
-                   KoGenStyles &mainStyles, OdfLabelType odfLabelType )
+                   KoGenStyles &mainStyles, LabelType labelType )
 {
     // Don't save hidden labels, as that's the way of removing them
     // from a chart.
@@ -213,11 +206,11 @@ void saveOdfLabel( KoShape *label, KoXmlWriter &bodyWriter,
     if ( !labelData )
         return;
 
-    if ( odfLabelType == Footer )
+    if ( labelType == FooterLabelType )
         bodyWriter.startElement( "chart:footer" );
-    else if ( odfLabelType == SubTitle )
+    else if ( labelType == SubTitleLabelType )
         bodyWriter.startElement( "chart:subtitle" );
-    else // if ( odfLabelType == Title )
+    else // if ( labelType == TitleLabelType )
         bodyWriter.startElement( "chart:title" );
 
     bodyWriter.addAttributePt( "svg:x", label->position().x() );
@@ -283,6 +276,8 @@ public:
     ChartDocument *document;
 
     ChartShape *shape;		// The chart that owns this ChartShape::Private
+
+    QMap<QString, KoDataCenter*> dataCenterMap;
 };
 
 
@@ -326,8 +321,8 @@ void ChartShape::Private::showLabel( KoShape *label )
     if ( label->position().y() + label->size().height() / 2.0
          < shape->size().height() / 2.0 )
     {
-        const double verticalSpaceRemaining = plotArea->position().y();
-        const double spaceToExpand          = ( label->position().y() + label->size().height() ) - verticalSpaceRemaining;
+        const qreal verticalSpaceRemaining = plotArea->position().y();
+        const qreal spaceToExpand          = ( label->position().y() + label->size().height() ) - verticalSpaceRemaining;
 
         if ( spaceToExpand > 0.0 ) {
             plotArea->setSize( QSizeF( plotAreaSize.width(),
@@ -337,8 +332,8 @@ void ChartShape::Private::showLabel( KoShape *label )
         }
     }
     else {
-        const double verticalSpaceRemaining = label->position().y() - plotArea->position().y() - plotArea->size().height();
-        double spaceToExpand = ( shape->size().height() - label->position().y() - label->size().height() ) - verticalSpaceRemaining;
+        const qreal verticalSpaceRemaining = label->position().y() - plotArea->position().y() - plotArea->size().height();
+        qreal spaceToExpand = ( shape->size().height() - label->position().y() - label->size().height() ) - verticalSpaceRemaining;
 
         if ( spaceToExpand < 0.0 )
             spaceToExpand = 0.0;
@@ -347,7 +342,7 @@ void ChartShape::Private::showLabel( KoShape *label )
             if ( axis->position() != BottomAxisPosition )
                 continue;
 
-            double _spaceToExpand = ( label->size().height()
+            qreal _spaceToExpand = ( label->size().height()
                                       - ( shape->size().height()
                                           - axis->title()->position().y()
                                           - axis->title()->size().height() ) );
@@ -390,7 +385,7 @@ ChartShape::ChartShape()
     // We need this as the very first step, because some methods
     // here rely on the d->plotArea pointer.
     addChild( d->plotArea );
-    d->plotArea->init();
+    d->plotArea->plotAreaInit();
     d->plotArea->setZIndex( 0 );
     setClipping( d->plotArea, true );
 
@@ -636,7 +631,7 @@ void ChartShape::setPosition( const QPointF &pos )
     KoShape::setPosition( pos );
 }
 
-static QPointF scalePointCenterLeft( QPointF center, double factorX, double factorY, const QSizeF &size )
+static QPointF scalePointCenterLeft( QPointF center, qreal factorX, qreal factorY, const QSizeF &size )
 {
     center.rx() -= size.width() / 2.0;
     center.rx() *= factorX;
@@ -646,7 +641,7 @@ static QPointF scalePointCenterLeft( QPointF center, double factorX, double fact
     return center;
 }
 
-static QPointF scalePointCenterRight( QPointF center, double factorX, double factorY, const QSizeF &size )
+static QPointF scalePointCenterRight( QPointF center, qreal factorX, qreal factorY, const QSizeF &size )
 {
     center.rx() += size.width() / 2.0;
     center.rx() *= factorX;
@@ -656,7 +651,7 @@ static QPointF scalePointCenterRight( QPointF center, double factorX, double fac
     return center;
 }
 
-static QPointF scalePointCenterTop( QPointF center, double factorX, double factorY, const QSizeF &size )
+static QPointF scalePointCenterTop( QPointF center, qreal factorX, qreal factorY, const QSizeF &size )
 {
     center.ry() -= size.height() / 2.0;
     center.rx() *= factorX;
@@ -666,7 +661,7 @@ static QPointF scalePointCenterTop( QPointF center, double factorX, double facto
     return center;
 }
 
-static QPointF scalePointCenterBottom( QPointF center, double factorX, double factorY, const QSizeF &size )
+static QPointF scalePointCenterBottom( QPointF center, qreal factorX, qreal factorY, const QSizeF &size )
 {
     center.ry() += size.height() / 2.0;
     center.rx() *= factorX;
@@ -680,8 +675,8 @@ void ChartShape::setSize( const QSizeF &newSize )
 {
     Q_ASSERT( d->plotArea );
 
-    const double factorX = newSize.width() / size().width();
-    const double factorY = newSize.height() / size().height();
+    const qreal factorX = newSize.width() / size().width();
+    const qreal factorY = newSize.height() / size().height();
 
     // Reposition the Axes within the shape.
     foreach( Axis *axis, d->plotArea->axes() ) {
@@ -750,7 +745,7 @@ void ChartShape::updateChildrenPositions()
         title->setPosition( titlePosition );
     }
 
-    const double legendXOffset = 10.0;
+    const qreal legendXOffset = 10.0;
     d->legend->setPosition( QPointF( size().width() + legendXOffset,
                                      size().height() / 2.0 - d->legend->size().height() / 2.0 ) );
 }
@@ -1000,7 +995,16 @@ bool ChartShape::loadEmbeddedDocument( KoStore *store,
 bool ChartShape::loadOdf( const KoXmlElement &element,
                           KoShapeLoadingContext &context )
 {
-    loadOdfAttributes( element, context, OdfTransformation | OdfGeometry );
+    // Invalidate all data sets before we new load data sets from ODF
+    // and *before* we delete existing axes.
+    proxyModel()->invalidateDataSets();
+
+    // When loading from ODF, all data sets are added explicitly.
+    proxyModel()->setAutomaticDataSetCreation( false );
+
+    // Load common attributes of (frame) shapes.  If you change here,
+    // don't forget to also change in saveOdf().
+    loadOdfAttributes( element, context, OdfMandatories | OdfGeometry | OdfAdditionalAttributes );
     return loadOdfFrame( element, context );
 }
 
@@ -1030,7 +1034,7 @@ bool ChartShape::loadOdfEmbedded( const KoXmlElement &chartElement,
         styleStack.setTypeProperties( "graphic" );
     }
     loadOdfAttributes( chartElement, context,
-                       OdfAdditionalAttributes | OdfMandatories | OdfCommonChildElements );
+                       OdfAdditionalAttributes | OdfMandatories | OdfCommonChildElements | OdfStyle );
 
     // Check if we're loading an embedded document
     if ( !chartElement.hasAttributeNS( KoXmlNS::chart, "class" ) ) {
@@ -1161,7 +1165,8 @@ void ChartShape::saveOdf( KoShapeSavingContext & context ) const
          || QString( tagHierarchy.last() ) != "office:chart" )
     {
         bodyWriter.startElement( "draw:frame" );
-        saveOdfAttributes( context, OdfTransformation | OdfSize );
+        // See also loadOdf() in loadOdfAttributes.
+        saveOdfAttributes( context, OdfMandatories | OdfGeometry | OdfAdditionalAttributes );
 
         bodyWriter.startElement( "draw:object" );
         context.embeddedSaver().embedDocument( bodyWriter, d->document );
@@ -1185,13 +1190,13 @@ void ChartShape::saveOdf( KoShapeSavingContext & context ) const
     bodyWriter.addAttribute( "chart:class", ODF_CHARTTYPES[ d->plotArea->chartType() ] );
 
     // 2. Write the title.
-    saveOdfLabel( d->title, bodyWriter, mainStyles, Title );
+    saveOdfLabel( d->title, bodyWriter, mainStyles, TitleLabelType );
 
     // 3. Write the subtitle.
-    saveOdfLabel( d->subTitle, bodyWriter, mainStyles, SubTitle );
+    saveOdfLabel( d->subTitle, bodyWriter, mainStyles, SubTitleLabelType );
 
     // 4. Write the footer.
-    saveOdfLabel( d->footer, bodyWriter, mainStyles, Footer );
+    saveOdfLabel( d->footer, bodyWriter, mainStyles, FooterLabelType );
 
     // 5. Write the legend.
     d->legend->saveOdf( context );
@@ -1304,6 +1309,7 @@ void ChartShape::saveOdfData( KoXmlWriter &bodyWriter, KoGenStyles &mainStyles )
 
 void ChartShape::init( const QMap<QString, KoDataCenter *> & dataCenterMap )
 {
+    d->dataCenterMap = dataCenterMap;
     d->title->init( dataCenterMap );
     d->subTitle->init( dataCenterMap );
     d->footer->init( dataCenterMap );
@@ -1325,6 +1331,11 @@ void ChartShape::requestRepaint() const
 {
     Q_ASSERT( d->plotArea );
     d->plotArea->requestRepaint();
+}
+
+QMap<QString, KoDataCenter*> ChartShape::dataCenterMap() const
+{
+    return d->dataCenterMap;
 }
 
 } // Namespace KChart

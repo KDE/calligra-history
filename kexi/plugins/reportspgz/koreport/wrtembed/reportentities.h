@@ -30,7 +30,7 @@
 // qt
 #include <QGraphicsItem>
 // common
-#include <parsexmlutils.h>
+#include <krobjectdata.h>
 
 
 // forward declarations
@@ -40,6 +40,8 @@ class QDomNode;
 class QDomDocument;
 class QDomElement;
 class ReportDesigner;
+class KRPos;
+class KRSize;
 
 namespace KoProperty
 {
@@ -55,10 +57,9 @@ public:
     static void buildXML(QGraphicsItem * item, QDomDocument & doc, QDomElement & parent);
     virtual void buildXML(QDomDocument & doc, QDomElement & parent) = 0;
 
-    static void buildXMLRect(QDomDocument & doc, QDomElement & entity, QRectF rect);
-    static void buildXMLFont(QDomDocument & doc, QDomElement & entity, QFont font);
-    static void buildXMLTextStyle(QDomDocument & doc, QDomElement & entity, ORTextStyleData ts);
-    static void buildXMLLineStyle(QDomDocument & doc, QDomElement & entity, ORLineStyleData ls);
+    static void buildXMLRect(QDomDocument & doc, QDomElement & entity, KRPos *pos, KRSize *siz);
+    static void buildXMLTextStyle(QDomDocument & doc, QDomElement & entity, KRTextStyleData ts);
+    static void buildXMLLineStyle(QDomDocument & doc, QDomElement & entity, KRLineStyleData ls);
 
     static QFont getDefaultEntityFont();
     static void  setDefaultEntityFont(const QFont &);

@@ -48,10 +48,12 @@ public:
 
     void readOptionSetting(const KisPropertiesConfiguration* setting);
 
+    void setRate(int rate);
+    
     int rate() const;
-
+    
 private:
-    QSlider* m_rateSlider;
+    int m_rate;
 };
 
 #endif

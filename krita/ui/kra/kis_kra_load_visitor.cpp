@@ -26,7 +26,7 @@
 #include <QByteArray>
 
 #include <KoColorSpaceRegistry.h>
-#include <colorprofiles/KoIccColorProfile.h>
+#include <KoColorProfile.h>
 #include <KoStore.h>
 #include <KoColorSpace.h>
 
@@ -158,8 +158,6 @@ bool KisKraLoadVisitor::visit(KisAdjustmentLayer* layer)
     // style, which has selections with selection components
 
     if (m_syntaxVersion == 1) {
-
-        //connect(*layer->paintDevice(), SIGNAL(ioProgress(qint8)), m_image, SLOT(slotIOProgress(qint8)));
         QString location = getLocation(layer, ".selection");
         KisSelectionSP selection = new KisSelection();
         KisPixelSelectionSP pixelSelection = selection->getOrCreatePixelSelection();
@@ -254,13 +252,11 @@ bool KisKraLoadVisitor::visit(KisSelectionMask *mask)
 
 bool KisKraLoadVisitor::loadPaintDevice(KisPaintDeviceSP device, const QString& location)
 {
-    //connect(*device, SIGNAL(ioProgress(qint8)), m_image, SLOT(slotIOProgress(qint8)));
     // Layer data
     if (m_store->open(location)) {
         if (!device->read(m_store)) {
             device->disconnect();
             m_store->close();
-            //IODone();
             return false;
         }
 
@@ -284,9 +280,9 @@ bool KisKraLoadVisitor::loadProfile(KisPaintDeviceSP device, const QString& loca
         dbgFile << "Profile size: " << data.size() << " " << m_store->atEnd() << " " << m_store->device()->bytesAvailable() << " " << read;
         m_store->close();
         // Create a colorspace with the embedded profile
+        KoColorProfile* profile = KoColorSpaceRegistry::instance()->createProfile("icc", data);
         const KoColorSpace * cs =
-            KoColorSpaceRegistry::instance()->colorSpace(device->colorSpace()->id(),
-                    new KoIccColorProfile(data));
+            KoColorSpaceRegistry::instance()->colorSpace(device->colorSpace()->id(),profile);
         // replace the old colorspace
         device->setDataManager(device->dataManager(), cs);
         return true;

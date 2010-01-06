@@ -41,7 +41,7 @@ void ReportEntityField::init(QGraphicsScene * scene)
         scene->addItem(this);
 
     connect(m_set, SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
 
     ReportRectEntity::init(&m_pos, &m_size, m_set);
     setZValue(Z);
@@ -54,7 +54,7 @@ ReportEntityField::ReportEntityField(ReportDesigner * rw, QGraphicsScene * scene
     init(scene);
     setSceneRect(getTextRect());
 
-    m_name->setValue(m_reportDesigner->suggestEntityName("Field"));
+    m_name->setValue(m_reportDesigner->suggestEntityName("field"));
 }
 
 ReportEntityField::ReportEntityField(QDomNode & element, ReportDesigner * d, QGraphicsScene * s)
@@ -89,16 +89,15 @@ void ReportEntityField::paint(QPainter* painter, const QStyleOptionGraphicsItem*
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    
+
     // store any values we plan on changing so we can restore them
     QFont f = painter->font();
     QPen  p = painter->pen();
 
     painter->setFont(font());
-    //painter->setBackgroundMode ( Qt::OpaqueMode );
 
     QColor bg = m_backgroundColor->value().value<QColor>();
-    bg.setAlpha(m_backgroundOpacity->value().toInt());
+    bg.setAlpha((m_backgroundOpacity->value().toInt() / 100) * 255);
 
     painter->setBackground(bg);
     painter->setPen(m_foregroundColor->value().value<QColor>());
@@ -126,56 +125,24 @@ void ReportEntityField::paint(QPainter* painter, const QStyleOptionGraphicsItem*
 
 void ReportEntityField::buildXML(QDomDocument & doc, QDomElement & parent)
 {
-    //kdDebug() << "ReportEntityField::buildXML()");
-    QDomElement entity = doc.createElement("field");
+    QDomElement entity = doc.createElement("report:field");
+
+    // properties
+    addPropertyAsAttribute(&entity, m_name);
+    addPropertyAsAttribute(&entity, m_controlSource);
+    addPropertyAsAttribute(&entity, m_verticalAlignment);
+    addPropertyAsAttribute(&entity, m_horizontalAlignment);
+    entity.setAttribute("report:z-index", zValue());
 
     // bounding rect
-    buildXMLRect(doc, entity, pointRect());
+    buildXMLRect(doc, entity, &m_pos, &m_size);
 
-    // name
-    QDomElement n = doc.createElement("name");
-    n.appendChild(doc.createTextNode(entityName()));
-    entity.appendChild(n);
-
-    // z
-    QDomElement z = doc.createElement("zvalue");
-    z.appendChild(doc.createTextNode(QString::number(zValue())));
-    entity.appendChild(z);
-
-    // font info
-    //buildXMLFont ( doc,entity,font() );
     //text style info
     buildXMLTextStyle(doc, entity, textStyle());
 
     //Line Style
     buildXMLLineStyle(doc, entity, lineStyle());
 
-    // text alignment
-    int align = textFlags();
-    // horizontal
-    if ((align & Qt::AlignRight) == Qt::AlignRight)
-        entity.appendChild(doc.createElement("right"));
-    else if ((align & Qt::AlignHCenter) == Qt::AlignHCenter)
-        entity.appendChild(doc.createElement("hcenter"));
-    else // Qt::AlignLeft
-        entity.appendChild(doc.createElement("left"));
-    // vertical
-    if ((align & Qt::AlignBottom) == Qt::AlignBottom)
-        entity.appendChild(doc.createElement("bottom"));
-    else if ((align & Qt::AlignVCenter) == Qt::AlignVCenter)
-        entity.appendChild(doc.createElement("vcenter"));
-    else // Qt::AlignTop
-        entity.appendChild(doc.createElement("top"));
-
-    // the field data
-    QDomElement data = doc.createElement("data");
-// QDomElement dquery = doc.createElement ( "query" );
-// dquery.appendChild ( doc.createTextNode ( query() ) );
-// data.appendChild ( dquery );
-    QDomElement dcolumn = doc.createElement("controlsource");
-    dcolumn.appendChild(doc.createTextNode(controlSource()));
-    data.appendChild(dcolumn);
-    entity.appendChild(data);
 
 #if 0
     if (m_trackTotal) {
@@ -195,7 +162,7 @@ void ReportEntityField::buildXML(QDomDocument & doc, QDomElement & parent)
 void ReportEntityField::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
     Q_UNUSED(s);
-    
+
     //Handle Position
     if (p.name() == "Position") {
         //TODO _pos.setUnitRect(p.value().value<QRect>() );

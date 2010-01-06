@@ -49,7 +49,7 @@ KRTextData::KRTextData(QDomNode & element) : m_bottomPadding(0.0)
                     kDebug() << "while parsing field data encountered and unknown element: " << n;
                 }
             }
-	} else if (n == "name") {
+        } else if (n == "name") {
             m_name->setValue(node.firstChild().nodeValue());
         } else if (n == "zvalue") {
             Z = node.firstChild().nodeValue().toDouble();
@@ -68,13 +68,10 @@ KRTextData::KRTextData(QDomNode & element) : m_bottomPadding(0.0)
         } else if (n == "bottom") {
             m_verticalAlignment->setValue("Bottom");
         } else if (n == "rect") {
-            QRectF r;
-            parseReportRect(node.toElement(), r);
-            m_pos.setPointPos(r.topLeft());
-            m_size.setPointSize(r.size());
+            parseReportRect(node.toElement(), &m_pos, &m_size);
         } else if (n == "textstyle") {
 
-            ORTextStyleData ts;
+            KRTextStyleData ts;
             if (parseReportTextStyleData(node.toElement(), ts)) {
                 m_backgroundColor->setValue(ts.backgroundColor);
                 m_foregroundColor->setValue(ts.foregroundColor);
@@ -82,7 +79,7 @@ KRTextData::KRTextData(QDomNode & element) : m_bottomPadding(0.0)
                 m_font->setValue(ts.font);
             }
         } else if (n == "linestyle") {
-            ORLineStyleData ls;
+            KRLineStyleData ls;
             if (parseReportLineStyleData(node.toElement(), ls)) {
                 m_lineWeight->setValue(ls.weight);
                 m_lineColor->setValue(ls.lineColor);
@@ -103,17 +100,17 @@ Qt::Alignment KRTextData::textFlags() const
     Qt::Alignment align;
     QString t;
     t = m_horizontalAlignment->value().toString();
-    if (t == "Center")
+    if (t == "center")
         align = Qt::AlignHCenter;
-    else if (t == "Right")
+    else if (t == "right")
         align = Qt::AlignRight;
     else
         align = Qt::AlignLeft;
 
     t = m_verticalAlignment->value().toString();
-    if (t == "Center")
+    if (t == "center")
         align |= Qt::AlignVCenter;
-    else if (t == "Bottom")
+    else if (t == "bottom")
         align |= Qt::AlignBottom;
     else
         align |= Qt::AlignTop;
@@ -130,29 +127,30 @@ void KRTextData::createProperties()
     QStringList keys, strings;
 
     //_query = new KoProperty::Property ( "Query", QStringList(), QStringList(), "Data Source", "Query" );
-    m_controlSource = new KoProperty::Property("ControlSource", QStringList(), QStringList(), "", "Control Source");
+    m_controlSource = new KoProperty::Property("control-source", QStringList(), QStringList(), "", "Control Source");
 
-    keys << "Left" << "Center" << "Right";
+    keys << "left" << "center" << "right";
     strings << i18n("Left") << i18n("Center") << i18n("Right");
-    m_horizontalAlignment = new KoProperty::Property("HAlign", keys, strings, "Left", "Horizontal Alignment");
+    m_horizontalAlignment = new KoProperty::Property("horizontal-align", keys, strings, "left", "Horizontal Alignment");
 
     keys.clear();
     strings.clear();
-    keys << "Top" << "Center" << "Bottom";
+    keys << "top" << "center" << "bottom";
     strings << i18n("Top") << i18n("Center") << i18n("Bottom");
-    m_verticalAlignment = new KoProperty::Property("VAlign", keys, strings, "Center", "Vertical Alignment");
+    m_verticalAlignment = new KoProperty::Property("vertical-align", keys, strings, "center", "Vertical Alignment");
 
     m_font = new KoProperty::Property("Font", KGlobalSettings::generalFont(), "Font", "Field Font");
 
-    m_backgroundColor = new KoProperty::Property("BackgroundColor", Qt::white, "Background Color", "Background Color");
-    m_foregroundColor = new KoProperty::Property("ForegroundColor", Qt::black, "Foreground Color", "Foreground Color");
+    m_backgroundColor = new KoProperty::Property("background-color", Qt::white, "Background Color", "Background Color");
+    m_foregroundColor = new KoProperty::Property("foreground-color", Qt::black, "Foreground Color", "Foreground Color");
 
-    m_lineWeight = new KoProperty::Property("Weight", 1, "Line Weight", "Line Weight");
-    m_lineColor = new KoProperty::Property("LineColor", Qt::black, "Line Color", "Line Color");
-    m_lineStyle = new KoProperty::Property("LineStyle", Qt::NoPen, "Line Style", "Line Style", KoProperty::LineStyle);
-    m_backgroundOpacity = new KoProperty::Property("Opacity", 255, "Opacity", "Opacity");
-    m_backgroundOpacity->setOption("max", 255);
+    m_lineWeight = new KoProperty::Property("line-weight", 1, "Line Weight", "Line Weight");
+    m_lineColor = new KoProperty::Property("line-color", Qt::black, "Line Color", "Line Color");
+    m_lineStyle = new KoProperty::Property("line-style", Qt::NoPen, "Line Style", "Line Style", KoProperty::LineStyle);
+    m_backgroundOpacity = new KoProperty::Property("background-opacity", 100, "Opacity", "Opacity");
+    m_backgroundOpacity->setOption("max", 100);
     m_backgroundOpacity->setOption("min", 0);
+    m_backgroundOpacity->setOption("unit", "%");
 
     //_set->addProperty ( _query );
     m_set->addProperty(m_name);
@@ -188,9 +186,9 @@ void KRTextData::setBottomPadding(qreal bp)
     }
 }
 
-ORTextStyleData KRTextData::textStyle()
+KRTextStyleData KRTextData::textStyle()
 {
-    ORTextStyleData d;
+    KRTextStyleData d;
     d.backgroundColor = m_backgroundColor->value().value<QColor>();
     d.foregroundColor = m_foregroundColor->value().value<QColor>();
     d.font = m_font->value().value<QFont>();
@@ -198,9 +196,9 @@ ORTextStyleData KRTextData::textStyle()
     return d;
 }
 
-ORLineStyleData KRTextData::lineStyle()
+KRLineStyleData KRTextData::lineStyle()
 {
-    ORLineStyleData ls;
+    KRLineStyleData ls;
     ls.weight = m_lineWeight->value().toInt();
     ls.lineColor = m_lineColor->value().value<QColor>();
     ls.style = (Qt::PenStyle)m_lineStyle->value().toInt();

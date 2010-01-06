@@ -24,14 +24,10 @@
 #define KIS_TOOL_SELECT_POLYGONAL_H_
 
 #include "KoToolFactory.h"
+#include "krita/ui/tool/kis_tool_select_base.h"
+#include "kis_tool_polygon_base.h"
 
-#include "flake/kis_node_shape.h"
-#include "kis_selection.h"
-#include "kis_tool.h"
-
-class KisSelectionOptions;
-
-class KisToolSelectPolygonal : public KisTool
+class KisToolSelectPolygonal : public KisToolSelectBase
 {
 
     Q_OBJECT
@@ -39,37 +35,29 @@ public:
     KisToolSelectPolygonal(KoCanvasBase *canvas);
     virtual ~KisToolSelectPolygonal();
 
-    virtual void mousePressEvent(KoPointerEvent *event);
-    virtual void mouseMoveEvent(KoPointerEvent *event);
-    virtual void mouseReleaseEvent(KoPointerEvent *event);
-    virtual void mouseDoubleClickEvent(KoPointerEvent * event);
     virtual void keyPressEvent(QKeyEvent *e);
 
     QWidget* createOptionWidget();
-    virtual QWidget* optionWidget();
 
-    virtual void paint(QPainter &painter, const KoViewConverter &converter);
-
-public slots:
-    virtual void slotSetAction(int);
-    virtual void slotSetSelectionMode(int);
-    virtual void activate(bool);
-    void deactivate();
-
-protected:
-    void finish();
-    QRectF dragBoundingRect();
-
-protected:
-    QPointF m_dragStart;
-    QPointF m_dragEnd;
-
-    bool m_dragging;
 private:
-    vQPointF m_points;
-    KisSelectionOptions * m_optWidget;
-    selectionAction m_selectAction;
-    selectionMode m_selectionMode;
+    class LokalTool : public KisToolPolygonBase {
+    public:
+        LokalTool(KoCanvasBase * canvas, KisToolSelectPolygonal* selectingTool)
+            : KisToolPolygonBase(canvas), m_selectingTool(selectingTool) {}
+        void finishPolygon(const QVector<QPointF> &points);
+    private:
+        KisToolSelectPolygonal* const m_selectingTool;
+    };
+    LokalTool m_lokalTool;
+
+    virtual void paint(QPainter& gc, const KoViewConverter &converter) {m_lokalTool.paint(gc, converter);}
+    virtual void mousePressEvent(KoPointerEvent *e) {m_lokalTool.mousePressEvent(e);}
+    virtual void mouseMoveEvent(KoPointerEvent *e) {m_lokalTool.mouseMoveEvent(e);}
+    virtual void mouseReleaseEvent(KoPointerEvent *e) {m_lokalTool.mouseReleaseEvent(e);}
+    virtual void mouseDoubleClickEvent(KoPointerEvent * e) {m_lokalTool.mouseDoubleClickEvent(e);}
+    virtual void deactivate() {m_lokalTool.deactivate();}
+
+    friend class LokalTool;
 };
 
 
@@ -78,8 +66,7 @@ class KisToolSelectPolygonalFactory : public KoToolFactory
 
 public:
     KisToolSelectPolygonalFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolSelectPolygonal",
-                            i18n("Polygonal Selection")) {
+            : KoToolFactory(parent, "KisToolSelectPolygonal") {
         setToolTip(i18n("Select a polygonal region"));
         setToolType(TOOL_TYPE_SELECTED);
         setIcon("tool_polygonal_selection");

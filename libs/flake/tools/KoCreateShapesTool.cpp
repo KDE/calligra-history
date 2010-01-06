@@ -63,7 +63,7 @@ void KoCreateShapesTool::mouseReleaseEvent(KoPointerEvent *event)
 
 void KoCreateShapesTool::activate(bool)
 {
-    useCursor(Qt::ArrowCursor, true);
+    useCursor(Qt::ArrowCursor);
 }
 
 void KoCreateShapesTool::setShapeId(const QString &id)
@@ -88,6 +88,6 @@ KoProperties const * KoCreateShapesTool::shapeProperties()
 
 KoInteractionStrategy *KoCreateShapesTool::createStrategy(KoPointerEvent *event)
 {
-    return new KoCreateShapeStrategy(this, m_canvas, event->point);
+    return new KoCreateShapeStrategy(this, event->point);
 }
 

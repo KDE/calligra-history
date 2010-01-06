@@ -53,24 +53,24 @@
 #include <kdebug.h>
 
 static const char *arrow_xpm[] = {
-/* width height num_colors chars_per_pixel */
-"    11    12       2            1",
-/* colors */
-". c None",
-"# c #555555",
-/*   data   */
-"...........",
-"...#####...",
-"...#####...",
-"...#####...",
-"...#####...",
-"...#####...",
-"###########",
-".#########.",
-"..#######.-",
-"...#####...",
-"....###....",
-".....#....."
+    /* width height num_colors chars_per_pixel */
+    "    11    12       2            1",
+    /* colors */
+    ". c None",
+    "# c #555555",
+    /*   data   */
+    "...........",
+    "...#####...",
+    "...#####...",
+    "...#####...",
+    "...#####...",
+    "...#####...",
+    "###########",
+    ".#########.",
+    "..#######.-",
+    "...#####...",
+    "....###....",
+    ".....#....."
 };
 
 //
@@ -84,7 +84,7 @@ ReportSection::ReportSection(ReportDesigner * rptdes, const char * name)
 
     m_sectionData = new KRSectionData();
     connect(m_sectionData->properties(), SIGNAL(propertyChanged(KoProperty::Set &, KoProperty::Property &)),
-        this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
+            this, SLOT(slotPropertyChanged(KoProperty::Set &, KoProperty::Property &)));
     int dpiY = KoDpi::dpiY();
 
     m_reportDesigner = rptdes;
@@ -135,7 +135,7 @@ void ReportSection::setTitle(const QString & s)
 
 void ReportSection::slotResizeBarDragged(int delta)
 {
-    if (m_sceneView->designer() && m_sceneView->designer()->propertySet()->property("PageSize").value().toString() == "Labels") {
+    if (m_sceneView->designer() && m_sceneView->designer()->propertySet()->property("page-size").value().toString() == "Labels") {
         return; // we don't want to allow this on reports that are for labels
     }
 
@@ -153,20 +153,14 @@ void ReportSection::slotResizeBarDragged(int delta)
     m_reportDesigner->setModified(true);
 }
 
-void ReportSection::buildXML(QDomDocument & doc, QDomElement & section)
+void ReportSection::buildXML(QDomDocument &doc, QDomElement &section)
 {
-    int dpiY = KoDpi::dpiY();
-    qreal f = INCH_TO_POINT(m_scene->height() / dpiY);
-    //f = ( ( f - ( int ) f ) > .5 ? f : f + 1 );
-    QDomElement height = doc.createElement("height");
-    height.appendChild(doc.createTextNode(QString::number(f)));
-    section.appendChild(height);
+    qreal f = INCH_TO_POINT(m_scene->height() / KoDpi::dpiY());
 
-    QDomElement bgcolor = doc.createElement("bgcolor");
-    bgcolor.appendChild(doc.createTextNode(m_sectionData->bgColor().name()));
-    section.appendChild(bgcolor);
+    section.setAttribute("report:height", QString::number(f));
+    section.setAttribute("fo:background-color", m_sectionData->backgroundColor().name());
 
-    // now get a list of all the QCanvasItems on this scene and output them.
+    // now get a list of all the QGraphicsItems on this scene and output them.
     QGraphicsItemList list = m_scene->items();
     for (QGraphicsItemList::iterator it = list.begin();
             it != list.end(); it++) {
@@ -180,41 +174,37 @@ void ReportSection::initFromXML(QDomNode & section)
     QDomNode node;
     QString n;
 
+    qreal h = section.toElement().attribute("report:height", QString::number(72)).toDouble();
+    h  = POINT_TO_INCH(h) * KoDpi::dpiY();
+    kDebug() << "Section Height: " << h;
+    m_scene->setSceneRect(0, 0, m_scene->width(), h);
+    slotResizeBarDragged(0);
+
+    m_sectionData->m_backgroundColor->setValue(QColor(section.toElement().attribute("fo:background-color", "#ffffff")));
+
     for (int i = 0; i < nl.count(); i++) {
         node = nl.item(i);
         n = node.nodeName();
-        if (n == "height") {
-            qreal h = node.firstChild().nodeValue().toDouble();
-            h  = POINT_TO_INCH(h) * KoDpi::dpiY();
-            kDebug() << "Section Height: " << h;
-            m_scene->setSceneRect(0, 0, m_scene->width(), h);
-            slotResizeBarDragged(0);
-        } else if (n == "bgcolor") {
-            m_sectionData->m_backgroundColor->setValue(QColor(node.firstChild().nodeValue()));
-        }
+
         //Objects
-        else if (n == "label") {
+        if (n == "report:label") {
             (new ReportEntityLabel(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "field") {
+        } else if (n == "report:field") {
             (new ReportEntityField(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "text") {
+        } else if (n == "report:text") {
             (new ReportEntityText(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "line") {
+        } else if (n == "report:line") {
             (new ReportEntityLine(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "barcode") {
+        } else if (n == "report:barcode") {
             (new ReportEntityBarcode(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "image") {
+        } else if (n == "report:image") {
             (new ReportEntityImage(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "chart") {
+        } else if (n == "report:chart") {
             (new ReportEntityChart(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "check") {
+        } else if (n == "report:check") {
             (new ReportEntityCheck(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "shape") {
+        } else if (n == "report:shape") {
             (new ReportEntityShape(node, m_sceneView->designer(), m_scene))->setVisible(true);
-        } else if (n == "key" || n == "firstpage" || n == "lastpage"
-                   || n == "odd" || n == "even") {
-            // these are all handled elsewhere but we don't want to show errors
-            // because they are expected sometimes
         } else {
             kDebug() << "Encountered unknown node while parsing section: " << n;
         }
@@ -229,7 +219,7 @@ QSize ReportSection::sizeHint() const
 void ReportSection::slotPageOptionsChanged(KoProperty::Set &set)
 {
     Q_UNUSED(set)
-    
+
     KoUnit unit = m_reportDesigner->pageUnit();
 
     //update items position with unit
@@ -260,7 +250,7 @@ void ReportSection::slotSceneClicked()
 void ReportSection::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
     Q_UNUSED(s)
-    
+
     //Handle Background Color
     if (p.name() == "BackgroundColor") {
         m_scene->setBackgroundBrush(p.value().value<QColor>());
@@ -308,26 +298,25 @@ void ReportSectionTitle::paintEvent(QPaintEvent * event)
 {
     QPainter painter(this);
     KColorScheme colorScheme(QPalette::Active);
-    
+
     QLinearGradient linearGrad(QPointF(0, 0), QPointF(width(), 0));
-    
+
     ReportSection* _section = dynamic_cast<ReportSection*>(parent());
 
     if (_section->m_scene == _section->m_reportDesigner->activeScene()) {
-      linearGrad.setColorAt(0, colorScheme.decoration(KColorScheme::HoverColor).color());
-      linearGrad.setColorAt(1, colorScheme.decoration(KColorScheme::FocusColor).color());
+        linearGrad.setColorAt(0, colorScheme.decoration(KColorScheme::HoverColor).color());
+        linearGrad.setColorAt(1, colorScheme.decoration(KColorScheme::FocusColor).color());
+    } else {
+        linearGrad.setColorAt(0, colorScheme.background(KColorScheme::NormalBackground).color());
+        linearGrad.setColorAt(1, colorScheme.foreground(KColorScheme::InactiveText).color());
     }
-    else {
-      linearGrad.setColorAt(0, colorScheme.background(KColorScheme::NormalBackground).color());
-      linearGrad.setColorAt(1, colorScheme.foreground(KColorScheme::InactiveText).color());
-    }
-     
+
     painter.fillRect(rect(), linearGrad);
-    
+
     painter.setPen(Qt::black);
     painter.setBackgroundMode(Qt::TransparentMode);
-    painter.drawPixmap(QPoint(25,(height() - 12) / 2), QPixmap(arrow_xpm));
-    
+    painter.drawPixmap(QPoint(25, (height() - 12) / 2), QPixmap(arrow_xpm));
+
     painter.drawText(rect().adjusted(40, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, text());
     QFrame::paintEvent(event);
 }

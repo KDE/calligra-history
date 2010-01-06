@@ -19,65 +19,132 @@
 
 #include "SvgUtil.h"
 
+#include <KarbonGlobal.h>
+
 #include <QtCore/QString>
 #include <QtCore/QRectF>
+#include <QtCore/QStringList>
+
+#include <math.h>
 
 #define DPI 72.0
 
-double SvgUtil::fromUserSpace( double value )
+double SvgUtil::fromUserSpace(double value)
 {
     return (value * DPI) / 90.0;
 }
 
-double SvgUtil::toUserSpace( double value )
+double SvgUtil::toUserSpace(double value)
 {
     return (value * 90.0) / DPI;
 }
 
-double SvgUtil::toPercentage( QString s )
+double SvgUtil::toPercentage(QString s)
 {
-    if( s.endsWith( '%' ) )
-        return s.remove( '%' ).toDouble();
+    if (s.endsWith('%'))
+        return s.remove('%').toDouble();
     else
         return s.toDouble() * 100.0;
 }
 
-double SvgUtil::fromPercentage( QString s )
+double SvgUtil::fromPercentage(QString s)
 {
-    if( s.endsWith( '%' ) )
-        return s.remove( '%' ).toDouble() / 100.0;
+    if (s.endsWith('%'))
+        return s.remove('%').toDouble() / 100.0;
     else
         return s.toDouble();
 }
 
-QPointF SvgUtil::objectToUserSpace( const QPointF &position, const QRectF &objectBound )
+QPointF SvgUtil::objectToUserSpace(const QPointF &position, const QRectF &objectBound)
 {
-    qreal x = objectBound.left() + position.x() * objectBound.width(); 
-    qreal y = objectBound.top() + position.y() * objectBound.height(); 
-    return QPointF( x, y );
+    qreal x = objectBound.left() + position.x() * objectBound.width();
+    qreal y = objectBound.top() + position.y() * objectBound.height();
+    return QPointF(x, y);
 }
 
-QSizeF SvgUtil::objectToUserSpace( const QSizeF &size, const QRectF &objectBound )
+QSizeF SvgUtil::objectToUserSpace(const QSizeF &size, const QRectF &objectBound)
 {
-    qreal w = size.width() * objectBound.width(); 
-    qreal h = size.height() * objectBound.height(); 
-    return QSizeF( w, h );
+    qreal w = size.width() * objectBound.width();
+    qreal h = size.height() * objectBound.height();
+    return QSizeF(w, h);
 }
 
-QPointF SvgUtil::userSpaceToObject( const QPointF &position, const QRectF &objectBound )
+QPointF SvgUtil::userSpaceToObject(const QPointF &position, const QRectF &objectBound)
 {
     qreal x = 0.0;
-    if( objectBound.width() != 0 )
+    if (objectBound.width() != 0)
         x = (position.x() - objectBound.x()) / objectBound.width();
     qreal y = 0.0;
-    if( objectBound.height() != 0 )
+    if (objectBound.height() != 0)
         y = (position.y() - objectBound.y()) / objectBound.height();
     return QPointF(x, y);
 }
 
-QSizeF SvgUtil::userSpaceToObject( const QSizeF &size, const QRectF &objectBound )
+QSizeF SvgUtil::userSpaceToObject(const QSizeF &size, const QRectF &objectBound)
 {
     qreal w = objectBound.width() != 0 ? size.width() / objectBound.width() : 0.0;
     qreal h = objectBound.height() != 0 ? size.height() / objectBound.height() : 0.0;
     return QSizeF(w, h);
+}
+
+QMatrix SvgUtil::parseTransform(const QString &transform)
+{
+    QMatrix result;
+    
+    // Split string for handling 1 transform statement at a time
+    QStringList subtransforms = transform.split(')', QString::SkipEmptyParts);
+    QStringList::ConstIterator it = subtransforms.constBegin();
+    QStringList::ConstIterator end = subtransforms.constEnd();
+    for (; it != end; ++it) {
+        QStringList subtransform = (*it).simplified().split('(', QString::SkipEmptyParts);
+        if (subtransform.count() < 2)
+            continue;
+        
+        subtransform[0] = subtransform[0].trimmed().toLower();
+        subtransform[1] = subtransform[1].simplified();
+        QRegExp reg("[,( ]");
+        QStringList params = subtransform[1].split(reg, QString::SkipEmptyParts);
+        
+        if (subtransform[0].startsWith(';') || subtransform[0].startsWith(','))
+            subtransform[0] = subtransform[0].right(subtransform[0].length() - 1);
+        
+        if (subtransform[0] == "rotate") {
+            if (params.count() == 3) {
+                double x = params[1].toDouble();
+                double y = params[2].toDouble();
+                
+                result.translate(x, y);
+                result.rotate(params[0].toDouble());
+                result.translate(-x, -y);
+            } else {
+                result.rotate(params[0].toDouble());
+            }
+        } else if (subtransform[0] == "translate") {
+            if (params.count() == 2) {
+                result.translate(SvgUtil::fromUserSpace(params[0].toDouble()),
+                                 SvgUtil::fromUserSpace(params[1].toDouble()));
+            } else {   // Spec : if only one param given, assume 2nd param to be 0
+                result.translate(SvgUtil::fromUserSpace(params[0].toDouble()) , 0);
+            }
+        } else if (subtransform[0] == "scale") {
+            if (params.count() == 2) {
+                result.scale(params[0].toDouble(), params[1].toDouble());
+            } else {   // Spec : if only one param given, assume uniform scaling
+                result.scale(params[0].toDouble(), params[0].toDouble());
+            }
+        } else if (subtransform[0].toLower() == "skewx") {
+            result.shear(tan(params[0].toDouble() * KarbonGlobal::pi_180), 0.0F);
+        } else if (subtransform[0].toLower() == "skewy") {
+            result.shear(0.0F, tan(params[0].toDouble() * KarbonGlobal::pi_180));
+        } else if (subtransform[0] == "matrix") {
+            if (params.count() >= 6) {
+                result.setMatrix(params[0].toDouble(), params[1].toDouble(),
+                                 params[2].toDouble(), params[3].toDouble(),
+                                 SvgUtil::fromUserSpace(params[4].toDouble()),
+                                 SvgUtil::fromUserSpace(params[5].toDouble()));
+            }
+        }
+    }
+    
+    return result;
 }

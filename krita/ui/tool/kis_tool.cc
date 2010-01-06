@@ -27,6 +27,7 @@
 #include <KoColorSpaceRegistry.h>
 #include <KoColor.h>
 #include <KoCanvasBase.h>
+#include <KoCanvasController.h>
 #include <KoShapeManager.h>
 #include <KoTool.h>
 #include <KoColor.h>
@@ -35,6 +36,12 @@
 #include <KoViewConverter.h>
 #include <KoSelection.h>
 #include <KoAbstractGradient.h>
+
+#include <opengl/kis_opengl.h>
+
+#ifdef HAVE_OPENGL
+#include <opengl/kis_opengl_canvas2.h>
+#endif
 
 #include "kis_node_shape.h"
 #include "kis_layer_container_shape.h"
@@ -58,8 +65,6 @@
 #include "kis_config.h"
 #include "kis_config_notifier.h"
 #include "kis_cursor.h"
-
-#include <config-opengl.h>
 
 struct KisTool::Private {
     Private() : currentPattern(0),
@@ -413,26 +418,26 @@ void KisTool::resetCursorStyle()
     KisConfig cfg;
     switch (cfg.cursorStyle()) {
     case CURSOR_STYLE_TOOLICON:
-        useCursor(d->cursor, true);
+        useCursor(d->cursor);
         break;
     case CURSOR_STYLE_CROSSHAIR:
-        useCursor(KisCursor::crossCursor(), true);
+        useCursor(KisCursor::crossCursor());
         break;
     case CURSOR_STYLE_POINTER:
-        useCursor(KisCursor::upArrowCursor(), true);
+        useCursor(KisCursor::upArrowCursor());
         break;
     case CURSOR_STYLE_NO_CURSOR:
-        useCursor(KisCursor::blankCursor(), true);
+        useCursor(KisCursor::blankCursor());
         break;
 #if defined(HAVE_OPENGL)
     case CURSOR_STYLE_3D_MODEL:
-        useCursor(d->cursor, true);
+        useCursor(d->cursor);
         break;
 #endif
     case CURSOR_STYLE_OUTLINE:
     default:
         // use tool cursor as default, if the tool supports outline, it will set the cursor to blank and show outline
-        useCursor(d->cursor, true);
+        useCursor(d->cursor);
     }
 }
 
@@ -450,6 +455,35 @@ void KisTool::slotResetFgBg()
     KoCanvasResourceProvider* resourceProvider = canvas()->resourceProvider();
     resourceProvider->setForegroundColor(KoColor(Qt::black, KoColorSpaceRegistry::instance()->rgb8()));
     resourceProvider->setBackgroundColor(KoColor(Qt::white, KoColorSpaceRegistry::instance()->rgb8()));
+}
+
+bool KisTool::isCanvasOpenGL() const
+{
+    return m_canvas->canvasController()->isCanvasOpenGL();
+}
+
+void KisTool::beginOpenGL()
+{
+#if defined(HAVE_OPENGL)
+    KisOpenGLCanvas2 *canvasWidget = dynamic_cast<KisOpenGLCanvas2 *>(m_canvas->canvasWidget());
+    Q_ASSERT(canvasWidget);
+
+    if (canvasWidget) {
+        canvasWidget->beginOpenGL();
+    }
+#endif
+}
+
+void KisTool::endOpenGL()
+{
+#if defined(HAVE_OPENGL)
+    KisOpenGLCanvas2 *canvasWidget = dynamic_cast<KisOpenGLCanvas2 *>(m_canvas->canvasWidget());
+    Q_ASSERT(canvasWidget);
+
+    if (canvasWidget) {
+        canvasWidget->endOpenGL();
+    }
+#endif
 }
 
 #include "kis_tool.moc"
