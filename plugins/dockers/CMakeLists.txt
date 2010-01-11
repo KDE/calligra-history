@@ -53,6 +53,10 @@ set(kofficedockers_SRCS
     styledocker/StyleDocker.cpp
     styledocker/StyleDockerFactory.cpp
 
+    superdocker/KoDockContainer.cpp
+    superdocker/KoSuperDockerDocker.cpp
+    superdocker/KoSuperDockerFactory.cpp
+
     Plugin.cpp
 )
 
