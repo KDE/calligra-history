@@ -20,10 +20,26 @@
 
 #ifndef KPRHTMLEXPORT_H
 #define KPRHTMLEXPORT_H
-#include <KoPADocument.h>
-#include "KPrView.h"
+#include <QObject>
+#include <KUrl>
+#include <QStringList>
 
-class KPrHtmlExport:public QObject
+class KPrView;
+class KoPAPageBase;
+class KJob;
+
+struct ExportParameter
+{
+    KUrl cssUrl;
+    KPrView *kprView;
+    QList<KoPAPageBase*> slides;
+    KUrl dest_url;
+    QString author;
+    QString title;
+    QStringList slidesNames;
+
+};
+class KPrHtmlExport : public QObject
 {
 Q_OBJECT
 public:
@@ -33,8 +49,8 @@ public:
     * @param url The destination url
     */
     KPrHtmlExport();
-    void init(KPrView* kprView, QList<KoPAPageBase*> slides, const KUrl& url, const QString& author, const QString& title, const KUrl css, const QStringList slidesNames);
     ~KPrHtmlExport();
+    void exportHtml(const ExportParameter parameters);
 protected:
     void generateHtml();
     void generateToc();
@@ -44,14 +60,9 @@ protected:
 private slots:
     void moveResult(KJob *job);
 private:
-    QStringList m_slidesNames;
-    KUrl m_css;
-    KPrView *m_kprView;
-    QList<KoPAPageBase*> m_slides;
-    KUrl m_dest_url;
-    QString m_author;
-    QString m_title;
+  
     KUrl::List m_fileUrlList;
     QString m_tmpDirPath;
+    ExportParameter m_parameters;
 };
 #endif /* KPRHTMLEXPORT_H */

@@ -43,7 +43,7 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
     this->loadCssList();
 }
 
-QList<KoPAPageBase*> KPrHtmlExportDialog::chekedSlides()
+QList<KoPAPageBase*> KPrHtmlExportDialog::checkedSlides()
 {
     QList<KoPAPageBase*> qlchekedSlides;
     int countItems = ui.kListBox_slides->count();
@@ -75,9 +75,10 @@ QStringList KPrHtmlExportDialog::slidesNames(){
     QStringList names;
     int countItems = ui.kListBox_slides->count();
     for(int i = 0; i < countItems; i++){
-        names.append(ui.kListBox_slides->item(i)->text());
+        if (ui.kListBox_slides->item(i)->checkState() == Qt::Checked){
+            names.append(ui.kListBox_slides->item(i)->text());
+        }
     }
-
     return names;
 }
 
