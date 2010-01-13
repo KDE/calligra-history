@@ -281,7 +281,7 @@ void WorksheetSubStreamHandler::handleRecord(Record* record)
     else if (type == MsoDrawingRecord::id)
         handleMsoDrawing(static_cast<MsoDrawingRecord*>(record));
     else {
-        std::cout << "Unhandled worksheet record with type=" << type << std::endl;
+        std::cout << "Unhandled worksheet record with type=" << type << " name=" << record->name() << std::endl;
     }
 }
 
@@ -760,7 +760,11 @@ void WorksheetSubStreamHandler::handleNote(NoteRecord* record)
     if (cell) {
         NoteObject *obj = static_cast<NoteObject*>(d->sharedObjects[ record->idObj()]);
         if (obj) {
+#if 0
             cell->setNote(obj->note());
+#else
+            std::cout << "TODO: WorksheetSubStreamHandler::handleNote" << std::endl;
+#endif
         }
     }
 }

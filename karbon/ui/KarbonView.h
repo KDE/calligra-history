@@ -146,11 +146,7 @@ protected slots:
     void applyFillToSelection();
     void applyStrokeToSelection();
 
-signals:
-    void pageLayoutChanged();
-
 protected:
-    virtual void updateReadWrite(bool readwrite);
     virtual void resizeEvent(QResizeEvent* event);
 
     void createLayersTabDock();
@@ -174,5 +170,5 @@ private:
     Private * const d;
 };
 
-#endif
+#endif // __KARBON_VIEW__
 
