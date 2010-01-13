@@ -66,7 +66,7 @@ void KisToolSelectContiguous::mousePressEvent(KoPointerEvent * e)
     if (e->button() != Qt::LeftButton)
         return;
 
-    if (m_canvas && currentImage()) {
+    if (canvas() && currentImage()) {
         QApplication::setOverrideCursor(KisCursor::waitCursor());
 
         if (!currentNode())
@@ -86,13 +86,13 @@ void KisToolSelectContiguous::mousePressEvent(KoPointerEvent * e)
         KisSelectionSP selection =
             fillpainter.createFloodSelection(pos.x(), pos.y(), currentImage()->mergedImage());
 
-        KisCanvas2 * kisCanvas = dynamic_cast<KisCanvas2*>(m_canvas);
+        KisCanvas2 * kisCanvas = dynamic_cast<KisCanvas2*>(canvas());
         if (!kisCanvas)
             return;
 
         KisSelectionToolHelper helper(kisCanvas, currentNode(), i18n("Contiguous Area Selection"));
         QUndoCommand* cmd = helper.selectPixelSelection(selection->pixelSelection(), m_selectAction);
-        m_canvas->addCommand(cmd);
+        canvas()->addCommand(cmd);
 
         QApplication::restoreOverrideCursor();
     }
@@ -121,7 +121,7 @@ QWidget* KisToolSelectContiguous::createOptionWidget()
     if (l) {
         QHBoxLayout * hbox = new QHBoxLayout();
         Q_CHECK_PTR(hbox);
-        l->addLayout(hbox);
+        l->insertLayout(1, hbox);
 
         QLabel * lbl = new QLabel(i18n("Fuzziness: "), m_optWidget);
         hbox->addWidget(lbl);
@@ -135,7 +135,7 @@ QWidget* KisToolSelectContiguous::createOptionWidget()
         connect(input, SIGNAL(valueChanged(int)), this, SLOT(slotSetFuzziness(int)));
 
         QCheckBox* limitToCurrentLayer = new QCheckBox(i18n("Limit to current layer"), m_optWidget);
-        l->addWidget(limitToCurrentLayer);
+        l->insertWidget(2, limitToCurrentLayer);
         limitToCurrentLayer->setChecked(m_limitToCurrentLayer);
         connect(limitToCurrentLayer, SIGNAL(stateChanged(int)),
                 this, SLOT(slotLimitToCurrentLayer(int)));

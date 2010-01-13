@@ -130,6 +130,8 @@ Legend::Legend( ChartShape *parent )
 
     connect ( d->kdLegend, SIGNAL( propertiesChanged() ),
               this,        SLOT( slotKdLegendChanged() ) );
+    connect ( parent, SIGNAL( chartTypeChanged( ChartType ) ),
+              this,   SLOT( slotChartTypeChanged( ChartType ) ) );
 }
 
 Legend::~Legend()
@@ -426,7 +428,6 @@ bool Legend::loadOdf( const KoXmlElement &legendElement,
         context.odfLoadingContext().fillStyleStack( legendElement, KoXmlNS::chart, "style-name", "chart" );
         styleStack.setTypeProperties( "graphic" );
     }
-    loadOdfAttributes( legendElement, context, OdfAllAttributes );
 
     // TODO: Read optional attributes
     // 1. Legend expansion
@@ -436,9 +437,14 @@ bool Legend::loadOdf( const KoXmlElement &legendElement,
 
     if ( !legendElement.isNull() ) {
         QString lp;
+        int attributesToLoad = OdfAllAttributes;
         if ( legendElement.hasAttributeNS( KoXmlNS::chart, "legend-position" ) ) {
+            attributesToLoad ^= OdfPosition;
             lp = legendElement.attributeNS( KoXmlNS::chart, "legend-position", QString() );
         }
+
+        loadOdfAttributes( legendElement, context, attributesToLoad );
+
         QString lalign;
         if ( legendElement.hasAttributeNS( KoXmlNS::chart, "legend-align" ) ) {
             lalign = legendElement.attributeNS( KoXmlNS::chart, "legend-align", QString() );
@@ -588,6 +594,21 @@ void Legend::slotKdLegendChanged()
     //d->kdLegend->forceRebuild();
     QSize size = d->kdLegend->sizeHint();
     // FIXME: Scale size from px to pt?
-    setSize( QSizeF( size ) );
+    d->shape->setLegendSize( size );
     update();
+}
+
+void Legend::slotChartTypeChanged( ChartType chartType )
+{
+    // TODO: Once we support markers, this switch will have to be
+    // more clever.
+    switch ( chartType ) {
+    case LineChartType:
+    case ScatterChartType:
+        d->kdLegend->setLegendStyle( KDChart::Legend::LinesOnly );
+        break;
+    default:
+        d->kdLegend->setLegendStyle( KDChart::Legend::MarkersOnly );
+        break;
+    }
 }

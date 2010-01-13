@@ -57,6 +57,7 @@ public:
     AxisPosition position() const;
     KoShape *title() const;
     QString titleText() const;
+    bool showLabels() const;
     QString id() const;
     AxisDimension dimension() const;
     QList<DataSet*> dataSets() const;
@@ -74,11 +75,13 @@ public:
     bool showMinorGrid() const;
     Qt::Orientation orientation();
     QFont font() const;
+    bool isVisible() const;
     
     void setCategoryDataRegionString( const QString &region );
 	
     void setPosition( AxisPosition position );
     void setTitleText( const QString &text );
+    void setShowLabels( bool show );
     void setDimension( AxisDimension dimension );
     bool attachDataSet( DataSet *dataSet, bool silent = false );
     bool detachDataSet( DataSet *dataSet, bool silent = false );
@@ -96,8 +99,11 @@ public:
     void setShowMinorGrid( bool showGrid );
     void setThreeD( bool threeD );
     void setFont( const QFont &font );
+    void setVisible( bool visible );
     
     bool loadOdf( const KoXmlElement &axisElement, KoShapeLoadingContext &context);
+    bool loadOdfChartSubtypeProperties( const KoXmlElement &axisElement,
+                                        KoShapeLoadingContext &context );
     void saveOdf( KoShapeSavingContext &context );
     void saveOdfGrid( KoShapeSavingContext &context, OdfGridClass gridClass );
 
@@ -108,8 +114,8 @@ public:
     void plotAreaChartTypeChanged( ChartType chartType );
     void plotAreaChartSubTypeChanged( ChartSubtype chartSubType );
     
-    void registerKdXAxis( KDChart::CartesianAxis *axis );
-    void deregisterKdXAxis( KDChart::CartesianAxis *axis );
+    void registerKdAxis( KDChart::CartesianAxis *axis );
+    void deregisterKdAxis( KDChart::CartesianAxis *axis );
     
     void update() const;
     void requestRepaint() const;
@@ -119,6 +125,7 @@ public slots:
     void setGapBetweenBars( int percent );
     void setGapBetweenSets( int percent );
     void setPieExplodeFactor( DataSet *dataSet, int percent );
+    void setPieAngleOffset( qreal angle );
     
 private:
     class Private;

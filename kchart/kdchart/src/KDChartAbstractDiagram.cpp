@@ -253,7 +253,6 @@ void AbstractDiagram::setModel( QAbstractItemModel * newModel )
     d->setAttributesModel(amodel);
     scheduleDelayedItemsLayout();
     setDataBoundariesDirty();
-    emit modelsChanged();
     if( model() )
     {
         connect( model(), SIGNAL( rowsInserted( QModelIndex, int, int ) ), this, SLOT( setDataBoundariesDirty() ) );
@@ -263,6 +262,7 @@ void AbstractDiagram::setModel( QAbstractItemModel * newModel )
         connect( model(), SIGNAL( modelReset() ), this, SLOT( setDataBoundariesDirty() ) );
         connect( model(), SIGNAL( layoutChanged() ), this, SLOT( setDataBoundariesDirty() ) );
     }
+    emit modelsChanged();
 }
         
 void AbstractDiagram::setSelectionModel( QItemSelectionModel* newSelectionModel )
@@ -761,7 +761,7 @@ void AbstractDiagram::setPen( int dataset, const QPen& pen )
     const int column = dataset * datasetDimension();
     
     attributesModel()->setHeaderData(
-        column, Qt::Vertical,
+        column, Qt::Horizontal,
         qVariantFromValue( pen ),
         DatasetPenRole );
     emit propertiesChanged();
@@ -781,7 +781,7 @@ QPen AbstractDiagram::pen( int dataset ) const
     const int column = dataset * datasetDimension();
     
     const QVariant penSettings(
-            attributesModel()->headerData( column, Qt::Vertical,
+            attributesModel()->headerData( column, Qt::Horizontal,
                     DatasetPenRole ) );
     if( penSettings.isValid() )
         return qVariantValue< QPen >( penSettings );
@@ -819,7 +819,7 @@ void AbstractDiagram::setBrush( int dataset, const QBrush& brush )
     const int column = dataset * datasetDimension();
     
     attributesModel()->setHeaderData(
-        column, Qt::Vertical,
+        column, Qt::Horizontal,
         qVariantFromValue( brush ),
         DatasetBrushRole );
     emit propertiesChanged();
@@ -839,7 +839,7 @@ QBrush AbstractDiagram::brush( int dataset ) const
     const int column = dataset * datasetDimension();
     
     const QVariant brushSettings(
-            attributesModel()->headerData( column, Qt::Vertical,
+            attributesModel()->headerData( column, Qt::Horizontal,
                     DatasetBrushRole ) );
     if( brushSettings.isValid() )
         return qVariantValue< QBrush >( brushSettings );
@@ -1026,7 +1026,7 @@ QStringList AbstractDiagram::datasetLabels() const
     QStringList ret;
     if( model() == 0 )
         return ret;
-    
+
     const int columnCount = attributesModel()->columnCount(attributesModelRootIndex());
     for( int i = 0; i < columnCount; i += datasetDimension() )
         ret << attributesModel()->headerData( i, Qt::Horizontal, Qt::DisplayRole ).toString();

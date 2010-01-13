@@ -1,5 +1,6 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003 Ariya Hidayat <ariya@kde.org>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -248,7 +249,7 @@ public:
     /**
      * Creates a new BOF record.
      */
-    BOFRecord();
+    BOFRecord(Swinder::Workbook *book);
 
     /**
       Destroys the record.
@@ -308,7 +309,7 @@ public:
         return this->id;
     }
 
-    ExternBookRecord();
+    ExternBookRecord(Workbook *book);
 
     ~ExternBookRecord();
 
@@ -345,7 +346,7 @@ public:
         return this->id;
     }
 
-    ExternNameRecord();
+    ExternNameRecord(Workbook *book);
 
     ~ExternNameRecord();
 
@@ -391,7 +392,7 @@ public:
     /**
      * Creates a new FILEPASS record.
      */
-    FilepassRecord();
+    FilepassRecord(Workbook *book);
 
     /**
      * Destroy the record.
@@ -431,7 +432,7 @@ public:
     /**
      * Creates a new formula record.
      */
-    FormulaRecord();
+    FormulaRecord(Workbook *book);
 
     /**
      * Destroy the record.
@@ -490,7 +491,7 @@ public:
     /**
      * Creates a new shared formula record.
      */
-    SharedFormulaRecord();
+    SharedFormulaRecord(Workbook *book);
 
     /**
      * Destroy the record.
@@ -536,7 +537,7 @@ public:
     /**
      * Creates a new MulRK record.
      */
-    MulRKRecord();
+    MulRKRecord(Workbook *book);
 
     /**
      * Destroys the record.
@@ -610,7 +611,7 @@ public:
         return this->id;
     }
 
-    NameRecord();
+    NameRecord(Workbook *book);
 
     ~NameRecord();
 
@@ -653,7 +654,7 @@ public:
     /**
      * Creates a new RK record.
      */
-    RKRecord();
+    RKRecord(Workbook *book);
 
     /**
      * Destroys the record.
@@ -746,7 +747,7 @@ public:
     /**
      * Creates a new Label record.
      */
-    RStringRecord();
+    RStringRecord(Workbook *book);
 
     /**
      * Destroys the record.
@@ -805,7 +806,7 @@ public:
     /**
      * Creates a new SST record.
      */
-    SSTRecord();
+    SSTRecord(Workbook *book);
 
     /**
      * Destroys the record.
@@ -852,16 +853,71 @@ class ObjRecord : public Record
 public:
     Object *m_object;
     static const unsigned id;
-    static Record *createRecord() {
-        return new ObjRecord;
+    static Record *createRecord(Workbook *book) {
+        return new ObjRecord(book);
     }
-    ObjRecord();
+    ObjRecord(Workbook *book);
     virtual ~ObjRecord();
     virtual unsigned rtti() const {
         return this->id;
     }
     virtual const char* name() const {
         return "Obj";
+    }
+    virtual void dump(std::ostream&) const;
+    virtual void setData(unsigned size, const unsigned char* data, const unsigned* continuePositions);
+};
+
+class DrawingObject
+{
+public:
+    std::map<unsigned long,unsigned long> m_properties;
+    unsigned long m_colL, m_dxL, m_rwT, m_dyT, m_colR, m_dxR, m_rwB, m_dyB;
+    DrawingObject() : m_colL(0), m_dxL(0), m_rwT(0), m_dyT(0), m_colR(0), m_dxR(0), m_rwB(0), m_dyB(0) {}
+    ~DrawingObject() {}
+protected:
+    void readHeader(const unsigned char* data, unsigned *recVer = 0, unsigned *recInstance = 0, unsigned *recType = 0, unsigned long *recLen = 0);
+    unsigned long handleObject(unsigned size, const unsigned char* data, bool* recordHandled = 0);
+};
+
+class MsoDrawingRecord : public Record, public DrawingObject
+{
+public:
+    
+    static const unsigned id;
+    MsoDrawingRecord(Workbook *book) : Record(book) {}
+    virtual ~MsoDrawingRecord() {}
+    virtual unsigned rtti() const {
+        return this->id;
+    }
+    virtual const char* name() const {
+        return "MsoDrawing";
+    }
+    virtual void dump(std::ostream&) const;
+    virtual void setData(unsigned size, const unsigned char* data, const unsigned* continuePositions);
+};
+
+class MsoDrawingBlibItem
+{
+public:
+    std::string id;
+    std::string filename;
+    explicit MsoDrawingBlibItem() {}
+};
+
+class MsoDrawingGroupRecord : public Record, private DrawingObject
+{
+public:
+    std::vector< MsoDrawingBlibItem* > m_items;
+
+    static const unsigned id;
+    MsoDrawingGroupRecord(Workbook *book);
+    virtual ~MsoDrawingGroupRecord();
+    virtual unsigned rtti() const {
+        return this->id;
+    }
+    virtual const char* name() const {
+        return "MsoDrawingGroup";
     }
     virtual void dump(std::ostream&) const;
     virtual void setData(unsigned size, const unsigned char* data, const unsigned* continuePositions);
@@ -886,7 +942,7 @@ public:
     /**
      * Creates a new XF record.
      */
-    XFRecord();
+    XFRecord(Workbook *book);
 
     /**
      * Creates a copy of XF record.
@@ -1367,6 +1423,25 @@ private:
     Private* d;
 };
 
+class Picture
+{
+public:
+    std::string m_id;
+    std::string m_filename;
+    unsigned long m_colL, m_dxL, m_rwT, m_dyT, m_colR, m_dxR, m_rwB, m_dyB;
+    Picture(MsoDrawingRecord *record, MsoDrawingBlibItem *item) {
+        m_id = item->id;
+        m_filename = item->filename;
+        m_colL = record->m_colL;
+        m_dxL = record->m_dxL;
+        m_rwT = record->m_rwT;
+        m_dyT = record->m_dyT;
+        m_colR = record->m_colR;
+        m_dxR = record->m_dxR;
+        m_rwB = record->m_rwB;
+        m_dyB = record->m_dyB;
+    }
+};
 
 class ExcelReader
 {

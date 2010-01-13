@@ -48,18 +48,8 @@ public:
 
     virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter& painter, const KoViewConverter& converter, OutlineMode _mode) const;
     virtual QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const;
-
-    virtual void changePaintOpSize(qreal x, qreal y) const;
     
     bool paintIncremental();
-
-    using KisPropertiesConfiguration::fromXML;
-    using KisPropertiesConfiguration::toXML;
-
-    virtual void fromXML(const QDomElement&);
-    virtual void toXML(QDomDocument&, QDomElement&) const;
-
-    KisPaintOpSettingsSP clone() const;
 
     // boiler-plate code
     int radius() const;
@@ -74,23 +64,6 @@ public:
     QString modelName() const;
 #endif
 
-
-// XXX: Hack!
-    void setOptionsWidget(KisPaintOpSettingsWidget* widget) {
-        if (m_options != 0 && m_options->property("owned by settings").toBool()) {
-            delete m_options;
-        }
-        if (!widget) {
-            m_options = 0;
-        } else {
-            m_options = qobject_cast<KisChalkPaintOpSettingsWidget*>(widget);
-            m_options->writeConfiguration(this);
-        }
-    }
-
-private:
-
-    KisChalkPaintOpSettingsWidget* m_options;
 };
 
 #endif

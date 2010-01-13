@@ -53,10 +53,9 @@ public:
     virtual ~KisPaintOpSettings();
 
     /**
-     * @deprecated give the settings an option widget so the old design keeps working
-     * until the gui and the settings have been disentangled.
+     * 
      */
-    virtual void KDE_DEPRECATED setOptionsWidget(KisPaintOpSettingsWidget* widget) = 0;
+    virtual void setOptionsWidget(KisPaintOpSettingsWidget* widget);
 
     /**
      * This function is called by a tool when the mouse is pressed. It's useful if
@@ -70,7 +69,7 @@ public:
      * Clone the current settings object. Override this if your settings instance doesn't
      * store everything as properties.
      */
-    virtual KisPaintOpSettingsSP clone() const = 0;
+    virtual KisPaintOpSettingsSP clone() const;
 
     /**
      * Override this function if your paintop is interested in which
@@ -131,11 +130,17 @@ public:
      */
     virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const;
 
-    virtual void changePaintOpSize(qreal x, qreal y) const;
+    virtual void changePaintOpSize(qreal x, qreal y);
     
 #if defined(HAVE_OPENGL)
     virtual QString modelName() const;
 #endif
+
+protected:
+     /**
+     * @return the option widget of the paintop (can be 0 is no option widgets is set)
+     */
+    KisPaintOpSettingsWidget* optionsWidget() const;
 
 private:
 

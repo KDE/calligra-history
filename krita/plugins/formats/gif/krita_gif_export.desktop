@@ -1,10 +1,12 @@
 [Desktop Entry]
 Name=Krita Gif Export Filter
 Name[ca]=Filtre d'exportació Gif per al Krita
+Name[ca@valencia]=Filtre d'exportació Gif per al Krita
 Name[de]=Krita Gif-Exportfilter
 Name[en_GB]=Krita Gif Export Filter
 Name[es]=Filtro de Krita de exportación a GIF
 Name[et]=Krita Gifi ekspordifilter
+Name[fi]=Kritan GIF-vientisuodin
 Name[gl]=Filtro de exportación de Gif de Krita
 Name[nb]=GIF-eksportfilter for Krita
 Name[nl]=GIF-exportfilter voor Krita
@@ -17,7 +19,7 @@ Name[zh_TW]=Krita Gif 匯出過濾程式
 X-KDE-Export=image/gif
 X-KDE-ServiceTypes=KOfficeFilter
 Type=Service
-X-KDE-Export=image/gif
 X-KDE-Import=application/x-krita
-X-KDE-Library=libkritagifexport
 X-KDE-Weight=1
+X-KDE-Library=libkritagifexport
+NoDisplay=true

@@ -53,6 +53,7 @@ KisToolSelectPolygonal::KisToolSelectPolygonal(KoCanvasBase *canvas)
         m_lokalTool(canvas, this)
 {
     setObjectName("tool_select_polygonal");
+    setPopupActionList(m_lokalTool.popupActionList());
 }
 
 KisToolSelectPolygonal::~KisToolSelectPolygonal()
@@ -61,8 +62,8 @@ KisToolSelectPolygonal::~KisToolSelectPolygonal()
 
 void KisToolSelectPolygonal::keyPressEvent(QKeyEvent *e)
 {
-    m_lokalTool.keyPressEvent(e);
     KisToolSelectBase::keyPressEvent(e);
+    m_lokalTool.keyPressEvent(e);
 }
 
 QWidget* KisToolSelectPolygonal::createOptionWidget()
@@ -72,9 +73,9 @@ QWidget* KisToolSelectPolygonal::createOptionWidget()
     return m_optWidget;
 }
 
-void KisToolSelectPolygonal::LokalTool::finishPolygon(const QVector<QPointF> &points)
+void KisToolSelectPolygonal::LokalTool::finishPolyline(const QVector<QPointF> &points)
 {
-    KisCanvas2 * kisCanvas = dynamic_cast<KisCanvas2*>(m_canvas);
+    KisCanvas2 * kisCanvas = dynamic_cast<KisCanvas2*>(canvas());
     Q_ASSERT(kisCanvas);
     if (!kisCanvas)
         return;
@@ -97,7 +98,7 @@ void KisToolSelectPolygonal::LokalTool::finishPolygon(const QVector<QPointF> &po
         painter.paintPolygon(points);
 
         QUndoCommand* cmd = helper.selectPixelSelection(tmpSel, m_selectingTool->m_selectAction);
-        m_canvas->addCommand(cmd);
+        canvas()->addCommand(cmd);
     } else {
         KoPathShape* path = new KoPathShape();
         path->setShapeId(KoPathShapeId);

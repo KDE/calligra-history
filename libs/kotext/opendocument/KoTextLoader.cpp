@@ -913,8 +913,9 @@ void KoTextLoader::loadTableOfContents(const KoXmlElement &element, QTextCursor 
     forEachElement(e, element) {
         if (e.isNull() || e.namespaceURI() != KoXmlNS::text)
             continue;
-        //TODO look at table-of-content-source : to get new styles,
-        // to manage the right alignment for instance.
+
+        //TODO look at table-of-content-source
+
         // We look at the index body now :
         if (e.localName() == "index-body") {
             KoXmlElement p;
@@ -938,19 +939,12 @@ void KoTextLoader::loadTableOfContents(const KoXmlElement &element, QTextCursor 
 
                 // p
                 if (p.localName() == "p") {
+
                     loadParagraph(p, cursorFrame);
+
                 // index title
                 } else if (p.localName() == "index-title") {
-                    KoXmlElement title;
-                    forEachElement(title, p){
-                        if (title.isNull() || title.namespaceURI() != KoXmlNS::text) {
-                            continue;
-                        }
-                        // The title is noted as a 'p', with a particular style
-                        if (title.localName() == "p") {
-                            loadParagraph(title, cursorFrame);
-                        }
-                    }
+                    loadBody(p, cursorFrame);
                 }
 
                 QTextCursor c(current);

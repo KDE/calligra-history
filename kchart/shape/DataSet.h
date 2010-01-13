@@ -30,7 +30,7 @@
 #include "ChartShape.h"
 #include "CellRegion.h"
 
-class KoOdfLoadingContext;
+class KoShapeLoadingContext;
 
 namespace KChart {
 
@@ -69,6 +69,8 @@ public:
     // Graphics properties for the visualization of this dataset.
     QPen   pen() const;
     QBrush brush() const;
+    QPen   pen( int section ) const;
+    QBrush brush( int section ) const;
     QColor color() const;
     int    number() const;
 
@@ -96,6 +98,8 @@ public:
 
     void setPen( const QPen &pen );
     void setBrush( const QBrush &brush );
+    void setPen( int section, const QPen &pen );
+    void setBrush( int section, const QBrush &brush );
     void setColor( const QColor &color );
     void setNumber( int num );
 
@@ -171,7 +175,7 @@ public:
     void blockSignals( bool block );
 
     bool loadOdf( const KoXmlElement &n,
-                  KoOdfLoadingContext &context );
+                  KoShapeLoadingContext &context );
 
 private:
     class Private;

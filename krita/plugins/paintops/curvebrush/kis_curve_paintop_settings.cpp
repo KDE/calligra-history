@@ -16,19 +16,9 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 #include <kis_curve_paintop_settings.h>
-#include <kis_curve_paintop_settings_widget.h>
 
 KisCurvePaintOpSettings::KisCurvePaintOpSettings()
-        : m_options(0)
 {
-}
-
-
-KisPaintOpSettingsSP KisCurvePaintOpSettings::clone() const
-{
-    KisPaintOpSettings* settings =
-        static_cast<KisPaintOpSettings*>(m_options->configuration());
-    return settings;
 }
 
 bool KisCurvePaintOpSettings::paintIncremental()
@@ -38,31 +28,16 @@ bool KisCurvePaintOpSettings::paintIncremental()
 
 int KisCurvePaintOpSettings::minimalDistance() const
 {
-    return m_options->minimalDistance();
+    return getInt("min_distance");
 }
-
 
 int KisCurvePaintOpSettings::curveAction() const
 {
-    return m_options->curveAction();
+    return getInt("curve_action");
 }
 
 int KisCurvePaintOpSettings::interval() const
 {
-    return m_options->interval();
-}
-
-
-void KisCurvePaintOpSettings::fromXML(const QDomElement& elt)
-{
-    KisPaintOpSettings::fromXML(elt);
-    m_options->setConfiguration(this);
-}
-
-void KisCurvePaintOpSettings::toXML(QDomDocument& doc, QDomElement& rootElt) const
-{
-    KisPropertiesConfiguration * settings = m_options->configuration();
-    settings->KisPropertiesConfiguration::toXML(doc, rootElt);
-    delete settings;
+    return getInt("interval");
 }
 

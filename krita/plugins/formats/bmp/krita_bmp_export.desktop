@@ -2,6 +2,7 @@
 Name=Krita BMP Export Filter
 Name[bg]=Филтър за експортиране от Krita в BMP
 Name[ca]=Filtre d'exportació BMP per al Krita
+Name[ca@valencia]=Filtre d'exportació BMP per al Krita
 Name[cs]=Exportní filtr do formátu BMP pro Krita
 Name[da]=BMP-eksportfilter til Krita
 Name[de]=Krita BMP-Exportfilter
@@ -9,7 +10,7 @@ Name[el]=Φίλτρο εξαγωγής BMP του Krita
 Name[en_GB]=Krita BMP Export Filter
 Name[es]=Filtro de Krita de exportación a BMP
 Name[et]=Krita BMP ekspordifilter
-Name[fi]=Krita BMP -vientisuodin
+Name[fi]=Kritan BMP -vientisuodin
 Name[fy]=Krita BMP Eksportfilter
 Name[ga]=Scagaire Easpórtála BMP Krita
 Name[gl]=Filtro de Exportación de BMP para Krita

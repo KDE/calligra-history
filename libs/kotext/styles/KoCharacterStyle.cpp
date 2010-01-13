@@ -164,8 +164,7 @@ QPen KoCharacterStyle::textOutline() const
 {
     QVariant variant = d->stylesPrivate.value(QTextFormat::TextOutline);
     if (variant.isNull()) {
-        QPen pen(Qt::NoPen);
-        return pen;
+        return QPen(Qt::NoPen);
     }
     return qvariant_cast<QPen>(variant);
 }
@@ -175,8 +174,7 @@ QBrush KoCharacterStyle::background() const
     QVariant variant = d->stylesPrivate.value(QTextFormat::BackgroundBrush);
 
     if (variant.isNull()) {
-        QBrush brush;
-        return brush;
+        return QBrush();
     }
     return qvariant_cast<QBrush>(variant);
 }
@@ -190,8 +188,7 @@ QBrush KoCharacterStyle::foreground() const
 {
     QVariant variant = d->stylesPrivate.value(QTextFormat::ForegroundBrush);
     if (variant.isNull()) {
-        QBrush brush;
-        return brush;
+        return QBrush();
     }
     return qvariant_cast<QBrush>(variant);
 }
@@ -700,7 +697,7 @@ QFont::Capitalization KoCharacterStyle::fontCapitalization() const
 
 void KoCharacterStyle::setCountry(const QString &country)
 {
-    if (country.isNull())
+    if (country.isEmpty())
         d->stylesPrivate.remove(KoCharacterStyle::Country);
     else
         d->setProperty(KoCharacterStyle::Country, country);
@@ -708,7 +705,7 @@ void KoCharacterStyle::setCountry(const QString &country)
 
 void KoCharacterStyle::setLanguage(const QString &language)
 {
-    if (language.isNull())
+    if (language.isEmpty())
         d->stylesPrivate.remove(KoCharacterStyle::Language);
     else
         d->setProperty(KoCharacterStyle::Language, language);
@@ -744,7 +741,7 @@ void KoCharacterStyle::loadOdf(KoOdfLoadingContext &context)
         if (fontFace != 0)
             fontName = fontFace->attributeNS(KoXmlNS::svg, "font-family", "");
     }
-    if (! fontName.isNull()) {
+    if (! fontName.isEmpty()) {
     // Hmm, the remove "'" could break it's in the middle of the fontname...
         fontName = fontName.remove('\'');
 
@@ -808,7 +805,7 @@ void KoCharacterStyle::loadOdfProperties(KoStyleStack &styleStack)
     if (styleStack.hasProperty(KoXmlNS::style, "font-family"))
         fontName = styleStack.property(KoXmlNS::style, "font-family");
 
-    if (! fontName.isNull()) {
+    if (! fontName.isEmpty()) {
         // Hmm, the remove "'" could break it's in the middle of the fontname...
         fontName = fontName.remove('\'');
 
@@ -969,6 +966,16 @@ void KoCharacterStyle::loadOdfProperties(KoStyleStack &styleStack)
             setVerticalAlignment(QTextCharFormat::AlignSuperScript);
         else if (textPosition.startsWith("sub"))
             setVerticalAlignment(QTextCharFormat::AlignSubScript);
+        else {
+            QRegExp re("(-?[\\d.]+)%.*");
+            if (re.exactMatch(textPosition)) {
+                float value = re.capturedTexts()[1].toFloat();
+                if (value > 0)
+                    setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+                else if (value < 0)
+                    setVerticalAlignment(QTextCharFormat::AlignSubScript);
+            }
+        }
     }
 
     // The fo:font-variant attribute provides the option to display text as small capitalized letters.
@@ -1240,6 +1247,11 @@ void KoCharacterStyle::saveOdf(KoGenStyle &style)
 QVariant KoCharacterStyle::value(int key) const
 {
     return d->stylesPrivate.value(key);
+}
+
+void KoCharacterStyle::removeHardCodedDefaults()
+{
+    d->hardCodedDefaultStyle.clearAll();
 }
 
 #include <KoCharacterStyle.moc>

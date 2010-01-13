@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -67,6 +68,7 @@ class SetupRecord;
 class HCenterRecord;
 class VCenterRecord;
 class ZoomLevelRecord;
+class MsoDrawingRecord;
 
 class WorksheetSubStreamHandler : public SubStreamHandler
 {
@@ -110,6 +112,7 @@ private:
     void handleHCenter(HCenterRecord *record);
     void handleVCenter(VCenterRecord *record);
     void handleZoomLevel(ZoomLevelRecord *record);
+    void handleMsoDrawing(MsoDrawingRecord* record);
 
     UString decodeFormula(unsigned row, unsigned col, bool isShared, const FormulaTokens& tokens);
     UString dataTableFormula(unsigned row, unsigned col, const DataTableRecord* record);

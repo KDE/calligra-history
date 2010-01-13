@@ -112,13 +112,22 @@ public:
     // ----------------------------------------------------------------
     // Data specific to each types
 
+    // table:cell-range-address, ODF v1.2, $18.595
+    CellRegion cellRangeAddress;
+
     // 1. Bar charts
+    // FIXME: OpenOffice stores these attributes in the axes' elements.
+    // The specs don't say anything at all about what elements can have
+    // these style attributes.
+    // chart:vertical attribute: see ODF v1.2, $19.63
     bool  vertical;
     int   gapBetweenBars;
     int   gapBetweenSets;
     
     // 2. Pie charts
     int   pieExplodeFactor;     // in percents
+    // TODO: Load+Save
+    qreal pieAngleOffset;       // in degrees
 
     // ----------------------------------------------------------------
     // The embedded KD Chart
@@ -147,6 +156,9 @@ PlotArea::Private::Private( ChartShape *parent )
     wall  = 0;
     floor = 0;
 
+    // By default, x and y axes are not swapped.
+    vertical = false;
+
     threeD      = false;
     threeDScene = 0;
 
@@ -154,6 +166,10 @@ PlotArea::Private::Private( ChartShape *parent )
     vertical       = false;
     gapBetweenBars = 0;
     gapBetweenSets = 100;
+
+    // OpenOffice.org's default. It means the first pie slice starts at the
+    // very top (and then going counter-clockwise).
+    pieAngleOffset = 90.0;
 
     // KD Chart stuff
     kdChart = new KDChart::Chart();
@@ -324,6 +340,16 @@ bool PlotArea::isThreeD() const
     return d->threeD;
 }
 
+CellRegion PlotArea::cellRangeAddress() const
+{
+    return d->cellRangeAddress;
+}
+
+bool PlotArea::isVertical() const
+{
+    return d->vertical;
+}
+
 ThreeDScene *PlotArea::threeDScene() const
 {
     return d->threeDScene;
@@ -337,6 +363,11 @@ int PlotArea::gapBetweenBars() const
 int PlotArea::gapBetweenSets() const
 {
     return d->gapBetweenSets;
+}
+
+qreal PlotArea::pieAngleOffset() const
+{
+    return d->pieAngleOffset;
 }
 
 bool PlotArea::addAxis( Axis *axis )
@@ -354,7 +385,8 @@ bool PlotArea::addAxis( Axis *axis )
     
     if ( axis->dimension() == XAxisDimension ) {
         foreach ( Axis *_axis, d->axes )
-            _axis->registerKdXAxis( axis->kdAxis() );
+            if ( _axis->isVisible() )
+                _axis->registerKdAxis( axis->kdAxis() );
     }
     
     requestRepaint();
@@ -377,7 +409,7 @@ bool PlotArea::removeAxis( Axis *axis )
     
     if ( axis->dimension() == XAxisDimension ) {
         foreach ( Axis *_axis, d->axes )
-            _axis->deregisterKdXAxis( axis->kdAxis() );
+            _axis->deregisterKdAxis( axis->kdAxis() );
     }
     
     // This also removes the axis' title, which is a shape as well
@@ -451,6 +483,16 @@ void PlotArea::setThreeD( bool threeD )
     requestRepaint();
 }
 
+void PlotArea::setCellRangeAddress( const CellRegion &region )
+{
+    d->cellRangeAddress = region;
+}
+
+void PlotArea::setVertical( bool vertical )
+{
+    d->vertical = vertical;
+    // TODO: Propagate
+}
 
 // ----------------------------------------------------------------
 //                         loading and saving
@@ -474,6 +516,9 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
         styleStack.setTypeProperties( "graphic" );
         styleStack.setTypeProperties( "chart" );
 
+        if ( styleStack.hasProperty( KoXmlNS::chart, "three-dimensional" ) )
+            setThreeD( styleStack.property( KoXmlNS::chart, "three-dimensional" ) == "true" );
+
         // Set subtypes stacked or percent.
         // These are valid for Bar, Line, Area and Radar types.
         if ( styleStack.hasProperty( KoXmlNS::chart, "percentage" )
@@ -488,11 +533,8 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
         }
 
         // Data specific to bar charts
-        if ( styleStack.hasProperty( KoXmlNS::chart, "vertical" )
-             && styleStack.property( KoXmlNS::chart, "vertical" ) == "true" )
-        {
-            d->vertical = true;
-        }
+        if ( styleStack.hasProperty( KoXmlNS::chart, "vertical" ) )
+            setVertical( styleStack.property( KoXmlNS::chart, "vertical" ) == "true" );
 
         // Data direction: It's in the plotarea style.
         if ( styleStack.hasProperty( KoXmlNS::chart, "series-source" ) ) {
@@ -555,12 +597,29 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
 
     QAbstractItemModel *sheetAccessModel = dynamic_cast<QAbstractItemModel*>( d->shape->dataCenterMap()["SheetAccessModel"] );
 
+    QString sheetName;
+    if ( plotAreaElement.hasAttributeNS( KoXmlNS::table, "cell-range-address" ) )
+    {
+        CellRegion cellRangeAddress( plotAreaElement.attributeNS( KoXmlNS::table, "cell-range-address" ) );
+        setCellRangeAddress( cellRangeAddress );
+        sheetName = cellRangeAddress.sheetName();
+    }
+
     if ( sheetAccessModel )
     {
-        // FIXME: Use the access model's header data to determine what sheet to use
-        QPointer<QAbstractItemModel> firstSheet = sheetAccessModel->data( sheetAccessModel->index( 0, 0 ) ).value< QPointer<QAbstractItemModel> >();
-        Q_ASSERT( firstSheet );
-        d->shape->setModel( firstSheet.data() );
+        int sheetIndex = 0;
+        // Find sheet that this cell range address is associated with
+        if ( !sheetName.isEmpty() ) {
+            while ( sheetIndex + 1 < sheetAccessModel->columnCount() &&
+                    sheetAccessModel->headerData( sheetIndex, Qt::Horizontal ) != sheetName )
+                sheetIndex++;
+        }
+        QPointer<QAbstractItemModel> sheet = sheetAccessModel->data( sheetAccessModel->index( 0, sheetIndex ) ).value< QPointer<QAbstractItemModel> >();
+
+        // If sheet can't be found, we'll stay with the back-up model loaded from the
+        // chart document.
+        if ( sheet )
+            d->shape->setModel( sheet.data() );
     }
 
     // Remove all axes before loading new ones
@@ -646,6 +705,8 @@ void PlotArea::saveOdf( KoShapeSavingContext &context ) const
     bodyWriter.addAttributePt( "svg:height", s.height() );
     bodyWriter.addAttributePt( "svg:x", p.x() );
     bodyWriter.addAttributePt( "svg:y", p.y() );
+
+    bodyWriter.addAttribute( "table:cell-range-address", d->cellRangeAddress.toString() );
 
     // About the data:
     //   Save if the first row / column contain headers.
@@ -815,6 +876,13 @@ void PlotArea::setPieExplodeFactor( DataSet *dataSet, int percent )
     d->pieExplodeFactor = percent;
 
     emit pieExplodeFactorChanged( dataSet, percent );
+}
+
+void PlotArea::setPieAngleOffset( qreal angle )
+{
+    d->pieAngleOffset = angle;
+
+    emit pieAngleOffsetChanged( angle );
 }
 
 ChartShape *PlotArea::parent() const

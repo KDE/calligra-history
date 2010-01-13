@@ -1,5 +1,6 @@
 /* This file is part of the KDE project
  * Copyright (C) 2008 Jan Hambrecht <jaham@gmx.net>
+ * Copyright (C) 2010 Thomas Zander <zander@kde.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -72,19 +73,25 @@ public:
     QColor color() const;
 
     /// Sets the shadow visibility
-    void setVisibility(bool visible);
+    void setVisible(bool visible);
 
     /// Returns if shadow is visible
     bool isVisible() const;
 
-    /// Returns the insets of the shadow
-    void insets(const KoShape *shape, KoInsets &insets);
+    /// Fills the insets oject with the space the shadow takes around a shape
+    void insets(KoInsets &insets) const;
 
-    /// Increase reference counter
-    void addUser();
-    /// Decrease reference counter
-    bool removeUser();
-    /// Return reference counter
+    /**
+     * Increments the use-value.
+     * Returns true if the new value is non-zero, false otherwise.
+     */
+    bool ref();
+    /**
+     * Decrements the use-value.
+     * Returns true if the new value is non-zero, false otherwise.
+     */
+    bool deref();
+    /// Return the usage count
     int useCount() const;
 
 private:

@@ -32,38 +32,16 @@ class KisSmudgeOpSettings : public KisPaintOpSettings
 {
 
 public:
-    using KisPaintOpSettings::fromXML;
-    using KisPaintOpSettings::toXML;
-
     KisSmudgeOpSettings();
 
     virtual ~KisSmudgeOpSettings();
     bool paintIncremental();
-
-    void fromXML(const QDomElement& elt);
-    void toXML(QDomDocument& doc, QDomElement& rootElt) const;
-
-    KisPaintOpSettingsSP clone() const;
 
 #if defined(HAVE_OPENGL)
     inline QString modelName() const {
         return "smudge-finger";
     }
 #endif
-
-
-    // XXX: Hack!
-    void setOptionsWidget(KisPaintOpSettingsWidget* widget) {
-        if (m_options != 0 && m_options->property("owned by settings").toBool()) {
-            delete m_options;
-        }
-        if (!widget) {
-            m_options = 0;
-        } else {
-            m_options = qobject_cast<KisSmudgeOpSettingsWidget*>(widget);
-            m_options->writeConfiguration(this);
-        }
-    }
 
 public:
 

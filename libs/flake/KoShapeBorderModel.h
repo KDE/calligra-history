@@ -55,12 +55,6 @@ public:
     virtual void fillStyle(KoGenStyle &style, KoShapeSavingContext &context) = 0;
 
     /**
-     * Return a borderInsets object filled with the size around the shape that this
-     * border takes.
-     * @param shape the shape the insets will be calculated for
-     */
-    KoInsets borderInsets(const KoShape *shape);
-    /**
      * Return a borderInsets object filled with the size inside the shape that this border takes.
      * @param shape the shape the insets will be calculated for
      * @param insets the insets object that will be filled and returned.
@@ -79,7 +73,7 @@ public:
      *       shape as its start coordinate.
      * @param converter to convert between internal and view coordinates.
      */
-    virtual void paintBorder(KoShape *shape, QPainter &painter, const KoViewConverter &converter) = 0;
+    virtual void paint(KoShape *shape, QPainter &painter, const KoViewConverter &converter) = 0;
 
     /**
      * Paint the border in the given color
@@ -92,13 +86,19 @@ public:
      * @param converter to convert between internal and view coordinates.
      * @param color to use to paint the border.
      */
-    virtual void paintBorder(KoShape *shape, QPainter &painter, const KoViewConverter &converter, const QColor & color ) = 0;
+    virtual void paint(KoShape *shape, QPainter &painter, const KoViewConverter &converter, const QColor &color) = 0;
 
-    /// refcounting
-    void addUser();
-    /// refcounting
-    bool removeUser();
-    /// refcounting
+    /**
+     * Increments the use-value.
+     * Returns true if the new value is non-zero, false otherwise.
+     */
+    bool ref();
+    /**
+     * Decrements the use-value.
+     * Returns true if the new value is non-zero, false otherwise.
+     */
+    bool deref();
+    /// Return the usage count
     int useCount() const;
 
 private:

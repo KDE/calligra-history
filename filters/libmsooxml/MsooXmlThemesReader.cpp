@@ -31,6 +31,8 @@
 
 #include "MsooXmlReader_p.h"
 
+#include <QPalette>
+
 #include <memory>
 
 using namespace MSOOXML;
@@ -41,6 +43,48 @@ DrawingMLColorSchemeItem::DrawingMLColorSchemeItem()
 
 DrawingMLColorSchemeSystemItem::DrawingMLColorSchemeSystemItem()
 {
+}
+
+QColor DrawingMLColorSchemeSystemItem::value() const
+{
+kDebug() << systemColor;
+    //! 20.1.10.58 ST_SystemColorVal (System Color Value)
+    if (   systemColor == QLatin1String("windowText")
+        || systemColor == QLatin1String("menuText"))
+    {
+//        return QPalette().color(QPalette::Active, QPalette::WindowText);
+        return QPalette().color(QPalette::Active, QPalette::Window);
+    }
+    else if (    systemColor == QLatin1String("window")
+              || systemColor == QLatin1String("menu")
+              || systemColor == QLatin1String("menuBar"))
+    {
+//        return QPalette().color(QPalette::Active, QPalette::Window);
+        return QPalette().color(QPalette::Active, QPalette::WindowText);
+    }
+    else if (systemColor == QLatin1String("highlightText")) {
+        return QPalette().color(QPalette::Active, QPalette::HighlightedText);
+    }
+    else if (systemColor == QLatin1String("highlight")) {
+        return QPalette().color(QPalette::Active, QPalette::Highlight);
+    }
+    else if (systemColor == QLatin1String("grayText")) {
+        return QPalette().color(QPalette::Disabled, QPalette::WindowText);
+    }
+    else if (systemColor == QLatin1String("btnText")) {
+        return QPalette().color(QPalette::Active, QPalette::ButtonText);
+    }
+    else if (systemColor == QLatin1String("btnFace")) {
+        return QPalette().color(QPalette::Active, QPalette::Button);
+    }
+    else if (systemColor == QLatin1String("btnHighlight")) {
+        return QPalette().color(QPalette::Active, QPalette::Light);
+    }
+    else if (systemColor == QLatin1String("btnShadow")) {
+        return QPalette().color(QPalette::Active, QPalette::Dark);
+    }
+//! @todo Use more of systemColor
+    return lastColor;
 }
 
 DrawingMLColorSchemeItemBase::DrawingMLColorSchemeItemBase()
@@ -67,8 +111,13 @@ DrawingMLColorScheme::DrawingMLColorScheme()
 
 DrawingMLColorScheme::~DrawingMLColorScheme()
 {
-    QList<DrawingMLColorSchemeItemBase*> list(values());
-    qDeleteAll(list);
+    QSet<DrawingMLColorSchemeItemBase*> set(values().toSet()); // use set because values can be duplicated
+    qDeleteAll(set);
+}
+
+DrawingMLColorSchemeItemBase* DrawingMLColorScheme::value(int index) const
+{
+    return DrawingMLColorSchemeItemHash::value( QString::number(index) );
 }
 
 DrawingMLFontScheme::DrawingMLFontScheme()
@@ -327,6 +376,10 @@ KoFilter::ConversionStatus MsooXmlThemesReader::read_extraClrSchemeLst()
     SKIP_EVERYTHING_AND_RETURN
 }
 
+#define INIT_COLOR_ITEM(name, index) \
+    BIND_READ_METHOD(name, color) \
+    m_colorSchemeIndices.insert(name, QLatin1String(STRINGIFY(index)));
+
 //! @todo !!!!!!!!!!!!!MERGE with Document Reader!!!!!!!!!!!!!
 #undef CURRENT_EL
 #define CURRENT_EL clrScheme
@@ -357,18 +410,18 @@ KoFilter::ConversionStatus MsooXmlThemesReader::read_clrScheme()
 
     if (!m_clrScheme_initialized) {
         m_clrScheme_initialized = true;
-        BIND_READ_METHOD("accent1", color)
-        BIND_READ_METHOD("accent2", color)
-        BIND_READ_METHOD("accent3", color)
-        BIND_READ_METHOD("accent4", color)
-        BIND_READ_METHOD("accent5", color)
-        BIND_READ_METHOD("accent6", color)
-        BIND_READ_METHOD("dk1", color)
-        BIND_READ_METHOD("dk2", color)
-        BIND_READ_METHOD("lt1", color)
-        BIND_READ_METHOD("lt2", color)
-        BIND_READ_METHOD("hlink", color)
-        BIND_READ_METHOD("folHlink", color)
+        INIT_COLOR_ITEM("dk1", 0)
+        INIT_COLOR_ITEM("lt1", 1)
+        INIT_COLOR_ITEM("dk2", 2)
+        INIT_COLOR_ITEM("lt2", 3)
+        INIT_COLOR_ITEM("accent1", 4)
+        INIT_COLOR_ITEM("accent2", 5)
+        INIT_COLOR_ITEM("accent3", 6)
+        INIT_COLOR_ITEM("accent4", 7)
+        INIT_COLOR_ITEM("accent5", 8)
+        INIT_COLOR_ITEM("accent6", 9)
+        INIT_COLOR_ITEM("hlink", 10)
+        INIT_COLOR_ITEM("folHlink", 11)
     }
 
     const QXmlStreamAttributes attrs(attributes());
@@ -386,8 +439,13 @@ KoFilter::ConversionStatus MsooXmlThemesReader::read_clrScheme()
                 if (!m_currentColor) {
                     return KoFilter::InternalError;
                 }
-                kDebug() << "inserting color for" << this->name();
-                m_context->theme->colorScheme.insert(this->name().toString(), m_currentColor);
+                const QString colorName( this->name().toString() );
+                kDebug() << "inserting color for" << colorName;
+                m_context->theme->colorScheme.insert(colorName, m_currentColor);
+                const QString colorIndex(m_colorSchemeIndices.value(colorName));
+                if (!colorIndex.isEmpty()) {
+                    m_context->theme->colorScheme.insert(colorIndex, m_currentColor);
+                }
                 m_currentColor = 0;
             }
             ELSE_WRONG_FORMAT_DEBUG("!readMethod")
@@ -396,6 +454,7 @@ KoFilter::ConversionStatus MsooXmlThemesReader::read_clrScheme()
     }
     READ_EPILOGUE
 }
+#undef INIT_COLOR_ITEM
 
 //! @todo !!!!!!!!!!!!!MERGE with Document Reader!!!!!!!!!!!!!
 #undef CURRENT_EL
@@ -406,7 +465,7 @@ KoFilter::ConversionStatus MsooXmlThemesReader::read_clrScheme()
  Child elements:
  - hslClr (Hue, Saturation, Luminance Color Model) §20.1.2.3.13
  - prstClr (Preset Color) §20.1.2.3.22
- - schemeClr (Scheme Color) §20.1.2.3.29
+ - [unsupported by MSO] schemeClr (Scheme Color) §20.1.2.3.29
  - scrgbClr (RGB Color Model - Percentage Variant) §20.1.2.3.30
  - srgbClr (RGB Color Model - Hex Variant) §20.1.2.3.32
  - sysClr (System Color) §20.1.2.3.33

@@ -1,11 +1,13 @@
 [Desktop Entry]
 Name=ExtensionsManager
 Name[ca]=GestorExtensions
+Name[ca@valencia]=GestorExtensions
 Name[da]=Håndtering af udvidelser
 Name[de]=Erweiterungsverwaltung
 Name[en_GB]=ExtensionsManager
 Name[es]=Gestor de extensiones
 Name[et]=Laienduste haldur
+Name[fi]=Laajennusten hallinta
 Name[gl]=Xestor de engadidos
 Name[nb]=ExtensionsManager
 Name[nds]=Verwiedernpleger
@@ -20,11 +22,13 @@ Name[x-test]=xxExtensionsManagerxx
 Name[zh_TW]=延伸管理員
 Comment=ExtensionsManager
 Comment[ca]=GestorExtensions
+Comment[ca@valencia]=GestorExtensions
 Comment[da]=Håndtering af udvidelser
 Comment[de]=Erweiterungsverwaltung
 Comment[en_GB]=ExtensionsManager
 Comment[es]=Gestor de extensiones
 Comment[et]=Laienduste haldur
+Comment[fi]=Laajennusten hallinta
 Comment[gl]=Xestor de engadidos
 Comment[nb]=ExtensionsManager
 Comment[nds]=Verwiedernpleger

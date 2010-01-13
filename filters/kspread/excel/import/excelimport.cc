@@ -26,6 +26,7 @@
 #include <QString>
 #include <QDate>
 #include <QBuffer>
+#include <QFontMetricsF>
 
 #include <kdebug.h>
 #include <KoFilterChain.h>
@@ -64,6 +65,42 @@ static inline uint qHash(const Swinder::FormatFont& font)
     // TODO: make this a better hash
     return qHash(string(font.fontFamily())) ^ qRound(font.fontSize() * 100);
 }
+
+// calculates the column width in pixels
+int columnWidth(Sheet* sheet, unsigned long col, unsigned long dx) {
+    QFont font("Arial",10);
+    QFontMetricsF fm(font);
+    const qreal characterWidth = fm.width("h");
+    qreal defColWidth = sheet->defaultColWidth();
+    if(defColWidth <= 0) defColWidth = 8.43;
+    defColWidth *= characterWidth;
+    return (defColWidth * col) + (dx / 1024.0 * defColWidth);
+}
+
+// calculates the row height in pixels
+int rowHeight(Sheet* sheet, unsigned long row, unsigned long dy)
+{
+    QFont font("Arial",10);
+    QFontMetricsF fm(font);
+    const qreal characterHeight = fm.height();
+    qreal defRowHeight = sheet->defaultRowHeight();
+    if(defRowHeight <= 0) defRowHeight = 1; // 12.75 points (a point is 1/72 of an inch)
+    defRowHeight *= characterHeight;
+    return (defRowHeight * row) + (dy / 1024.0 * defRowHeight);
+}
+}
+
+// Returns A for 1, B for 2, C for 3, etc.
+QString columnName(uint column)
+{
+    QString s;
+    unsigned digits = 1;
+    unsigned offset = 0;
+    for (unsigned limit = 26; column >= limit + offset; limit *= 26, digits++)
+        offset += limit;
+    for (unsigned col = column - offset; digits; --digits, col /= 26)
+        s.prepend(QChar('A' + (col % 26)));
+    return s;
 }
 
 using namespace Swinder;
@@ -85,6 +122,7 @@ public:
     QList<QString> colCellStyles;
     QList<QString> sheetStyles;
     QHash<FormatFont, QString> fontStyles;
+    QString subScriptStyle, superScriptStyle;
 
     bool createStyles(KoOdfWriteStore* store);
     bool createContent(KoOdfWriteStore* store);
@@ -126,6 +164,17 @@ ExcelImport::~ExcelImport()
     delete d;
 }
 
+class StoreImpl : public Store {
+public:
+    StoreImpl(KoStore* store) : Store(), m_store(store) {}
+    virtual ~StoreImpl() {}
+    virtual bool open(const std::string& filename) { return m_store->open(filename.c_str()); }
+    virtual bool write(const char *data, int size) { return m_store->write(data, size); }
+    virtual bool close() { return m_store->close(); }
+private:
+    KoStore* m_store;
+};
+
 KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QByteArray& to)
 {
     if (from != "application/vnd.ms-excel")
@@ -137,8 +186,22 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     d->inputFile = m_chain->inputFile();
     d->outputFile = m_chain->outputFile();
 
+    // create output store
+    KoStore* storeout;
+    storeout = KoStore::createStore(d->outputFile, KoStore::Write,
+                                    "application/vnd.oasis.opendocument.spreadsheet", KoStore::Zip);
+    if (!storeout) {
+        kWarning() << "Couldn't open the requested file.";
+        delete d->workbook;
+        return KoFilter::FileNotFound;
+    }
+
+    // Tell KoStore not to touch the file names
+    storeout->disallowNameExpansion();
+
     // open inputFile
-    d->workbook = new Swinder::Workbook;
+    StoreImpl *storeimpl = new StoreImpl(storeout);
+    d->workbook = new Swinder::Workbook(storeimpl);
     if (!d->workbook->load(d->inputFile.toLocal8Bit())) {
         delete d->workbook;
         d->workbook = 0;
@@ -154,19 +217,6 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     d->styles = new KoGenStyles();
     d->mainStyles = new KoGenStyles();
 
-    // create output store
-    KoStore* storeout;
-    storeout = KoStore::createStore(d->outputFile, KoStore::Write,
-                                    "application/vnd.oasis.opendocument.spreadsheet", KoStore::Zip);
-
-    if (!storeout) {
-        kWarning() << "Couldn't open the requested file.";
-        delete d->workbook;
-        return KoFilter::FileNotFound;
-    }
-
-    // Tell KoStore not to touch the file names
-    storeout->disallowNameExpansion();
     KoOdfWriteStore oasisStore(storeout);
 
     // header and footer are read from each sheet and saved in styles
@@ -451,6 +501,7 @@ void ExcelImport::Private::processWorkbookForStyle(Workbook* workbook, KoXmlWrit
     writer.endElement();
     QString pageLyt = QString::fromUtf8(buf.buffer(), buf.buffer().size());
     buf.close();
+    buf.setData("", 0);
 
     pageLayoutStyle->addProperty("1header-footer-style", pageLyt, KoGenStyle::StyleChildElement);
     pageLayoutStyleName = mainStyles->lookup(*pageLayoutStyle, pageLayoutStyleName, KoGenStyles::DontForceNumbering);
@@ -1055,28 +1106,11 @@ QString cellFormula(Cell* cell)
 {
     QString formula = string(cell->formula());
     if(!formula.isEmpty()) {
-        if(formula.startsWith("ROUND")) {
-            // Special case the ROUNDUP, ROUNDDOWN and ROUND function cause excel uses another
-            // logic then ODF. In Excel the second argument defines the numbers of fractional
-            // digits displayed (Num_digits) while in ODF the second argument defines
-            // the number of places to which a number is to be rounded (count).
-            // So, what we do is the same OO.org does. We prefix the formula with "of:"
-            // to indicate the changed behavior. Both, OO.org and Excel, do support
-            // that "of:" prefix.
-            //
-            // Again in other words; We need to special case that functions cause KSpread
-            // behaves here like OpenOffice.org but the behavior of OpenOffice.org ist wrong
-            // from the perspective of Excel and Excel defines the standard (that is then
-            // written down in the OpenFormula specs).
-            // OpenOffice.org as well as KSpread cannot easily change  there wrong behavior
-            // cause of backward compatibility. So, what OpenOffice.org does it to
-            // indicate that the ROUND* functions should behave like defined in the
-            // OpenFormula specs (as defined by Excel) and not like at OpenOffice.org (and
-            // KSpread) by prefixing the formula with a "of:".
-            formula.prepend("of:=");
+        if(formula.startsWith("ROUNDUP(") || formula.startsWith("ROUNDDOWN(") || formula.startsWith("ROUND(") || formula.startsWith("RAND(")) {
+            // Special case Excel formulas that differ from OpenFormula
+            formula.prepend("msoxl:=");
         } else if(!formula.isEmpty()) {
-            // Normal formulas are only prefixed with a = sign.
-            formula.prepend("=");
+            formula.prepend("of:=");
         }
     }
     return formula;
@@ -1157,13 +1191,21 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
                 xmlWriter->addAttribute("office:value", QString::number(value.asFloat(), 'g', 15));
             }
         }
-    } else if (value.isText()) {
+    } else if (value.isText() || value.isError()) {
         QString str = string(value.asString());
         xmlWriter->addAttribute("office:value-type", "string");
         if (value.isString())
             xmlWriter->addAttribute("office:string-value", str);
 
         xmlWriter->startElement("text:p", false);
+
+        if (cell->format().font().subscript() || cell->format().font().superscript()) {
+            xmlWriter->startElement("text:span");
+            if (cell->format().font().subscript())
+                xmlWriter->addAttribute("text:style-name", subScriptStyle);
+            else
+                xmlWriter->addAttribute("text:style-name", superScriptStyle);
+        }
 
         if (value.isString())
             xmlWriter->addTextNode(str);
@@ -1210,6 +1252,9 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
             xmlWriter->endElement(); // text:a
         }
 
+        if (cell->format().font().subscript() || cell->format().font().superscript())
+            xmlWriter->endElement(); // text:span
+
         xmlWriter->endElement(); //  text:p
     }
 
@@ -1220,6 +1265,29 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
         xmlWriter->addTextNode(string(note));
         xmlWriter->endElement(); // text:p
         xmlWriter->endElement(); // office:annotation
+    }
+    
+    foreach(Picture *picture, cell->pictures()) {
+        xmlWriter->startElement("draw:frame");
+        //xmlWriter->addAttribute("draw:name", "Graphics 1");
+        xmlWriter->addAttribute("table:end-cell", columnName(picture->m_colR) + QString::number(picture->m_rwB));
+        xmlWriter->addAttribute("table:table:end-x", QString::number(picture->m_dxR));
+        xmlWriter->addAttribute("table:table:end-y", QString::number(picture->m_dyB));
+        xmlWriter->addAttribute("draw:z-index", "0");
+
+        //FIXME
+        xmlWriter->addAttribute("svg:x", QString::number(columnWidth(cell->sheet(),picture->m_colL,picture->m_dxL))+"pt");
+        xmlWriter->addAttribute("svg:y", QString::number(rowHeight(cell->sheet(),picture->m_rwT,picture->m_dyT))+"pt");
+        xmlWriter->addAttribute("svg:width", QString::number(columnWidth(cell->sheet(),picture->m_colR,picture->m_dxR))+"pt");
+        xmlWriter->addAttribute("svg:height", QString::number(rowHeight(cell->sheet(),picture->m_rwB,picture->m_dyB))+"pt");
+
+        xmlWriter->startElement("draw:image");
+        xmlWriter->addAttribute("xlink:href", picture->m_filename.c_str());
+        xmlWriter->addAttribute("xlink:type", "simple");
+        xmlWriter->addAttribute("xlink:show", "embed");
+        xmlWriter->addAttribute("xlink:actuate", "onLoad");
+        xmlWriter->endElement(); // draw:image
+        xmlWriter->endElement(); // draw:frame
     }
 
     xmlWriter->endElement(); //  table:[covered-]table-cell
@@ -1245,6 +1313,17 @@ void ExcelImport::Private::processCellForStyle(Cell* cell, KoXmlWriter* xmlWrite
             fontStyles[it->second] = styleName;
         }
     }
+
+    if (format.font().superscript() && superScriptStyle.isEmpty()) {
+        KoGenStyle style(KoGenStyle::StyleTextAuto, "text");
+        style.addProperty("style:text-position", "super", KoGenStyle::TextType);
+        superScriptStyle = styles->lookup(style, "T");
+    }
+    if (format.font().subscript() && subScriptStyle.isEmpty()) {
+        KoGenStyle style(KoGenStyle::StyleTextAuto, "text");
+        style.addProperty("style:text-position", "sub", KoGenStyle::TextType);
+        subScriptStyle = styles->lookup(style, "T");
+    }
 }
 
 QString ExcelImport::Private::processCellFormat(Format* format, const QString& formula)
@@ -1255,8 +1334,8 @@ QString ExcelImport::Private::processCellFormat(Format* format, const QString& f
     if (valueFormat != QString("General")) {
         refName = processValueFormat(valueFormat);
     } else {
-        if(formula.startsWith("of:=")) { // special cases
-            QRegExp roundRegExp( "^of:=ROUND[A-Z]*\\(.*;[\\s]*([0-9]+)[\\s]*\\)$" );
+        if(formula.startsWith("msoxl:=")) { // special cases
+            QRegExp roundRegExp( "^msoxl:=ROUND[A-Z]*\\(.*;[\\s]*([0-9]+)[\\s]*\\)$" );
             if (roundRegExp.indexIn(formula) >= 0) {
                 bool ok = false;
                 int decimals = roundRegExp.cap(1).trimmed().toInt(&ok);
@@ -1272,6 +1351,17 @@ QString ExcelImport::Private::processCellFormat(Format* format, const QString& f
                     style.addChildElement("number", elementContents);
                     refName = styles->lookup(style, "N");
                 }
+            } else if(formula.startsWith("msoxl:=RAND(")) {
+                KoGenStyle style(KoGenStyle::StyleNumericNumber);
+                QBuffer buffer;
+                buffer.open(QIODevice::WriteOnly);
+                KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
+                xmlWriter.startElement("number:number");
+                xmlWriter.addAttribute("number:decimal-places", 9);
+                xmlWriter.endElement(); // number:number
+                QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
+                style.addChildElement("number", elementContents);
+                refName = styles->lookup(style, "N");
             }
         }
     }
@@ -1345,12 +1435,6 @@ void ExcelImport::Private::processFontFormat(const FormatFont& font, KoGenStyle&
 
     if (font.strikeout())
         style.addProperty("style:text-line-through-style", "solid", KoGenStyle::TextType);
-
-    if (font.subscript())
-        style.addProperty("style:text-position", "sub", KoGenStyle::TextType);
-
-    if (font.superscript())
-        style.addProperty("style:text-position", "super", KoGenStyle::TextType);
 
     if (!font.fontFamily().isEmpty())
         style.addProperty("fo:font-family", QString::fromRawData(reinterpret_cast<const QChar*>(font.fontFamily().data()), font.fontFamily().length()), KoGenStyle::TextType);
@@ -1549,7 +1633,7 @@ QString ExcelImport::Private::processValueFormat(const QString& valueFormat)
         style.addChildElement("number", elementContents);
         return styles->lookup(style, "N");
     }
-    
+
     // fraction
     const QString escapedValueFormat = removeEscaped(valueFormat);
     QRegExp fractionRegEx("^#([?]+)/([0-9?]+)$");

@@ -1,5 +1,6 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003 Ariya Hidayat <ariya@kde.org>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -29,21 +30,29 @@ using namespace Swinder;
 class Workbook::Private
 {
 public:
+    Store* store;
     std::vector<Sheet*> sheets;
     bool passwordProtected;
     QHash<PropertyType, QVariant> properties;
 };
 
-Workbook::Workbook()
+Workbook::Workbook(Store* store)
 {
     d = new Workbook::Private();
+    d->store = store;
     d->passwordProtected = false;
 }
 
 Workbook::~Workbook()
 {
     clear();
+    delete d->store;
     delete d;
+}
+
+Store* Workbook::store() const
+{
+    return d->store;
 }
 
 void Workbook::clear()
@@ -58,7 +67,7 @@ void Workbook::clear()
 
 bool Workbook::load(const char* filename)
 {
-    ExcelReader* reader = new ExcelReader;
+    ExcelReader* reader = new ExcelReader();
     bool result = reader->load(this, filename);
     delete reader;
     return result;

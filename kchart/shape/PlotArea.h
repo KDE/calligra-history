@@ -76,12 +76,38 @@ public:
     Axis *secondaryXAxis() const;
     Axis *secondaryYAxis() const;
     bool isThreeD() const;
+
+    /**
+     * Determines from what range of cells the data in this chart
+     * comes from. This region also contains the name of the sheet.
+     * See table:cell-range-address, ODF v1.2, $18.595
+     */
+    CellRegion cellRangeAddress() const;
+
+    /**
+     * Determines whether x and y axis are swapped. Default is 'false'.
+     * See chart:vertical attribute in ODF v1.2, $19.63
+     */
+    bool isVertical() const;
     int gapBetweenBars() const;
     int gapBetweenSets() const;
+
+    /**
+     * Defines at what angle, relative to the right-most point
+     * of a pie or ring chart, the first slice is going to be drawn,
+     * going counter-clockwise.
+     * See chart:angle-offset property, as defined in ODF v1.2.
+     */
+    qreal pieAngleOffset() const;
 
     void setGapBetweenBars( int percent );
     void setGapBetweenSets( int percent );
     void setPieExplodeFactor( DataSet *dataSet, int percent );
+
+    /**
+     * @see pieAngleOffset
+     */
+    void setPieAngleOffset( qreal angle );
 
     bool loadOdf( const KoXmlElement &plotAreaElement, KoShapeLoadingContext &context );
     bool loadOdfSeries( const KoXmlElement &seriesElement, KoShapeLoadingContext &context );
@@ -91,6 +117,16 @@ public:
     
     
     void setThreeD( bool threeD );
+
+    /**
+     * @see cellRangeAddress
+     */
+    void setCellRangeAddress( const CellRegion &region );
+
+    /**
+     * @see isVertical
+     */
+    void setVertical( bool vertical );
     
     ChartShape *parent() const;
 
@@ -114,6 +150,7 @@ signals:
     void gapBetweenBarsChanged( int );
     void gapBetweenSetsChanged( int );
     void pieExplodeFactorChanged( DataSet*, int );
+    void pieAngleOffsetChanged( qreal );
 
 private:
     void paintPixmap( QPainter &painter, const KoViewConverter &converter );

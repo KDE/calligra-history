@@ -1,6 +1,7 @@
 [Desktop Entry]
 Name=Karbon Dockers plugin
 Name[ca]=Connector de Dockers per al Karbon
+Name[ca@valencia]=Connector de Dockers per al Karbon
 Name[da]=Docker-plugin til Karbon
 Name[de]=Karbon Docker-Modul
 Name[el]=Πρόσθετο προσάρτησης του Karbon
@@ -8,6 +9,7 @@ Name[en_GB]=Karbon Dockers plugin
 Name[es]=Complemento de anclajes de Karbon
 Name[et]=Karboni dokkide plugin
 Name[fa]=وصلۀ پیونددهنده‌های Karbon
+Name[fi]=Karbonin telakointiliitännäinen
 Name[fy]=Karbon Dockers plugin
 Name[gl]=Extensión Dockers para Karbon
 Name[he]=תוסף Dockers של Karbon

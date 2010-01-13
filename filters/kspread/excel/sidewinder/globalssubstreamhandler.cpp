@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -70,6 +71,9 @@ public:
 
     // table of Xformat
     std::vector<XFRecord> xfTable;
+    
+    // table blib items
+    std::vector< MsoDrawingBlibItem* > drawingTable;
 };
 
 GlobalsSubStreamHandler::GlobalsSubStreamHandler(Workbook* workbook, unsigned version)
@@ -145,7 +149,7 @@ FontRecord GlobalsSubStreamHandler::fontRecord(unsigned index) const
     if (index < d->fontTable.size())
         return d->fontTable[index];
     else
-        return FontRecord();
+        return FontRecord(d->workbook);
 }
 
 Color GlobalsSubStreamHandler::customColor(unsigned index) const
@@ -166,7 +170,7 @@ XFRecord GlobalsSubStreamHandler::xformat(unsigned index) const
     if (index < d->xfTable.size())
         return d->xfTable[index];
     else
-        return XFRecord();
+        return XFRecord(d->workbook);
 }
 
 UString GlobalsSubStreamHandler::valueFormat(unsigned index) const
@@ -290,7 +294,7 @@ static Pen convertBorderStyle(unsigned style)
     case XFRecord::Hair:
         // FIXME no equivalent ?
         pen.width = 0.1;
-        pen.style = Pen::SolidLine;
+        pen.style = Pen::DotLine;
         break;
     case XFRecord::MediumDashed:
         pen.width = 1;
@@ -516,6 +520,8 @@ void GlobalsSubStreamHandler::handleRecord(Record* record)
         handleXF(static_cast<XFRecord*>(record));
     else if (type == ProtectRecord::id)
         handleProtect(static_cast<ProtectRecord*>(record));
+    else if (type == MsoDrawingGroupRecord::id)
+        handleMsoDrawingGroup(static_cast<MsoDrawingGroupRecord*>(record));
     else if (type == 0x40) {} //BackupRecord
     else if (type == 0x22) {} //Date1904Record
     else if (type == 0xA) {} //EofRecord
@@ -638,7 +644,7 @@ void GlobalsSubStreamHandler::handleFont(FontRecord* record)
 
     // font #4 is never used, so add a dummy one
     if (d->fontTable.size() == 4)
-        d->fontTable.push_back(FontRecord());
+        d->fontTable.push_back(FontRecord(d->workbook));
 }
 
 void GlobalsSubStreamHandler::handleFormat(FormatRecord* record)
@@ -696,6 +702,29 @@ void GlobalsSubStreamHandler::handleProtect(ProtectRecord* record)
   if (record->isLocked()) {
       std::cout << "TODO: The workbook is protected but protected workbooks is not supported yet!" << std::endl;
   }
+}
+
+void GlobalsSubStreamHandler::handleMsoDrawingGroup(MsoDrawingGroupRecord* record)
+{
+    if (!record) return;
+    //printf("GlobalsSubStreamHandler::handleMsoDrawingGroup\n");
+    Q_ASSERT(d->drawingTable.size() == 0); // if this asserts then multiple MsoDrawingGroupRecord can exist what we need to handle!
+    d->drawingTable = record->m_items; 
+}
+
+MsoDrawingBlibItem* GlobalsSubStreamHandler::drawing(unsigned long pid) const
+{
+    const int index = pid - 1;
+    if(index < 0 || index >= d->drawingTable.size()) {
+        std::cerr << "GlobalsSubStreamHandler::drawing: Invalid index=" << index << std::endl;
+        return 0;
+    }
+    return d->drawingTable.at(index);
+}
+
+Store* GlobalsSubStreamHandler::store() const
+{
+    return d->workbook->store();
 }
 
 } // namespace Swinder

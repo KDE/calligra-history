@@ -1,3 +1,22 @@
+/* Swinder - Portable library for spreadsheet
+   Copyright (C) 2010 Sebastian Sauer <sebsauer@kdab.com>
+
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public
+   License as published by the Free Software Foundation; either
+   version 2 of the License, or (at your option) any later version.
+
+   This library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
+
+   You should have received a copy of the GNU Library General Public License
+   along with this library; see the file COPYING.LIB.  If not, write to
+   the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA
+ */
+
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDomDocument>
@@ -124,7 +143,7 @@ void processRecordForHeader(QDomElement e, QTextStream& out)
     << "    virtual unsigned rtti() const { return this->id; }\n\n";
 
     // constructor and destructor
-    out << "    " << className << "();\n    virtual ~" << className << "();\n\n";
+    out << "    " << className << "(Workbook *book);\n    virtual ~" << className << "();\n\n";
 
     // copy and assignment
     out << "    " << className << "( const " << className << "& record );\n"
@@ -429,8 +448,8 @@ void processRecordForImplementation(QDomElement e, QTextStream& out)
     out << "};\n\n";
 
     // constructor
-    out << className << "::" << className << "()\n";
-    out << "    : d(new Private)\n{\n";
+    out << className << "::" << className << "(Workbook *book)\n";
+    out << "    : Record(book), d(new Private)\n{\n";
     foreach(const Field& f, fields) {
         if (f.isArray || f.isStringLength) continue;
         QString val;
@@ -521,7 +540,7 @@ void processRecordForImplementation(QDomElement e, QTextStream& out)
     out << "}\n\n";
 
     // creator function
-    out << "static Record* create" << className << "()\n{\n    return new " << className << "();\n}\n\n";
+    out << "static Record* create" << className << "(Workbook *book)\n{\n    return new " << className << "(book);\n}\n\n";
 }
 
 

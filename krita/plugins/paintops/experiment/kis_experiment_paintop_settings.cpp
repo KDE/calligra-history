@@ -31,34 +31,10 @@ KisExperimentPaintOpSettings::KisExperimentPaintOpSettings()
 {
 }
 
-KisPaintOpSettingsSP KisExperimentPaintOpSettings::clone() const
-{
-    KisPaintOpSettings* settings =
-        static_cast<KisPaintOpSettings*>(m_options->configuration());
-    return settings;
-}
-
-
 bool KisExperimentPaintOpSettings::paintIncremental()
 {
     return (enumPaintActionType)getInt("PaintOpAction", WASH) == BUILDUP;
 }
-
-
-
-void KisExperimentPaintOpSettings::fromXML(const QDomElement& elt)
-{
-    KisPaintOpSettings::fromXML(elt);
-    m_options->setConfiguration(this);
-}
-
-void KisExperimentPaintOpSettings::toXML(QDomDocument& doc, QDomElement& rootElt) const
-{
-    KisPropertiesConfiguration * settings = m_options->configuration();
-    settings->KisPropertiesConfiguration::toXML(doc, rootElt);
-    delete settings;
-}
-
 
 int KisExperimentPaintOpSettings::startSize() const
 {

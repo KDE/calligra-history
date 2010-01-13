@@ -44,15 +44,8 @@
 #include "kis_paintop_registry.h"
 #include "kis_cursor.h"
 
-#include <config-opengl.h>
-
-#ifdef HAVE_OPENGL
-#include <GL/gl.h>
-#endif
-
-
 KisToolPolygon::KisToolPolygon(KoCanvasBase *canvas)
-        : KisToolPolygonBase(canvas, KisCursor::load("tool_polygon_cursor.png", 6, 6))
+        : KisToolPolylineBase(canvas, KisCursor::load("tool_polygon_cursor.png", 6, 6))
 {
     setObjectName("tool_polygon");
 }
@@ -61,7 +54,7 @@ KisToolPolygon::~KisToolPolygon()
 {
 }
 
-void KisToolPolygon::finishPolygon(const QVector<QPointF>& points)
+void KisToolPolygon::finishPolyline(const QVector<QPointF>& points)
 {
     if (!currentNode()->inherits("KisShapeLayer")) {
         KisPaintDeviceSP device = currentNode()->paintDevice();
@@ -76,7 +69,7 @@ void KisToolPolygon::finishPolygon(const QVector<QPointF>& points)
             device->setDirty(painter.dirtyRegion());
             notifyModified();
 
-            m_canvas->addCommand(painter.endTransaction());
+            canvas()->addCommand(painter.endTransaction());
         }
     } else {
         KoPathShape* path = new KoPathShape();
@@ -93,8 +86,8 @@ void KisToolPolygon::finishPolygon(const QVector<QPointF>& points)
         KoLineBorder* border = new KoLineBorder(1.0, currentFgColor().toQColor());
         path->setBorder(border);
 
-        QUndoCommand * cmd = m_canvas->shapeController()->addShape(path);
-        m_canvas->addCommand(cmd);
+        QUndoCommand * cmd = canvas()->shapeController()->addShape(path);
+        canvas()->addCommand(cmd);
     }
 }
 

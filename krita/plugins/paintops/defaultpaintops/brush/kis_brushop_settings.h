@@ -26,50 +26,17 @@
 #include <kis_paintop_settings.h>
 #include <kis_types.h>
 
-#include "kis_brushop_settings_widget.h"
-
-class QDomElement;
-
 class KisBrushOpSettings : public KisPaintOpSettings
 {
 
 public:
-    using KisPaintOpSettings::fromXML;
-    using KisPaintOpSettings::toXML;
-
     KisBrushOpSettings();
     virtual ~KisBrushOpSettings();
 
     bool paintIncremental();
 
-    void fromXML(const QDomElement& elt);
-    void toXML(QDomDocument& doc, QDomElement& rootElt) const;
-
-    KisPaintOpSettingsSP clone() const;
-
     virtual QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const;
     virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const;
-
-    virtual void changePaintOpSize(qreal x, qreal y) const;
-    
-    // XXX: Hack!
-    void setOptionsWidget(KisPaintOpSettingsWidget* widget) {
-        if (m_options != 0 && m_options->property("owned by settings").toBool()) {
-            delete m_options;
-        }
-        if (!widget) {
-            m_options = 0;
-        } else {
-            m_options = qobject_cast<KisBrushOpSettingsWidget*>(widget);
-            m_options->writeConfiguration(this);
-        }
-    }
-
-
-public:
-
-    KisBrushOpSettingsWidget *m_options;
-
 };
 
 

@@ -1,4 +1,5 @@
 /* This file is part of the KDE project
+   Copyright 2010 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
    Copyright 2006-2007 Stefan Nikolaus <stefan.nikolaus@kdemail.net>
    Copyright 2005 Raphael Langerhorst <raphael.langerhorst@kdemail.net>
    Copyright 2004-2005 Tomas Mecir <mecirt@gmail.com>
@@ -48,6 +49,8 @@
 #include <QRectF>
 #include <QStyleOptionComboBox>
 #include <QTextLayout>
+#include <QTextCursor>
+#include <QAbstractTextDocumentLayout>
 
 // KOffice
 #include <KoPostscriptPaintDevice.h>
@@ -90,7 +93,8 @@ public:
             , fittingWidth(true)
             , filterButton(false)
             , obscuredCellsX(0)
-            , obscuredCellsY(0) {}
+            , obscuredCellsY(0)
+            , richText(0) {}
     ~Private() {
     }
 
@@ -127,13 +131,14 @@ bool filterButton   : 1;
     // This is the text we want to display. Not necessarily the same
     // as the user input, e.g. Cell::userInput()="1" and displayText="1.00".
     QString displayText;
-
+    QSharedPointer<QTextDocument> richText;
 public:
     void checkForFilterButton(const Cell&);
     void calculateTextSize(const QFont& font, const QFontMetricsF& fontMetrics);
     void calculateHorizontalTextSize(const QFont& font, const QFontMetricsF& fontMetrics);
     void calculateVerticalTextSize(const QFont& font, const QFontMetricsF& fontMetrics);
     void calculateAngledTextSize(const QFont& font, const QFontMetricsF& fontMetrics);
+    void calculateRichTextSize(const QFont& font, const QFontMetricsF& fontMetrics);
     void truncateText(const QFont& font, const QFontMetricsF& fontMetrics);
     void truncateHorizontalText(const QFont& font, const QFontMetricsF& fontMetrics);
     void truncateVerticalText(const QFont& font, const QFontMetricsF& fontMetrics);
@@ -171,7 +176,7 @@ CellView::CellView(SheetView* sheetView, int col, int row)
 
         // use conditional formatting attributes
         Conditions conditions = cell.conditions();
-        if (Style* style = conditions.testConditions(cell))
+        if (Style* style = conditions.testConditions(cell, sheetView->sheet()->map()->styleManager()))
             d->style.merge(*style);
     }
 
@@ -209,6 +214,10 @@ CellView::CellView(SheetView* sheetView, int col, int row)
                 d->style.prefix(), d->style.postfix(),
                 d->style.currency().symbol());
         d->displayText = value.asString();
+
+        QSharedPointer<QTextDocument> doc = cell.richText();
+        if (!doc.isNull())
+            d->richText = QSharedPointer<QTextDocument>(doc->clone());
     }
 
     // Hide zero.
@@ -1124,14 +1133,16 @@ void CellView::paintText(QPainter& painter,
     // force multiple rows on explicitly set line breaks
     const bool tmpMultiRow = d->style.wrapText() || d->displayText.contains('\n');
     const bool tmpVDistributed = vAlign == Style::VJustified || vAlign == Style::VDistributed;
+    const bool tmpRichText = !d->richText.isNull();
 
     // Actually paint the text.
-    //    There are 4 possible cases:
-    //        - One line of text , horizontal
+    //    There are 5 possible cases:
+    //        - One line of plain text , horizontal
     //        - Angled text
-    //        - Multiple rows of text , horizontal
+    //        - Multiple rows of plain text , horizontal
     //        - Vertical text
-    if (!tmpMultiRow && !tmpVerticalText && !tmpAngle) {
+    //        - Rich text
+    if (!tmpMultiRow && !tmpVerticalText && !tmpAngle && !tmpRichText) {
         // Case 1: The simple case, one line, no angle.
 
         const QPointF position(indent + coordinate.x() - offsetCellTooShort,
@@ -1160,7 +1171,7 @@ void CellView::paintText(QPainter& painter,
                                -x * ::sin(angle * M_PI / 180) + y * ::cos(angle * M_PI / 180));
         drawText(painter, position, d->displayText.split('\n'), cell);
         painter.rotate(-angle);
-    } else if (tmpMultiRow && !tmpVerticalText) {
+    } else if (tmpMultiRow && !tmpVerticalText && !tmpRichText) {
         // Case 3: Multiple rows, but horizontal.
         const QPointF position(indent + coordinate.x(), coordinate.y() + d->textY);
         const qreal space = d->height - d->textHeight;
@@ -1194,6 +1205,19 @@ void CellView::paintText(QPainter& painter,
             drawText(painter, position, textColumn, cell);
             dx += fontMetrics.maxWidth();
         }
+    } else if (tmpRichText) {
+        // Case 5: Rich text.
+        QSharedPointer<QTextDocument> doc = d->richText;
+        doc->setDefaultTextOption(d->textOptions());
+        const QPointF position(coordinate.x() + indent,
+                               coordinate.y() + d->textY);
+        painter.translate(position);
+
+        QAbstractTextDocumentLayout::PaintContext ctx;
+        ctx.palette.setColor(QPalette::Text, textColorPrint);
+        doc->documentLayout()->draw(&painter, ctx);
+
+//        painter.drawRect(QRectF(QPointF(0, 0), QSizeF(d->textWidth, d->textHeight)));
     }
 
     painter.restore();
@@ -1660,8 +1684,8 @@ QString CellView::textDisplaying(const QFontMetricsF& fm, const Cell& cell)
 
     const bool isNumeric = cell.value().isNumber();
 
-    if (style().wrapText()) {
-        // For wrapping text always draw all text
+    if (style().wrapText() || d->richText) {
+        // For wrapping text and richtext always draw all text
         return d->displayText;
     } else if (!style().verticalText()) {
         // Non-vertical text: the ordinary case.
@@ -1878,6 +1902,7 @@ void CellView::textOffset(const QFontMetricsF& fontMetrics, const Cell& cell)
     const int tmpAngle = d->style.angle();
     const bool tmpVerticalText = d->style.verticalText();
     const bool tmpMultiRow = d->style.wrapText() || d->displayText.contains('\n');
+    const bool tmpRichText = !d->richText.isNull();
 
     qreal  w = d->width;
     qreal  h = d->height;
@@ -1891,7 +1916,9 @@ void CellView::textOffset(const QFontMetricsF& fontMetrics, const Cell& cell)
     switch (vAlign) {
     case Style::VJustified:
     case Style::Top: {
-        if (tmpAngle == 0) {
+        if (tmpAngle == 0 && tmpRichText) {
+            d->textY = effTop;
+        } else if (tmpAngle == 0) {
             d->textY = effTop + ascent;
         } else if (tmpAngle < 0) {
             d->textY = effTop;
@@ -1900,8 +1927,9 @@ void CellView::textOffset(const QFontMetricsF& fontMetrics, const Cell& cell)
         }
         break;
     }
+    case Style::VAlignUndefined: // fall through
     case Style::Bottom: {
-        if (!tmpVerticalText && !tmpMultiRow && !tmpAngle) {
+        if (!tmpVerticalText && !tmpMultiRow && !tmpAngle && !tmpRichText) {
             d->textY = effBottom;
         } else if (tmpAngle != 0) {
             // Is enough place available?
@@ -1918,6 +1946,8 @@ void CellView::textOffset(const QFontMetricsF& fontMetrics, const Cell& cell)
                     d->textY = effTop + ascent * ::cos(tmpAngle * M_PI / 180);
                 }
             }
+        } else if (tmpRichText) {
+            d->textY = effBottom - d->textHeight;
         } else if (tmpMultiRow && !tmpVerticalText) {
             // Is enough place available?
             if (effBottom - effTop - d->textHeight > 0) {
@@ -1941,9 +1971,8 @@ void CellView::textOffset(const QFontMetricsF& fontMetrics, const Cell& cell)
             break;
         }
         // fall through
-    case Style::Middle:
-    case Style::VAlignUndefined: {
-        if (!tmpVerticalText && !tmpMultiRow && !tmpAngle) {
+    case Style::Middle: {
+        if (!tmpVerticalText && !tmpMultiRow && !tmpAngle && !tmpRichText) {
             d->textY = (h - d->textHeight) / 2 + ascent;
         } else if (tmpAngle != 0) {
             // Is enough place available?
@@ -1960,6 +1989,8 @@ void CellView::textOffset(const QFontMetricsF& fontMetrics, const Cell& cell)
                     d->textY = effTop + ascent * ::cos(tmpAngle * M_PI / 180);
                 }
             }
+        } else if (tmpRichText && !tmpVerticalText) {
+            d->textY = (h - d->textHeight) / 2;
         } else if (tmpMultiRow && !tmpVerticalText) {
             // Is enough place available?
             if (effBottom - effTop - d->textHeight > 0) {
@@ -2240,6 +2271,8 @@ void CellView::Private::calculateTextSize(const QFont& font, const QFontMetricsF
         calculateAngledTextSize(font, fontMetrics);
     else if (style.verticalText())
         calculateVerticalTextSize(font, fontMetrics);
+    else if (richText)
+        calculateRichTextSize(font, fontMetrics);
     else
         calculateHorizontalTextSize(font, fontMetrics);
 }
@@ -2306,6 +2339,33 @@ void CellView::Private::calculateAngledTextSize(const QFont& font, const QFontMe
     textWidth = qAbs(height * ::sin(angle * M_PI / 180)) + width * ::cos(angle * M_PI / 180);
     fittingHeight = textHeight <= this->width;
     fittingWidth = textWidth <= this->height;
+}
+
+void CellView::Private::calculateRichTextSize(const QFont& font, const QFontMetricsF& fontMetrics)
+{
+    Q_UNUSED(fontMetrics);
+
+    richText->setDefaultFont(font);
+    richText->setDocumentMargin(0);
+
+    const qreal lineWidth = width - 2 * s_borderSpace
+                - 0.5 * style.leftBorderPen().widthF()
+                - 0.5 * style.rightBorderPen().widthF();
+
+    if (style.wrapText())
+        richText->setTextWidth(lineWidth);
+    else
+        richText->setTextWidth(-1);
+    const QSizeF textSize = richText->size();
+    textHeight = textSize.height();
+    textWidth = textSize.width();
+    textLinesCount = richText->lineCount();
+    // TODO: linescount is not correct, and distributed vertical allignment doesn't
+    // work anyway for richtext at the momemnt
+    fittingHeight = textHeight <= (height - 2 * s_borderSpace
+                            - 0.5 * style.topBorderPen().widthF()
+                            - 0.5 * style.bottomBorderPen().widthF());
+    fittingWidth = textWidth <= lineWidth;
 }
 
 void CellView::Private::truncateText(const QFont& font, const QFontMetricsF& fontMetrics)

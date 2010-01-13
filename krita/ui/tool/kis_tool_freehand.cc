@@ -112,6 +112,7 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
     //    return;
     if (m_mode == PAN) {
         initPan(e);
+        e->accept();
         return;
     }
 
@@ -124,11 +125,11 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
     // control-click gets the color at the current point. For now, only with a ratio of 1
     if (e->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier)) {
         if (e->button() == Qt::LeftButton)
-            m_canvas->resourceProvider()->setResource(KoCanvasResource::ForegroundColor,
+            canvas()->resourceProvider()->setResource(KoCanvasResource::ForegroundColor,
                                                       KisToolUtils::pick(currentNode()->paintDevice(),
                                                                          convertToIntPixelCoord(e)));
         else
-            m_canvas->resourceProvider()->setResource(KoCanvasResource::BackgroundColor,
+            canvas()->resourceProvider()->setResource(KoCanvasResource::BackgroundColor,
                                                       KisToolUtils::pick(currentNode()->paintDevice(),
                                                                          convertToIntPixelCoord(e)));
 
@@ -136,18 +137,19 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
     else if (e->modifiers() == Qt::ControlModifier ) {
 
         if (e->button() == Qt::LeftButton)
-            m_canvas->resourceProvider()->setResource(KoCanvasResource::ForegroundColor,
+            canvas()->resourceProvider()->setResource(KoCanvasResource::ForegroundColor,
                                                       KisToolUtils::pick(currentImage()->mergedImage(),
                                                                          convertToIntPixelCoord(e)));
         else
-            m_canvas->resourceProvider()->setResource(KoCanvasResource::BackgroundColor,
+            canvas()->resourceProvider()->setResource(KoCanvasResource::BackgroundColor,
                                                       KisToolUtils::pick(currentImage()->mergedImage(),
                                                                          convertToIntPixelCoord(e)));
     }
-    else if (e->modifiers() == Qt::ShiftModifier){
+    else if (e->modifiers() == Qt::ShiftModifier) {
         m_mode = EDIT_BRUSH;
         m_prevMousePos = e->point;
         m_originalPos = e->globalPos();
+        e->accept();
         return;
     }
     else { // No modifiers
@@ -173,7 +175,11 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
 #endif
             }
         }
+        else if (m_mode == PAINT && (e->button() == Qt::RightButton || e->button() == Qt::MidButton)) { // end painting, if calling the menu or the pop up palette. otherwise there is weird behaviour
+            endPaint();
+        }
     }
+    e->accept();
 }
 
 inline double norm(const QPointF& p)
@@ -275,7 +281,7 @@ void KisToolFreehand::mouseMoveEvent(KoPointerEvent *e)
     }
 
     if (!oldOutlineRect.isEmpty()) {
-        m_canvas->updateCanvas(oldOutlineRect); // erase the old guy
+        canvas()->updateCanvas(oldOutlineRect); // erase the old guy
     }
 
     mousePos = e->point;
@@ -286,14 +292,14 @@ void KisToolFreehand::mouseMoveEvent(KoPointerEvent *e)
             m_xTilt = e->xTilt();
             m_yTilt = e->yTilt();
             // TODO : optimize? but you need to know the size of the 3d brush?
-            m_canvas->updateCanvas(QRect(QPoint(0, 0), QSize(currentImage()->width(), currentImage()->height())));
+            canvas()->updateCanvas(QRect(QPoint(0, 0), QSize(currentImage()->width(), currentImage()->height())));
         }
     }
 #endif
 
     oldOutlineRect = currentPaintOpPreset()->settings()->paintOutlineRect(mousePos, currentImage(), outlineMode);
     if (!oldOutlineRect.isEmpty()) {
-        m_canvas->updateCanvas(oldOutlineRect); // erase the old guy
+        canvas()->updateCanvas(oldOutlineRect); // erase the old guy
     }
 
 }
@@ -468,9 +474,9 @@ void KisToolFreehand::endPaint()
             m_source->setDirty(painter.dirtyRegion());
             delete incrementalTransaction;
 
-            m_canvas->addCommand(painter.endTransaction());
+            canvas()->addCommand(painter.endTransaction());
         } else {
-            m_canvas->addCommand(m_painter->endTransaction());
+            canvas()->addCommand(m_painter->endTransaction());
         }
     }
     delete m_painter;

@@ -1,5 +1,6 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -21,9 +22,21 @@
 #define SWINDER_WORKBOOK_H
 
 #include <QtCore/QVariant>
+#include <string>
 
 namespace Swinder
 {
+
+class Store
+{
+public:
+    explicit Store() {}
+    virtual ~Store() {}
+    
+    virtual bool open(const std::string& filename) = 0;
+    virtual bool write(const char *data, int size) = 0;
+    virtual bool close() = 0;
+};
 
 class Sheet;
 
@@ -31,40 +44,46 @@ class Workbook
 {
 public:
 
-    /*
+    /**
      * Constructs a new workbook.
+     * 
+     * @a store An optional implementation of the Store class
+     * that is used to write content like images to.
      */
+    explicit Workbook(Store* store = 0);
 
-    Workbook();
-
-    /*
+    /**
      * Destroys the workbook.
      */
-
     virtual ~Workbook();
 
-    /*
+    /**
+     * Returns the used KoStore or NULL if not KoStore was set.
+    /*/
+    Store* store() const;
+    
+    /**
      * Clears the workbook, i.e. makes it as if it is just constructed.
      */
     void clear();
 
-    /*
+    /**
      * Loads the workbook from file. Returns false if error occurred.
      */
     bool load(const char* filename);
 
-    /*
+    /**
      * Appends a new sheet.
      */
     void appendSheet(Sheet* sheet);
 
-    /*
+    /**
      * Returns the number of worksheet in this workbook. A newly created
      * workbook has no sheet, i.e. sheetCount() returns 0.
      */
     unsigned sheetCount() const;
 
-    /*
+    /**
      * Returns a worksheet at given index. If index is invalid (e.g. larger
      * than total number of worksheet), this function returns NULL.
      */

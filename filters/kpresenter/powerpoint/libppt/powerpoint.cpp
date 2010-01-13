@@ -38,12 +38,18 @@
 
 //#ifdef Q_CC_MSVC
 #define __PRETTY_FUNCTION__ __FUNCTION__
-#define LIBPPT_DEBUG
+//#define LIBPPT_DEBUG
 //#endif
 
 // Use anonymous namespace to cover following functions
 namespace
 {
+
+// TODO: get proper definitions for uint16_t, uint32_t etc
+typedef int int16_t;
+typedef unsigned int uint16_t;
+typedef long int32_t;
+typedef unsigned long uint32_t;
 
 static inline unsigned long readU16(const void* p)
 {
@@ -535,8 +541,43 @@ msofbtDggContainer::msofbtDggContainer()
 
 const unsigned int msofbtBstoreContainer::id = 61441; /* F001 */
 
-msofbtBstoreContainer::msofbtBstoreContainer()
+class msofbtBstoreContainer::Private {
+public:
+    std::vector<std::string> rgbUids;
+    unsigned int pos;
+
+    Private() :pos(0) {}
+};
+
+msofbtBstoreContainer::msofbtBstoreContainer() :d(new Private())
 {
+}
+
+msofbtBstoreContainer::~msofbtBstoreContainer()
+{
+    delete d;
+}
+
+void
+msofbtBstoreContainer::addRgbUid(const char rgbUid[16])
+{
+    if (d->rgbUids.size() != instance()) {
+        d->rgbUids.resize(instance());
+    }
+    if (d->pos < d->rgbUids.size()) {
+        d->rgbUids[d->pos++].assign(rgbUid, 16);
+    }
+}
+
+std::vector<std::string>
+msofbtBstoreContainer::bstore() const
+{
+    if (d->pos == d->rgbUids.size()) {
+        return d->rgbUids;
+    }
+    std::vector<std::string> subset = d->rgbUids;
+    subset.resize(d->pos);
+    return subset;
 }
 
 // ========== msofbtDgContainer ==========
@@ -7055,6 +7096,7 @@ const unsigned int msofbtClientDataAtom::id = 61457; /* F011 */
 class msofbtClientDataAtom::Private
 {
 public:
+    RecordHeader header;
     unsigned placementId;
     unsigned placeholderId;
 };
@@ -7126,20 +7168,23 @@ const char* msofbtClientDataAtom::placeholderIdAsString() const
     return "Unknown";
 }
 
-
-//  00 00 c3 0b ===>   OEPlaceholderAtom
-//  08 00 00 00
-//  00 00 00 00 ===> Placement ID
-//  0f          ====> Placeholder ID
-//  00         =====> Size of placeholder
-//  9e 00
-
 void msofbtClientDataAtom::setData(unsigned size, const unsigned char* data)
 {
-    // TODO: this is largely unimplemented
-    if (size < 16) return;
-    setPlacementId(readU16(data + 8));
-    setPlaceholderId(data[12] - 1);
+    // client data starts with a header
+    if (size < 12) return;
+    d->header.setData(data);
+    if (size == 16 && d->header.recType == 0xBC3) { // PlaceholderAtom
+        setPlacementId(readU32(data + 8));
+        setPlaceholderId(data[12] - 1);
+    } else if (size == 12 && d->header.recType == 0xBC1){//ExternalObjectRefAtom
+        // currently we do not use the ole id
+        // setExObjIdRef(readU32(data + 8));
+    }
+}
+
+unsigned msofbtClientDataAtom::dataType() const // the recType of the contained data
+{
+    return d->header.recType;
 }
 
 void msofbtClientDataAtom ::dump(std::ostream& out) const
@@ -7340,12 +7385,36 @@ void msofbtSplitMenuColorsAtom ::dump(std::ostream& out) const
 
 const unsigned int msofbtBSEAtom::id = 61447; /* F007 */
 
-msofbtBSEAtom ::msofbtBSEAtom()
+class msofbtBSEAtom::Private {
+public:
+    char rgbUid[16];
+
+    Private() {
+        memset(rgbUid, 0, 16);
+    }
+};
+
+msofbtBSEAtom ::msofbtBSEAtom() :d(new Private())
 {
 }
 
 msofbtBSEAtom ::~msofbtBSEAtom()
 {
+    delete d;
+}
+
+void
+msofbtBSEAtom::setData(unsigned size, const unsigned char* data)
+{
+    if (size > 26) {
+        bcopy(data+2, d->rgbUid, 16);
+    }
+}
+
+const char*
+msofbtBSEAtom::rgbUid() const
+{
+    return d->rgbUid;
 }
 
 void msofbtBSEAtom ::dump(std::ostream& out) const
@@ -7587,6 +7656,12 @@ public:
     *
     */
     OutlineTextProps9Container outlineContainer;
+    /**
+     * Convert a OfficeArtCOLORREF to an RGB color.
+     * This conversion looks up the color in the color schemes if needed.
+     **/
+    Libppt::Color convertFromLong(unsigned long i);
+
 };
 
 
@@ -8024,13 +8099,13 @@ void PPTReader::loadMainMasterContainer(MainMasterContainer *container)
     Skip to the start of slideSchemeColorSchemeAtom
     */
     if (fastForwardRecords(0x07F0, 4) == -1) {
-        kWarning("Failed to find header of slideSchemeColorSchemeAtom!");
+        kWarning() << "Failed to find header of slideSchemeColorSchemeAtom!";
         return;
     }
 
     bytes_read = d->docStream->read(buffer, 8);
     if (bytes_read != 8) {
-        kWarning("Failed to read header for slideSchemeColorSchemeAtom!");
+        kWarning() << "Failed to read header for slideSchemeColorSchemeAtom!";
         return;
     }
 
@@ -8210,10 +8285,9 @@ void PPTReader::loadRecord(Record* parent)
             // special treatment for StyleTextPropAtom
             if (type == StyleTextPropAtom::id) {
                 static_cast<StyleTextPropAtom*>(record)->setDataWithSize(size, buffer, d->lastNumChars);
-            } else
-             {    
+            } else {
                 record->setData(size, buffer);
-             }
+            }
             handleRecord(record, type);
             if (type == TextBytesAtom::id)
                 d->lastNumChars = static_cast<TextBytesAtom*>(record)->text().length();
@@ -8266,6 +8340,8 @@ void PPTReader::handleRecord(Record* record, int type)
         handleEscherChildAnchorAtom(static_cast<msofbtChildAnchorAtom*>(record)); break;
     case FontEntityAtom::id:
         handleFontEntityAtom(static_cast<FontEntityAtom*>(record)); break;
+    case msofbtBSEAtom::id:
+        handleBSEAtom(static_cast<msofbtBSEAtom*>(record)); break;
     default: 
       break;
     }
@@ -8354,6 +8430,10 @@ void PPTReader::handleContainer(Container* container, int type, unsigned size)
 
     case ProgBinaryTagContainer::id:
         handleProgBinaryTagContainer(static_cast<ProgBinaryTagContainer*>(container), size);
+        break;
+
+    case msofbtBstoreContainer::id:
+        handleBstoreContainer(static_cast<msofbtBstoreContainer*>(container), size);
         break;
 
     default:
@@ -8458,6 +8538,14 @@ void PPTReader::handleProgBinaryTagContainer(ProgBinaryTagContainer* /*r*/,
     }
 }
 
+void PPTReader::handleBstoreContainer(msofbtBstoreContainer* container,
+        unsigned int size)
+{
+    unsigned long nextpos = d->docStream->tell() + size - 6;
+    while (d->docStream->tell() < nextpos)
+        loadRecord(container);
+    d->presentation->setBStore(container->bstore());
+}
 
 void PPTReader::handleDocumentAtom(DocumentAtom* atom)
 {
@@ -8769,7 +8857,6 @@ void PPTReader::handleEscherSpAtom(msofbtSpAtom* atom)
     if (!d->currentSlide) return;
     if (!d->currentGroup) return;
 
-
     DrawObject* drawObject = new DrawObject;
 
     drawObject->setBackground(atom->isBackground());
@@ -8827,6 +8914,11 @@ void PPTReader::handleEscherClientDataAtom(msofbtClientDataAtom* atom)
     if (!d->currentSlide) return;
     if (!d->currentGroup) return;
     if (!d->currentObject) return;
+
+    // only convert to a text object if the client data is a placeholderitem
+    if (atom->dataType() != 0xBC3) { // PlaceholderAtom
+        return;
+    }
 
     TextObject* textObject = 0;
     if (!d->currentObject->isText()) {
@@ -8927,12 +9019,29 @@ void PPTReader::handleEscherTextBox(msofbtClientTextBox* container, unsigned siz
         loadRecord(container);
 }
 
-Color convertFromLong(unsigned long i)
+Color PPTReader::Private::convertFromLong(unsigned long i)
 {
     unsigned r = (i & 0xff);
     unsigned g = (i >> 8) & 0xff;
     unsigned b = (i >> 16) & 0xff;
-    //unsigned index = (i>>24) & 0xff;
+    //bool fPaletteIndex = i & 0x01000000;
+    //bool fPaletteRgb =   i & 0x02000000;
+    //bool fSystemRgb =    i & 0x04000000;
+    bool fSchemeIndex =  i & 0x08000000;
+    //bool fSysIndex =     i & 0x10000000;
+    if (fSchemeIndex) {
+        // This should get the color from the color scheme of the current slide
+        // or if slideContainer/slideAtom/slideFlags/fMasterScheme == true
+        // from the slides masters color scheme.
+        if (presentation && presentation->getMainMasterContainer()) {
+           ColorSchemeAtom* scheme = presentation->getMainMasterContainer()
+                   ->getSlideSchemeColorSchemeAtom();
+           if (scheme) {
+               QColor c(scheme->getColor(r));
+               return Color(c.red(), c.green(), c.blue());;
+           }
+        }
+    }
     return Color(r, g, b);
 }
 
@@ -8951,11 +9060,15 @@ void PPTReader::handleEscherPropertiesAtom(msofbtOPTAtom* atom)
         switch (pid) {
         case msofbtOPTAtom::Pib:
             d->currentObject->setProperty("pib", (int)pvalue);
+            break;
         case msofbtOPTAtom::FillColor:
             d->currentObject->setProperty("draw:fill-color",
-                    convertFromLong(pvalue));
+                    d->convertFromLong(pvalue));
             break;
         case msofbtOPTAtom::FillBackColor:
+            break;
+        case msofbtOPTAtom::FillBlip:
+            d->currentObject->setProperty("fillPib", (int)pvalue);
             break;
         case msofbtOPTAtom::FillStyleBooleanProperties:
             // 5th bit determines fFilled, if shape is filled or not
@@ -8963,7 +9076,7 @@ void PPTReader::handleEscherPropertiesAtom(msofbtOPTAtom* atom)
                     (pvalue&16)?"solid":"none");
             break;
         case msofbtOPTAtom::LineColor:
-            d->currentObject->setProperty("svg:stroke-color", convertFromLong(pvalue));
+            d->currentObject->setProperty("svg:stroke-color", d->convertFromLong(pvalue));
             break;
         case msofbtOPTAtom::LineWidth:
             d->currentObject->setProperty("svg:stroke-width", pvalue*(25.4 / (12700*72)));
@@ -9185,4 +9298,15 @@ void PPTReader::handleFontEntityAtom(FontEntityAtom* r)
 
     TextFont font(r->typeface(), r->charset(), r->clipPrecision(), r->quality(), r->pitchAndFamily());
     d->presentation->addTextFont(font);
+}
+
+void PPTReader::handleBSEAtom(msofbtBSEAtom* record)
+{
+    const msofbtBstoreContainer* const_bstore
+        = dynamic_cast<const msofbtBstoreContainer*>(record->parent());
+    msofbtBstoreContainer* bstore = const_cast<msofbtBstoreContainer*>(const_bstore);
+    if (bstore) {
+        bstore->addRgbUid(record->rgbUid());
+    }
+
 }

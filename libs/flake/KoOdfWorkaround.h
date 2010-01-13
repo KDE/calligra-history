@@ -25,7 +25,9 @@
 class KoXmlElement;
 class KoShapeLoadingContext;
 class QPen;
+class QColor;
 class QString;
+class KoShapeBackground;
 
 /**
  * This class should contain all workarounds to correct problems with different ODF
@@ -40,7 +42,7 @@ class QString;
 namespace KoOdfWorkaround
 {
     /**
-     * OpenOffice handels a line with the width of 0 as a cosmetic line but in svg it makes the line invisible.
+     * OpenOffice handles a line with the width of 0 as a cosmetic line but in svg it makes the line invisible.
      * To show it in koffice use a very small line width. However this is not a cosmetic line.
      */
     FLAKE_EXPORT void fixPenWidth(QPen &pen, KoShapeLoadingContext &context);
@@ -50,6 +52,10 @@ namespace KoOdfWorkaround
      * Add the path needed for the ellipse
      */
     FLAKE_EXPORT void fixEnhancedPath(QString &path, const KoXmlElement &element, KoShapeLoadingContext &context);
+
+    FLAKE_EXPORT QColor fixMissingStrokeColor(const KoXmlElement &element, KoShapeLoadingContext &context);
+    FLAKE_EXPORT QColor fixMissingFillColor(const KoXmlElement &element, KoShapeLoadingContext &context);
+    FLAKE_EXPORT bool   fixMissingStyle_DisplayLabel(const KoXmlElement &element, KoShapeLoadingContext &context);
 }
 
 #endif /* KOODFWORKAROUND_H */

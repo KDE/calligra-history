@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -31,6 +32,7 @@
 
 #include <QDebug>
 #include <QDateTime>
+#include <QFile>
 
 #include "pole.h"
 #include "swinder.h"
@@ -436,8 +438,8 @@ public:
 };
 
 // constructor of BOFRecord
-BOFRecord::BOFRecord():
-        Record()
+BOFRecord::BOFRecord(Swinder::Workbook *book):
+        Record(book)
 {
     d = new BOFRecord::Private();
     d->version  = 0x600; // BIFF8;
@@ -546,9 +548,9 @@ public:
 };
 
 
-ExternBookRecord::ExternBookRecord()
+ExternBookRecord::ExternBookRecord(Workbook *book)
+    : Record(book), d(new Private)
 {
-    d = new Private;
     d->sheetCount = 0;
 }
 
@@ -596,9 +598,9 @@ public:
 };
 
 
-ExternNameRecord::ExternNameRecord()
+ExternNameRecord::ExternNameRecord(Workbook *book)
+    : Record(book), d(new Private)
 {
-    d = new Private;
     d->optionFlags = 0;
     d->sheetIndex = 0;
 }
@@ -653,8 +655,8 @@ void ExternNameRecord::dump(std::ostream& /*out*/) const
 
 const unsigned int FilepassRecord::id = 0x002f;
 
-FilepassRecord::FilepassRecord():
-        Record()
+FilepassRecord::FilepassRecord(Workbook *book)
+    : Record(book)
 {
 }
 
@@ -685,8 +687,8 @@ public:
     bool shared;
 };
 
-FormulaRecord::FormulaRecord():
-        Record()
+FormulaRecord::FormulaRecord(Workbook *book):
+        Record(book)
 {
     d = new FormulaRecord::Private();
     d->shared = true;
@@ -816,8 +818,8 @@ public:
     FormulaTokens tokens;
 };
 
-SharedFormulaRecord::SharedFormulaRecord():
-        Record()
+SharedFormulaRecord::SharedFormulaRecord(Workbook *book):
+        Record(book)
 {
     d = new SharedFormulaRecord::Private();
 }
@@ -895,8 +897,8 @@ public:
     std::vector<unsigned> rkValues;
 };
 
-MulRKRecord::MulRKRecord():
-        Record(), CellInfo(), ColumnSpanInfo()
+MulRKRecord::MulRKRecord(Workbook *book):
+        Record(book), CellInfo(), ColumnSpanInfo()
 {
     d = new MulRKRecord::Private();
 }
@@ -989,7 +991,8 @@ public:
 };
 
 
-NameRecord::NameRecord()
+NameRecord::NameRecord(Workbook *book)
+    : Record(book)
 {
     d = new Private;
     d->optionFlags = 0;
@@ -1091,8 +1094,8 @@ public:
     double f;
 };
 
-RKRecord::RKRecord():
-        Record(), CellInfo()
+RKRecord::RKRecord(Workbook *book):
+        Record(book), CellInfo()
 {
     d = new RKRecord::Private();
     d->integer = true;
@@ -1189,8 +1192,8 @@ public:
     UString label;
 };
 
-RStringRecord::RStringRecord():
-        Record(), CellInfo()
+RStringRecord::RStringRecord(Workbook *book):
+        Record(book), CellInfo()
 {
     d = new RStringRecord::Private();
     d->label = UString::null;
@@ -1249,8 +1252,8 @@ public:
     std::vector<std::map<unsigned, unsigned> > formatRuns;
 };
 
-SSTRecord::SSTRecord():
-        Record()
+SSTRecord::SSTRecord(Workbook *book):
+        Record(book)
 {
     d = new SSTRecord::Private();
     d->total = 0;
@@ -1338,7 +1341,7 @@ void SSTRecord::dump(std::ostream& out) const
 
 const unsigned ObjRecord::id = 0x5D;
 
-ObjRecord::ObjRecord() : Record(), m_object(0) {}
+ObjRecord::ObjRecord(Workbook *book) : Record(book), m_object(0) {}
 ObjRecord::~ObjRecord()
 {
     delete m_object;
@@ -1447,7 +1450,7 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
         //const bool unused5 = opts2 & 0x3000;
         //const bool unused6 = opts2 & 0x6000;
         //const bool unused7 = opts2 & 0xC000;
-        printf("ObjRecord::setData picture fDde=%i FCtl=%i fPrstm=%i\n",fDde,fCtl,fPrstm);
+        std::cout << "ObjRecord::setData picture fDde=" << fDde << " FCtl=" << fCtl << " fPrstm=" << fPrstm << std::endl;
         startPict += 12;
     }
     break;
@@ -1498,8 +1501,21 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
 
     }
     break;
-    case Object::Chart:
-        break;
+
+    case Object::Chart: printf("ObjRecord::setData Chart\n"); break;
+    case Object::Rectangle: printf("ObjRecord::setData Rectangle\n"); break;
+    case Object::Line: printf("ObjRecord::setData Line\n"); break;
+    case Object::Oval: printf("ObjRecord::setData Oval\n"); break;
+    case Object::Arc: printf("ObjRecord::setData Arc\n"); break;
+    case Object::Text: printf("ObjRecord::setData Text\n"); break;
+    case Object::Button: printf("ObjRecord::setData Button\n"); break;
+    case Object::Polygon: printf("ObjRecord::setData Polygon\n"); break;
+    case Object::EditBox: printf("ObjRecord::setData EditBox\n"); break;
+    case Object::Label: printf("ObjRecord::setData Label\n"); break;
+    case Object::DialogBox: printf("ObjRecord::setData DialogBox\n"); break;
+    case Object::GroupBox: printf("ObjRecord::setData GroupBox\n"); break;
+    case Object::OfficeArtObject: printf("ObjRecord::setData OfficeArtObject\n"); break;
+
     default:
         std::cerr << "ObjRecord::setData: Unexpected objecttype " << ot << " in ObjRecord" << std::endl;
         setIsValid(false);
@@ -1527,7 +1543,7 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
         startPict += cmFmla - sizeFmla - 0; // padding
       }
     }
-    
+
     // pictFmla
     if(ot == Object::Picture && readU16(startPict) == 0x0009 /* checks ft */) {
         const unsigned long cb = readU16(startPict + 2);
@@ -1559,7 +1575,7 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
             ptg = ((ptg & 0x40) ? (ptg | 0x20) : ptg) & 0x3F;
             token = FormulaToken(ptg);
             token.setVersion(version());
-            printf("ObjRecord::setData: Picture is of type id=%i name=%s\n",token.id(),token.idAsString());
+            std::cout << "ObjRecord::setData: Picture is of type id=" << token.id() << " name=" << token.idAsString() << std::endl;
             if(token.size() > 0) {
                 token.setData(token.size(), startPict + cbFmlaSize);
                 cbFmlaSize += token.size();
@@ -1582,7 +1598,7 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
                         embedInfoSize += size;
 
                         //TODO
-                        printf( "!!!!!!!!!!!! ObjRecord::setData: className=%s\n", className.ascii() );
+                        std::cout << "ObjRecord::setData: className=" << className.ascii() << std::endl;
                     }
                 }
             }
@@ -1615,7 +1631,7 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
             }
             //fmlaLinkedCell
             //fmlaListFillRange
-            printf("ObjRecord::setData: Runtime license key is \"%s\"\n", key.c_str());
+            std::cout << "ObjRecord::setData: Runtime license key is: " << key.c_str() << std::endl;
         }
     }
 
@@ -1625,6 +1641,359 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
     // edit
     // list
     // gbo
+}
+
+// ========== DrawingObject ==========
+
+// read a OfficeArtRecordHeader struct.
+void DrawingObject::readHeader(const unsigned char* data, unsigned *recVer, unsigned *recInstance, unsigned *recType, unsigned long *recLen)
+{
+    const unsigned recVerAndInstance = readU16(data); // 4 bits version and 12 bits number of differentiate atoms in this record
+    if(recVer) {
+        const unsigned rv = recVerAndInstance;
+        *recVer = rv >> 12;
+    }
+    if(recInstance) {
+        const unsigned ri = recVerAndInstance;
+        *recInstance = ri >> 4;
+    }
+    if(recType) {
+        *recType = readU16(data + 2);
+    }
+    if(recLen) {
+        *recLen = readU32(data + 4);
+    }
+}
+
+// read a drawing object (container or atom) and handle/dispatch according to the recType.
+unsigned long DrawingObject::handleObject(unsigned size, const unsigned char* data, bool* recordHandled)
+{
+    unsigned recVer = 0;
+    unsigned recInstance = 0;
+    unsigned recType = 0;
+    unsigned long recLen = 0;
+    if(recordHandled) *recordHandled = true;
+    readHeader(data, &recVer, &recInstance, &recType, &recLen);
+    switch(recType) {
+        case 0x0: break; // NOPE
+        case 0xF003: // OfficeArtSpgrContainer
+        case 0xF004: { // OfficeArtSpContainer
+            unsigned long offset = 8;
+            while(offset <= recLen) { // recursive
+                offset += handleObject(size, data + offset);
+            }
+        } break;
+        case 0xF008: { // OfficeArtFDG
+            unsigned long csp = readU32(data + 8);
+            unsigned long spid = readU32(data + 12); // MSOSPID, shape-identifier of the last shape in the drawing
+            std::cout << "OfficeArtFDG, number of shapes=" << csp << " shapeId of last shape=" << spid << std::endl;
+        } break;
+        case 0xF009: { // OfficeArtFSPGR
+            unsigned long xLeft = readU32(data + 8);
+            unsigned long yTop = readU32(data + 12);
+            unsigned long xRight = readU32(data + 16);
+            unsigned long yBottom = readU32(data + 20);
+            std::cout << "OfficeArtFSPGR xLeft=" << xLeft << " yTop=" << yTop << " xRight=" << xRight << " yBottom=" << yBottom << std::endl;
+        } break;
+        case 0xF00A: { // OfficeArtFSP
+            unsigned long spid = readU32(data + 8); // MSOSPID, shape-identifier of the last shape in the drawing
+            std::cout << "OfficeArtFSP, identifier of this shape=" << spid << std::endl;
+        } break;
+        case 0xF11D: // OfficeArtFPSPL
+            //printf("OfficeArtFPSPL %i\n",recLen);
+            break;
+        case 0xF00B: { // OfficeArtFOPT
+            printf("OfficeArtFPSPL\n");
+            const unsigned char* startComplexData = data + 8 + recInstance * 6;
+            for(uint i = 0; i < recInstance; ++i) {
+                const unsigned long opidOpts = readU16(data + 8 + i * 6);
+                const unsigned long opid = opidOpts & 0x3FFF;
+                const bool fBid = opidOpts & 0x04000; // BLIP identifier?
+                const bool fComplex = opidOpts & 0x08000; // Complex property?
+                const unsigned long op = readS32(data + 10 + i * 6);
+                if(fComplex) { // op specifies the size of the property in the ComplexData
+                    //TODO
+                } else { // op specifies the value
+                    m_properties[opid] = op;
+                }
+                std::cout << "MsoDrawingRecord: opid=" << opid << " fBid=" << fBid << " fComplex=" << fComplex << " op=" << op << std::endl;
+            }
+            std::cout << "MsoDrawingRecord: complexDataLength=" << recLen-(recInstance * 6) << std::endl;
+            //TODO read complexData
+        } break;
+        case 0xF121: // OfficeArtSecondaryFOPT
+            std::cout << "OfficeArtSecondaryFOPT" << std::endl;
+            break;
+        case 0xF122: // OfficeArtTertiaryFOPT
+            std::cout << "OfficeArtTertiaryFOPT" << std::endl;
+            break;
+        case 0xF00F: { // OfficeArtChildAnchor
+            unsigned long xLeft = readU32(data + 8);
+            unsigned long yTop = readU32(data + 12);
+            unsigned long xRight = readU32(data + 16);
+            unsigned long yBottom = readU32(data + 20);
+            std::cout << "OfficeArtChildAnchor xLeft=" << xLeft << " yTop=" << yTop << " xRight=" << xRight << " yBottom=" << yBottom << std::endl;
+        } break;
+        case 0xF010: // OfficeArtChildAnchorHF, OfficeArtChildAnchorSheet or OfficeArtChildAnchorChart
+            // If this record is in the Worksheet, Macro Sheet, or Dialog Sheet substream, the OfficeArtClientAnchor structure
+            // mentioned in [MS-ODRAW] refers to the OfficeArtClientAnchorSheet structure. If this record appears in the Chart
+            // Sheet substream, the OfficeArtClientAnchor structure refers to the OfficeArtClientAnchorChart structure.
+            switch(recLen) {
+                case 8:
+                    printf("TODO: OfficeArtChildAnchorHF\n");
+                    break;
+                case 18: {
+                    //const unsigned long opts = readU16(data + 8);
+                    //const bool fMove = opts & 0x01;
+                    //const bool fSize = opts & 0x02;
+                    
+                    /*
+                    colL (2 bytes): A Col256U that specifies the column of the cell under the top left corner of the bounding rectangle of the shape.
+                    dxL (2 bytes): A signed integer that specifies the x coordinate of the top left corner of the bounding rectangle relative to the corner of the underlying cell. The value is expressed as 1024th‘s of that cell‘s width.
+                    rwT (2 bytes): A RwU that specifies the row of the cell under the top left corner of the bounding rectangle of the shape.
+                    dyT (2 bytes): A signed integer that specifies the y coordinate of the top left corner of the bounding rectangle relative to the corner of the underlying cell. The value is expressed as 1024th‘s of that cell‘s height.
+                    colR (2 bytes): A Col256U that specifies the column of the cell under the bottom right corner of the bounding rectangle of the shape.
+                    dxR (2 bytes): A signed integer that specifies the x coordinate of the bottom right corner of the bounding rectangle relative to the corner of the underlying cell. The value is expressed as 1024th‘s of that cell‘s width.
+                    rwB (2 bytes): A RwU that specifies the row of the cell under the bottom right corner of the bounding rectangle of the shape.
+                    dyB (2 bytes): A signed integer that specifies the y coordinate of the bottom right corner of the bounding rectangle relative to the corner of the underlying cell. The value is expressed as 1024th‘s of that cell‘s height.
+                    */
+                    m_colL = readU16(data + 10);
+                    m_dxL = readU16(data + 12);
+                    m_rwT = readU16(data + 14);
+                    m_dyT = readU16(data + 16);
+                    m_colR = readU16(data + 18);
+                    m_dxR = readU16(data + 20);
+                    m_rwB = readU16(data + 22);
+                    m_dyB = readU16(data + 24);
+                    std::cout << "OfficeArtChildAnchorSheet or OfficeArtChildAnchorChart colL=" << m_colL << " dxL=" << m_dxL << " rwT=" << m_rwT << " dyT=" << m_dyT << " colR=" << m_colR << " dxR=" << m_dxR << " rwB=" << m_rwB << " dyB=" << m_dyB << " recLen=" << recLen << std::endl;
+                } break;
+                default:
+                    std::cout << "Unhandled OfficeArtChildAnchor type=" << recLen << std::endl;
+                    break;
+            }
+            break;
+        case 0xF011: // OfficeArtClientData
+            printf("OfficeArtClientData\n");
+            break;
+        case 0xF11E: // OfficeArtSplitMenuColorContainer
+            printf("OfficeArtSplitMenuColorContainer\n");
+            break;
+        default:
+            std::cout << "DrawingObject: Unhandled record type=" << recType << " size=" << recLen << std::endl;
+            if(recordHandled) *recordHandled = false;
+            break;
+    }
+    return 8 + recLen;
+}
+
+// ========== MsoDrawing ==========
+
+const unsigned MsoDrawingRecord::id = 0xEC;
+
+void MsoDrawingRecord::dump(std::ostream& out) const
+{
+    out << "MsoDrawingRecord" << std::endl;
+}
+
+void MsoDrawingRecord::setData(unsigned size, const unsigned char* data, const unsigned* /* continuePositions */)
+{
+    if(size < 24) {
+        setIsValid(false);
+        return;
+    }
+
+    //printf("MsoDrawingRecord: START_POS %i\n",data+0);
+    
+    // rh
+    unsigned recType = 0;
+    unsigned long recLen = 0;
+    readHeader(data, 0, 0, &recType, &recLen);
+    if(recType < 0xF000 || recType > 0xFFFF) {
+        std::cerr << "Invalid MsoDrawing record" << std::endl;
+        setIsValid(false);
+        return;
+    }
+    
+    unsigned long offset = 8;
+    while(offset + 8 <= size) {
+        offset += handleObject(size, data + offset);
+    }
+
+    //printf("MsoDrawingRecord: END_POS %i, recLen=%i\n",data+offset,recLen);
+}
+
+// ========== MsoDrawingGroup ==========
+
+const unsigned MsoDrawingGroupRecord::id = 0xEB;
+
+MsoDrawingGroupRecord::MsoDrawingGroupRecord(Workbook *book) : Record(book) {}
+MsoDrawingGroupRecord::~MsoDrawingGroupRecord() {}
+
+void MsoDrawingGroupRecord::dump(std::ostream& out) const
+{
+    out << "MsoDrawingGroupRecord" << std::endl;
+}
+
+void MsoDrawingGroupRecord::setData(unsigned size, const unsigned char* data, const unsigned* continuePositions)
+{
+    //printf("MsoDrawingGroupRecord::setData size=%i data=%i continuePositions=%i\n",size,*data, *continuePositions);
+    if(size < 8 || !m_workbook->store()) {
+        setIsValid(false);
+        return;
+    }
+
+    unsigned recVer = 0;
+    unsigned recInstance = 0;
+    unsigned recType = 0;
+    unsigned long recLen = 0;
+    readHeader(data, &recVer, &recInstance, &recType, &recLen);
+    if(recType != 0xF000) {
+        std::cerr << "Invalid MsoDrawingGroup record" << std::endl;
+        setIsValid(false);
+        return;
+    }
+    
+    // drawingGroup
+    readHeader(data + 8, &recVer, &recInstance, &recType, &recLen);
+    Q_ASSERT(recType == 0xF006);
+    unsigned long spidMax = readU32(data + 16);
+    unsigned long cidcl = readU32(data + 20);
+    unsigned long cspSaved = readU32(data + 24);
+    unsigned long cdgSaved = readU32(data + 28);
+    std::cout << "MsoDrawingGroupRecord: spidMax=" << spidMax << " cidcl=" << cidcl << " cspSaved=" << cspSaved << " cdgSaved=" << cdgSaved << std::endl;
+    for(uint i = 0; i < cidcl; ++i) {
+        unsigned long dgid = readU32(data + 32 + (i * 8));
+        unsigned long cspidCur = readU32(data + 36 + (i * 8));
+        std::cout << "dgid=" << dgid << " cspidCur=" << cspidCur << std::endl;
+    }
+    
+    // blipStore
+    const unsigned char* blipStoreOffset = data + 16 + recLen;
+    readHeader(blipStoreOffset, &recVer, &recInstance, &recType, &recLen);
+    if(recType == 0xF001) {
+        blipStoreOffset += 8;
+        for(uint i = 0; i < recInstance; ++i) {
+            unsigned long blibRecLen = 0;
+            readHeader(blipStoreOffset, &recVer, &recInstance, &recType, &blibRecLen);
+            const unsigned char* blipItemOffset = blipStoreOffset + 8;
+            if(recType == 0xF007) { // OfficeArtFBSE
+                std::cout << "MsoDrawingGroupRecord: OfficeArtFBSE" << std::endl;
+                const unsigned btWin32 = readU8(blipItemOffset);
+                const unsigned btMacOS = readU8(blipItemOffset + 1);
+                switch(btWin32) {
+                    case 0x00: printf("MsoDrawingGroupRecord: There was an error reading the file.\n"); break;
+                    case 0x01: printf("MsoDrawingGroupRecord: Unknown BLIP type.\n"); break;
+                    case 0x02: printf("MsoDrawingGroupRecord: EMF format.\n"); break;
+                    case 0x03: printf("MsoDrawingGroupRecord: WMF format.\n"); break;
+                    case 0x04: printf("MsoDrawingGroupRecord: Macintosh PICT format.\n"); break;
+                    case 0x05: printf("MsoDrawingGroupRecord: JPEG format.\n"); break;
+                    case 0x06: printf("MsoDrawingGroupRecord: PNG format.\n"); break;
+                    case 0x07: printf("MsoDrawingGroupRecord: DIB format.\n"); break;
+                    case 0x11: printf("MsoDrawingGroupRecord: TIFF format.\n"); break;
+                    case 0x12: printf("MsoDrawingGroupRecord: JPEG format in YCCK or CMYK color space.\n"); break;
+                }
+                //char rgbUid[16];
+                //for(int i = 0; i < 16; ++i) rgbUid[i] = readU8(blipItemOffset + 2 + i);
+                unsigned tag = readU16(blipItemOffset + 18);
+                unsigned long size = readU32(blipItemOffset + 20);
+                unsigned long cRef = readU32(blipItemOffset + 24);
+                unsigned long foDelay = readU32(blipItemOffset + 28);
+                // 1 unused byte
+                unsigned long cbName = readU8(blipItemOffset + 33);
+                // 2 unused bytes
+                UString nameData;
+                blipItemOffset += 36;
+                if(cbName > 0x00) {
+                    nameData = readByteString(blipItemOffset, size);
+                    blipItemOffset += size;
+                }
+                std::cout << "nameData=" << nameData.ascii() << " size=" << size << " cRef=" << cRef << " foDelay=" << foDelay << std::endl;
+                readHeader(blipItemOffset, &recVer, &recInstance, &recType, &recLen);
+                blipItemOffset += 8;
+            } else if(recType >= 0xF018 && recType <= 0xF117) { // OfficeArtBlip
+                // fall through
+            } else {
+                std::cerr << "MsoDrawingGroupRecord: Unknown OfficeArtBStoreContainerFileBlock type=" << recType << std::endl;
+                blipStoreOffset += 8 + blibRecLen;
+                continue;
+            }
+
+            // OfficeArtBlip
+
+            char rgbUid[16]; // every OfficeArtBlip starts with the unique rgbUid
+            for(int i = 0; i < 16; ++i)
+                rgbUid[i] = readU8(blipItemOffset + i);
+            
+            MsoDrawingBlibItem *item = new MsoDrawingBlibItem;
+            m_items.push_back(item);
+
+            quint16 offset = 0;
+            const char* namesuffix = "";
+            const char* mimetype = "application/octet-stream";
+            switch(recType) {
+                case 0xF01A:
+                    offset = (recInstance == 0x3D4) ? 50 : 66;
+                    namesuffix = ".emf";
+                    mimetype = "application/octet-stream";
+                    break;
+                case 0xF01B:
+                    offset = (recInstance == 0x216) ? 50 : 66;
+                    namesuffix = ".wmf";
+                    mimetype = "application/octet-stream";
+                    break;
+                case 0xF01C:
+                    offset = (recInstance == 0x542) ? 50 : 66;
+                    namesuffix = ".pict";
+                    mimetype = "image/pict";
+                    break;
+                case 0xF01D:
+                case 0xF02A: {
+                    offset = (recInstance == 0x46A || recInstance==0x6E2) ? 17 : 33;
+                    namesuffix = ".jpg";
+                    mimetype = "image/jpeg";
+                } break;
+                case 0xF01E:
+                    offset = (recInstance == 0x6E0) ? 17 : 33;
+                    namesuffix = ".png";
+                    mimetype = "image/png";
+                    break;
+                case 0xF01F:
+                    offset = (recInstance == 0x7A8) ? 17 : 33;
+                    namesuffix = ".dib";
+                    mimetype = "application/octet-stream";
+                    break;
+                case 0xF029:
+                    offset = (recInstance == 0x6E4) ? 17 : 33;
+                    namesuffix = ".tiff";
+                    mimetype = "image/tiff";
+                    break;
+                default:
+                    printf("MsoDrawingGroupRecord: Unhandled Image with type=%x\n", recType);
+                    break;
+            }
+
+            const unsigned char *blipData = blipItemOffset + offset;
+            unsigned long blibSize = recLen - offset;
+            Q_ASSERT(blibSize <= size);
+            Store *store = m_workbook->store();
+            Q_ASSERT(store);
+            item->id = QByteArray(rgbUid,16).toHex().constData();
+            item->filename = "Pictures/" + item->id + namesuffix;
+            if(store->open(item->filename)) {
+                store->write((const char*)blipData, blibSize);
+                store->close();
+            } else {
+                std::cerr << "MsoDrawingGroupRecord: Failed to open file=" << item->filename << " mimetype=" << mimetype << std::endl;
+            }
+
+            blipStoreOffset += 8 + blibRecLen;
+        }
+    }
+
+    // draingPrimaryOptions
+    // draingTertiaryOptions
+    // colorMRU
+    // splitColors
 }
 
 // ========== XF ==========
@@ -1663,7 +2032,7 @@ public:
     unsigned patternBackColor;
 };
 
-XFRecord::XFRecord():  Record()
+XFRecord::XFRecord(Workbook *book):  Record(book)
 {
     d = new XFRecord::Private();
     d->fontIndex           = 0;
@@ -1700,7 +2069,7 @@ XFRecord::~XFRecord()
     delete d;
 }
 
-XFRecord::XFRecord(const XFRecord& xf):  Record()
+XFRecord::XFRecord(const XFRecord& xf):  Record(xf.m_workbook)
 {
     d = new XFRecord::Private();
     operator=(xf);
@@ -2070,7 +2439,7 @@ void XFRecord::setData(unsigned size, const unsigned char* data, const unsigned 
 
         unsigned linestyle = readU16(data + 10);
         unsigned color1 = readU16(data + 12);
-        // unsigned color2 = readU16( data + 14 );
+        unsigned color2 = readU16(data + 14);
         unsigned flag = readU16(data + 16);
         unsigned fill = readU16(data + 18);
 
@@ -2081,13 +2450,13 @@ void XFRecord::setData(unsigned size, const unsigned char* data, const unsigned 
 
         setLeftBorderColor(color1 & 0x7f);
         setRightBorderColor((color1 >> 7) & 0x7f);
-        setTopBorderColor(color1 & 0x7f);
-        setBottomBorderColor((color1 >> 7) & 0x7f);
+        setTopBorderColor(color2 & 0x7f);
+        setBottomBorderColor((color2 >> 7) & 0x7f);
 
         setDiagonalTopLeft(color1 & 0x40);
-        setDiagonalBottomLeft(color1 & 0x40);
+        setDiagonalBottomLeft(color1 & 0x80);
         setDiagonalStyle((flag >> 4) & 0x1e);
-        setDiagonalColor(((flag & 0x1f) << 2) + ((color1 >> 14) & 3));
+        setDiagonalColor(((flag & 0x1f) << 2) + ((color2 >> 14) & 3));
 
         setFillPattern((flag >> 10) & 0x3f);
         setPatternForeColor(fill & 0x7f);
@@ -2152,7 +2521,6 @@ void XFRecord::dump(std::ostream& out) const
 class ExcelReader::Private
 {
 public:
-
     // the workbook
     Workbook* workbook;
 
@@ -2182,7 +2550,6 @@ public:
 ExcelReader::ExcelReader()
 {
     d = new ExcelReader::Private();
-
     d->workbook    = 0;
     d->activeSheet = 0;
     d->formulaCell = 0;
@@ -2195,57 +2562,67 @@ ExcelReader::~ExcelReader()
     delete d;
 }
 
-static Record* createBOFRecord()
+static Record* createBOFRecord(Workbook *book)
 {
-    return new BOFRecord();
+    return new BOFRecord(book);
 }
-static Record* createExternBookRecord()
+static Record* createExternBookRecord(Workbook *book)
 {
-    return new ExternBookRecord();
+    return new ExternBookRecord(book);
 }
-static Record* createExternNameRecord()
+static Record* createExternNameRecord(Workbook *book)
 {
-    return new ExternNameRecord();
+    return new ExternNameRecord(book);
 }
-static Record* createFilepassRecord()
+static Record* createFilepassRecord(Workbook *book)
 {
-    return new FilepassRecord();
+    return new FilepassRecord(book);
 }
-static Record* createFormulaRecord()
+static Record* createFormulaRecord(Workbook *book)
 {
-    return new FormulaRecord();
+    return new FormulaRecord(book);
 }
-static Record* createSharedFormulaRecord()
+static Record* createSharedFormulaRecord(Workbook *book)
 {
-    return new SharedFormulaRecord();
+    return new SharedFormulaRecord(book);
 }
-static Record* createMulRKRecord()
+static Record* createMulRKRecord(Workbook *book)
 {
-    return new MulRKRecord();
+    return new MulRKRecord(book);
 }
-static Record* createNameRecord()
+static Record* createNameRecord(Workbook *book)
 {
-    return new NameRecord();
+    return new NameRecord(book);
 }
-static Record* createRKRecord()
+static Record* createRKRecord(Workbook *book)
 {
-    return new RKRecord();
+    return new RKRecord(book);
 }
-static Record* createRStringRecord()
+static Record* createRStringRecord(Workbook *book)
 {
-    return new RStringRecord();
+    return new RStringRecord(book);
 }
-static Record* createSSTRecord()
+static Record* createSSTRecord(Workbook *book)
 {
-    return new SSTRecord();
+    return new SSTRecord(book);
 }
-static Record* createXFRecord()
+static Record* createXFRecord(Workbook *book)
 {
-    return new XFRecord();
+    return new XFRecord(book);
 }
-static Record* createObjRecord()
+static Record* createObjRecord(Workbook *book)
 {
-    return new ObjRecord();
+    return new ObjRecord(book);
+}
+
+static Record* createRecordMsoDrawingRecord(Workbook *book)
+{
+    return new MsoDrawingRecord(book);
+}
+
+static Record* createMsoDrawingGroupRecord(Workbook *book)
+{
+    return new MsoDrawingGroupRecord(book);
 }
 
 static void registerAllRecordClasses()
@@ -2264,6 +2641,8 @@ static void registerAllRecordClasses()
     RecordRegistry::registerRecordClass(SSTRecord::id, createSSTRecord);
     RecordRegistry::registerRecordClass(XFRecord::id, createXFRecord);
     RecordRegistry::registerRecordClass(ObjRecord::id, createObjRecord);
+    RecordRegistry::registerRecordClass(MsoDrawingRecord::id, createRecordMsoDrawingRecord);
+    RecordRegistry::registerRecordClass(MsoDrawingGroupRecord::id, createMsoDrawingGroupRecord);
 }
 
 void printEntries(POLE::Storage &storage, const std::string path = "/", int level = 0)
@@ -2402,7 +2781,7 @@ bool ExcelReader::load(Workbook* workbook, const char* filename)
                      if (propertyId != 0x0001 /* GKPIDDSI_CODEPAGE */ &&
                          propertyId != 0x0013 /* GKPIDDSI_SHAREDDOC */ )
                      {
-                         printf( "Ignoring property with unknown id %i and type %lu\n", propertyId, type );
+                         std::cout << "Ignoring property with unknown id=" << propertyId << " and type=" << type << std::endl;
                      }
                      break;
               }
@@ -2415,46 +2794,52 @@ bool ExcelReader::load(Workbook* workbook, const char* filename)
 
     { // read CompObj stream
       POLE::Stream *combObjStream = new POLE::Stream( &storage, "/CompObj" );
-      //const unsigned long streamStartPosition = combObjStream->tell();
+
       // header
       unsigned bytes_read = combObjStream->read( buffer, 28 );
-      //const unsigned long version = readU32( buffer + 5 );
+      unsigned long length = 0;
+      bool hasCombObjStream = bytes_read == 28;
+      if(hasCombObjStream) {
+          //const unsigned long version = readU32( buffer + 5 );
+          //printf(">>>> combObjStream->fullName=%s\n",combObjStream->fullName().c_str());
+          //printEntries(storage,"CompObj");
 
-      //printf(">>>> combObjStream->fullName=%s\n",combObjStream->fullName().c_str());
-      //printEntries(storage,"CompObj");
-
-      // AnsiUserType
-      bytes_read = combObjStream->read( buffer, 4 );
-      const unsigned long length = readU32( buffer );
-      bytes_read = combObjStream->read( buffer, length );
-      UString ansiUserType = readByteString(buffer, length);
-      printf( "length=%lu ansiUserType=%s\n",length,ansiUserType.ascii() );
-
-      // AnsiClipboardFormat
-      bytes_read = combObjStream->read( buffer, 4 );
-      const unsigned long markerOrLength = readU32( buffer );
-      switch (markerOrLength) {
-        case 0x00000000: break; // Must not be present, do nothing...
-        case 0xFFFFFFFF: // fall through
-        case 0xFFFFFFFE: { // must be 4 bytes and contains a clipboard identifier
+          // AnsiUserType
           bytes_read = combObjStream->read( buffer, 4 );
-          //const unsigned long standardFormat = readU32( buffer );
-          // switch(standardFormat) {
-          //   case 0x00000002: standardFormat=CF_BITMAP;
-          //   case 0x00000003: standardFormat=CF_METAFILEPICT
-          //   case 0x00000008: standardFormat=CF_DIB
-          //   case 0x0000000E: standardFormat=CF_ENHMETAFILE
-          // }
-          //TODO...
-        }
-        break;
-        default:
-          bytes_read = combObjStream->read( buffer, markerOrLength );
-          UString ansiString = readByteString(buffer, markerOrLength);
-          //TODO...
-          //printf( "markerOrLength=%i ansiString=%s\n",markerOrLength,ansiString.ascii() );
+          length = readU32( buffer );
+          bytes_read = combObjStream->read( buffer, length );
+          if(bytes_read != length) hasCombObjStream = false;
       }
-      //TODO Reserved1, UnicodeMarker, UnicodeUserType, UnicodeClipboardFormat, Reserved2
+      if(hasCombObjStream) {
+          UString ansiUserType = readByteString(buffer, length);
+          printf( "length=%lu ansiUserType=%s\n",length,ansiUserType.ascii() );
+
+          // AnsiClipboardFormat
+          bytes_read = combObjStream->read( buffer, 4 );
+          const unsigned long markerOrLength = readU32( buffer );
+          switch (markerOrLength) {
+            case 0x00000000: break; // Must not be present, do nothing...
+            case 0xFFFFFFFF: // fall through
+            case 0xFFFFFFFE: { // must be 4 bytes and contains a clipboard identifier
+              bytes_read = combObjStream->read( buffer, 4 );
+              //const unsigned long standardFormat = readU32( buffer );
+              // switch(standardFormat) {
+              //   case 0x00000002: standardFormat=CF_BITMAP;
+              //   case 0x00000003: standardFormat=CF_METAFILEPICT
+              //   case 0x00000008: standardFormat=CF_DIB
+              //   case 0x0000000E: standardFormat=CF_ENHMETAFILE
+              // }
+              //TODO...
+            }
+            break;
+            default:
+              bytes_read = combObjStream->read( buffer, markerOrLength );
+              UString ansiString = readByteString(buffer, markerOrLength);
+              //TODO...
+              //printf( "markerOrLength=%i ansiString=%s\n",markerOrLength,ansiString.ascii() );
+          }
+          //TODO Reserved1, UnicodeMarker, UnicodeUserType, UnicodeClipboardFormat, Reserved2
+      }
       delete combObjStream;
     }
 
@@ -2509,31 +2894,36 @@ bool ExcelReader::load(Workbook* workbook, const char* filename)
             next_type = readU16(small_buffer);
             unsigned long next_size = readU16(small_buffer + 2);
 
-            if (next_type == 0x3C) {
-                // type of next record is 0x3C, so go ahead and append the contents of the next record to the buffer
-                continuePositions[continuePositionsCount++] = size;
-                if (continuePositionsCount >= continuePositionsSize) {
-                    continuePositionsSize *= 2;
-                    continuePositions = (unsigned int *) realloc(continuePositions, continuePositionsSize * sizeof(int));
-                }
-
-                // first verify the buffer is large enough to hold all the data
-                if ((size + next_size) > buffer_size) {
-                    buffer = (unsigned char *) realloc(buffer, size + next_size);
-                    buffer_size = size + next_size;
-                }
-
-                // next read the data of the record
-                bytes_read = stream->read(buffer + size, next_size);
-                if (bytes_read != next_size) {
-                    std::cout << "ERROR!" << std::endl;
+            if(next_type == MsoDrawingGroupRecord::id) {
+                if(type != MsoDrawingGroupRecord::id)
                     break;
-                }
-
-                // and finally update size
-                size += next_size;
+            } else if(next_type != 0x3C) {
+                break;
             }
-        } while (next_type == 0x3C);
+
+            // compress multiple MsoDrawingGroup records or continues records (0x3C) into one.
+            continuePositions[continuePositionsCount++] = size;
+            if (continuePositionsCount >= continuePositionsSize) {
+                continuePositionsSize *= 2;
+                continuePositions = (unsigned int *) realloc(continuePositions, continuePositionsSize * sizeof(int));
+            }
+
+            // first verify the buffer is large enough to hold all the data
+            if ((size + next_size) > buffer_size) {
+                buffer = (unsigned char *) realloc(buffer, size + next_size);
+                buffer_size = size + next_size;
+            }
+
+            // next read the data of the record
+            bytes_read = stream->read(buffer + size, next_size);
+            if (bytes_read != next_size) {
+                std::cout << "ERROR!" << std::endl;
+                break;
+            }
+
+            // and finally update size
+            size += next_size;
+        } while (true);
 
         // append total size as last continue position
         continuePositions[continuePositionsCount] = size;
@@ -2545,7 +2935,7 @@ bool ExcelReader::load(Workbook* workbook, const char* filename)
         if (type == 0) continue;
 
         // create the record using the factory
-        Record* record = Record::create(type);
+        Record* record = Record::create(type, workbook);
 
         if (record) {
             // setup the record and invoke handler
@@ -2575,7 +2965,7 @@ bool ExcelReader::load(Workbook* workbook, const char* filename)
 
 #ifdef SWINDER_XLS2RAW
         if (!record) {
-            std::cout << "Unhandled Record";
+            std::cout << "Unhandled Record 0x";
             std::cout << std::setfill('0') << std::setw(4) << std::hex << type;
             std::cout << std::dec;
             std::cout << " (" << type << ")";

@@ -60,7 +60,6 @@ public:
     QColor  *      colorcond;
     QFont   *      fontcond;
     QString *      styleName;
-    Style *        style;
     Type           cond;
 
     Conditional();
@@ -104,7 +103,7 @@ public:
     /**
      * \return the style that matches first (or 0 if no condition matches)
      */
-    Style* testConditions(const Cell& cell) const;
+    Style* testConditions(const Cell& cell, const StyleManager* styleManager) const;
 
     /**
      * Retrieve the current list of conditions we're checking
@@ -129,6 +128,12 @@ public:
      * \return the DOM element for the conditions.
      */
     QDomElement saveConditions(QDomDocument & doc) const;
+
+    /**
+     * \ingroup OpenDocument
+     * Loads the condtional formatting.
+     */
+    Conditional loadOdfCondition(const StyleManager* styleManager, const QString &conditionValue, const QString &applyStyleName);
 
     /**
      * \ingroup OpenDocument

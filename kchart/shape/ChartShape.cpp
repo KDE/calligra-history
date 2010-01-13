@@ -89,6 +89,7 @@
 #include <KoShapeBorderModel.h>
 #include <KoColorBackground.h>
 #include <KoLineBorder.h>
+#include <KoOdfWorkaround.h>
 
 // KChart
 #include "Axis.h"
@@ -261,6 +262,8 @@ public:
     ~Private();
 
     void showLabel( KoShape *label );
+    QPointF relativePosition( KoShape *shape );
+    void setRelativePosition( KoShape *shape, const QPointF &relPos );
 
     // The components of a chart
     KoShape   *title;
@@ -395,8 +398,8 @@ ChartShape::ChartShape()
     setClipping( d->legend, true );
 
     // A few simple defaults (chart type and subtype in this case)
-    d->plotArea->setChartType( BarChartType );
-    d->plotArea->setChartSubType( NormalChartSubtype );
+    setChartType( BarChartType );
+    setChartSubType( NormalChartSubtype );
 
     // Create the Title, which is a standard TextShape.
     // We use a empty dataCenterMap here for the creation and then in
@@ -413,6 +416,10 @@ ChartShape::ChartShape()
         TextLabelData *dataDummy = new TextLabelData;
         d->title->setUserData( dataDummy );
     }
+
+    // Start with a reasonable default size that we can base all following relative
+    // positions of chart elements on.
+    KoShape::setSize( QSizeF( CM_TO_POINT( 8 ), CM_TO_POINT( 5 ) ) );
 
     // Add the title to the shape
     addChild( d->title );
@@ -472,9 +479,6 @@ ChartShape::ChartShape()
 
     KoLineBorder *border = new KoLineBorder( 0, Qt::black );
     setBorder( border );
-
-    // Default size of the chart.
-    KoShape::setSize( QSizeF( CM_TO_POINT( 8 ), CM_TO_POINT( 5 ) ) );
 
     requestRepaint();
 }
@@ -671,6 +675,16 @@ static QPointF scalePointCenterBottom( QPointF center, qreal factorX, qreal fact
     return center;
 }
 
+QPointF ChartShape::Private::relativePosition( KoShape *shape )
+{
+    return shape->absolutePosition() - this->shape->absolutePosition( KoFlake::TopLeftCorner );
+}
+
+void ChartShape::Private::setRelativePosition( KoShape *shape, const QPointF &relPos )
+{
+    shape->setAbsolutePosition( relPos + this->shape->absolutePosition( KoFlake::TopLeftCorner ) );
+}
+
 void ChartShape::setSize( const QSizeF &newSize )
 {
     Q_ASSERT( d->plotArea );
@@ -683,16 +697,20 @@ void ChartShape::setSize( const QSizeF &newSize )
         KoShape *title = axis->title();
         switch( axis->position() ) {
         case TopAxisPosition:
-            title->setAbsolutePosition( scalePointCenterTop( title->absolutePosition(), factorX, factorY, title->boundingRect().size() ) );
+            d->setRelativePosition( title,
+                                    scalePointCenterTop( d->relativePosition( title ), factorX, factorY, title->boundingRect().size() ) );
             break;
         case BottomAxisPosition:
-            title->setAbsolutePosition( scalePointCenterBottom( title->absolutePosition(), factorX, factorY, title->boundingRect().size() ) );
+            d->setRelativePosition( title,
+                                    scalePointCenterBottom( d->relativePosition( title ), factorX, factorY, title->boundingRect().size() ) );
             break;
         case LeftAxisPosition:
-            title->setAbsolutePosition( scalePointCenterLeft( title->absolutePosition(), factorX, factorY, title->boundingRect().size() ) );
+            d->setRelativePosition( title,
+                                    scalePointCenterLeft( d->relativePosition( title ), factorX, factorY, title->boundingRect().size() ) );
             break;
         case RightAxisPosition:
-            title->setAbsolutePosition( scalePointCenterRight( title->absolutePosition(), factorX, factorY, title->boundingRect().size() ) );
+            d->setRelativePosition( title,
+                                    scalePointCenterRight( d->relativePosition( title ), factorX, factorY, title->boundingRect().size() ) );
             break;
         }
     }
@@ -700,16 +718,20 @@ void ChartShape::setSize( const QSizeF &newSize )
     // Reposition the Legend within the shape.
     switch ( d->legend->legendPosition() ) {
     case TopLegendPosition:
-        d->legend->setAbsolutePosition( scalePointCenterTop( d->legend->absolutePosition(), factorX, factorY, d->legend->boundingRect().size() ) );
+        d->setRelativePosition( d->legend,
+                                scalePointCenterTop( d->relativePosition( d->legend ), factorX, factorY, d->legend->boundingRect().size() ) );
         break;
     case BottomLegendPosition:
-        d->legend->setAbsolutePosition( scalePointCenterBottom( d->legend->absolutePosition(), factorX, factorY, d->legend->boundingRect().size() ) );
+        d->setRelativePosition( d->legend,
+                                scalePointCenterBottom( d->relativePosition( d->legend ), factorX, factorY, d->legend->boundingRect().size() ) );
         break;
     case StartLegendPosition:
-        d->legend->setAbsolutePosition( scalePointCenterLeft( d->legend->absolutePosition(), factorX, factorY, d->legend->boundingRect().size() ) );
+        d->setRelativePosition( d->legend,
+                                scalePointCenterLeft( d->relativePosition( d->legend ), factorX, factorY, d->legend->boundingRect().size() ) );
         break;
     case EndLegendPosition:
-        d->legend->setAbsolutePosition( scalePointCenterRight( d->legend->absolutePosition(), factorX, factorY, d->legend->boundingRect().size() ) );
+        d->setRelativePosition( d->legend,
+                                scalePointCenterRight( d->relativePosition( d->legend ), factorX, factorY, d->legend->boundingRect().size() ) );
         break;
     case TopStartLegendPosition:
     case BottomStartLegendPosition:
@@ -720,9 +742,12 @@ void ChartShape::setSize( const QSizeF &newSize )
     }
 
     // Reposition the Title, Subtitle and Footer within the shape.
-    d->title->setAbsolutePosition( scalePointCenterTop( d->title->absolutePosition(), factorX, factorY, d->title->boundingRect().size() ) );
-    d->subTitle->setAbsolutePosition( scalePointCenterTop( d->subTitle->absolutePosition(), factorX, factorY, d->subTitle->boundingRect().size() ) );
-    d->footer->setAbsolutePosition( scalePointCenterBottom( d->footer->absolutePosition(), factorX, factorY, d->footer->boundingRect().size() ) );
+    d->setRelativePosition( d->title,
+                            scalePointCenterTop( d->relativePosition( d->title ), factorX, factorY, d->title->boundingRect().size() ) );
+    d->setRelativePosition( d->subTitle,
+                            scalePointCenterTop( d->relativePosition( d->subTitle ), factorX, factorY, d->subTitle->boundingRect().size() ) );
+    d->setRelativePosition( d->footer,
+                            scalePointCenterBottom( d->relativePosition( d->footer ), factorX, factorY, d->footer->boundingRect().size() ) );
 
     // Finally, resize the plotarea.
     const QSizeF plotAreaSize = d->plotArea->size();
@@ -731,6 +756,51 @@ void ChartShape::setSize( const QSizeF &newSize )
 
     // Oh yeah, the whole shape needs resizing too.
     KoShape::setSize( newSize );
+}
+
+void ChartShape::setLegendSize( const QSizeF &size )
+{
+    QPointF newPos = d->legend->position();
+    QSizeF oldSize = d->legend->size();
+    switch ( d->legend->legendPosition() ) {
+    case TopLegendPosition:
+        // Move it to the left as much as the width changed
+        newPos.rx() -= (size.width() - oldSize.width()) / 2.0;
+        // No adjustment of y position needed
+        break;
+    case BottomLegendPosition:
+        // Move it up as much as the height changed
+        newPos.ry() -= (size.height() - oldSize.height());
+        // Move it to the left as much as the width changed
+        newPos.rx() -= (size.width() - oldSize.width()) / 2.0;
+        break;
+    case StartLegendPosition:
+        // No adjustment of x position needed
+        newPos.ry() -= (size.height() - oldSize.height()) / 2.0;
+        break;
+    case EndLegendPosition:
+        newPos.ry() -= (size.height() - oldSize.height()) / 2.0;
+        // Move it to the left as much as the width changed
+        newPos.rx() -= (size.width() - oldSize.width());
+        break;
+    // FIXME: The following positions are not handled
+    // The new position is simply set as is
+    case TopStartLegendPosition:
+    case BottomStartLegendPosition:
+    case TopEndLegendPosition:
+    case BottomEndLegendPosition:
+
+    // If the legend is floating, the user has changed the position manually.
+    // There's no way to determine where the user wants it to be after a resize.
+    // (more to the left? more to the right?)
+    case FloatingLegendPosition:
+        break;
+    }
+
+    // TODO: Adjust plot area's size and position if necessary
+
+    d->legend->setPosition( newPos );
+    d->legend->setSize( size );
 }
 
 void ChartShape::updateChildrenPositions()
@@ -745,8 +815,7 @@ void ChartShape::updateChildrenPositions()
         title->setPosition( titlePosition );
     }
 
-    const qreal legendXOffset = 10.0;
-    d->legend->setPosition( QPointF( size().width() + legendXOffset,
+    d->legend->setPosition( QPointF( size().width() - d->legend->size().width(),
                                      size().height() / 2.0 - d->legend->size().height() / 2.0 ) );
 }
 
@@ -797,6 +866,7 @@ void ChartShape::setChartType( ChartType type )
 {
     Q_ASSERT( d->plotArea );
     d->plotArea->setChartType( type );
+    emit chartTypeChanged( type );
 }
 
 void ChartShape::setChartSubType( ChartSubtype subType )
@@ -1036,6 +1106,11 @@ bool ChartShape::loadOdfEmbedded( const KoXmlElement &chartElement,
     loadOdfAttributes( chartElement, context,
                        OdfAdditionalAttributes | OdfMandatories | OdfCommonChildElements | OdfStyle );
 
+#ifndef NWORKAROUND_ODF_BUGS
+    if ( !background() )
+        setBackground( new KoColorBackground( KoOdfWorkaround::fixMissingFillColor( chartElement, context ) ) );
+#endif
+
     // Check if we're loading an embedded document
     if ( !chartElement.hasAttributeNS( KoXmlNS::chart, "class" ) ) {
         kDebug(35001) << "Error: Embedded document has no chart:class attribute.";
@@ -1054,7 +1129,7 @@ bool ChartShape::loadOdfEmbedded( const KoXmlElement &chartElement,
         if ( chartClass == ODF_CHARTTYPES[ (ChartType)type ] ) {
             //kDebug(35001) <<"found chart of type" << chartClass;
 
-            d->plotArea->setChartType( (ChartType)type );
+            setChartType( (ChartType)type );
             knownType = true;
             break;
         }

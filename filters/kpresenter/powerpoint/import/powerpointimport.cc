@@ -38,6 +38,7 @@
 #include "libppt.h"
 #include "datetimeformat.h"
 #include <iostream>
+#include <set>
 #include <math.h>
 #include "pictures.h"
 
@@ -62,7 +63,7 @@ class PowerPointImport::Private
 public:
     QString inputFile;
     QString outputFile;
-    QList<QString> pictureNames;
+    QMap<QByteArray, QString> pictureNames;
 
     Presentation *presentation;
     DateTimeFormat *dateTime;
@@ -80,21 +81,20 @@ PowerPointImport::~PowerPointImport()
     delete d;
 }
 
-QStringList
+QMap<QByteArray, QString>
 createPictures(const char* filename, KoStore* store, KoXmlWriter* manifest)
 {
     POLE::Storage storage(filename);
-    QStringList fileNames;
+    QMap<QByteArray, QString> fileNames;
     if (!storage.open()) return fileNames;
     POLE::Stream* stream = new POLE::Stream(&storage, "/Pictures");
     while (!stream->eof() && !stream->fail()
             && stream->tell() < stream->size()) {
-        QString mimetype;
-        std::string name = savePicture(*stream, fileNames.size(), store,
-                                       mimetype);
-        manifest->addManifestEntry(name.c_str(), mimetype);
-        if (name.length() == 0) break;
-        fileNames.append(name.c_str());
+
+        PictureReference ref = savePicture(*stream, store);
+        if (ref.name.length() == 0) break;
+        manifest->addManifestEntry("Pictures/" + ref.name, ref.mimetype);
+        fileNames[ref.uid] = ref.name;
     }
     storage.close();
     delete stream;
@@ -194,20 +194,59 @@ addElement(KoGenStyle& style, const char* name,
                           QString::fromUtf8(buffer.buffer(), buffer.buffer().size()));
 }
 
+void collectPropertyIntegerValues(const GroupObject* go,
+        const std::string& property, std::set<int>& set)
+{
+    if (go == NULL) return;
+    for (unsigned i = 0; i < go->objectCount(); i++) {
+        const Object* object = go->object(i);
+        if (object && object->hasProperty(property)) {
+            set.insert(object->getIntProperty(property));
+            const GroupObject* cgo = dynamic_cast<const GroupObject*>(object);
+            if (cgo) {
+                collectPropertyIntegerValues(cgo, property, set);
+            }
+        }
+    }
+}
+
+void PowerPointImport::createFillImages(KoGenStyles& styles)
+{
+    // loop over all objects to find all "fillPib" numbers
+    // the names are simply "fillImage" with the pib number concatenated
+    for (unsigned c = 0; c < d->presentation->slideCount(); c++) {
+        Slide* slide = d->presentation->slide(c);
+        GroupObject* root = slide->rootObject();
+        std::set<int> pibs;
+        collectPropertyIntegerValues(root, "fillPib", pibs);
+        for (std::set<int>::const_iterator i = pibs.begin(); i != pibs.end(); ++i) {
+            KoGenStyle fillImage(KoGenStyle::StyleFillImage);
+            fillImage.addAttribute("xlink:href", getPicturePath(*i));
+            styles.lookup(fillImage, "fillImage" + QString::number(*i),
+                KoGenStyles::DontForceNumbering);
+        }
+    }
+}
+
 void PowerPointImport::createMainStyles(KoGenStyles& styles)
 {
     int x = 0;
     int y = 0;
     Slide* master = d->presentation->masterSlide();
-
+    if(!master)
+        return;
     QString pageWidth = QString("%1pt").arg((master) ? master->pageWidth() : 0);
     QString pageHeight = QString("%1pt").arg((master) ? master->pageHeight() : 0);
+    
 
     KoGenStyle marker(KoGenStyle::StyleMarker);
     marker.addAttribute("draw:display-name", "msArrowEnd 5");
     marker.addAttribute("svg:viewBox", "0 0 210 210");
     marker.addAttribute("svg:d", "m105 0 105 210h-210z");
     styles.lookup(marker, "msArrowEnd_20_5");
+
+    // add all the fill image definitions
+    createFillImages(styles);
 
     KoGenStyle pl(KoGenStyle::StylePageLayout);
     pl.setAutoStyleInStylesDotXml(true);
@@ -254,7 +293,8 @@ void PowerPointImport::createMainStyles(KoGenStyles& styles)
 
     //Creating dateTime class object
     d->dateTime = new DateTimeFormat(master);
-    d->dateTime->addDateTimeAutoStyles(styles);
+    if(d->dateTime)
+        d->dateTime->addDateTimeAutoStyles(styles);
 
     KoGenStyle text(KoGenStyle::StyleTextAuto, "text");
     text.setAutoStyleInStylesDotXml(true);
@@ -303,8 +343,10 @@ void PowerPointImport::addFrame(KoGenStyle& style, const char* presentationClass
                                 QString x, QString y, QString pStyle, QString tStyle)
 {
     QBuffer buffer;
+    int  headerFooterAtomFlags = 0;
     Slide *master = d->presentation->masterSlide();
-    int  headerFooterAtomFlags = master->headerFooterFlags();
+    if(master)
+        headerFooterAtomFlags = master->headerFooterFlags();
     //QString datetime;
 
     buffer.open(QIODevice::WriteOnly);
@@ -352,6 +394,7 @@ QByteArray PowerPointImport::createContent(KoGenStyles& styles)
 {
     KoXmlWriter* contentWriter;
     QByteArray contentData;
+    int  headerFooterAtomFlags = 0;
     QBuffer contentBuffer(&contentData);
 
     contentBuffer.open(QIODevice::WriteOnly);
@@ -386,7 +429,8 @@ QByteArray PowerPointImport::createContent(KoGenStyles& styles)
     contentWriter->startElement("office:body");
     contentWriter->startElement("office:presentation");
 
-    int  headerFooterAtomFlags = d->presentation->masterSlide()->headerFooterFlags();
+    if(master)
+        headerFooterAtomFlags = master->headerFooterFlags();
 
     if (headerFooterAtomFlags && DateTimeFormat::fHasTodayDate) {
         contentWriter->startElement("presentation:date-time-decl");
@@ -418,8 +462,10 @@ QByteArray PowerPointImport::createContent(KoGenStyles& styles)
 
 void PowerPointImport::processDocStyles(Slide *master, KoGenStyles &styles)
 {
+    int  headerFooterAtomFlags = 0;
+    if(master)
+        headerFooterAtomFlags = master->headerFooterFlags();
 
-    int  headerFooterAtomFlags = master->headerFooterFlags();
     KoGenStyle dp(KoGenStyle::StyleDrawingPage, "drawing-page");
     dp.addProperty("presentation:background-objects-visible", "true");
 
@@ -435,7 +481,8 @@ void PowerPointImport::processDocStyles(Slide *master, KoGenStyles &styles)
 
     styles.lookup(dp, "dp");
 
-    master->setStyleName(styles.lookup(dp));
+    if(master)
+        master->setStyleName(styles.lookup(dp));
 }
 
 void PowerPointImport::processEllipse(DrawObject* drawObject, KoXmlWriter* xmlWriter)
@@ -1278,19 +1325,18 @@ void PowerPointImport::processFreeLine(DrawObject* drawObject, KoXmlWriter* xmlW
     xmlWriter->endElement(); // path
 }
 
+QString PowerPointImport::getPicturePath(int pib) const
+{
+    int picturePosition = pib - 1;
+    const char* rgbUid = d->presentation->getRgbUid(picturePosition);
+    return rgbUid ?"Pictures/" + d->pictureNames[QByteArray(rgbUid, 16)] :"";
+}
+
 void PowerPointImport::processPictureFrame(DrawObject* drawObject, KoXmlWriter* xmlWriter)
 {
     if (!drawObject || !xmlWriter) return;
 
-    int picturePosition = drawObject->getIntProperty("pib") - 1;
-    QString url;
-    if (picturePosition >= 0 && picturePosition < d->pictureNames.size()) {
-        url = "Pictures/" + d->pictureNames[picturePosition];
-    } else {
-        url = "Error:" + QString::number(d->pictureNames.size())
-              + " != " + QString::number(picturePosition);
-        kWarning() << "Picture index is out of range.";
-    }
+    QString url = getPicturePath(drawObject->getIntProperty("pib"));
     QString widthStr = QString("%1mm").arg(drawObject->width());
     QString heightStr = QString("%1mm").arg(drawObject->height());
     QString xStr = QString("%1mm").arg(drawObject->left());
@@ -1316,7 +1362,6 @@ void PowerPointImport::processDrawingObjectForBody(DrawObject* drawObject, KoXml
 {
 
     if (!drawObject || !xmlWriter) return;
-
     if (drawObject->shape() == DrawObject::Ellipse) {
         processEllipse(drawObject, xmlWriter);
     } else if (drawObject->shape() == DrawObject::Rectangle) {
@@ -1666,7 +1711,6 @@ void PowerPointImport::processTextObjectForBody(TextObject* textObject, KoXmlWri
 void PowerPointImport::processObjectForBody(Object* object, KoXmlWriter* xmlWriter)
 {
     if (!object ||  !xmlWriter) return;
-
     if (object->isText())
         processTextObjectForBody(static_cast<TextObject*>(object), xmlWriter);
     else if (object->isGroup())
@@ -1682,7 +1726,7 @@ void PowerPointImport::processSlideForBody(unsigned slideNo, KoXmlWriter* xmlWri
     Slide* slide = d->presentation->slide(slideNo);
     Slide* master = d->presentation->masterSlide();
 
-    if (!slide || !xmlWriter) return;
+    if (!slide || !xmlWriter || !master) return;
 
     QString nameStr = slide->title();
 
@@ -2398,7 +2442,12 @@ QString hexname(const Color &c)
 
 void processGraphicStyles(KoGenStyle& style, Object* object)
 {
-    if (object->hasProperty("draw:fill")) {
+    if (object->hasProperty("fillPib")) {
+        style.addProperty("draw:fill", "bitmap");
+        int pib = object->getIntProperty("fillPib");
+        style.addProperty("draw:fill-image-name",
+                "fillImage" + QString::number(pib));
+    } else if (object->hasProperty("draw:fill")) {
         std::string s = object->getStrProperty("draw:fill");
         QString ss(s.c_str());
         style.addProperty("draw:fill", ss, KoGenStyle::GraphicType);
@@ -2412,7 +2461,6 @@ void processGraphicStyles(KoGenStyle& style, Object* object)
         style.addProperty("draw:fill-color", "#99ccff",
                 KoGenStyle::GraphicType);
     }
-
 }
 
 void PowerPointImport::processTextObjectForStyle(TextObject* textObject,

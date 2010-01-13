@@ -38,6 +38,9 @@ KisChalkOpOption::KisChalkOpOption()
     m_checkable = false;
     m_options = new KisChalkOpOptionsWidget();
     connect(m_options->radiusSpinBox, SIGNAL(valueChanged(int)), SIGNAL(sigSettingChanged()));
+    connect(m_options->inkDepletionCHBox, SIGNAL(clicked(bool)), SIGNAL(sigSettingChanged()));
+    connect(m_options->opacity, SIGNAL(clicked(bool)), SIGNAL(sigSettingChanged()));
+    connect(m_options->saturation, SIGNAL(clicked(bool)), SIGNAL(sigSettingChanged()));
 
     setConfigurationPage(m_options);
 }
@@ -55,7 +58,9 @@ int KisChalkOpOption::radius() const
 
 void KisChalkOpOption::setRadius(int radius) const
 {
+    m_options->radiusSpinBox->blockSignals(true);
     m_options->radiusSpinBox->setValue( radius );
+    m_options->radiusSpinBox->blockSignals(false);
 }
 
 
@@ -82,11 +87,17 @@ bool KisChalkOpOption::saturation() const
 void KisChalkOpOption::writeOptionSetting(KisPropertiesConfiguration* setting) const
 {
     setting->setProperty("Chalk/radius", radius());
+    setting->setProperty("Chalk/inkDepletion", inkDepletion());
+    setting->setProperty("Chalk/opacity", opacity());
+    setting->setProperty("Chalk/saturation", saturation());
 }
 
 void KisChalkOpOption::readOptionSetting(const KisPropertiesConfiguration* setting)
 {
     m_options->radiusSpinBox->setValue(setting->getInt("Chalk/radius"));
+    m_options->inkDepletionCHBox->setChecked(setting->getBool("Chalk/inkDepletion"));
+    m_options->opacity->setChecked(setting->getBool("Chalk/opacity"));
+    m_options->saturation->setChecked(setting->getBool("Chalk/saturation"));
 }
 
 

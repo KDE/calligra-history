@@ -28,30 +28,9 @@ KisDynaPaintOpSettings::KisDynaPaintOpSettings()
 {
 }
 
-KisPaintOpSettingsSP KisDynaPaintOpSettings::clone() const
-{
-    KisPaintOpSettings* settings =
-        static_cast<KisPaintOpSettings*>(m_options->configuration());
-    return settings;
-}
-
-
 bool KisDynaPaintOpSettings::paintIncremental()
 {
-    return m_options->m_paintActionTypeOption->paintActionType() == BUILDUP;
-}
-
-void KisDynaPaintOpSettings::fromXML(const QDomElement& elt)
-{
-    KisPaintOpSettings::fromXML(elt);
-    m_options->setConfiguration(this);
-}
-
-void KisDynaPaintOpSettings::toXML(QDomDocument& doc, QDomElement& rootElt) const
-{
-    KisPropertiesConfiguration * settings = m_options->configuration();
-    settings->KisPropertiesConfiguration::toXML(doc, rootElt);
-    delete settings;
+    return (enumPaintActionType)getInt("PaintOpAction", WASH) == BUILDUP;
 }
 
 qreal KisDynaPaintOpSettings::initWidth() const

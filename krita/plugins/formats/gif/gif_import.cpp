@@ -55,13 +55,12 @@ KoFilter::ConversionStatus gifImport::convert(const QByteArray&, const QByteArra
 
     if (!filename.isEmpty()) {
 
-        KUrl url;
-        url.setPath(filename);
+        KUrl url(filename);
 
         if (url.isEmpty())
             return KoFilter::FileNotFound;
 
-        gifConverter ib(doc, doc -> undoAdapter());
+        GifConverter ib(doc, doc -> undoAdapter());
 
 
         switch (ib.buildImage(url)) {

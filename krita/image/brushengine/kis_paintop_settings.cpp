@@ -20,6 +20,7 @@
 
 #include <QImage>
 #include <QColor>
+#include <QPointer>
 
 #include <KoPointerEvent.h>
 #include <KoColor.h>
@@ -35,9 +36,11 @@
 #include "kis_paint_device.h"
 #include "kis_paintop_registry.h"
 #include "kis_paint_information.h"
+#include "kis_paintop_settings_widget.h"
 
 struct KisPaintOpSettings::Private {
     KisNodeSP node;
+    QPointer<KisPaintOpSettingsWidget> settingsWidget;
 };
 
 KisPaintOpSettings::KisPaintOpSettings()
@@ -50,9 +53,29 @@ KisPaintOpSettings::~KisPaintOpSettings()
     delete d;
 }
 
+void KisPaintOpSettings::setOptionsWidget(KisPaintOpSettingsWidget* widget)
+{
+    d->settingsWidget = widget;
+}
+
 void KisPaintOpSettings::mousePressEvent(KoPointerEvent *e)
 {
     e->ignore();
+}
+
+KisPaintOpSettingsSP KisPaintOpSettings::clone() const
+{
+    QString paintopID = getString("paintop");
+    if(paintopID.isEmpty())
+        return 0;
+    
+    KisPaintOpSettingsSP settings = KisPaintOpRegistry::instance()->settings(KoID(paintopID, ""));
+    QMapIterator<QString, QVariant> i(getProperties());
+    while (i.hasNext()) {
+        i.next();
+        settings->setProperty(i.key(), QVariant(i.value()));
+    }
+    return settings;
 }
 
 void KisPaintOpSettings::activate()
@@ -125,10 +148,12 @@ void KisPaintOpSettings::paintOutline(const QPointF& pos, KisImageWSP image, QPa
 }
 
 
-void KisPaintOpSettings::changePaintOpSize(qreal x, qreal y) const
+void KisPaintOpSettings::changePaintOpSize(qreal x, qreal y)
 {
-    Q_UNUSED(x);
-    Q_UNUSED(y);
+    if(!d->settingsWidget.isNull()) {
+        d->settingsWidget.data()->changePaintOpSize(x, y);
+        d->settingsWidget.data()->writeConfiguration(this);
+    }
 }
 
 #if defined(HAVE_OPENGL)
@@ -137,4 +162,12 @@ QString KisPaintOpSettings::modelName() const
     return "";
 }
 #endif
+
+KisPaintOpSettingsWidget* KisPaintOpSettings::optionsWidget() const
+{
+    if(d->settingsWidget.isNull())
+        return 0;
+    
+    return d->settingsWidget.data();
+}
 

@@ -37,7 +37,7 @@ KisToolSelectBase::KisToolSelectBase(KoCanvasBase *canvas, const QCursor& cursor
 
 QWidget* KisToolSelectBase::createOptionWidget()
 {
-    KisCanvas2* canvas = dynamic_cast<KisCanvas2*>(m_canvas);
+    KisCanvas2* canvas = dynamic_cast<KisCanvas2*>(this->canvas());
     Q_ASSERT(canvas);
     m_optWidget = new KisSelectionOptions(canvas);
     Q_CHECK_PTR(m_optWidget);
@@ -95,6 +95,9 @@ void KisToolSelectBase::keyPressEvent(QKeyEvent *event)
         break;
     case Qt::Key_T:
         slotSetAction(SELECTION_INTERSECT);
+        break;
+    case Qt::Key_Escape:
+        //don't forward to KisTool::keyPressEvent()
         break;
     default:
         KisTool::keyPressEvent(event);

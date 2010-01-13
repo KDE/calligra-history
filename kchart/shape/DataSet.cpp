@@ -48,7 +48,9 @@
 #include <KoXmlNS.h>
 #include <KoOdfGraphicStyles.h>
 #include <KoXmlReader.h>
+#include <KoShapeLoadingContext.h>
 #include <KoOdfLoadingContext.h>
+#include <KoOdfWorkaround.h>
 
 
 using namespace KChart;
@@ -60,15 +62,26 @@ public:
     ~Private();
     
     void       updateSize();
-    void       updateDiagram() const;
     ChartType  effectiveChartType() const;
     bool       isValidDataPoint( const QPoint &point ) const;
     QVariant   data( const CellRegion &region, int index ) const;
+
+    QBrush defaultBrush() const;
+    QBrush defaultBrush( int section ) const;
+
+    QPen defaultPen() const;
+
+    // Determines what sections of a cell region lie in rect
+    void sectionsInRect( const CellRegion &region, const QRect &rect,
+                         int &start, int &end ) const;
+    void dataChanged( KDChartModel::DataRole role, const QRect &rect ) const;
     
     DataSet      *parent;
     
     ChartType     chartType;
     ChartSubtype  chartSubType;
+
+    // FIXME: Retrieve these two from the plot area
     ChartType     globalChartType;
     ChartSubtype  globalChartSubType;
 
@@ -85,8 +98,15 @@ public:
     qreal errorMargin;
     qreal lowerErrorLimit;
     qreal upperErrorLimit;
+    // Determines whether pen has been set
+    bool penIsSet;
+    // Determines whether brush has been set
+    bool brushIsSet;
     QPen pen;
     QBrush brush;
+    QMap<int, QPen> pens;
+    QMap<int, QBrush> brushes;
+
     int num;
 
     // The different CellRegions for a dataset
@@ -95,6 +115,8 @@ public:
     CellRegion yDataRegion;     // normal y values
     CellRegion xDataRegion;     // x values -- only for scatter & bubble charts
     CellRegion customDataRegion;// used for bubble width in bubble charts
+    // FIXME: Remove category region from DataSet - this is not the place
+    // it belongs to.
     CellRegion categoryDataRegion; // x labels -- same for all datasets
     
     ChartProxyModel *model;
@@ -132,6 +154,8 @@ DataSet::Private::Private( DataSet *parent )
     attachedAxis = 0;
     size = 0;
     blockSignals = false;
+    penIsSet = false;
+    brushIsSet = false;
 }
 
 DataSet::Private::~Private()
@@ -145,12 +169,11 @@ void DataSet::Private::updateSize()
     newSize = qMax( newSize, yDataRegion.cellCount() );
     newSize = qMax( newSize, customDataRegion.cellCount() );
     newSize = qMax( newSize, categoryDataRegion.cellCount() );
-    
-    size = newSize;
-    // FIXME: The first test below can *never* fail because of the
-    //        assignment just above. (iw)
-    if ( newSize != size && !blockSignals && kdChartModel ) {
-        kdChartModel->dataSetSizeChanged( parent, size );
+
+    if ( size != newSize ) {
+        size = newSize;
+        if ( !blockSignals && kdChartModel )
+            kdChartModel->dataSetSizeChanged( parent, size );
     }
 }
 
@@ -165,22 +188,6 @@ ChartType DataSet::Private::effectiveChartType() const
     if ( attachedAxis && chartType == LastChartType )
         return attachedAxis->plotArea()->chartType();
     return chartType;
-}
-
-void DataSet::Private::updateDiagram() const
-{
-    if ( kdDiagram && kdDataSetNumber >= 0 && size > 0 ) {
-
-	// FIXME: This should be done in a more proper way.
-	// The problem here is that line diagrams don't use the brush
-	// to paint their lines, but the pen. We on the other hand set
-	// the data set color on the brush, not the pen.
-        if ( effectiveChartType() == LineChartType )
-            kdDiagram->setPen( kdDataSetNumber, brush.color() );
-        else
-            kdDiagram->setPen( kdDataSetNumber, pen );
-        kdDiagram->setBrush( kdDataSetNumber, brush );
-    }
 }
 
 bool DataSet::Private::isValidDataPoint( const QPoint &point ) const
@@ -242,6 +249,99 @@ QVariant DataSet::Private::data( const CellRegion &region, int index ) const
     
     return data;
 }
+
+void DataSet::Private::sectionsInRect( const CellRegion &region, const QRect &rect,
+                                       int &start, int &end ) const
+{
+    QVector<QRect> dataRegions = region.rects();
+
+    start = -1;
+    end = -1;
+
+    if ( region.orientation() == Qt::Horizontal ) {
+        QPoint  topLeft  = rect.topLeft();
+        QPoint  topRight = rect.topRight();
+
+        int totalWidth = 0;
+        int i;
+
+        for ( i = 0; i < dataRegions.size(); i++ ) {
+            if ( dataRegions[i].contains( topLeft ) ) {
+                start = totalWidth + topLeft.x() - dataRegions[i].topLeft().x();
+                break;
+            }
+            totalWidth += dataRegions[i].width();
+        }
+
+        for ( ; i < dataRegions.size(); i++ ) {
+            if ( dataRegions[i].contains( topRight ) ) {
+                end = totalWidth + topRight.x() - dataRegions[i].topLeft().x();
+                break;
+            }
+
+            totalWidth += dataRegions[i].width();
+        }
+    }
+    else {
+        QPoint  topLeft    = rect.topLeft();
+        QPoint  bottomLeft = rect.bottomLeft();
+
+        int totalHeight = 0;
+        int i;
+        for ( i = 0; i < dataRegions.size(); i++ ) {
+            if ( dataRegions[i].contains( topLeft ) ) {
+                start = totalHeight + topLeft.y() - dataRegions[i].topLeft().y();
+                break;
+            }
+
+            totalHeight += dataRegions[i].height();
+        }
+
+        for ( ; i < dataRegions.size(); i++ ) {
+            if ( dataRegions[i].contains( bottomLeft ) ) {
+                end = totalHeight + bottomLeft.y() - dataRegions[i].topLeft().y();
+                break;
+            }
+
+            totalHeight += dataRegions[i].height();
+        }
+    }
+}
+
+QBrush DataSet::Private::defaultBrush() const
+{
+    Q_ASSERT( kdDiagram );
+    Qt::Orientation modelDataDirection = kdChartModel->dataDirection();
+    if ( modelDataDirection == Qt::Vertical )
+        return defaultDataSetColor( kdDataSetNumber );
+    // FIXME: What to return in the other case?
+    return QBrush();
+}
+
+QBrush DataSet::Private::defaultBrush( int section ) const
+{
+    Q_ASSERT( kdDiagram );
+    Qt::Orientation modelDataDirection = kdChartModel->dataDirection();
+    // Horizontally aligned diagrams have a specific color per category
+    // See for example pie or ring charts. A pie chart contains a single
+    // data set, but the slices default to different brushes.
+    if ( modelDataDirection == Qt::Horizontal )
+        return defaultDataSetColor( section );
+    // Vertically aligned diagrams default to one brush per data set
+    return defaultBrush();
+}
+
+QPen DataSet::Private::defaultPen() const
+{
+    QPen pen( Qt::black );
+    ChartType chartType = effectiveChartType();
+    if ( chartType == LineChartType ||
+         chartType == ScatterChartType )
+        pen = QPen( defaultDataSetColor( kdDataSetNumber ) );
+
+    return pen;
+}
+
 
 DataSet::DataSet( ChartProxyModel *proxyModel )
     : d( new Private( this ) )
@@ -420,28 +520,58 @@ void DataSet::setShowLabels( bool showLabels )
 
 QPen DataSet::pen() const
 {
-    return d->pen;
+    return d->penIsSet ? d->pen : d->defaultPen();
 }
 
 QBrush DataSet::brush() const
 {
-    return d->brush;
+    return d->brushIsSet ? d->brush : d->defaultBrush();
+}
+
+QPen DataSet::pen( int section ) const
+{
+    if ( d->pens.contains( section ) )
+        return d->pens[ section ];
+    return pen();
+}
+
+QBrush DataSet::brush( int section ) const
+{
+    if ( d->brushes.contains( section ) )
+        return d->brushes[ section ];
+    if ( d->brushIsSet )
+        return brush();
+    return d->defaultBrush( section );
 }
 
 void DataSet::setPen( const QPen &pen )
 {
     d->pen = pen;
-    d->updateDiagram();
-    if ( !d->blockSignals && d->attachedAxis )
-        d->attachedAxis->update();
+    d->penIsSet = true;
+    if ( d->kdChartModel )
+        d->kdChartModel->dataSetChanged( this );
 }
 
 void DataSet::setBrush( const QBrush &brush )
 {
     d->brush = brush;
-    d->updateDiagram();
-    if ( !d->blockSignals && d->attachedAxis )
-        d->attachedAxis->update();
+    d->brushIsSet = true;
+    if ( d->kdChartModel )
+        d->kdChartModel->dataSetChanged( this );
+}
+
+void DataSet::setPen( int section, const QPen &pen )
+{
+    d->pens[ section ] = pen;
+    if ( d->kdChartModel )
+        d->kdChartModel->dataSetChanged( this, KDChartModel::PenDataRole, section );
+}
+
+void DataSet::setBrush( int section, const QBrush &brush )
+{
+    d->brushes[ section ] = brush;
+    if ( d->kdChartModel )
+        d->kdChartModel->dataSetChanged( this, KDChartModel::BrushDataRole, section );
 }
 
 QColor DataSet::color() const
@@ -618,6 +748,9 @@ void DataSet::setXDataRegion( const CellRegion &region )
 {
     d->xDataRegion = region;
     d->updateSize();
+
+    if ( !d->blockSignals && d->kdChartModel )
+        d->kdChartModel->dataSetChanged( this, KDChartModel::XDataRole, 0, size() - 1 );
 }
 
 void DataSet::setYDataRegion( const CellRegion &region )
@@ -625,16 +758,17 @@ void DataSet::setYDataRegion( const CellRegion &region )
     d->yDataRegion = region;
     d->updateSize();
     
-    if ( !d->blockSignals && d->kdChartModel ) {
-        d->kdChartModel->dataChanged( d->kdChartModel->index( 0,           d->kdDataSetNumber ),
-				      d->kdChartModel->index( d->size - 1, d->kdDataSetNumber ) );
-    }
+    if ( !d->blockSignals && d->kdChartModel )
+        d->kdChartModel->dataSetChanged( this, KDChartModel::YDataRole, 0, size() - 1 );
 }
 
 void DataSet::setCustomDataRegion( const CellRegion &region )
 {
     d->customDataRegion = region;
     d->updateSize();
+
+    if ( !d->blockSignals && d->kdChartModel )
+        d->kdChartModel->dataSetChanged( this, KDChartModel::CustomDataRole, 0, size() - 1 );
 }
 
 void DataSet::setCategoryDataRegion( const CellRegion &region )
@@ -647,6 +781,9 @@ void DataSet::setLabelDataRegion( const CellRegion &region )
 {
     d->labelDataRegion = region;
     d->updateSize();
+
+    if ( !d->blockSignals && d->kdChartModel )
+        d->kdChartModel->dataSetChanged( this, KDChartModel::LabelDataRole, 0, size() - 1 );
 }
 
 void DataSet::setXDataRegionString( const QString &string )
@@ -680,86 +817,64 @@ int DataSet::size() const
     return d->size > 0 ? d->size : 1;
 }
 
-void DataSet::yDataChanged( const QRect &rect ) const
-{    
-    int  start = -1;
-    int  end = -1;
-    
-    QVector<QRect> yDataRegionRects = d->yDataRegion.rects();
-    
-    if ( d->yDataRegion.orientation() == Qt::Horizontal ) {
-        QPoint  topLeft  = rect.topLeft();
-        QPoint  topRight = rect.topRight();
-        
-        int totalWidth = 0;
-        int i;
-        
-        for ( i = 0; i < yDataRegionRects.size(); i++ ) {
-            if ( yDataRegionRects[i].contains( topLeft ) ) {
-                start = totalWidth + topLeft.x() - yDataRegionRects[i].topLeft().x();
-                break;
-            }
-            totalWidth += yDataRegionRects[i].width();
-        }
-        
-        for ( ; i < yDataRegionRects.size(); i++ ) {
-            if ( yDataRegionRects[i].contains( topRight ) ) {
-                end = totalWidth + topRight.x() - yDataRegionRects[i].topLeft().x();
-                break;
-            }
+void DataSet::Private::dataChanged( KDChartModel::DataRole role, const QRect &rect ) const
+{
+    if ( blockSignals || !kdChartModel )
+        return;
 
-            totalWidth += yDataRegionRects[i].width();
-        }
+    const CellRegion *cellRegion = 0;
+    switch ( role ) {
+    case KDChartModel::YDataRole:
+        cellRegion = &yDataRegion;
+        break;
+    case KDChartModel::XDataRole:
+        cellRegion = &xDataRegion;
+        break;
+    case KDChartModel::CategoryDataRole:
+        cellRegion = &categoryDataRegion;
+        break;
+    case KDChartModel::LabelDataRole:
+        cellRegion = &labelDataRegion;
+        break;
+    case KDChartModel::CustomDataRole:
+        cellRegion = &customDataRegion;
+        break;
+    // TODO
+    case KDChartModel::ZDataRole:
+    case KDChartModel::BrushDataRole:
+    case KDChartModel::PenDataRole:
+        return;
     }
-    else {
-        QPoint  topLeft    = rect.topLeft();
-        QPoint  bottomLeft = rect.bottomLeft();
-        
-        int totalHeight = 0;
-        int i;
-        for ( i = 0; i < yDataRegionRects.size(); i++ ) {
-            if ( yDataRegionRects[i].contains( topLeft ) ) {
-                start = totalHeight + topLeft.y() - yDataRegionRects[i].topLeft().y();
-                break;
-            }
 
-            totalHeight += yDataRegionRects[i].height();
-        }
-        
-        for ( ; i < yDataRegionRects.size(); i++ ) {
-            if ( yDataRegionRects[i].contains( bottomLeft ) ) {
-                end = totalHeight + bottomLeft.y() - yDataRegionRects[i].topLeft().y();
-                break;
-            }
+    int start, end;
+    sectionsInRect( *cellRegion, rect, start, end );
 
-            totalHeight += yDataRegionRects[i].height();
-        }
-    }
-    
-    if ( !d->blockSignals && d->kdChartModel ) {
-        d->kdChartModel->dataChanged( d->kdChartModel->index( start, d->kdDataSetNumber ),
-                                     d->kdChartModel->index( end,   d->kdDataSetNumber ) );
-    }
+    kdChartModel->dataSetChanged( parent, role, start, end );
+}
+
+void DataSet::yDataChanged( const QRect &region ) const
+{
+    d->dataChanged( KDChartModel::YDataRole, region );
 }
 
 void DataSet::xDataChanged( const QRect &region ) const
 {
-    Q_UNUSED( region );
+    d->dataChanged( KDChartModel::XDataRole, region );
 }
 
 void DataSet::customDataChanged( const QRect &region ) const
 {
-    Q_UNUSED( region );
+    d->dataChanged( KDChartModel::CustomDataRole, region );
 }
 
 void DataSet::labelDataChanged( const QRect &region ) const
 {
-    Q_UNUSED( region );
+    d->dataChanged( KDChartModel::LabelDataRole, region );
 }
 
 void DataSet::categoryDataChanged( const QRect &region ) const
 {
-    Q_UNUSED( region );
+    d->dataChanged( KDChartModel::CategoryDataRole, region );
 }
 
 int DataSet::dimension() const
@@ -815,8 +930,10 @@ int DataSet::kdDataSetNumber() const
 
 void DataSet::setKdDataSetNumber( int number )
 {
+    // FIXME: Is there anything to emit here?
+    // In theory, this should be done before any data is retrieved
+    // from KDChartModel
     d->kdDataSetNumber = number;
-    d->updateDiagram();
 }
 
 void DataSet::setKdChartModel( KDChartModel *model )
@@ -835,14 +952,17 @@ void DataSet::blockSignals( bool block )
 }
 
 bool DataSet::loadOdf( const KoXmlElement &n,
-                       KoOdfLoadingContext &context )
+                       KoShapeLoadingContext &context )
 {
+    KoOdfLoadingContext &odfLoadingContext = context.odfLoadingContext();
+    KoStyleStack &styleStack = odfLoadingContext.styleStack();
 
-    KoStyleStack &styleStack = context.styleStack();
+    bool brushLoaded = false;
+    bool penLoaded = false;
 
     if ( n.hasAttributeNS( KoXmlNS::chart, "style-name" ) ) {
         styleStack.clear();
-        context.fillStyleStack( n, KoXmlNS::chart, "style-name", "chart" );
+        odfLoadingContext.fillStyleStack( n, KoXmlNS::chart, "style-name", "chart" );
 
         //styleStack.setTypeProperties( "chart" );
 
@@ -855,7 +975,8 @@ bool DataSet::loadOdf( const KoXmlElement &n,
         if ( styleStack.hasProperty( KoXmlNS::draw, "stroke" ) ) {
             QString stroke = styleStack.property( KoXmlNS::draw, "stroke" );
             if( stroke == "solid" || stroke == "dash" ) {
-                QPen pen = KoOdfGraphicStyles::loadOdfStrokeStyle( styleStack, stroke, context.stylesReader() );
+                QPen pen = KoOdfGraphicStyles::loadOdfStrokeStyle( styleStack, stroke, odfLoadingContext.stylesReader() );
+                penLoaded = true;
                 setPen( pen );
             }
         }
@@ -864,16 +985,31 @@ bool DataSet::loadOdf( const KoXmlElement &n,
             QString fill = styleStack.property( KoXmlNS::draw, "fill" );
             QBrush brush;
             if ( fill == "solid" || fill == "hatch" ) {
-                brush = KoOdfGraphicStyles::loadOdfFillStyle( styleStack, fill, context.stylesReader() );
+                brushLoaded = true;
+                brush = KoOdfGraphicStyles::loadOdfFillStyle( styleStack, fill, odfLoadingContext.stylesReader() );
             } else if ( fill == "gradient" ) {
-                brush = KoOdfGraphicStyles::loadOdfGradientStyle( styleStack, context.stylesReader(), QSizeF( 5.0, 60.0 ) );
-            } else if ( fill == "bitmap" )
-                brush = KoOdfGraphicStyles::loadOdfPatternStyle( styleStack, context, QSizeF( 5.0, 60.0 ) );
+                brushLoaded = true;
+                brush = KoOdfGraphicStyles::loadOdfGradientStyle( styleStack, odfLoadingContext.stylesReader(), QSizeF( 5.0, 60.0 ) );
+            } else if ( fill == "bitmap" ) {
+                brushLoaded = true;
+                brush = KoOdfGraphicStyles::loadOdfPatternStyle( styleStack, odfLoadingContext, QSizeF( 5.0, 60.0 ) );
+            }
             setBrush( brush );
-        } else {
-            setColor( defaultDataSetColor( number() ) );
         }
     }
+
+#ifndef NWORKAROUND_ODF_BUGS
+    if ( !brushLoaded ) {
+        QColor fixedColor = KoOdfWorkaround::fixMissingFillColor( n, context );
+        if ( fixedColor.isValid() )
+            setBrush( fixedColor );
+    }
+    if ( !penLoaded ) {
+        QColor fixedColor = KoOdfWorkaround::fixMissingStrokeColor( n, context );
+        if ( fixedColor.isValid() )
+            setPen( fixedColor );
+    }
+#endif
 
     if ( n.hasAttributeNS( KoXmlNS::chart, "values-cell-range-address" ) ) {
         const QString region = n.attributeNS( KoXmlNS::chart, "values-cell-range-address", QString() );

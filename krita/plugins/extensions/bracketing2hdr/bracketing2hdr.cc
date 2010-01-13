@@ -33,6 +33,9 @@
 #include <KoColorSpaceTraits.h>
 #include <KoColorSpace.h>
 
+#include <KoFilter.h>
+#include <KoFilterManager.h>
+
 #include "kis_config.h"
 #include "kis_cursor.h"
 #include "kis_doc2.h"
@@ -92,14 +95,17 @@ void Bracketing2HDRPlugin::addImage(const QString& filename)
 {
 #if 1
     KisDoc2 d;
-    d.importDocument(filename);
+    KoFilterManager manager(&d);
+    QByteArray nativeFormat = d.nativeFormatMimeType();
+    KoFilter::ConversionStatus status;
+    QString s = manager.importDocument(filename, status);
     KisImageWSP importedImage = d.image();
     KisPaintLayerSP projection = 0;
     if (importedImage) {
         projection = dynamic_cast<KisPaintLayer*>(importedImage->rootLayer()->firstChild().data());
     }
     if (!projection) {
-//         dbgPlugins <<"Image" << filename <<" has fail to load.";
+        dbgPlugins <<"Image" << filename <<" has fail to load.";
         return;
     }
     KisMetaData::Store* exifInfo = projection->metaData();
@@ -107,25 +113,28 @@ void Bracketing2HDRPlugin::addImage(const QString& filename)
     if (exifInfo->containsEntry(KisMetaData::Schema::EXIFSchemaUri, "ExposureTime")) {
         exposure = exifInfo->getValue(KisMetaData::Schema::EXIFSchemaUri, "ExposureTime").asDouble();
     }
-//     dbgPlugins <<" Exposure Time :" << found <<"" << v.toString() <<"" << v.type();
+    dbgPlugins <<" Exposure Time: " << exposure;
     double aperture = 0.;
     if (exifInfo->containsEntry(KisMetaData::Schema::EXIFSchemaUri, "ApertureValue")) {
         aperture = exifInfo->getValue(KisMetaData::Schema::EXIFSchemaUri, "ApertureValue").asDouble();
         aperture = pow(2.0, aperture * 0.5);
     }
-//     dbgPlugins <<" Aperture :" << found <<"" << v.toString() <<"" << v.type();
+    dbgPlugins <<" Aperture: " << aperture;
     qint32 iso = 100;
     if (exifInfo->containsEntry(KisMetaData::Schema::EXIFSchemaUri, "ISOSpeedRatings")) {
         iso = exifInfo->getValue(KisMetaData::Schema::EXIFSchemaUri, "ISOSpeedRatings").asInteger();
-//         dbgPlugins << iso;
+        dbgPlugins << iso;
     }
-//     dbgPlugins <<" ISO :" << found <<"" << v.toString() <<"" << v.type();
+    dbgPlugins <<" ISO : " << iso;
     int index = m_wdgBracketing2HDR->tableWidgetImages->rowCount();
     m_wdgBracketing2HDR->tableWidgetImages->insertRow(index);
     m_wdgBracketing2HDR->tableWidgetImages->setItem(index, 0, new QTableWidgetItem(filename)); // TODO: generate a preview
     m_wdgBracketing2HDR->tableWidgetImages->setItem(index, 1, new QTableWidgetItem(QString::number(exposure)));
     m_wdgBracketing2HDR->tableWidgetImages->setItem(index, 2, new QTableWidgetItem(QString::number(aperture)));
     m_wdgBracketing2HDR->tableWidgetImages->setItem(index, 3, new QTableWidgetItem(QString::number(iso)));
+    
+   m_wdgBracketing2HDR->pushButtonCalculateCameraResponse->setEnabled(true);
+   m_wdgBracketing2HDR->pushButtonCreateHDRLayer->setEnabled(true);
 #endif
 }
 
@@ -157,7 +166,7 @@ void Bracketing2HDRPlugin::slotNewHDRLayerFromBracketing()
             computeCameraResponse();
         }
         KisImageWSP image = m_view->image();
-        const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace("RGBAF32", 0);
+        const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace("RgbAF32", 0);
         if (!cs) {
             KMessageBox::error(m_view, i18n("HDR colorspace RGBAF32 not found, please check your installation."), i18n("Layer Creation Error"));
             return;
@@ -317,8 +326,8 @@ void Bracketing2HDRPlugin::computeCameraResponse()
 {
     QTime time;
     time.start();
-//     dbgPlugins <<"computeCameraResponse()";
-    loadImagesInMemory();
+    dbgPlugins <<"computeCameraResponse()";
+    if(!loadImagesInMemory()) return;
     switch (responseType()) {
     case RESPONSE_LINEAR:
         computeLinearResponse(m_intensityR);
@@ -342,6 +351,7 @@ void Bracketing2HDRPlugin::computeCameraResponse()
 }
 void Bracketing2HDRPlugin::computeCameraResponse(QList<BracketingFrame> frames)
 {
+    Q_ASSERT(frames.size() > 0);
 //     return;
     // Normalize the intensity responses
     normalize(m_intensityR);
@@ -350,7 +360,11 @@ void Bracketing2HDRPlugin::computeCameraResponse(QList<BracketingFrame> frames)
 #if 1
     // Now optimize the camera response
     // Create a temporary paint device and fill it with the current value
-    const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace("RGBAF32", 0);
+    const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace("RgbAF32", 0);
+    if (!cs) {
+        KMessageBox::error(m_view, i18n("HDR colorspace RGBAF32 not found, please check your installation."), i18n("Compute Camera Response Error"));
+        return;
+    }
     KisPaintDeviceSP device = new KisPaintDevice(cs);
     // Initialize some variables used for computation
     QVector<qint64> counts[3];
@@ -414,7 +428,7 @@ void Bracketing2HDRPlugin::computeCameraResponse(QList<BracketingFrame> frames)
 #define UPDATEINTENSITY(n,vec) \
     for(int i = 0; i < numberOfInputLevels(); i++) \
     { \
-        if(sums[n][i] != 0.0) \
+        if(counts[n][i] != 0) \
             vec[i] = sums[n][i] / counts[n][i]; \
         else \
             vec[i] = 0.0; \
@@ -441,7 +455,9 @@ void Bracketing2HDRPlugin::computeCameraResponse(QList<BracketingFrame> frames)
             DIFF(m_intensityB, iBOld);
         }
 #undef DIFF
-        dbgPlugins << "Optimization delta =" << (sumdiff / count) << " =" << sumdiff << " /" << count;
+        dbgPlugins << "Optimization delta =" << (sumdiff / count) << " =" << sumdiff << " /" << count << " " << isnan(sumdiff) << " " << isinf(sumdiff);
+        Q_ASSERT(isnan(sumdiff) != 0);
+        Q_ASSERT(isinf(sumdiff) != 0);
         if (sumdiff / count < epsilonOptimization)
             break;
     }
@@ -491,6 +507,10 @@ bool Bracketing2HDRPlugin::loadImagesInMemory()
         f.apexBrightness = 2.0 * log(f.aperture) + log(1.0 / f.exposure) - log(f.sensitivity / 3.125);
         f.apexBrightness /= log(2.0);
         f.apexBrightness = 1.0 / (powf(2.0, f.apexBrightness));  // * ( 1.0592f * 11.4f / 3.125f ) ); // TODO: the magic number is apparrently dependent of the camera, this value is taken from pfscalibrate, this need to be configurable (it is the reflected-light meter calibration constant)
+        if(f.apexBrightness == 0.0 || isnan(f.apexBrightness) == 1 || isinf(f.apexBrightness) == 1 )
+        {
+            return false;
+        }
         if (i >=  m_wdgBracketing2HDR->tableWidgetImages->rowCount() / 2 &&
                 i < m_wdgBracketing2HDR->tableWidgetImages->rowCount() / 2 + 1) {
             apexNorm = f.apexBrightness;
@@ -498,7 +518,10 @@ bool Bracketing2HDRPlugin::loadImagesInMemory()
         dbgPlugins << "Loading fileName" << fileName << " Exposure =" << f.exposure << " APEX Brightness =" << f.apexBrightness << " Aperture" << f.aperture << " Sensitivity =" << f.sensitivity;
         // import the image
         KisDoc2 d;
-        d.importDocument(fileName);
+        KoFilterManager manager(&d);
+        QByteArray nativeFormat = d.nativeFormatMimeType();
+        KoFilter::ConversionStatus status;
+        QString s = manager.importDocument(fileName, status);
         f.image = d.image();
         f.device = 0;
         f.image->setUndoAdapter(0);
@@ -506,15 +529,19 @@ bool Bracketing2HDRPlugin::loadImagesInMemory()
             f.device = f.image->projection();
         }
         if (!f.device) {
-//             dbgPlugins <<"Image" << fileName <<" has fail to load.";
+            dbgPlugins <<"Image" << fileName <<" has fail to load.";
             return false;
         }
         // compute the maximum and minimu response
         // add the frame to the list of images
         m_imagesFrames.push_back(f);
     }
-    for (int i = 0; i < m_wdgBracketing2HDR->tableWidgetImages->rowCount(); i++) {
-        m_imagesFrames[i].apexBrightness /= apexNorm;
+    if(apexNorm != 0.0)
+    {
+      for (int i = 0; i < m_wdgBracketing2HDR->tableWidgetImages->rowCount(); i++) {
+          m_imagesFrames[i].apexBrightness /= apexNorm;
+          dbgPlugins << ppVar(m_imagesFrames[i].apexBrightness);
+      }
     }
     return true;
 }

@@ -1749,7 +1749,7 @@ bool Sheet::testListChoose(Selection* selection)
         int bottom = range.bottom();
         if (bottom > d->cellStorage->rows()) bottom = d->cellStorage->rows();
         for (int row = range.top(); row <= bottom; ++row) {
-            int col = range.left() - 1;
+            int col = range.left();
             while (1) {
                 const Cell cell = d->cellStorage->nextInRow(col, row);
                 if (cell.isNull()) break;
@@ -2721,11 +2721,13 @@ bool Sheet::loadRowFormat(const KoXmlElement& row, int &rowIndex,
 
         if (cell.isFormula() || !cell.userInput().isEmpty() || !cell.value().isEmpty()) {
             // Row-wise filling of PointStorages is faster than column-wise filling.
+            QSharedPointer<QTextDocument> richText = cell.richText();
             for (int r = rowIndex; r <= endRow; ++r) {
                 for (int c = 0; c < numberColumns; ++c) {
                     Cell target(this, columnIndex + c, r);
                     target.setFormula(cell.formula());
                     target.setUserInput(cell.userInput());
+                    target.setRichText(richText);
                     target.setValue(cell.value());
                 }
             }
@@ -3225,7 +3227,7 @@ void Sheet::saveOdfColRowCell(KoXmlWriter& xmlWriter, KoGenStyles &mainStyles,
 
     // saving the rows and the cells
     // we have to loop through all rows of the used area
-    for (i = 1; i <= maxRows; ++i) {
+    for (i = 1; i < maxRows; ++i) {
         const RowFormat* row = rowFormat(i);
 
         // default cell style for row
@@ -3322,7 +3324,7 @@ void Sheet::saveOdfColRowCell(KoXmlWriter& xmlWriter, KoGenStyles &mainStyles,
                 xmlWriter.addAttribute("table:visibility", "filter");
 
             int j = i + 1;
-            while (compareRows(i, j, maxCols, tableContext) && j <= maxRows) {
+            while (compareRows(i, j, maxCols, tableContext) && j < maxRows) {
                 j++;
                 repeated++;
             }
@@ -3843,8 +3845,11 @@ bool Sheet::setSheetName(const QString& name, bool init)
     QString old_name = d->name;
     d->name = name;
 
-    if (init)
-        return true;
+    // FIXME: Why is the change of a sheet's name not supposed to be propagated here?
+    // If it is not, we have to manually do so in the loading process, e.g. for the
+    // SheetAccessModel in the document's data center map.
+    //if (init)
+    //    return true;
 
     foreach(Sheet* sheet, map()->sheetList()) {
         sheet->changeCellTabName(old_name, name);

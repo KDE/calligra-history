@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -25,6 +26,8 @@
 
 namespace Swinder
 {
+
+class Workbook;
 
 Value errorAsValue(int errorCode);
 
@@ -157,7 +160,7 @@ public:
     /**
       Creates a new generic record.
     */
-    Record();
+    Record(Workbook*);
 
     /**
       Destroys the record.
@@ -167,7 +170,7 @@ public:
     /**
      * Record factory, create a new record of specified type.
      */
-    static Record* create(unsigned type);
+    static Record* create(unsigned type, Workbook *book);
 
     void setVersion(unsigned v) {
         ver = v;
@@ -208,23 +211,23 @@ public:
     bool isValid() const;
 protected:
     void setIsValid(bool isValid);
-
+    // the workbook
+    Workbook *m_workbook;
     // position of this record in the OLE stream
     unsigned stream_position;
-
     // in which version does this record denote ?
     unsigned ver;
-
+    // is the record valid?
     bool valid;
 };
 
+typedef Record*(*RecordFactory)(Workbook*);
 
-typedef Record*(*RecordFactory)();
 class RecordRegistry
 {
 public:
     static void registerRecordClass(unsigned id, RecordFactory factory);
-    static Record* createRecord(unsigned id);
+    static Record* createRecord(unsigned id, Workbook *book);
 private:
     RecordRegistry() {};
     static RecordRegistry* instance();

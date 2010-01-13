@@ -24,6 +24,8 @@
 #include "ustring.h"
 #include <QtCore/QSharedDataPointer>
 #include <QtGui/QColor>
+#include <vector>
+#include <string>
 #include "slide.h"
 
 namespace Libppt
@@ -134,7 +136,6 @@ private:
     Container(const Container&);
     Container& operator=(const Container&);
 };
-
 
 class BookmarkCollectionContainer: public Container
 {
@@ -1470,14 +1471,20 @@ class msofbtBstoreContainer: public Container
 public:
     static const unsigned int id;
     msofbtBstoreContainer();
+    ~msofbtBstoreContainer();
     const char* name() const {
         return "msofbtBstoreContainer";
     }
+    std::vector<std::string> bstore() const;
+    void addRgbUid(const char rgbUid[16]);
 
 private:
     // no copy or assign
     msofbtBstoreContainer(const msofbtBstoreContainer&);
     msofbtBstoreContainer& operator=(const msofbtBstoreContainer&);
+
+    class Private;
+    Private* const d;
 };
 
 class msofbtSolverContainer: public Container
@@ -3005,6 +3012,7 @@ public:
         FillType = 384,
         FillColor = 385,
         FillBackColor = 387,
+        FillBlip = 390,
         FillStyleBooleanProperties = 447,
         LineColor = 448,
         LineOpacity = 449,
@@ -3196,6 +3204,7 @@ public:
     msofbtClientDataAtom();
     ~msofbtClientDataAtom();
 
+    unsigned dataType() const; // the recType of the contained data
     unsigned placementId() const;
     void setPlacementId(unsigned id);
     unsigned placeholderId() const;
@@ -3352,8 +3361,10 @@ public:
     static const unsigned int id;
     msofbtBSEAtom();
     ~msofbtBSEAtom();
+    void setData(unsigned size, const unsigned char* data);
 
-// void setData( unsigned size, const unsigned char* data );
+    const char* rgbUid() const;
+
     const char* name() const {
         return "msofbtBSEAtom ";
     }
@@ -3604,7 +3615,6 @@ public:
     bool load(Presentation* pr, const char* filename);
 
 protected:
-
     void loadUserEdit();
     void loadMaster();
     void loadSlides();
@@ -3637,6 +3647,7 @@ protected:
     void handleEscherChildAnchorAtom(msofbtChildAnchorAtom* r);
     void handleProgBinaryTagContainer(ProgBinaryTagContainer* r,
                                       unsigned int size);
+    void handleBstoreContainer(msofbtBstoreContainer*c, unsigned int size);
     void handleHeaderFooterAtom(HeadersFootersAtom* atom);
 
 
@@ -3658,6 +3669,7 @@ protected:
     * @param r FontEntityAtom to create font from
     */
     void handleFontEntityAtom(FontEntityAtom* r);
+    void handleBSEAtom(msofbtBSEAtom* record);
 private:
     // no copy or assign
     PPTReader(const PPTReader&);

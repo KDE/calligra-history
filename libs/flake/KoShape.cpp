@@ -106,13 +106,13 @@ KoShapePrivate::~KoShapePrivate()
     }
     delete userData;
     delete appData;
-    if (border && ! border->removeUser())
+    if (border && !border->deref())
         delete border;
-    if (shadow && ! shadow->removeUser())
+    if (shadow && !shadow->deref())
         delete shadow;
-    if (fill && ! fill->removeUser())
+    if (fill && !fill->deref())
         delete fill;
-    if (filterEffectStack && ! filterEffectStack->removeUser())
+    if (filterEffectStack && !filterEffectStack->deref())
         delete filterEffectStack;
     qDeleteAll(eventActions);
 }
@@ -327,14 +327,14 @@ QRectF KoShape::boundingRect() const
     bb = transform.mapRect(bb);
     if (d->shadow) {
         KoInsets insets;
-        d->shadow->insets(this, insets);
+        d->shadow->insets(insets);
         bb.adjust(-insets.left, -insets.top, insets.right, insets.bottom);
     }
     if (d->filterEffectStack) {
         QRectF clipRect = d->filterEffectStack->clipRectForBoundingRect(QRectF(QPointF(), mySize));
         bb |= transform.mapRect(clipRect);
     }
-    
+
     return bb;
 }
 
@@ -673,14 +673,14 @@ QSet<KoEventAction *> KoShape::eventActions() const
     return d->eventActions;
 }
 
-void KoShape::setBackground(KoShapeBackground * fill)
+void KoShape::setBackground(KoShapeBackground *fill)
 {
     Q_D(KoShape);
     if (d->fill)
-        d->fill->removeUser();
+        d->fill->deref();
     d->fill = fill;
     if (d->fill)
-        d->fill->addUser();
+        d->fill->ref();
     d->shapeChanged(BackgroundChanged);
     notifyChanged();
 }
@@ -824,10 +824,10 @@ void KoShape::setBorder(KoShapeBorderModel *border)
 {
     Q_D(KoShape);
     if (border)
-        border->addUser();
+        border->ref();
     d->updateBorder();
     if (d->border)
-        d->border->removeUser();
+        d->border->deref();
     d->border = border;
     d->updateBorder();
     d->shapeChanged(BorderChanged);
@@ -838,10 +838,10 @@ void KoShape::setShadow(KoShapeShadow * shadow)
 {
     Q_D(KoShape);
     if (d->shadow)
-        d->shadow->removeUser();
+        d->shadow->deref();
     d->shadow = shadow;
     if (d->shadow) {
-        d->shadow->addUser();
+        d->shadow->ref();
         // TODO update changed area
     }
     d->shapeChanged(ShadowChanged);
@@ -969,15 +969,15 @@ void KoShape::loadStyle(const KoXmlElement & element, KoShapeLoadingContext &con
         styleStack.setTypeProperties("graphic");
     }
 
-    if(d->fill && !d->fill->removeUser()) {
+    if(d->fill && !d->fill->deref()) {
         delete d->fill;
         d->fill = 0;
     }
-    if(d->border && !d->border->removeUser()) {
+    if(d->border && !d->border->deref()) {
         delete d->border;
         d->border = 0;
     }
-    if(d->shadow && !d->shadow->removeUser()) {
+    if(d->shadow && !d->shadow->deref()) {
         delete d->shadow;
         d->shadow = 0;
     }
@@ -1156,7 +1156,7 @@ KoShapeShadow * KoShape::loadOdfShadow(const KoXmlElement & element, KoShapeLoad
         if (! opacity.isEmpty() && opacity.right(1) == "%")
             shadowColor.setAlphaF(opacity.left(opacity.length() - 1).toFloat() / 100.0);
         shadow->setColor(shadowColor);
-        shadow->setVisibility(shadowStyle == "visible");
+        shadow->setVisible(shadowStyle == "visible");
 
         return shadow;
     }
@@ -1463,10 +1463,10 @@ void KoShape::setFilterEffectStack(KoFilterEffectStack * filterEffectStack)
 {
     Q_D(KoShape);
     if (d->filterEffectStack)
-        d->filterEffectStack->removeUser();
+        d->filterEffectStack->deref();
     d->filterEffectStack = filterEffectStack;
     if (d->filterEffectStack) {
-        d->filterEffectStack->addUser();
+        d->filterEffectStack->ref();
     }
     notifyChanged();
 }

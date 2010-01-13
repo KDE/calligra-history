@@ -130,6 +130,8 @@ public:
     
     void setPosition( const QPointF &size );
     void setSize( const QSizeF &size );
+
+    void setLegendSize( const QSizeF &size );
     
     ChartType     chartType() const;
     ChartSubtype  chartSubType() const;
@@ -173,6 +175,9 @@ public:
     void requestRepaint() const;
     
     QMap<QString, KoDataCenter*> dataCenterMap() const;
+
+signals:
+    void chartTypeChanged( ChartType );
 
 private:
     class Private;

@@ -39,10 +39,141 @@
 
 #include <QMap>
 
+#include <math.h>
+
+//----------------------------------------------------------
+
+#include "ColorConversions.h"
+//! @todo only include for TINY target
+
+const int HLSMAX = 255; //!< Used for computing tint
+
+//! @return tinted value for @a color
+//! Alpha value is left unchanged.
+/*! @param color to be converted
+    @param tint color tint: from -1.0 .. 1.0, where -1.0 means 100% darken
+           and 1.0 means 100% lighten; 0.0 means no change
+*/
+static QColor tintedColor(const QColor& color, qreal tint)
+{
+//kDebug() << "rgb:" << color.name() << "tint:" << tint;
+    if (tint == 0.0 || !color.isValid()) {
+        return color;
+    }
+    int h, l, s;
+    rgb_to_hls(color.red(), color.green(), color.blue(), &h, &l, &s);
+//    rgb_to_hls(0xec, 0xec, 0xec, &h, &l, &s);
+//kDebug() << "hls before:" << h << l << s;
+    if (tint < 0.0) {
+        l = floor( l * (1.0 + tint) );
+    }
+    else {
+        l = floor( l * (1.0 - tint) + (HLSMAX - HLSMAX * (1.0 - tint)) );
+    }
+//kDebug() << "hls after:" << h << l << s;
+    quint8 r, g, b;
+    hls_to_rgb(h, l, s, &r, &g, &b);
+//kDebug() << "rgb:" << r << g << b << QColor(r, g, b, color.alpha()).name();
+    return QColor(r, g, b, color.alpha());
+}
+
+/*! @return color decoded from a "rgb" attribute of the current element
+            or invalid QColor when reading was not possible.
+Used by:
+- color@rgb (§18.3.1.15)
+- fgColor@rgb (§18.8.19)
+- bgColor@rgb (§18.8.20) */
+static QColor readRgbAttribute(const QXmlStreamAttributes& attrs)
+{
+    TRY_READ_ATTR_WITHOUT_NS(rgb)
+//kDebug() << rgb;
+    return ST_UnsignedIntHex_to_QColor(rgb);
+}
+
+/*! @return tint value (-1.0..1.0) decoded from a "tint" attribute of the current element
+            or 0.0 when reading was not possible.
+Used by:
+- color@rgb (§18.3.1.15)
+- fgColor@rgb (§18.8.19)
+- bgColor@rgb (§18.8.20) */
+static qreal readTintAttribute(const QXmlStreamAttributes& attrs, const char* debugElement)
+{
+    TRY_READ_ATTR_WITHOUT_NS(tint)
+    qreal tintValue = 0.0;
+    STRING_TO_QREAL(tint, tintValue, QLatin1String(debugElement) + "@tint")
+kDebug() << tint << tintValue;
+    return tintValue;
+}
+
+//----------------------------------------------------------
+
 XlsxColorStyle::XlsxColorStyle()
-        : automatic(false), indexed(-1)
+        : automatic(false), indexed(-1), tint(0.0), theme(-1)
 {
 }
+
+bool XlsxColorStyle::isValid(const QMap<QString, MSOOXML::DrawingMLTheme*> *themes) const
+{
+kDebug() << "indexed:" << indexed << "rgb:" << rgb.name() << "tint:" << tint << "theme:" << theme;
+    if (theme >= 0) {
+kDebug() << themeColor(themes).isValid();
+        return themeColor(themes).isValid();
+    }
+    return rgb.isValid();
+}
+
+QColor XlsxColorStyle::themeColor(const QMap<QString, MSOOXML::DrawingMLTheme*> *themes) const
+{
+//! @todo find proper theme, not just any
+    MSOOXML::DrawingMLTheme *themeObject = themes->constBegin().value();
+kDebug() << themeObject;
+    if (themeObject) {
+        MSOOXML::DrawingMLColorSchemeItemBase *colorItemBase = themeObject->colorScheme.value(theme);
+kDebug() << colorItemBase;
+//        MSOOXML::DrawingMLColorSchemeItem* colorItem = colorItemBase ? colorItemBase->toColorItem() : 0;
+//kDebug() << colorItem;
+//        if (colorItem)
+        if (colorItemBase)
+            return colorItemBase->value();
+    }
+    return QColor();
+}
+
+QColor XlsxColorStyle::value(const QMap<QString, MSOOXML::DrawingMLTheme*> *themes) const
+{
+    QColor realColor;
+kDebug() << "theme:" << theme;
+    if (theme >= 0) {
+        realColor = themeColor(themes);
+kDebug() << "in theme found:" << realColor.name();
+    }
+    else {
+        realColor = rgb;
+kDebug() << "rgb found:" << realColor.name();
+    }
+
+    //themes->value(theme);
+    return tintedColor(realColor, tint);
+}
+
+KoFilter::ConversionStatus XlsxColorStyle::readAttributes(
+    const QXmlStreamAttributes& attrs, const char* debugElement)
+{
+    automatic = MSOOXML::Utils::convertBooleanAttr(attrs.value("auto").toString());
+    QString indexedStr;
+    TRY_READ_ATTR_WITHOUT_NS_INTO(indexed, indexedStr)
+    STRING_TO_INT(indexedStr, indexed, QLatin1String(debugElement) + "@indexed")
+//! @todo handle indexed
+    rgb = readRgbAttribute(attrs);
+    tint = readTintAttribute(attrs, debugElement);
+    QString themeStr;
+    TRY_READ_ATTR_WITHOUT_NS_INTO(theme, themeStr)
+    STRING_TO_INT(themeStr, theme, QLatin1String(debugElement) + "@theme")
+kDebug() << "indexed:" << indexed << "rgb:" << rgb.name() << "tint:" << tint << "theme:" << theme;
+    return KoFilter::OK;
+}
+
+//----------------------------------------------------------
 
 XlsxFontStyle::XlsxFontStyle()
         : underline(NoUnderline),
@@ -61,6 +192,7 @@ XlsxFillStyle::XlsxFillStyle()
 
 const XlsxColorStyle* XlsxFillStyle::realBackgroundColor() const
 {
+kDebug() << "patternType:" << patternType;
     switch (patternType) {
     case NonePatternType:
         return 0;
@@ -72,18 +204,21 @@ const XlsxColorStyle* XlsxFillStyle::realBackgroundColor() const
     return &bgColor;
 }
 
-void XlsxFillStyle::setupCellStyle(KoGenStyle* cellStyle) const
+void XlsxFillStyle::setupCellStyle(KoGenStyle* cellStyle, const QMap<QString, MSOOXML::DrawingMLTheme*> *themes) const
 {
 //! @todo implement more styling;
-//!       use XlsxColorStyle::automatic, XlsxColorStyle::indexed, XlsxColorStyle::theme, XlsxColorStyle::tint...
+//!       use XlsxColorStyle::automatic, XlsxColorStyle::indexed, XlsxColorStyle::theme...
     const XlsxColorStyle* realBackgroundColor = this->realBackgroundColor();
     if (realBackgroundColor) {
-kDebug() << patternType << realBackgroundColor->rgb;
-        if (realBackgroundColor->rgb.isValid()) {
-            cellStyle->addProperty("fo:background-color", realBackgroundColor->rgb.name());
+kDebug() << patternType << realBackgroundColor->value(themes).name()
+         << realBackgroundColor->tint << realBackgroundColor->isValid(themes);
+        if (realBackgroundColor->isValid(themes)) {
+            cellStyle->addProperty("fo:background-color", realBackgroundColor->value(themes).name());
         }
     }
 }
+
+//----------------------------------------------------------
 
 class ST_UnderlineValue_fromStringMap : public QMap<QString, XlsxFontStyle::ST_UnderlineValue>
 {
@@ -97,12 +232,13 @@ public:
     }
 };
 
+// static
 XlsxFontStyle::ST_UnderlineValue XlsxFontStyle::ST_UnderlineValue_fromString(const QString& s)
 {
     K_GLOBAL_STATIC(ST_UnderlineValue_fromStringMap, s_ST_UnderlineValues)
-    kDebug() << s;
+//    kDebug() << s;
     const ST_UnderlineValue v = s_ST_UnderlineValues->value(s);
-    kDebug() << v;
+//    kDebug() << v;
     if (v == NoUnderline && s != "none")
         return SingleUnderline; // default
     return v;
@@ -111,11 +247,35 @@ XlsxFontStyle::ST_UnderlineValue XlsxFontStyle::ST_UnderlineValue_fromString(con
 void XlsxFontStyle::setUnderline(const QString& s)
 {
     underline = ST_UnderlineValue_fromString(s);
-    kDebug() << underline;
+//    kDebug() << underline;
+}
+
+ST_VerticalAlignRun::ST_VerticalAlignRun(const QString& msooxmlName)
+{
+    if (msooxmlName == QLatin1String("subscript"))
+        value = SubscriptVerticalAlignRun;
+    else if (msooxmlName == QLatin1String("superscript"))
+        value = SuperscriptVerticalAlignRun;
+    else
+        value = BaselineVerticalAlignRun;
+}
+
+void ST_VerticalAlignRun::setupCharacterStyle(KoCharacterStyle* characterStyle) const
+{
+    switch (value) {
+    case SubscriptVerticalAlignRun:
+        characterStyle->setVerticalAlignment(QTextCharFormat::AlignSubScript);
+        break;
+    case SuperscriptVerticalAlignRun:
+        characterStyle->setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+        break;
+    default:;
+    }
 }
 
 void XlsxFontStyle::setupCharacterStyle(KoCharacterStyle* characterStyle) const
 {
+    // line
     switch (underline) {
     case SingleUnderline:
     case DoubleUnderline:
@@ -127,6 +287,7 @@ void XlsxFontStyle::setupCharacterStyle(KoCharacterStyle* characterStyle) const
     default:;
     }
 
+    // # of lines
     switch (underline) {
     case SingleUnderline:
     case SingleAccountingUnderline:
@@ -162,9 +323,9 @@ void XlsxFontStyle::setupCharacterStyle(KoCharacterStyle* characterStyle) const
         qreal width;
         characterStyle->underlineWidth(weight, width);
 
-        kDebug() << "underlineStyle:" << characterStyle->underlineStyle()
+/*        kDebug() << "underlineStyle:" << characterStyle->underlineStyle()
         << "underlineType:" << characterStyle->underlineType()
-        << "underlineWeight:" << weight;
+        << "underlineWeight:" << weight;*/
     }
 
     if (bold)
@@ -173,21 +334,59 @@ void XlsxFontStyle::setupCharacterStyle(KoCharacterStyle* characterStyle) const
         characterStyle->setFontItalic(true);
     if (!m_defaultSize)
         characterStyle->setFontPointSize(m_size);
+
+    vertAlign.setupCharacterStyle(characterStyle);
 }
 
-void XlsxFontStyle::setupCellTextStyle(KoGenStyle* cellStyle) const
+void XlsxFontStyle::setupCellTextStyle(
+    const QMap<QString, MSOOXML::DrawingMLTheme*> *themes,
+    KoGenStyle* cellStyle) const
 {
     if (!name.isEmpty()) {
-        cellStyle->addProperty("style:font-name", name, KoGenStyle::TextType);
+#ifdef __GNUC__
+#warning TODO: we are saving with fo:font-family now because style:font-name is not properly supported by kotext; fix void KoCharacterStyle::loadOdf(KoOdfLoadingContext &context)...
+#endif
+//!@ todo reenable this        cellStyle->addProperty("style:font-name", name, KoGenStyle::TextType);
+        cellStyle->addProperty("fo:font-family", name, KoGenStyle::TextType);
     }
-    if (color.rgb.isValid()) {
-        cellStyle->addProperty("fo:color", color.rgb.name(), KoGenStyle::TextType);
+    if (color.isValid(themes)) {
+        const QColor c(color.value(themes));
+        cellStyle->addProperty("fo:color", c.name(), KoGenStyle::TextType);
     }
     //! @todo implement more styling
 }
 
 XlsxStyles::XlsxStyles()
 {
+    // fill the default number formats
+    // from Office Open XML Part 4 - Markup Language Reference, p. 1974
+    numberFormatStrings[ 1 ] = QLatin1String( "0" );
+    numberFormatStrings[ 2 ] = QLatin1String( "0.00" );
+    numberFormatStrings[ 3 ] = QLatin1String( "#,##0" );
+    numberFormatStrings[ 4 ] = QLatin1String( "#,##0.00" );
+    numberFormatStrings[ 9 ] = QLatin1String( "0%" );
+    numberFormatStrings[ 10 ] = QLatin1String( "0.00%" );
+    numberFormatStrings[ 11 ] = QLatin1String( "0.00E+00" );
+    numberFormatStrings[ 12 ] = QLatin1String( "# ?/?" );
+    numberFormatStrings[ 13 ] = QLatin1String( "# \?\?/\?\?" );
+    numberFormatStrings[ 14 ] = QLatin1String( "mm-dd-yy" );
+    numberFormatStrings[ 15 ] = QLatin1String( "d-mmm-yy" );
+    numberFormatStrings[ 16 ] = QLatin1String( "d-mmm" );
+    numberFormatStrings[ 17 ] = QLatin1String( "mmm-yy" );
+    numberFormatStrings[ 18 ] = QLatin1String( "h:mm AM/PM" );
+    numberFormatStrings[ 19 ] = QLatin1String( "h:mm:ss AM/PM" );
+    numberFormatStrings[ 20 ] = QLatin1String( "h:mm" );
+    numberFormatStrings[ 21 ] = QLatin1String( "h:mm:ss" );
+    numberFormatStrings[ 22 ] = QLatin1String( "m/d/yy h:mm" );
+    numberFormatStrings[ 37 ] = QLatin1String( "#,##0 ;(#,##0)" );
+    numberFormatStrings[ 38 ] = QLatin1String( "#,##0 ;[Red](#,##0)" );
+    numberFormatStrings[ 39 ] = QLatin1String( "#,##0.00;(#,##0.00)" );
+    numberFormatStrings[ 40 ] = QLatin1String( "#,##0.00;[Red](#,##0.00)" );
+    numberFormatStrings[ 45 ] = QLatin1String( "mm:ss" );
+    numberFormatStrings[ 46 ] = QLatin1String( "[h]:mm:ss" );
+    numberFormatStrings[ 47 ] = QLatin1String( "mmss.0" );
+    numberFormatStrings[ 48 ] = QLatin1String( "##0.0E+0" );
+    numberFormatStrings[ 49 ] = QLatin1String( "@" );
 }
 
 XlsxStyles::~XlsxStyles()
@@ -227,7 +426,7 @@ bool XlsxCellFormat::setupCharacterStyle(const XlsxStyles *styles, KoCharacterSt
 {
     XlsxFontStyle* fontStyle = styles->fontStyle(fontId);
     if (!fontStyle) {
-        kDebug() << "No font with ID:" << fontId;
+        kWarning() << "No font with ID:" << fontId;
         return false;
     }
     fontStyle->setupCharacterStyle(characterStyle);
@@ -238,6 +437,7 @@ class ST_HorizontalAlignment_fromStringMap : public QMap<QString, XlsxCellFormat
 {
 public:
     ST_HorizontalAlignment_fromStringMap() {
+        insert(QString(), XlsxCellFormat::GeneralHorizontalAlignment);
         insert(QLatin1String("general"), XlsxCellFormat::GeneralHorizontalAlignment);
         insert(QLatin1String("center"), XlsxCellFormat::CenterHorizontalAlignment);
         insert(QLatin1String("centerContinuous"), XlsxCellFormat::CenterContinuousHorizontalAlignment);
@@ -259,7 +459,7 @@ class ST_VerticalAlignment_fromStringMap : public QMap<QString, XlsxCellFormat::
 {
 public:
     ST_VerticalAlignment_fromStringMap() {
-        insert(QLatin1String(""), XlsxCellFormat::NoVerticalAlignment);
+        insert(QString(), XlsxCellFormat::NoVerticalAlignment);
         insert(QLatin1String("bottom"), XlsxCellFormat::BottomVerticalAlignment);
         insert(QLatin1String("center"), XlsxCellFormat::CenterVerticalAlignment);
         insert(QLatin1String("distributed"), XlsxCellFormat::DistributedVerticalAlignment);
@@ -278,16 +478,17 @@ void XlsxCellFormat::setVerticalAlignment(const QString& alignment)
 void XlsxCellFormat::setupCellStyleAlignment(KoGenStyle* cellStyle) const
 {
 //! @todo FillHorizontalAlignment, JustifyHorizontalAlignment
-    bool wrapOption = false;
+    int wrapOption = -1; // "don't know"
     switch (horizontalAlignment) {
     case CenterHorizontalAlignment:
     case CenterContinuousHorizontalAlignment:
     case DistributedHorizontalAlignment:
         cellStyle->addProperty("fo:text-align", "center", KoGenStyle::ParagraphType);
         if (horizontalAlignment == DistributedHorizontalAlignment)
-            wrapOption = true;
+            wrapOption = 1;
         break;
     case GeneralHorizontalAlignment: // ok?
+        break;
     case LeftHorizontalAlignment:
         cellStyle->addProperty("fo:text-align", "start", KoGenStyle::ParagraphType);
         break;
@@ -313,17 +514,22 @@ void XlsxCellFormat::setupCellStyleAlignment(KoGenStyle* cellStyle) const
     case DistributedVerticalAlignment:
     case BottomVerticalAlignment:
         if (verticalAlignment == DistributedVerticalAlignment)
-            wrapOption = true;
+            wrapOption = 1;
     default:;
     }
 
 //! @todo take alignment/@wrapText into account
-    cellStyle->addProperty("fo:wrap-option", wrapOption ? "wrap" : "no-wrap");
+    if (wrapOption == 0 || wrapOption == 1)
+        cellStyle->addProperty("fo:wrap-option", wrapOption ? "wrap" : "no-wrap");
 }
 
 //! See http://www.w3.org/TR/2001/REC-xsl-20011015/slice7.html#text-align
-bool XlsxCellFormat::setupCellStyle(const XlsxStyles *styles, KoGenStyle* cellStyle) const
+bool XlsxCellFormat::setupCellStyle(
+    const XlsxStyles *styles,
+    const QMap<QString, MSOOXML::DrawingMLTheme*> *themes,
+    KoGenStyle* cellStyle) const
 {
+kDebug() << "fontId:" << fontId << "fillId:" << fillId;
     if (applyAlignment) {
         setupCellStyleAlignment(cellStyle);
     }
@@ -333,16 +539,15 @@ bool XlsxCellFormat::setupCellStyle(const XlsxStyles *styles, KoGenStyle* cellSt
             kWarning() << "No font with ID:" << fontId;
             return false;
         }
-        fontStyle->setupCellTextStyle(cellStyle);
+        fontStyle->setupCellTextStyle(themes, cellStyle);
     }
     if (applyFill && fillId >= 0) {
-kDebug() << "fillId:" << fillId;
         XlsxFillStyle *fillStyle = styles->fillStyle(fillId);
         if (!fillStyle) {
             kWarning() << "No fill with ID:" << fillId;
             return false;
         }
-        fillStyle->setupCellStyle(cellStyle);
+        fillStyle->setupCellStyle(cellStyle, themes);
     }
     return true;
 }
@@ -454,7 +659,7 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::readInternal()
  - extLst (Future Feature Data Storage Area) §18.2.10
  - [done] fills (Fills) §18.8.21
  - [done] fonts (Fonts) §18.8.23
- - numFmts (Number Formats) §18.8.31
+ - [done] numFmts (Number Formats) §18.8.31
  - tableStyles (Table Styles) §18.8.42
 */
 KoFilter::ConversionStatus XlsxXmlStylesReader::read_styleSheet()
@@ -467,6 +672,7 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_styleSheet()
         if (isStartElement()) {
             TRY_READ_IF(fonts)
             TRY_READ_IF(fills)
+            TRY_READ_IF(numFmts)
             TRY_READ_IF(cellXfs)
 //! @todo add ELSE_WRONG_FORMAT
         }
@@ -508,6 +714,79 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_fonts()
         }
         BREAK_IF_END_OF(CURRENT_EL);
     }
+    READ_EPILOGUE
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL numFmts
+//! numFmts handler (Number formats)
+/*! ECMA-376, 18.8.31, p. 1981.
+ This element defines the number formats in this workbook, consisting of a sequence of numFmt records,
+ where each numFmt record defines a particular number format, indicating how to format and render
+ the numeric value of a cell.
+
+ Child elements:
+ - [done] numFmt (Format Definition) §18.8.30
+ Parent elements:
+ - [done] styleSheet (§18.8.39)
+*/
+KoFilter::ConversionStatus XlsxXmlStylesReader::read_numFmts()
+{
+    READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
+    TRY_READ_ATTR_WITHOUT_NS( count )
+    int countNumber;
+    STRING_TO_INT( count, countNumber, "styleSheet/numFmts@count" );
+
+    while( !atEnd() )
+    {
+        readNext();
+        if( isStartElement() )
+        {
+            TRY_READ_IF( numFmt )
+            ELSE_WRONG_FORMAT
+        }
+        BREAK_IF_END_OF( CURRENT_EL )
+    }
+
+    READ_EPILOGUE
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL numFmt
+//! numFmt handler (Number format)
+/*! ECMA-376, 18.8.30, p. 1973.
+ This element specifies number format properties which indicate how to format and render
+ the numeric value of a cell.
+
+ No child elements.
+ 
+ Parent elements:
+ - dxf (§18.8.14)
+ - ndxf (§18.11.1.4)
+ - [done] numFmts (§18.8.31)
+ - odxf (§18.11.1.6)
+*/
+KoFilter::ConversionStatus XlsxXmlStylesReader::read_numFmt()
+{
+    READ_PROLOGUE
+
+    const QXmlStreamAttributes attrs(attributes());
+    TRY_READ_ATTR_WITHOUT_NS( numFmtId )
+    int id;
+    STRING_TO_INT(numFmtId, id, "numFmt@numFmtId")
+
+    TRY_READ_ATTR_WITHOUT_NS( formatCode );
+
+    m_context->styles->numberFormatStrings[ id ] = formatCode;
+
+    while( true )
+    {
+        BREAK_IF_END_OF( CURRENT_EL );
+        readNext();
+        break;
+    }
+
     READ_EPILOGUE
 }
 
@@ -780,7 +1059,8 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_color()
     Q_ASSERT(m_currentFontStyle);
 
     READ_PROLOGUE
-    RETURN_IF_ERROR( readColorStyle(&m_currentFontStyle->color, "color") )
+    const QXmlStreamAttributes attrs(attributes());
+    RETURN_IF_ERROR( m_currentFontStyle->color.readAttributes(attrs, "color") )
     while (true) {
         BREAK_IF_END_OF(CURRENT_EL);
         readNext();
@@ -800,6 +1080,11 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_color()
  - [done] xf (Format) §18.8.45
  Parent elements:
  - [done] styleSheet (§18.8.39)
+
+ @note cellStyleXfs: the standard states that both the cell style xf records and cell xf records
+       must be read to understand the full set of formatting applied to a cell.
+       In MSO, only the cell xf record defines the formatting applied to a cell.
+       See <a href="http://www.documentinteropinitiative.org/implnotes/implementationnotelist.aspx?id=dd2615fe-aa8d-4a06-a415-13389919cf36&specname=ecma-376">here</a>.
 */
 KoFilter::ConversionStatus XlsxXmlStylesReader::read_cellXfs()
 {
@@ -883,7 +1168,6 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_xf()
     STRING_TO_INT(borderId, m_currentCellFormat->borderId, "xf@borderId")
 
     TRY_READ_ATTR_WITHOUT_NS(fillId)
-kDebug() << "fillId:" << fillId;
     STRING_TO_INT(fillId, m_currentCellFormat->fillId, "xf@fillId")
 
     TRY_READ_ATTR_WITHOUT_NS(fontId)
@@ -1039,7 +1323,7 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_fill()
 void XlsxXmlStylesReader::handlePatternType(const QString& patternType)
 {
     const QByteArray p(patternType.toLatin1());
-kDebug() << p;
+//kDebug() << p;
     if (p.isEmpty() || p == MsooXmlReader::constNone) {
         // 100% background
         m_currentFillStyle->patternType = XlsxFillStyle::NonePatternType;
@@ -1126,28 +1410,6 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_patternFill()
     READ_EPILOGUE
 }
 
-// private
-QColor XlsxXmlStylesReader::readRgbAttribute(const QXmlStreamAttributes& attrs) const
-{
-    TRY_READ_ATTR_WITHOUT_NS(rgb)
-    if (rgb.isEmpty())
-        return QColor();
-    return ST_UnsignedIntHex_to_QColor(rgb);
-}
-
-KoFilter::ConversionStatus XlsxXmlStylesReader::readColorStyle(
-    XlsxColorStyle* colorStyle, const char* debugElement)
-{
-    const QXmlStreamAttributes attrs(attributes());
-    colorStyle->automatic = readBooleanAttr("auto", false);
-    TRY_READ_ATTR_WITHOUT_NS(indexed)
-    STRING_TO_INT(indexed, colorStyle->indexed, QLatin1String(debugElement) + "@indexed")
-    colorStyle->rgb = readRgbAttribute(attrs);
- //! @todo theme
- //! @todo tint
-    return KoFilter::OK;
-}
-
 #undef CURRENT_EL
 #define CURRENT_EL bgColor
 //! bgColor handler (Background Color)
@@ -1165,7 +1427,9 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_bgColor()
 {
     Q_ASSERT(m_currentFillStyle);
     READ_PROLOGUE
-    RETURN_IF_ERROR( readColorStyle(&m_currentFillStyle->bgColor, "bgColor") )
+
+    const QXmlStreamAttributes attrs(attributes());
+    RETURN_IF_ERROR( m_currentFillStyle->bgColor.readAttributes(attrs, "bgColor") )
 
     while (true) {
         BREAK_IF_END_OF(CURRENT_EL);
@@ -1190,8 +1454,11 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_bgColor()
 */
 KoFilter::ConversionStatus XlsxXmlStylesReader::read_fgColor()
 {
+    Q_ASSERT(m_currentFillStyle);
     READ_PROLOGUE
-    RETURN_IF_ERROR( readColorStyle(&m_currentFillStyle->fgColor, "fgColor") )
+
+    const QXmlStreamAttributes attrs(attributes());
+    RETURN_IF_ERROR( m_currentFillStyle->fgColor.readAttributes(attrs, "fgColor") )
 
     while (true) {
         BREAK_IF_END_OF(CURRENT_EL);

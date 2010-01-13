@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -50,10 +51,10 @@ public:
         return "HLink";
     }
     virtual void dump(std::ostream&) const {}
-    static Record *createRecord() {
-        return new HLinkRecord;
+    static Record *createRecord(Workbook *book) {
+        return new HLinkRecord(book);
     }
-    HLinkRecord() : Record(), m_firstRow(0), m_firstColumn(0), m_lastRow(0), m_lastColumn(0) {}
+    HLinkRecord(Workbook *book) : Record(book), m_firstRow(0), m_firstColumn(0), m_lastRow(0), m_lastColumn(0) {}
     virtual ~HLinkRecord() {}
     virtual void setData(unsigned size, const unsigned char* data, const unsigned* /* continuePositions */) {
         if (size < 8) {
@@ -173,7 +174,7 @@ public:
     Cell* formulaStringCell;
 
     // mapping from cell position to data tables
-    std::map<std::pair<unsigned, unsigned>, DataTableRecord> dataTables;
+    std::map<std::pair<unsigned, unsigned>, DataTableRecord*> dataTables;
 
     // mapping from cell position to shared formulas
     std::map<std::pair<unsigned, unsigned>, FormulaTokens> sharedFormulas;
@@ -195,6 +196,10 @@ WorksheetSubStreamHandler::WorksheetSubStreamHandler(Sheet* sheet, const Globals
 
 WorksheetSubStreamHandler::~WorksheetSubStreamHandler()
 {
+    for(std::map<std::pair<unsigned, unsigned>, DataTableRecord*>::iterator it = d->dataTables.begin(); it != d->dataTables.end(); ++it)
+        delete (*it).second;
+    //for(std::map<std::pair<unsigned, unsigned>, FormulaTokens*>::iterator it = d->sharedFormulas.begin(); it != d->sharedFormulas.end(); ++it)
+    //    delete it.second.second;
     delete d;
 }
 
@@ -273,7 +278,8 @@ void WorksheetSubStreamHandler::handleRecord(Record* record)
     else if (type == 0xA) {} //EofRecord
     else if (type == DimensionRecord::id)
         handleDimension(static_cast<DimensionRecord*>(record));
-    //else if (type == 0xEC) Q_ASSERT(false); // MsoDrawing
+    else if (type == MsoDrawingRecord::id)
+        handleMsoDrawing(static_cast<MsoDrawingRecord*>(record));
     else {
         std::cout << "Unhandled worksheet record with type=" << type << std::endl;
     }
@@ -368,7 +374,7 @@ void WorksheetSubStreamHandler::handleDataTable(DataTableRecord* record)
     unsigned row = d->lastFormulaCell->row();
     unsigned column = d->lastFormulaCell->column();
 
-    d->dataTables[std::make_pair(row, column)] = *record;
+    d->dataTables[std::make_pair(row, column)] = new DataTableRecord(*record);
 
     UString formula = dataTableFormula(row, column, record);
     d->lastFormulaCell->setFormula(formula);
@@ -778,6 +784,7 @@ void WorksheetSubStreamHandler::handleObj(ObjRecord* record)
     }
     */
 
+    std::cout << "TODO: WorksheetSubStreamHandler::handleObj id=" << record->m_object->id() << " type=" << record->m_object->type() << std::endl;
     d->sharedObjects[ record->m_object->id()] = record->m_object;
 }
 
@@ -816,6 +823,19 @@ void WorksheetSubStreamHandler::handleZoomLevel(ZoomLevelRecord *record)
     if (!d->sheet) return;
     if (record->denominator() == 0) return;
     d->sheet->setZoomLevel( record->numerator() / double(record->denominator()) );
+}
+
+void WorksheetSubStreamHandler::handleMsoDrawing(MsoDrawingRecord* record)
+{
+    if (!record) return;
+    if (!d->sheet) return;
+    const unsigned long pid = record->m_properties[0x0104];
+    MsoDrawingBlibItem *drawing = d->globals->drawing(pid);
+    if(!drawing) return;
+    std::cout << "WorksheetSubStreamHandler::handleMsoDrawing pid=" << pid << std::endl;
+    Cell *cell = d->sheet->cell(record->m_colL, record->m_rwT);
+    Q_ASSERT(cell);
+    cell->addPicture(new Picture(record,drawing));
 }
 
 typedef std::vector<UString> UStringStack;
@@ -1095,9 +1115,9 @@ UString WorksheetSubStreamHandler::decodeFormula(unsigned row, unsigned col, boo
         case FormulaToken::Table: {
             std::pair<unsigned, unsigned> formulaCellPos = token.baseFormulaRecord();
             if( isShared ) {
-              std::map<std::pair<unsigned, unsigned>, DataTableRecord>::iterator datatable = d->dataTables.find(formulaCellPos);
+              std::map<std::pair<unsigned, unsigned>, DataTableRecord*>::iterator datatable = d->dataTables.find(formulaCellPos);
               if (datatable != d->dataTables.end()) {
-                  stack.push_back(dataTableFormula(row, col, &datatable->second));
+                  stack.push_back(dataTableFormula(row, col, datatable->second));
               } else {
                   stack.push_back(UString("Error"));
               }

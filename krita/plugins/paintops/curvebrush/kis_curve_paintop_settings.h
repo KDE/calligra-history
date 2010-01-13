@@ -20,28 +20,13 @@
 #define KIS_CURVE_PAINTOP_SETTINGS_H_
 
 #include <kis_paintop_settings.h>
-#include <kis_types.h>
 
-#include "kis_curve_paintop_settings_widget.h"
-
-class QWidget;
-class QDomElement;
-class QDomDocument;
-
-class KisCurvePaintOpSettings : public QObject, public KisPaintOpSettings
+class KisCurvePaintOpSettings : public KisPaintOpSettings
 {
-    Q_OBJECT
 
 public:
     KisCurvePaintOpSettings();
     virtual ~KisCurvePaintOpSettings() {}
-    KisPaintOpSettingsSP clone() const;
-
-    using KisPropertiesConfiguration::fromXML;
-    using KisPropertiesConfiguration::toXML;
-
-    virtual void fromXML(const QDomElement&);
-    virtual void toXML(QDomDocument&, QDomElement&) const;
 
     bool paintIncremental();
 
@@ -54,21 +39,5 @@ public:
         return "stylus";
     }
 #endif
-// XXX: Hack!
-    void setOptionsWidget(KisPaintOpSettingsWidget* widget) {
-        if (m_options != 0 && m_options->property("owned by settings").toBool()) {
-            delete m_options;
-        }
-        if (!widget) {
-            m_options = 0;
-        } else {
-            m_options = qobject_cast<KisCurvePaintOpSettingsWidget*>(widget);
-            m_options->writeConfiguration(this);
-        }
-    }
-
-
-private:
-    KisCurvePaintOpSettingsWidget* m_options;
 };
 #endif
