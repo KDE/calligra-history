@@ -31,21 +31,30 @@ KoSuperDockerDocker::KoSuperDockerDocker() : QDockWidget()
 {
     setWindowTitle( i18n( "Super Docker" ) );
 
-    KTabWidget *tabWidget = new KTabWidget( );
-    tabWidget->setCloseButtonEnabled(true);
-    tabWidget->setTabCloseActivatePrevious(true);
-    setWidget(tabWidget);
-    tabWidget->setUpdatesEnabled(true);
-    tabWidget->addTab(new KoDockContainer() , "Test");
-    tabWidget->addTab(new KoDockContainer() , "Test");
-    tabWidget->addTab(new KoDockContainer() , "Test");
-    tabWidget->addTab(new KoDockContainer() , "Test");
-    tabWidget->setTabPosition(QTabWidget::West);
+    m_tabWidget = new KTabWidget( );
+    m_tabWidget->setCloseButtonEnabled(true);
+    m_tabWidget->setTabCloseActivatePrevious(true);
+    setWidget(m_tabWidget);
+    m_tabWidget->setUpdatesEnabled(true);
+    m_tabWidget->addTab(new KoDockContainer() , "Test1");
+    m_tabWidget->addTab(new KoDockContainer() , "Test2");
+    m_tabWidget->addTab(new KoDockContainer() , "Test3");
+    m_tabWidget->addTab(new KoDockContainer() , "Test4");
+    m_tabWidget->setTabPosition(QTabWidget::West);
     connect(this, SIGNAL(dockLocationChanged(Qt::DockWidgetArea)), this, SLOT(locationChanged( Qt::DockWidgetArea)));
+    connect(m_tabWidget, SIGNAL(closeRequest(QWidget*)), this, SLOT(closeTab(QWidget*)));
 }
 
 KoSuperDockerDocker::~KoSuperDockerDocker()
 {
+    if(m_tabWidget){
+        delete m_tabWidget;
+    }
+}
+
+void KoSuperDockerDocker::closeTab(QWidget* widget)
+{
+    m_tabWidget->removeTab(m_tabWidget->indexOf(widget));
 }
 
 void KoSuperDockerDocker::locationChanged( Qt::DockWidgetArea location)

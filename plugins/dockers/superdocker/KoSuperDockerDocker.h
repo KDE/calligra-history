@@ -23,6 +23,7 @@
 
 #include <QDockWidget>
 class QMouseEvent;
+class KTabWidget;
 /// A docker for setting properties of end lines
 class KoSuperDockerDocker : public QDockWidget
 {
@@ -35,6 +36,10 @@ public:
 
 public slots :
     void locationChanged( Qt::DockWidgetArea location);
+    void closeTab(QWidget *widget);
+    
+private:
+    KTabWidget* m_tabWidget;
 };
 
 #endif // KOSUPERDOCKERDOCKER_H
