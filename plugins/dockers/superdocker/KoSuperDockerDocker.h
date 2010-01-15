@@ -1,5 +1,4 @@
 /* This file is part of the KDE project
-   Made by Tomislav Lukman (tomislav.lukman@ck.tel.hr)
    Copyright (C) 2009 Jeremy Lugagne <lugagne.jeremy@gmail.com>
 
    This library is free software; you can redistribute it and/or
