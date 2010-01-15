@@ -522,6 +522,10 @@ void GlobalsSubStreamHandler::handleRecord(Record* record)
         handleProtect(static_cast<ProtectRecord*>(record));
     else if (type == MsoDrawingGroupRecord::id)
         handleMsoDrawingGroup(static_cast<MsoDrawingGroupRecord*>(record));
+    else if (type == Window1Record::id)
+        handleWindow1(static_cast<Window1Record*>(record));
+    else if (type == PasswordRecord::id)
+        handlePassword(static_cast<PasswordRecord*>(record));
     else if (type == 0x40) {} //BackupRecord
     else if (type == 0x22) {} //Date1904Record
     else if (type == 0xA) {} //EofRecord
@@ -704,17 +708,30 @@ void GlobalsSubStreamHandler::handleProtect(ProtectRecord* record)
   }
 }
 
+void GlobalsSubStreamHandler::handleWindow1(Window1Record* record)
+{
+    d->workbook->setActiveTab( record->itabCur() );
+}
+
+void GlobalsSubStreamHandler::handlePassword(PasswordRecord* record)
+{
+    if (!record) return;
+    if (!record->wPassword()) return;
+    std::cout << "GlobalsSubStreamHandler::handlePassword passwordHash=" << record->wPassword() << std::endl;
+    d->workbook->setPassword(record->wPassword());
+}
+
 void GlobalsSubStreamHandler::handleMsoDrawingGroup(MsoDrawingGroupRecord* record)
 {
     if (!record) return;
-    //printf("GlobalsSubStreamHandler::handleMsoDrawingGroup\n");
+    printf("GlobalsSubStreamHandler::handleMsoDrawingGroup\n");
     Q_ASSERT(d->drawingTable.size() == 0); // if this asserts then multiple MsoDrawingGroupRecord can exist what we need to handle!
     d->drawingTable = record->m_items; 
 }
 
 MsoDrawingBlibItem* GlobalsSubStreamHandler::drawing(unsigned long pid) const
 {
-    const int index = pid - 1;
+    const uint index = pid - 1;
     if(index < 0 || index >= d->drawingTable.size()) {
         std::cerr << "GlobalsSubStreamHandler::drawing: Invalid index=" << index << std::endl;
         return 0;

@@ -561,23 +561,22 @@ msofbtBstoreContainer::~msofbtBstoreContainer()
 void
 msofbtBstoreContainer::addRgbUid(const char rgbUid[16])
 {
-    if (d->rgbUids.size() != instance()) {
+    // according to ms docs, instance() gives the number of entries
+    // but this number is not always correct, so we only take it as an initial
+    // guess, but resize the array if needed
+    if (d->rgbUids.size() == 0) {
         d->rgbUids.resize(instance());
     }
-    if (d->pos < d->rgbUids.size()) {
-        d->rgbUids[d->pos++].assign(rgbUid, 16);
+    if (d->pos >= d->rgbUids.size()) {
+        d->rgbUids.resize(d->pos+1);
     }
+    d->rgbUids[d->pos++].assign(rgbUid, 16);
 }
 
 std::vector<std::string>
 msofbtBstoreContainer::bstore() const
 {
-    if (d->pos == d->rgbUids.size()) {
-        return d->rgbUids;
-    }
-    std::vector<std::string> subset = d->rgbUids;
-    subset.resize(d->pos);
-    return subset;
+    return d->rgbUids;
 }
 
 // ========== msofbtDgContainer ==========
@@ -6782,6 +6781,7 @@ const char* msofbtSpAtom::shapeTypeAsString() const
     case 74:  return "msosptHeart";
     case 75:  return "msosptPictureFrame";
     case 96:  return "msosptSmileyFace";
+    case 201: return "msosptHostControl";
     case 202: return "msosptTextBox";
     default: break;
     };
@@ -8884,6 +8884,9 @@ void PPTReader::handleEscherSpAtom(msofbtSpAtom* atom)
     case msofbtSpAtom::msosptHeart: sh = DrawObject::Heart; break;
     case msofbtSpAtom::msosptMin: sh = DrawObject::FreeLine; break;
     case msofbtSpAtom::msosptPictureFrame: sh = DrawObject::PictureFrame; break;
+    // MS documentation recommendends not using HostControl, by rendering it
+    // as a picture, a rendering of the original content may be shown
+    case msofbtSpAtom::msosptHostControl: sh = DrawObject::PictureFrame; break;
 
     default: break;
     }

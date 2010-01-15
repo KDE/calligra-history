@@ -33,7 +33,9 @@ public:
     Store* store;
     std::vector<Sheet*> sheets;
     bool passwordProtected;
+    int activeTab;
     QHash<PropertyType, QVariant> properties;
+    unsigned long passwd;
 };
 
 Workbook::Workbook(Store* store)
@@ -41,6 +43,8 @@ Workbook::Workbook(Store* store)
     d = new Workbook::Private();
     d->store = store;
     d->passwordProtected = false;
+    d->activeTab = -1;
+    d->passwd = 0; // password protection disabled
 }
 
 Workbook::~Workbook()
@@ -114,6 +118,22 @@ void Workbook::setPasswordProtected(bool p)
     d->passwordProtected = p;
 }
 
+int Workbook::activeTab() const
+{
+    return d->activeTab;
+}
 
+void Workbook::setActiveTab(int tab)
+{
+    d->activeTab = tab;
+}
 
+unsigned long Workbook::password() const
+{
+    return d->passwd;
+}
 
+void Workbook::setPassword(unsigned long hash)
+{
+    d->passwd = hash;
+}

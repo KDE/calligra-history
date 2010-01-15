@@ -62,6 +62,7 @@ class TopMarginRecord;
 class HLinkRecord;
 class NoteRecord;
 class ObjRecord;
+class TxORecord;
 class DefaultRowHeightRecord;
 class DefaultColWidthRecord;
 class SetupRecord;
@@ -69,6 +70,8 @@ class HCenterRecord;
 class VCenterRecord;
 class ZoomLevelRecord;
 class MsoDrawingRecord;
+class Window2Record;
+class PasswordRecord;
 
 class WorksheetSubStreamHandler : public SubStreamHandler
 {
@@ -106,6 +109,7 @@ private:
     void handleLink(HLinkRecord* record);
     void handleNote(NoteRecord* record);
     void handleObj(ObjRecord* record);
+    void handleTxO(TxORecord* record);
     void handleDefaultRowHeight(DefaultRowHeightRecord* record);
     void handleDefaultColWidth(DefaultColWidthRecord* record);
     void handleSetup(SetupRecord* record);
@@ -113,6 +117,8 @@ private:
     void handleVCenter(VCenterRecord *record);
     void handleZoomLevel(ZoomLevelRecord *record);
     void handleMsoDrawing(MsoDrawingRecord* record);
+    void handleWindow2(Window2Record* record);
+    void handlePassword(PasswordRecord* record);
 
     UString decodeFormula(unsigned row, unsigned col, bool isShared, const FormulaTokens& tokens);
     UString dataTableFormula(unsigned row, unsigned col, const DataTableRecord* record);

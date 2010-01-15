@@ -186,20 +186,93 @@ XlsxFontStyle::XlsxFontStyle()
 }
 
 XlsxFillStyle::XlsxFillStyle()
-        : patternType(NonePatternType)
+        : patternType(NonePatternType),
+          cachedRealBackgroundColor( 0 )
 {
 }
 
-const XlsxColorStyle* XlsxFillStyle::realBackgroundColor() const
+XlsxFillStyle::~XlsxFillStyle()
 {
+    delete cachedRealBackgroundColor;
+}
+
+static QColor applyPatternDensity( const XlsxColorStyle& bg, const XlsxColorStyle& fg, qreal percent, const QMap<QString, MSOOXML::DrawingMLTheme*> *themes )
+{
+    const QColor bgColor = bg.theme >= 0 ? bg.themeColor( themes ) : bg.rgb.isValid() ? bg.rgb : QColor( Qt::white );
+    const QColor fgColor = fg.theme >= 0 ? fg.themeColor( themes ) : fg.rgb;//.isValid() ? fg.rgb : QColor( Qt::black );
+    
+    QColor result( Qt::white );
+    if( bgColor.isValid() ) {
+        result = QColor( bgColor.red() * percent, 
+                         bgColor.green() * percent, 
+                         bgColor.blue() * percent, 
+                         bgColor.alpha() );
+    }
+    if( fgColor.isValid() ) {
+        result = QColor( result.red()   + fgColor.red() * ( 1.0 - percent ), 
+                         result.green() + fgColor.green() * ( 1.0 - percent ), 
+                         result.blue()  + fgColor.blue() * ( 1.0 - percent ),
+                         bgColor.isValid() ? bgColor.alpha() : fgColor.alpha() );
+    }
+    return result;
+}
+
+const XlsxColorStyle* XlsxFillStyle::realBackgroundColor( const QMap<QString, MSOOXML::DrawingMLTheme*> *themes) const
+{
+    delete cachedRealBackgroundColor;
+    cachedRealBackgroundColor = new XlsxColorStyle;
+
 kDebug() << "patternType:" << patternType;
     switch (patternType) {
     case NonePatternType:
         return 0;
     case SolidPatternType:
         return &fgColor;
-    default:;
-//! @todo support other patterns
+    case DarkDownPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.5, themes );
+        return cachedRealBackgroundColor;
+    case DarkGrayPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.25, themes );
+        return cachedRealBackgroundColor;
+    case DarkGridPatternType: // fall through
+    case DarkHorizontalPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.5, themes );
+        return cachedRealBackgroundColor;
+    case DarkTrellisPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.25, themes );
+        return cachedRealBackgroundColor;
+    case DarkUpPatternType:  // fall through
+    case DarkVerticalPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.50, themes );
+        return cachedRealBackgroundColor;
+    case LightPatternType:
+        break; //??
+    case LightDownPatternType:  // fall through
+    case LightGrayPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.75, themes );
+        return cachedRealBackgroundColor;
+    case LightGridPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.5625, themes );
+        return cachedRealBackgroundColor;
+    case LightHorizontalPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.75, themes );
+        return cachedRealBackgroundColor;
+    case LightTrellisPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.625, themes );
+        return cachedRealBackgroundColor;
+    case LightUpPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.75, themes );
+        return cachedRealBackgroundColor;
+    case LightVerticalPatternType: // fall through
+    case MediumGrayPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.50, themes );
+        return cachedRealBackgroundColor;
+    case Gray0625PatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.9375, themes );
+        return cachedRealBackgroundColor;
+    case Gray125PatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.875, themes );
+        return cachedRealBackgroundColor;
     }
     return &bgColor;
 }
@@ -208,7 +281,7 @@ void XlsxFillStyle::setupCellStyle(KoGenStyle* cellStyle, const QMap<QString, MS
 {
 //! @todo implement more styling;
 //!       use XlsxColorStyle::automatic, XlsxColorStyle::indexed, XlsxColorStyle::theme...
-    const XlsxColorStyle* realBackgroundColor = this->realBackgroundColor();
+    const XlsxColorStyle* realBackgroundColor = this->realBackgroundColor( themes );
     if (realBackgroundColor) {
 kDebug() << patternType << realBackgroundColor->value(themes).name()
          << realBackgroundColor->tint << realBackgroundColor->isValid(themes);
@@ -1334,41 +1407,58 @@ void XlsxXmlStylesReader::handlePatternType(const QString& patternType)
     }
     else if (p.startsWith("dark")) {
         if (p == "darkDown") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkDownPatternType;
         }
         else if (p == "darkGray") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkGrayPatternType;
         }
         else if (p == "darkGrid") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkGridPatternType;
         }
         else if (p == "darkHorizontal") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkGridPatternType;
         }
         else if (p == "darkTrellis") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkTrellisPatternType;
         }
         else if (p == "darkUp") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkUpPatternType;
         }
         else if (p == "darkVertical") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkVerticalPatternType;
         }
     }
     else if (p.startsWith("light")) {
         if (p == "lightDown") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightDownPatternType;
         }
         else if (p == "lightGray") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightGrayPatternType;
         }
         else if (p == "lightGrid") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightGridPatternType;
         }
         else if (p == "lightHorizontal") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightHorizontalPatternType;
         }
         else if (p == "lightTrellis") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightTrellisPatternType;
         }
         else if (p == "lightUp") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightUpPatternType;
         }
         else if (p == "lightVertical") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightVerticalPatternType;
         }
     }
     else if (p == "mediumGray") {
+        m_currentFillStyle->patternType = XlsxFillStyle::MediumGrayPatternType;
     }
     else if (p == "gray0625") {
+        m_currentFillStyle->patternType = XlsxFillStyle::Gray0625PatternType;
     }
     else if (p == "gray125") {
+        m_currentFillStyle->patternType = XlsxFillStyle::Gray125PatternType;
     }
     else {
         kWarning() << "unknown value" << p

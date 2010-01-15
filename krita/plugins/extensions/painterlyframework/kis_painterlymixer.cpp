@@ -45,6 +45,10 @@ KisPainterlyMixer::KisPainterlyMixer(QWidget *parent)
 
     initSpots();
 
+    // XXX: ask Enkithan for a palette-knife icon
+    bnMix->setIcon(KIcon("krita_tool_knife"));
+    bnPick->setIcon(KIcon("krita_tool_color_picker"));
+    bnPan->setIcon(KIcon("krita_tool_move"));
     m_bErase->setIcon(KIcon("edit-delete"));
     connect(m_bErase, SIGNAL(clicked()), m_canvas, SLOT(slotClear()));
 }
@@ -84,8 +88,8 @@ void KisPainterlyMixer::initSpots()
 
 void KisPainterlyMixer::loadColors()
 {
-    // TODO We need to handle save/load of user-defined colors in the spots.
-
+    // TODO: We need to handle save/load of user-defined colors in the spots.
+    //       This needs to be coordinated with the favourite resources!
     const KoColorSpace *cs = m_canvas->colorSpace();
     m_vColors.append(KoColor(QColor("#FF0000"), cs)); // Red
     m_vColors.append(KoColor(QColor("#00FF00"), cs)); // Green

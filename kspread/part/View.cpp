@@ -1435,9 +1435,18 @@ void View::setActiveSheet(Sheet* sheet, bool updateSheet)
 
     d->canvas->update();
 
+    d->actions->showPageBorders->blockSignals(true);
     d->actions->showPageBorders->setChecked(d->activeSheet->isShowPageBorders());
+    d->actions->showPageBorders->blockSignals(false);
+    
+    d->actions->protectSheet->blockSignals(true);
     d->actions->protectSheet->setChecked(d->activeSheet->isProtected());
+    d->actions->protectSheet->blockSignals(false);
+
+    d->actions->protectDoc->blockSignals(true);
     d->actions->protectDoc->setChecked(doc()->map()->isProtected());
+    d->actions->protectDoc->blockSignals(false);
+
     d->adjustActions(!d->activeSheet->isProtected());
     d->adjustWorkbookActions(!doc()->map()->isProtected());
 

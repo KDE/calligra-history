@@ -26,6 +26,7 @@
 #include "excel.h"
 #include "cell.h"
 #include "sheet.h"
+#include <QPoint>
 
 //#define SWINDER_XLS2RAW
 
@@ -181,6 +182,14 @@ public:
 
     // mapping from object id's to object instances
     std::map<unsigned long, Object*> sharedObjects;
+    
+    // maps object id's of NoteObject's to there continuous number
+    std::map<unsigned long, int> noteMap;
+    // the number of NoteObject's in this worksheet
+    int noteCount;
+    
+    // list of textobjects as received via TxO records
+    std::vector<UString> textObjects;
 };
 
 WorksheetSubStreamHandler::WorksheetSubStreamHandler(Sheet* sheet, const GlobalsSubStreamHandler* globals)
@@ -190,6 +199,7 @@ WorksheetSubStreamHandler::WorksheetSubStreamHandler(Sheet* sheet, const Globals
     d->globals = globals;
     d->lastFormulaCell = 0;
     d->formulaStringCell = 0;
+    d->noteCount = 0;
 
     RecordRegistry::registerRecordClass(HLinkRecord::id, HLinkRecord::createRecord);
 }
@@ -261,6 +271,8 @@ void WorksheetSubStreamHandler::handleRecord(Record* record)
         handleNote(static_cast<NoteRecord*>(record));
     else if (type == ObjRecord::id)
         handleObj(static_cast<ObjRecord*>(record));
+    else if (type == TxORecord::id)
+        handleTxO(static_cast<TxORecord*>(record));
     else if (type == BOFRecord::id)
         handleBOF(static_cast<BOFRecord*>(record));
     else if (type == DefaultRowHeightRecord::id)
@@ -280,6 +292,10 @@ void WorksheetSubStreamHandler::handleRecord(Record* record)
         handleDimension(static_cast<DimensionRecord*>(record));
     else if (type == MsoDrawingRecord::id)
         handleMsoDrawing(static_cast<MsoDrawingRecord*>(record));
+    else if (type == Window2Record::id)
+        handleWindow2(static_cast<Window2Record*>(record));
+    else if (type == PasswordRecord::id)
+        handlePassword(static_cast<PasswordRecord*>(record));
     else {
         std::cout << "Unhandled worksheet record with type=" << type << " name=" << record->name() << std::endl;
     }
@@ -752,19 +768,27 @@ void WorksheetSubStreamHandler::handleLink(HLinkRecord* record)
     }
 }
 
+void WorksheetSubStreamHandler::handleTxO(TxORecord* record)
+{
+    if (!record) return;
+
+    std::cout << "WorksheetSubStreamHandler::handleTxO size=" << d->textObjects.size()+1 << " text=" << record->m_text << std::endl;
+    d->textObjects.push_back(record->m_text);
+}
+
 void WorksheetSubStreamHandler::handleNote(NoteRecord* record)
 {
     if (!record) return;
     if (!d->sheet) return;
     Cell *cell = d->sheet->cell(record->column(), record->row());
     if (cell) {
-        NoteObject *obj = static_cast<NoteObject*>(d->sharedObjects[ record->idObj()]);
+        const unsigned long id = record->idObj();
+        NoteObject *obj = static_cast<NoteObject*>(d->sharedObjects[id]);
         if (obj) {
-#if 0
-            cell->setNote(obj->note());
-#else
-            std::cout << "TODO: WorksheetSubStreamHandler::handleNote" << std::endl;
-#endif
+            int offset = d->noteMap[id] - 1;
+            Q_ASSERT(offset>=0 && offset<d->textObjects.size());
+            cell->setNote(d->textObjects[offset]);
+            //cell->setNote(obj->note());
         }
     }
 }
@@ -774,22 +798,22 @@ void WorksheetSubStreamHandler::handleObj(ObjRecord* record)
     if (!record) return;
     if (!record->m_object) return;
 
-    /*
-    std::cout << "WorksheetSubStreamHandler::handleObj id=" << record->m_object->id() << " type=" << record->m_object->type() << std::endl;
+    const unsigned long id = record->m_object->id();
+
+    std::cout << "WorksheetSubStreamHandler::handleObj id=" << id << " type=" << record->m_object->type() << std::endl;
     switch(record->m_object->type()) {
-        case Object::Picture: {
-            PictureObject *r = static_cast<PictureObject*>(record->m_object);
-            if( ! r) return;
-            std::cout << "PICTURE embeddedStorage=" << r->embeddedStorage().c_str() << std::endl;
-        }
-        break;
+        //case Object::Picture:
+        //    PictureObject *r = static_cast<PictureObject*>(record->m_object);
+        //    std::cout << "PICTURE embeddedStorage=" << r->embeddedStorage().c_str() << std::endl;
+        //    break;
+        case Object::Note:
+            d->noteMap[id] = ++d->noteCount;
+            break;
         default:
             break;
     }
-    */
 
-    std::cout << "TODO: WorksheetSubStreamHandler::handleObj id=" << record->m_object->id() << " type=" << record->m_object->type() << std::endl;
-    d->sharedObjects[ record->m_object->id()] = record->m_object;
+    d->sharedObjects[id] = record->m_object;
 }
 
 void WorksheetSubStreamHandler::handleDefaultRowHeight(DefaultRowHeightRecord* record)
@@ -833,13 +857,100 @@ void WorksheetSubStreamHandler::handleMsoDrawing(MsoDrawingRecord* record)
 {
     if (!record) return;
     if (!d->sheet) return;
-    const unsigned long pid = record->m_properties[0x0104];
-    MsoDrawingBlibItem *drawing = d->globals->drawing(pid);
-    if(!drawing) return;
-    std::cout << "WorksheetSubStreamHandler::handleMsoDrawing pid=" << pid << std::endl;
-    Cell *cell = d->sheet->cell(record->m_colL, record->m_rwT);
-    Q_ASSERT(cell);
-    cell->addPicture(new Picture(record,drawing));
+    
+    // picture?
+    std::map<unsigned long,unsigned long>::iterator pit = record->m_properties.find(DrawingObject::pid);
+    if(pit != record->m_properties.end()) {
+        const unsigned long id = (*pit).second;
+        std::cout << "WorksheetSubStreamHandler::handleMsoDrawing pid=" << id << std::endl;
+        MsoDrawingBlibItem *drawing = d->globals->drawing(id);
+        if(!drawing) return;
+        Cell *cell = d->sheet->cell(record->m_colL, record->m_rwT);
+        Q_ASSERT(cell);
+        cell->addPicture(new Picture(record,drawing));
+        return;
+    }
+
+    // text?
+    std::map<unsigned long,unsigned long>::iterator txit = record->m_properties.find(DrawingObject::itxid);
+    if(txit != record->m_properties.end()) {
+        const unsigned long id = (*txit).second;
+        std::cout << "TODO WorksheetSubStreamHandler::handleMsoDrawing itxid=" << id << std::endl;
+
+        //TODO
+        //Q_ASSERT(d->globals->drawing(id));
+        //Q_ASSERT(false);
+        
+        return;
+    }
+
+    std::cerr << "WorksheetSubStreamHandler::handleMsoDrawing No pid" << std::endl;
+}
+
+void WorksheetSubStreamHandler::handleWindow2(Window2Record* record)
+{
+    if (!record) return;
+    if (!d->sheet) return;
+    d->sheet->setFirstVisibleCell(QPoint(record->colLeft(),record->rwTop()));
+}
+
+void WorksheetSubStreamHandler::handlePassword(PasswordRecord* record)
+{
+    if (!record) return;
+    if (!d->sheet) return;
+    if (!record->wPassword()) return;
+    std::cout << "WorksheetSubStreamHandler::handlePassword passwordHash=" << record->wPassword() << std::endl;
+    d->sheet->setPassword(record->wPassword());
+
+#if 0
+    quint16 nHash = record->wPassword() ^ 0xCE4B;
+    quint16 nDummy = nHash;
+    quint16 nLen = 9;
+    while( !(nDummy & 0x8000) && nLen ) { --nLen; nDummy <<= 1; }
+    if( !nLen ) nLen = 2;
+    if( (nLen ^ nHash) & 0x0001 ) nLen++;
+    if( nLen == 9 ) { nLen = 10; nHash ^= 0x8001; }
+    nHash ^= nLen;
+    if( nLen < 9 ) nHash <<= (8 - nLen);
+    quint16 nNewChar = 0;
+    QByteArray sPasswd;
+    for( quint16 iChar = nLen; iChar > 0; iChar-- ) {
+        switch( iChar ) {
+            case 10:
+                nNewChar = (nHash & 0xC000) | 0x0400;
+                nHash ^= nNewChar;
+                nNewChar >>= 2;
+                break;
+            case 9:
+                nNewChar = 0x4200;
+                nHash ^= nNewChar;
+                nNewChar >>= 1;
+                break;
+            case 1:
+                nNewChar = nHash & 0xFF00;
+                break;
+            default:
+                nNewChar = (nHash & 0xE000) ^ 0x2000;
+                if( !nNewChar ) nNewChar = (nHash & 0xF000) ^ 0x1800;
+                if( nNewChar == 0x6000 ) nNewChar = 0x6100;
+                nHash ^= nNewChar;
+                nHash <<= 1;
+                break;
+        }
+        nNewChar >>= 8;
+        nNewChar &= 0x00FF;
+
+        //QByteArray sDummy = sPasswd;
+        //typedef sal_Char STRING16[ 16 ];
+        //sPasswd = (sal_Char) nNewChar;
+        //sPasswd += sDummy;        
+
+        sPasswd.prepend(QChar(nNewChar));
+    }
+        
+    std::cout << ">>>> " << sPasswd.data() << std::endl; //0x218490a
+#endif
+
 }
 
 typedef std::vector<UString> UStringStack;

@@ -111,6 +111,12 @@ public:
 
     bool isPasswordProtected() const;
     void setPasswordProtected(bool p);
+    
+    int activeTab() const;
+    void setActiveTab(int tab);
+    
+    unsigned long password() const;
+    void setPassword(unsigned long hash);
 
 private:
     // no copy or assign

@@ -2362,17 +2362,16 @@ bool Sheet::loadOdf(const KoXmlElement& sheetElement,
             print()->setPrintRange(region.firstRange());
     }
 
-
     if (sheetElement.attributeNS(KoXmlNS::table, "protected", QString()) == "true") {
-        QByteArray passwd("");
         if (sheetElement.hasAttributeNS(KoXmlNS::table, "protection-key")) {
             QString p = sheetElement.attributeNS(KoXmlNS::table, "protection-key", QString());
-            QByteArray str(p.toLatin1());
-            kDebug(30518) << "Decoding password:" << str;
-            passwd = KCodecs::base64Decode(str);
+            if(!p.isNull()) {
+                QByteArray str(p.toUtf8());
+                QByteArray passwd = KCodecs::base64Decode(str);
+                kDebug(30518) << "Password password:" << str << "hash:" << passwd;
+                setProtected(passwd);
+            }
         }
-        kDebug(30518) << "Password hash: '" << passwd << '\'';
-        setProtected(passwd);
     }
     return true;
 }
@@ -2998,8 +2997,8 @@ void Sheet::loadOdfSettings(const KoOasisSettings::NamedMap &settings)
     setShowGrid(items.parseConfigItemBool("ShowGrid"));
     setFirstLetterUpper(items.parseConfigItemBool("FirstLetterUpper"));
 
-    int cursorX = items.parseConfigItemInt("CursorPositionX");
-    int cursorY = items.parseConfigItemInt("CursorPositionY");
+    int cursorX = qMax(1, items.parseConfigItemInt("CursorPositionX") + 1);
+    int cursorY = qMax(1, items.parseConfigItemInt("CursorPositionY") + 1);
     map()->loadingInfo()->setCursorPosition(this, QPoint(cursorX, cursorY));
 
     double offsetX = items.parseConfigItemDouble("xOffset");
@@ -3038,11 +3037,11 @@ bool Sheet::saveOdf(OdfSavingContext& tableContext)
     xmlWriter.addAttribute("table:style-name", saveOdfSheetStyleName(mainStyles));
     QByteArray pwd;
     password(pwd);
-    if (!pwd.isEmpty()) {
+    if (!pwd.isNull()) {
         xmlWriter.addAttribute("table:protected", "true");
         QByteArray str = KCodecs::base64Encode(pwd);
         // FIXME Stefan: see OpenDocument spec, ch. 17.3 Encryption
-        xmlWriter.addAttribute("table:protection-key", QString(str.data()));
+        xmlWriter.addAttribute("table:protection-key", QString(str));
     }
     QRect _printRange = print()->printRange();
     if (_printRange != (QRect(QPoint(1, 1), QPoint(KS_colMax, KS_rowMax)))) {
@@ -3704,12 +3703,8 @@ bool Sheet::loadXML(const KoXmlElement& sheet)
 
     if (sheet.hasAttribute("protected")) {
         QString passwd = sheet.attribute("protected");
-
-        if (passwd.length() > 0) {
-            QByteArray str(passwd.toLatin1());
-            setProtected(KCodecs::base64Decode(str));
-        } else
-            setProtected(QByteArray(""));
+        QByteArray str(passwd.toUtf8());
+        setProtected(KCodecs::base64Decode(str));
     }
 
     return true;
