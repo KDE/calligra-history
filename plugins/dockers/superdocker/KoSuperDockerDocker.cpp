@@ -36,9 +36,6 @@ KoSuperDockerDocker::KoSuperDockerDocker() : QDockWidget()
     setWidget(m_tabWidget);
     m_tabWidget->setUpdatesEnabled(true);
     m_tabWidget->addTab(new KoDockContainer() , "Test1");
-    m_tabWidget->addTab(new KoDockContainer() , "Test2");
-    m_tabWidget->addTab(new KoDockContainer() , "Test3");
-    m_tabWidget->addTab(new KoDockContainer() , "Test4");
     m_tabWidget->setTabPosition(QTabWidget::West);
     connect(this, SIGNAL(dockLocationChanged(Qt::DockWidgetArea)), this, SLOT(locationChanged( Qt::DockWidgetArea)));
     connect(m_tabWidget, SIGNAL(closeRequest(QWidget*)), this, SLOT(closeTab(QWidget*)));

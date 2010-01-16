@@ -27,23 +27,34 @@
 #include <QDockWidget>
 #include <QVBoxLayout>
 #include <KoDockRegistry.h>
+#include <KoMainWindow.h>
+#include <QList>
 
 #include <QEvent>
 #include <kgenericfactory.h>
 
 KoDockContainer::KoDockContainer()
 {
-    //setWindowFlags(windowFlags() | Qt::Widget);
     show();
     setLayout(new QVBoxLayout());
-    setAcceptDrops(true);
-//    installEventFilter(, new QMouseEvent);
-    kDebug() << "nb docker" << KoDockRegistry::instance()->count();
-    QList<KoDockFactory*> list = KoDockRegistry::instance()->values();
-    list.at(0)->createDockWidget();
-    list.at(0)->createDockWidget();
-    for(int i = 0; i < list.size(); i++){
-//        installEventFilter(list.at(i)->createDockWidget());
+
+    QWidget* widget = this;
+    QList<KMainWindow*> windowList = KMainWindow::memberList();
+    qDebug() << "number of windows : " << windowList.size();
+    foreach(KMainWindow* window, windowList){
+        KoMainWindow* mainWindow = dynamic_cast<KoMainWindow*>(window);
+
+        if(mainWindow){
+            qDebug() << "MainWindow catched";
+            QList<QDockWidget*> list = mainWindow->dockWidgets();
+            qDebug() << "number of dockers : " << list.size();
+            foreach(QDockWidget* dockWidget, list){
+                if(dockWidget) {
+                    qDebug() << "installEventFilter";
+                    dockWidget->installEventFilter(this);
+                }
+            }
+        }
     }
 }
 
@@ -60,12 +71,6 @@ void KoDockContainer::catchDockWidget(QDockWidget *widget)
     widget->setVisible(false);
     widget->setWindowFlags(Qt::Popup);
     layout()->addWidget(widget);
-}
-
-bool KoDockContainer::event(QEvent *event)
-{
-    qDebug() << event->type();
-    return QWidget::event(event);
 }
 
 void KoDockContainer::releaseDockWidget(QDockWidget* widget)
@@ -102,29 +107,5 @@ bool KoDockContainer::isOver(const QPoint& globalPos )
 {
     QPoint localPos = mapFromGlobal(globalPos);
     return (localPos.x() < geometry().width() && localPos.y() < geometry().height());
-}
-
-void KoDockContainer::dragEnterEvent(QDragEnterEvent *event)
-{
-    qDebug() << "drag enter event";
-    event->acceptProposedAction();
-}
-
-void KoDockContainer::dropEvent(QDropEvent *event)
-{
-    qDebug() << "DROPPED !!";
-    event->acceptProposedAction();
-}
-
-void KoDockContainer::dragMoveEvent(QDragMoveEvent *event)
-{
-    qDebug() << "drag move event";
-    event->acceptProposedAction();
-}
-
-void KoDockContainer::dragLeaveEvent(QDragLeaveEvent *event)
-{
-    qDebug() << "drag move event";
-//    event->acceptProposedAction();
 }
 

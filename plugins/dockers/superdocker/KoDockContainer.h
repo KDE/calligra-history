@@ -39,12 +39,6 @@ public :
     void addDockWidget(QDockWidget *widget);
 
 protected :
-    bool event(QEvent* event);
-    void dropEvent(QDropEvent * event);
-    void dragEnterEvent(QDragEnterEvent *event);
-    void dragMoveEvent(QDragMoveEvent *event);
-    void dragLeaveEvent(QDragLeaveEvent *event);
-
     bool isOver(const QPoint& pos );
     bool eventFilter(QObject *object, QEvent *event);
 
