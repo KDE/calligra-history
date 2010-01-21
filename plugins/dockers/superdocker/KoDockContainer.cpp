@@ -38,7 +38,6 @@ KoDockContainer::KoDockContainer()
     show();
     setLayout(new QVBoxLayout());
 
-    QWidget* widget = this;
     QList<KMainWindow*> windowList = KMainWindow::memberList();
     qDebug() << "number of windows : " << windowList.size();
     foreach(KMainWindow* window, windowList){
@@ -65,10 +64,13 @@ void KoDockContainer::addDockWidget(QDockWidget *widget)
 
 void KoDockContainer::catchDockWidget(QDockWidget *widget)
 {
-    if(m_widgets.contains(widget)) return;
+    if(m_widgets.contains(widget)){
+        kDebug() << "already added";
+        return;
+    }
     m_widgets.push_back(widget);
     m_widgetsFlags.push_back(widget->windowFlags());
-    widget->setVisible(false);
+    widget->setVisible(true);
     widget->setWindowFlags(Qt::Popup);
     layout()->addWidget(widget);
 }
@@ -87,13 +89,13 @@ void KoDockContainer::releaseDockWidget(QDockWidget* widget)
 
 bool KoDockContainer::eventFilter(QObject *object, QEvent *event)
 {
-    qDebug() << "eventFilter" << event->type();
     QDockWidget* dockWidget = dynamic_cast<QDockWidget*>(object);
+    qDebug() << dockWidget->windowTitle() << " : eventFilter : " << event->type();
     if(dockWidget && event->type() == QEvent::MouseButtonRelease){
-        kDebug() << "Test 1 Ok!";
+        kDebug() << "event MouseButtonRealease catched";
         QMouseEvent* mouseEvent = dynamic_cast<QMouseEvent*>(event);
         if(mouseEvent){
-            kDebug() << "catch";
+            kDebug() << "docker catched";
             if(isOver(mouseEvent->pos())){
                 catchDockWidget(dockWidget);
             }
