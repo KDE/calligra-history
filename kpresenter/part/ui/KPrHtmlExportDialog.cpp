@@ -26,7 +26,7 @@
 #include <kstandarddirs.h>
 #include <QComboBox>
 #include <KoDocument.h>
-
+#include <KFileDialog>
 #include "KPrHtmlExport.h"
 #include <QWebFrame>
 #include <QPainter>
@@ -127,8 +127,8 @@ void KPrHtmlExportDialog::loadCssList()
         for( QStringList::ConstIterator entry=entries.begin(); entry!=entries.end(); ++entry ){
             if (*entry != "." && *entry != ".."){
                 if (dir.exists(*entry + "/style.css")){
-                    //ui.KurlCombo_css->setUrl(KUrl(*path + *entry + "/style.css"));
-			ui.kcombobox->addItem(QString(*entry),QVariant(QString(*path + *entry + "/style.css")));
+                    // Rajouter les items inselectionnables
+		        	ui.kcombobox->addItem(QString(*entry),QVariant(QString(*path + *entry + "/style.css")));
                 } 
             }
         }        
@@ -136,7 +136,13 @@ void KPrHtmlExportDialog::loadCssList()
 }
 
 void KPrHtmlExportDialog::browserAction(){
-
+    KFileDialog dialog(KUrl("/"),QString("*.css"),this);
+	if ( dialog.exec() == QDialog::Accepted ){
+        QString name=dialog.selectedFile();
+        if (name.endsWith(QString(".css"),Qt::CaseInsensitive)){
+		    ui.kcombobox->addItem(name,QVariant(name));
+        }
+   }
 }
 
 QString KPrHtmlExportDialog::title()
