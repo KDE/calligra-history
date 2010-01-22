@@ -38,6 +38,7 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
 
     connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ), this, SLOT( checkAllItems()  ) );
     connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ), this, SLOT( uncheckAllItems()) );
+    connect( ui.kpushbuttonBrowseCSS, SIGNAL( clicked() ), this, SLOT( browserAction()));
 
     this->generateSlidesNames(slides);
     this->loadCssList();
@@ -83,7 +84,7 @@ QStringList KPrHtmlExportDialog::slidesNames(){
 }
 
 KUrl KPrHtmlExportDialog::css(){
-    return ui.KurlCombo_css->url();
+    return KUrl(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
 }
 
 void KPrHtmlExportDialog::generateSlidesNames(QList<KoPAPageBase*> slides)
@@ -114,11 +115,16 @@ void KPrHtmlExportDialog::loadCssList()
         for( QStringList::ConstIterator entry=entries.begin(); entry!=entries.end(); ++entry ){
             if (*entry != "." && *entry != ".."){
                 if (dir.exists(*entry + "/style.css")){
-                    ui.KurlCombo_css->setUrl(KUrl(*path + *entry + "/style.css"));
+                    //ui.KurlCombo_css->setUrl(KUrl(*path + *entry + "/style.css"));
+			ui.kcombobox->addItem(QString(*entry),QVariant(QString(*path + *entry + "/style.css")));
                 } 
             }
         }        
     }
+}
+
+void KPrHtmlExportDialog::browserAction(){
+
 }
 
 QString KPrHtmlExportDialog::title()

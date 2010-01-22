@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>351</width>
-    <height>297</height>
+    <height>310</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -71,28 +71,6 @@
      </property>
     </widget>
    </item>
-   <item row="6" column="0" colspan="4">
-    <widget class="KUrlComboRequester" name="KurlCombo_css">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>333</width>
-       <height>31</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>31</height>
-      </size>
-     </property>
-    </widget>
-   </item>
    <item row="1" column="0" colspan="3">
     <widget class="KLineEdit" name="klineedit_title"/>
    </item>
@@ -103,9 +81,27 @@
      </property>
     </widget>
    </item>
+   <item row="6" column="0" colspan="2">
+    <widget class="KComboBox" name="kcombobox"/>
+   </item>
+   <item row="6" column="2">
+    <widget class="KPushButton" name="kpushbuttonBrowseCSS">
+     <property name="locale">
+      <locale language="English" country="UnitedStates"/>
+     </property>
+     <property name="text">
+      <string>Browse</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>KComboBox</class>
+   <extends>QComboBox</extends>
+   <header>kcombobox.h</header>
+  </customwidget>
   <customwidget>
    <class>KLineEdit</class>
    <extends>QLineEdit</extends>
@@ -120,11 +116,6 @@
    <class>KPushButton</class>
    <extends>QPushButton</extends>
    <header>kpushbutton.h</header>
-  </customwidget>
-  <customwidget>
-   <class>KUrlComboRequester</class>
-   <extends>KUrlRequester</extends>
-   <header>kurlrequester.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

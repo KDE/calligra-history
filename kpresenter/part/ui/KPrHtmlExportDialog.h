@@ -38,6 +38,7 @@ public:
 private slots:
     void checkAllItems();
     void uncheckAllItems();
+    void browserAction();
 
 private:
     QList<KoPAPageBase*> m_allSlides;
