@@ -172,8 +172,10 @@ void KPrHtmlExportDialog::generatePreview(int item) {
 
 void KPrHtmlExportDialog::renderPreview()
 {
+    preview.currentFrame()->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAlwaysOff);
+    preview.currentFrame()->setScrollBarPolicy(Qt::Vertical,   Qt::ScrollBarAlwaysOff);
     preview.setViewportSize(preview.currentFrame()->contentsSize());
-    QImage image(preview.viewportSize(), QImage::Format_ARGB32);
+    QImage image(preview.currentFrame()->contentsSize(), QImage::Format_ARGB32);
     QPainter painter(&image);
 
     preview.mainFrame()->render(&painter);
