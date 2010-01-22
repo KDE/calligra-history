@@ -151,8 +151,9 @@ QString KPrHtmlExportDialog::title()
 }
 
 void KPrHtmlExportDialog::generatePreview(int item) {
-    if(item < 0) {
-        item = 0;
+    static int frameToRender = 0;
+    if(item > 0) {
+        frameToRender = item;
     }
 
     KPrHtmlExport previewGenerator;
@@ -160,8 +161,8 @@ void KPrHtmlExportDialog::generatePreview(int item) {
     previewParameters.author = "John Doe";
     previewParameters.cssUrl = this->css();
     previewParameters.dest_url = "";
-    previewParameters.slides.append(this->m_allSlides.at(item));
-    previewParameters.slidesNames.append(ui.kListBox_slides->item(item)->text());
+    previewParameters.slides.append(this->m_allSlides.at(frameToRender));
+    previewParameters.slidesNames.append(ui.kListBox_slides->item(frameToRender)->text());
     previewParameters.title = ui.klineedit_title->text();
     previewParameters.kprView = (KPrView*)this->parentWidget();
     KUrl url;
