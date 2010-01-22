@@ -23,6 +23,7 @@
 #include <QObject>
 #include <KUrl>
 #include <QStringList>
+#include <QWebPage>
 
 class KPrView;
 class KoPAPageBase;
@@ -51,6 +52,13 @@ public:
     KPrHtmlExport();
     ~KPrHtmlExport();
     void exportHtml(const ExportParameter parameters);
+
+    /**
+     * Generates a preview of 1 frame into a tempoary directory
+     * @param parameters Presentation data (only 1 slide should be provided in "slides" filed)
+     * @param previewUrl  URL of output html
+     */
+    void exportPreview(ExportParameter parameters, KUrl &previewUrl);
 protected:
     void generateHtml();
     void generateToc();

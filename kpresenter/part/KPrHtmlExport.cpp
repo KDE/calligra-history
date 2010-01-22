@@ -48,6 +48,20 @@ void KPrHtmlExport::exportHtml (ExportParameter parameters)
     copyFromTmpToDest();
 }
 
+void KPrHtmlExport::exportPreview(ExportParameter parameters, KUrl &previewUrl) {
+    m_parameters = parameters;
+
+    // Create a temporary dir
+    KTempDir tmpDir;
+    m_tmpDirPath = tmpDir.name();
+    tmpDir.setAutoRemove(false);
+    exportImageToTmpDir();
+    generateHtml();
+
+    previewUrl.setPath(tmpDir.name());
+    previewUrl.addPath("slide0.html");
+}
+
 
 KPrHtmlExport::~KPrHtmlExport()
 {

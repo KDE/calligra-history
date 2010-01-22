@@ -27,6 +27,11 @@
 #include <QComboBox>
 #include <KoDocument.h>
 
+#include "KPrHtmlExport.h"
+#include <QWebFrame>
+#include <QPainter>
+#include <KPrView.h>
+
 KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QWidget *parent) : KDialog(parent), m_allSlides(slides), m_title(title) 
 {
     QWidget *widget = new QWidget( this );
@@ -36,12 +41,19 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
     setButtonText(Ok, i18n("Export"));
     ui.klineedit_title->setText(m_title);
 
-    connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ), this, SLOT( checkAllItems()  ) );
-    connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ), this, SLOT( uncheckAllItems()) );
     connect( ui.kpushbuttonBrowseCSS, SIGNAL( clicked() ), this, SLOT( browserAction()));
+
+    connect( &preview                  , SIGNAL( loadFinished(bool) ), this, SLOT(renderPreview()));
+    connect( ui.klineedit_title        , SIGNAL( editingFinished() ), this, SLOT(generatePreview()));
+    connect( ui.kListBox_slides        , SIGNAL( currentRowChanged(int) ), this, SLOT(generatePreview(int)));
+    connect( ui.kcombobox              , SIGNAL( currentIndexChanged(int) ), this, SLOT(generatePreview()));
+    connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ),        this, SLOT( checkAllItems()  ) );
+    connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ),        this, SLOT( uncheckAllItems()) );
 
     this->generateSlidesNames(slides);
     this->loadCssList();
+    this->generatePreview();
+
 }
 
 QList<KoPAPageBase*> KPrHtmlExportDialog::checkedSlides()
@@ -130,4 +142,37 @@ void KPrHtmlExportDialog::browserAction(){
 QString KPrHtmlExportDialog::title()
 {
     return  ui.klineedit_title->text();
+}
+
+void KPrHtmlExportDialog::generatePreview(int item) {
+    if(item < 0) {
+        item = 0;
+    }
+
+    KPrHtmlExport previewGenerator;
+    ExportParameter previewParameters;
+    previewParameters.author = "John Doe";
+    previewParameters.cssUrl = this->css();
+    previewParameters.dest_url = "";
+    previewParameters.slides.append(this->m_allSlides.at(item));
+    previewParameters.slidesNames.append(ui.kListBox_slides->item(item)->text());
+    previewParameters.title = ui.klineedit_title->text();
+    previewParameters.kprView = (KPrView*)this->parentWidget();
+    KUrl url;
+
+    previewGenerator.exportPreview(previewParameters, url);
+    preview.mainFrame()->load(url);
+}
+
+void KPrHtmlExportDialog::renderPreview()
+{
+    preview.setViewportSize(preview.currentFrame()->contentsSize());
+    QImage image(preview.viewportSize(), QImage::Format_ARGB32);
+    QPainter painter(&image);
+
+    preview.mainFrame()->render(&painter);
+    painter.end();
+
+    QImage thumbnail = image.scaled(ui.qLabel_preview->size(), Qt::KeepAspectRatio);
+    ui.qLabel_preview->setPixmap(QPixmap::fromImage(thumbnail));
 }

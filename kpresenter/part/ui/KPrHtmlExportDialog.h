@@ -23,6 +23,7 @@
 
 #include <KDialog>
 #include <KoPAPageBase.h>
+#include <QWebPage>
 #include "ui_KPrHtmlExport.h"
 
 class KPrHtmlExportDialog  : public KDialog
@@ -38,6 +39,8 @@ public:
 private slots:
     void checkAllItems();
     void uncheckAllItems();
+    void renderPreview();
+    void generatePreview(int item=0);
     void browserAction();
 
 private:
@@ -46,6 +49,7 @@ private:
     Ui::KPrHtmlExport ui;
     void generateSlidesNames(QList<KoPAPageBase*> slides);
     void loadCssList();
+    QWebPage preview;
 };
 
 
