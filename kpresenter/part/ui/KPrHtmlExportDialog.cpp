@@ -49,7 +49,10 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
     connect( ui.kcombobox              , SIGNAL( currentIndexChanged(int) ), this, SLOT(generatePreview()));
     connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ),        this, SLOT( checkAllItems()  ) );
     connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ),        this, SLOT( uncheckAllItems()) );
+    connect( ui.toolButton_previous    , SIGNAL( clicked() ),        this, SLOT( generatePrevious()) );
+    connect( ui.toolButton_next        , SIGNAL( clicked() ),        this, SLOT( generateNext()) );
 
+    this->frameToRender = 0;
     this->generateSlidesNames(slides);
     this->loadCssList();
     this->generatePreview();
@@ -150,11 +153,22 @@ QString KPrHtmlExportDialog::title()
     return  ui.klineedit_title->text();
 }
 
+void KPrHtmlExportDialog::generatePrevious() {
+    generatePreview(--frameToRender);
+}
+
+void KPrHtmlExportDialog::generateNext() {
+    generatePreview(++frameToRender);
+}
+
 void KPrHtmlExportDialog::generatePreview(int item) {
-    static int frameToRender = 0;
     if(item >= 0) {
         frameToRender = item;
     }
+
+    // refresh button status
+    ui.toolButton_previous->setEnabled(frameToRender > 0);
+    ui.toolButton_next->setEnabled(frameToRender < (m_allSlides.size() - 1));
 
     KPrHtmlExport previewGenerator;
     ExportParameter previewParameters;

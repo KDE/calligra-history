@@ -40,6 +40,8 @@ private slots:
     void checkAllItems();
     void uncheckAllItems();
     void renderPreview();
+    void generateNext();
+    void generatePrevious();
     void generatePreview(int item=0);
     void browserAction();
 
@@ -50,6 +52,7 @@ private:
     void generateSlidesNames(QList<KoPAPageBase*> slides);
     void loadCssList();
     QWebPage preview;
+    int frameToRender;
 };
 
 
