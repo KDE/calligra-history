@@ -152,7 +152,7 @@ QString KPrHtmlExportDialog::title()
 
 void KPrHtmlExportDialog::generatePreview(int item) {
     static int frameToRender = 0;
-    if(item > 0) {
+    if(item >= 0) {
         frameToRender = item;
     }
 
