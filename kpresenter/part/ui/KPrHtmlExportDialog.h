@@ -42,7 +42,7 @@ private slots:
     void renderPreview();
     void generateNext();
     void generatePrevious();
-    void generatePreview(int item=0);
+    void generatePreview(int item=-1);
     void browserAction();
 
 private:

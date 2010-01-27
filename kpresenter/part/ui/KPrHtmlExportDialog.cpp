@@ -56,7 +56,6 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
     this->generateSlidesNames(slides);
     this->loadCssList();
     this->generatePreview();
-
 }
 
 QList<KoPAPageBase*> KPrHtmlExportDialog::checkedSlides()
@@ -166,6 +165,7 @@ void KPrHtmlExportDialog::generatePreview(int item) {
         frameToRender = item;
     }
 
+    ui.kListBox_slides->setCurrentRow(frameToRender);
     // refresh button status
     ui.toolButton_previous->setEnabled(frameToRender > 0);
     ui.toolButton_next->setEnabled(frameToRender < (m_allSlides.size() - 1));
