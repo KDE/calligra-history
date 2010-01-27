@@ -24,53 +24,66 @@
 #include <KUrl>
 #include <QStringList>
 #include <QWebPage>
+#include <KUrl>
 
 class KPrView;
 class KoPAPageBase;
 class KJob;
 
-struct ExportParameter
-{
-    KUrl cssUrl;
-    KPrView *kprView;
-    QList<KoPAPageBase*> slides;
-    KUrl dest_url;
-    QString author;
-    QString title;
-    QStringList slidesNames;
-
-};
 class KPrHtmlExport : public QObject
 {
-Q_OBJECT
+    Q_OBJECT
 public:
-    /**
-    * @param kprView
-    * @param kopaDocument 
-    * @param url The destination url
-    */
+    struct Parameter {
+        Parameter()
+        {
+        }
+
+        Parameter(KUrl cssUrl, KPrView *kprView, QList<KoPAPageBase*> slides, KUrl destination,
+                  QString author, QString title, QStringList slidesNames)
+                      : cssUrl(cssUrl)
+                      , kprView(kprView)
+                      , slides(slides)
+                      , destination(destination)
+                      , author(author)
+                      , title(title)
+                      , slidesNames(slidesNames)
+        {
+        }
+
+        KUrl cssUrl;
+        KPrView *kprView;
+        QList<KoPAPageBase*> slides;
+        KUrl destination;
+        QString author;
+        QString title;
+        QStringList slidesNames;
+    };
+
     KPrHtmlExport();
     ~KPrHtmlExport();
-    void exportHtml(const ExportParameter parameters);
+    void exportHtml(const Parameter & parameters);
 
     /**
      * Generates a preview of 1 frame into a tempoary directory
      * @param parameters Presentation data (only 1 slide should be provided in "slides" filed)
      * @param previewUrl  URL of output html
      */
-    void exportPreview(ExportParameter parameters, KUrl &previewUrl);
+    KUrl exportPreview(Parameter parameters);
+
 protected:
     void generateHtml();
     void generateToc();
     void exportImageToTmpDir();
     void writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody);
     void copyFromTmpToDest();
+
 private slots:
     void moveResult(KJob *job);
+
 private:
-  
     KUrl::List m_fileUrlList;
     QString m_tmpDirPath;
-    ExportParameter m_parameters;
+    Parameter m_parameters;
 };
 #endif /* KPRHTMLEXPORT_H */

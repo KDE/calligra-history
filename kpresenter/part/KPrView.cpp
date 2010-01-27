@@ -26,12 +26,14 @@
 #include <kactioncollection.h>
 #include <kactionmenu.h>
 #include <kmessagebox.h>
+#include <kfiledialog.h>
 
 #include <KoSelection.h>
 #include <KoShapeManager.h>
 #include <KoMainWindow.h>
 #include <KoPACanvas.h>
 #include <KoPADocumentStructureDocker.h>
+#include <KoDocumentInfo.h>
 
 #include "KPrDocument.h"
 #include "KPrPage.h"
@@ -46,6 +48,7 @@
 #include "dockers/KPrPageLayoutDockerFactory.h"
 #include "dockers/KPrPageLayoutDocker.h"
 #include "shapeanimations/KPrAnimationMoveAppear.h"
+#include "KPrHtmlExport.h"
 
 #include "KPrCustomSlideShows.h"
 #include "ui/KPrCustomSlideShowsDialog.h"
@@ -55,9 +58,6 @@
 #include <QDebug>
 #include <QtGui/QDesktopWidget>
 
-#include <kfiledialog.h>
-#include "KPrHtmlExport.h"
-#include <KoDocumentInfo.h>
 
 KPrView::KPrView( KPrDocument *document, QWidget *parent )
   : KoPAView( document, parent )
@@ -286,22 +286,16 @@ void KPrView::configurePresenterView()
 
 void KPrView::exportToHtml()
 {
-    KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),koDocument()->documentInfo()->aboutInfo("title"), koDocument()->documentInfo()->authorInfo("creator"), this);
-    if ( dialog->exec() == QDialog::Accepted &&  !dialog->checkedSlides().isEmpty()){
+    KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(), koDocument()->documentInfo()->aboutInfo("title"), koDocument()->documentInfo()->authorInfo("creator"), this);
+    if (dialog->exec() == QDialog::Accepted && !dialog->checkedSlides().isEmpty()) {
         // Get the export directory
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
-        if(directoryUrl.isValid()){
+        if (directoryUrl.isValid()) {
             directoryUrl.adjustPath(KUrl::AddTrailingSlash);
             KPrHtmlExport exportHtml;
-            ExportParameter parameters;
-            parameters.author = dialog->author(); //koDocument()->documentInfo()->authorInfo("creator");
-            parameters.cssUrl = dialog->css();
-            parameters.dest_url = directoryUrl;
-            parameters.kprView = this;
-            parameters.slides = dialog->checkedSlides();
-            parameters.slidesNames = dialog->slidesNames();
-            parameters.title = dialog->title();
-            exportHtml.exportHtml(parameters);
+            exportHtml.exportHtml(KPrHtmlExport::Parameter(dialog->css(), this, dialog->checkedSlides()
+                                                           , directoryUrl, dialog->author()
+                                                           , dialog->title(), dialog->slidesNames()));
         }
    }
 }

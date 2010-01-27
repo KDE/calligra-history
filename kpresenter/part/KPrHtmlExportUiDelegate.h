@@ -28,6 +28,7 @@ class KPrHtmlExportUiDelegate:public KIO::JobUiDelegate
     Q_OBJECT
 public:
     KPrHtmlExportUiDelegate();
+
     virtual KIO::RenameDialog_Result askFileRename(KJob * job,
                                               const QString & caption,
                                               const QString& src,

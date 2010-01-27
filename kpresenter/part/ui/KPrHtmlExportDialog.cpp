@@ -32,7 +32,10 @@
 #include <QPainter>
 #include <KPrView.h>
 
-KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QString author, QWidget *parent) : KDialog(parent), m_allSlides(slides), m_title(title)
+KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QString author, QWidget *parent)
+    : KDialog(parent)
+    , m_allSlides(slides)
+    , m_title(title)
 {
     QWidget *widget = new QWidget( this );
     ui.setupUi( widget );
@@ -44,15 +47,15 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
 
     connect( ui.kpushbuttonBrowseCSS, SIGNAL( clicked() ), this, SLOT( browserAction()));
 
-    connect( &preview                  , SIGNAL( loadFinished(bool) ), this, SLOT(renderPreview()));
-    connect( ui.klineedit_title        , SIGNAL( editingFinished() ), this, SLOT(generatePreview()));
-    connect( ui.klineedit_author       , SIGNAL( editingFinished() ), this, SLOT(generatePreview()));
-    connect( ui.kListBox_slides        , SIGNAL( currentRowChanged(int) ), this, SLOT(generatePreview(int)));
-    connect( ui.kcombobox              , SIGNAL( currentIndexChanged(int) ), this, SLOT(generatePreview()));
-    connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ),        this, SLOT( checkAllItems()  ) );
-    connect( ui.kPushButton_deselectAll, SIGNAL( clicked() ),        this, SLOT( uncheckAllItems()) );
-    connect( ui.toolButton_previous    , SIGNAL( clicked() ),        this, SLOT( generatePrevious()) );
-    connect( ui.toolButton_next        , SIGNAL( clicked() ),        this, SLOT( generateNext()) );
+    connect( &preview, SIGNAL(loadFinished(bool)), this, SLOT(renderPreview()));
+    connect( ui.klineedit_title, SIGNAL(editingFinished()), this, SLOT(generatePreview()));
+    connect( ui.klineedit_author, SIGNAL(editingFinished()), this, SLOT(generatePreview()));
+    connect( ui.kListBox_slides, SIGNAL(currentRowChanged(int)), this, SLOT(generatePreview(int)));
+    connect( ui.kcombobox, SIGNAL(currentIndexChanged(int)), this, SLOT(generatePreview()));
+    connect( ui.kPushButton_selectAll, SIGNAL(clicked()), this, SLOT(checkAllItems()));
+    connect( ui.kPushButton_deselectAll, SIGNAL(clicked()), this, SLOT(uncheckAllItems()));
+    connect( ui.toolButton_previous, SIGNAL(clicked()), this, SLOT(generatePrevious()));
+    connect( ui.toolButton_next, SIGNAL(clicked()), this, SLOT(generateNext()));
 
     this->frameToRender = 0;
     this->generateSlidesNames(slides);
@@ -62,20 +65,20 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
 
 QList<KoPAPageBase*> KPrHtmlExportDialog::checkedSlides()
 {
-    QList<KoPAPageBase*> qlchekedSlides;
+    QList<KoPAPageBase*> selectedSlides;
     int countItems = ui.kListBox_slides->count();
-    for(int i = 0; i < countItems; i++){
-        if (ui.kListBox_slides->item(i)->checkState() == Qt::Checked){
-            qlchekedSlides.append(this->m_allSlides.at(i));
+    for (int i = 0; i < countItems; i++) {
+        if (ui.kListBox_slides->item(i)->checkState() == Qt::Checked) {
+            selectedSlides.append(this->m_allSlides.at(i));
         }
     }
-    return qlchekedSlides;
+    return selectedSlides;
 }
 
 void KPrHtmlExportDialog::checkAllItems()
 {
     int countItems = ui.kListBox_slides->count();
-    for(int i = 0; i < countItems; i++){
+    for (int i = 0; i < countItems; i++ ){
         ui.kListBox_slides->item(i)->setCheckState(Qt::Checked);
     }
 }
@@ -83,7 +86,7 @@ void KPrHtmlExportDialog::checkAllItems()
 void KPrHtmlExportDialog::uncheckAllItems()
 {
     int countItems = ui.kListBox_slides->count();
-    for(int i = 0; i < countItems; i++){
+    for (int i = 0; i < countItems; i++) {
         ui.kListBox_slides->item(i)->setCheckState(Qt::Unchecked);
     }
 }
@@ -91,23 +94,24 @@ void KPrHtmlExportDialog::uncheckAllItems()
 QStringList KPrHtmlExportDialog::slidesNames(){
     QStringList names;
     int countItems = ui.kListBox_slides->count();
-    for(int i = 0; i < countItems; i++){
-        if (ui.kListBox_slides->item(i)->checkState() == Qt::Checked){
+    for (int i = 0; i < countItems; i++) {
+        if (ui.kListBox_slides->item(i)->checkState() == Qt::Checked) {
             names.append(ui.kListBox_slides->item(i)->text());
         }
     }
     return names;
 }
 
-KUrl KPrHtmlExportDialog::css(){
+KUrl KPrHtmlExportDialog::css()
+{
     return KUrl(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
 }
 
 void KPrHtmlExportDialog::generateSlidesNames(QList<KoPAPageBase*> slides)
 {
     QString slideName;
-    for(int i = 0; i < slides.count(); i++){
-        if (slides.at(i)->name().isEmpty()){
+    for (int i = 0; i < slides.count(); i++) {
+        if (slides.at(i)->name().isEmpty()) {
             slideName = i18n("Slide %1", QString::number(i+1));
         }
         else {
@@ -124,27 +128,27 @@ void KPrHtmlExportDialog::loadCssList()
 {
     KStandardDirs std;
     QStringList dirs = std.findDirs("data", "kpresenter/templates/exportHTML");
-    for( QStringList::ConstIterator path=dirs.begin(); path!=dirs.end(); ++path ){
+    for (QStringList::ConstIterator path=dirs.begin(); path!=dirs.end(); ++path) {
         QDir dir(*path);
-        dir.setFilter( QDir::Dirs );
+        dir.setFilter(QDir::Dirs);
         QStringList entries = dir.entryList();
-        for( QStringList::ConstIterator entry=entries.begin(); entry!=entries.end(); ++entry ){
-            if (*entry != "." && *entry != ".."){
-                if (dir.exists(*entry + "/style.css")){
+        for (QStringList::ConstIterator entry=entries.begin(); entry!=entries.end(); ++entry) {
+            if (*entry != "." && *entry != "..") {
+                if (dir.exists(*entry + "/style.css")) {
                     // Rajouter les items inselectionnables
-		        	ui.kcombobox->addItem(QString(*entry),QVariant(QString(*path + *entry + "/style.css")));
+                    ui.kcombobox->addItem(QString(*entry),QVariant(QString(*path + *entry + "/style.css")));
                 } 
             }
-        }        
+        }
     }
     ui.kcombobox->insertSeparator(ui.kcombobox->count());
 }
 
 void KPrHtmlExportDialog::browserAction(){
     KFileDialog dialog(KUrl("/"),QString("*.css"),this);
-	if ( dialog.exec() == QDialog::Accepted ){
+    if (dialog.exec() == QDialog::Accepted) {
         QString name=dialog.selectedFile();
-        if (! ui.kcombobox->contains(name)){
+        if (! ui.kcombobox->contains(name)) {
             ui.kcombobox->addItem(name,QVariant(name));
             ui.kcombobox->setCurrentIndex(ui.kcombobox->count()-1);
         }
@@ -180,17 +184,15 @@ void KPrHtmlExportDialog::generatePreview(int item) {
     ui.toolButton_next->setEnabled(frameToRender < (m_allSlides.size() - 1));
 
     KPrHtmlExport previewGenerator;
-    ExportParameter previewParameters;
-    previewParameters.author = this->author();
-    previewParameters.cssUrl = this->css();
-    previewParameters.dest_url = "";
-    previewParameters.slides.append(this->m_allSlides.at(frameToRender));
-    previewParameters.slidesNames.append(ui.kListBox_slides->item(frameToRender)->text());
-    previewParameters.title = ui.klineedit_title->text();
-    previewParameters.kprView = (KPrView*)this->parentWidget();
-    KUrl url;
+    QList<KoPAPageBase*> slides;
+    QStringList slidesNames;
+    slides.append(this->m_allSlides.at(frameToRender));
+    slidesNames.append(ui.kListBox_slides->item(frameToRender)->text());
 
-    previewGenerator.exportPreview(previewParameters, url);
+    KUrl url = previewGenerator.exportPreview(KPrHtmlExport::Parameter(this->css(), (KPrView*)this->parentWidget(), slides, KUrl()
+                                                            , this->author()
+                                                            , ui.klineedit_title->text()
+                                                            , slidesNames));
     preview.mainFrame()->load(url);
 }
 

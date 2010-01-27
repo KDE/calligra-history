@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>560</width>
+    <width>562</width>
     <height>310</height>
    </rect>
   </property>
@@ -47,7 +47,7 @@
    <item row="7" column="0" colspan="5">
     <widget class="QLabel" name="textLabel_css">
      <property name="text">
-      <string>Select the CSS template :</string>
+      <string>Select template (.css) :</string>
      </property>
      <property name="wordWrap">
       <bool>false</bool>
@@ -74,7 +74,7 @@
    <item row="0" column="0">
     <widget class="QLabel" name="textlable_top">
      <property name="text">
-      <string>Titre</string>
+      <string>Title</string>
      </property>
     </widget>
    </item>

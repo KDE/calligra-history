@@ -29,12 +29,16 @@
 #include "KPrView.h"
 #include <KoPADocument.h>
 
-KPrHtmlExport::KPrHtmlExport ()
-{ 
-
+#include <kdebug.h>
+KPrHtmlExport::KPrHtmlExport()
+{
 }
 
-void KPrHtmlExport::exportHtml (ExportParameter parameters)
+KPrHtmlExport::~KPrHtmlExport()
+{
+}
+
+void KPrHtmlExport::exportHtml(const KPrHtmlExport::Parameter & parameters)
 { 
     m_parameters = parameters;
     
@@ -48,7 +52,7 @@ void KPrHtmlExport::exportHtml (ExportParameter parameters)
     copyFromTmpToDest();
 }
 
-void KPrHtmlExport::exportPreview(ExportParameter parameters, KUrl &previewUrl) {
+KUrl KPrHtmlExport::exportPreview(Parameter parameters) {
     m_parameters = parameters;
 
     // Create a temporary dir
@@ -58,55 +62,45 @@ void KPrHtmlExport::exportPreview(ExportParameter parameters, KUrl &previewUrl) 
     exportImageToTmpDir();
     generateHtml();
 
+    KUrl previewUrl;
     previewUrl.setPath(tmpDir.name());
     previewUrl.addPath("slide0.html");
+    return previewUrl;
 }
-
-
-KPrHtmlExport::~KPrHtmlExport()
-{
-}
-
 
 void KPrHtmlExport::exportImageToTmpDir()
 {
     // Export slides as image into the temporary export directory
     KUrl fileUrl;
-    int i=0;
-    foreach(KoPAPageBase* slide, m_parameters.slides) {
+    for(int i=0; i < m_parameters.slides.size(); i++){
         fileUrl = m_tmpDirPath;
-        fileUrl.addPath("slide" + QString::number(i) + ".png");
+        fileUrl.addPath(QString( "slide%1.png" ).arg(i));
+        KoPAPageBase* slide = m_parameters.slides.at(i);
         m_parameters.kprView->exportPageThumbnail(slide,fileUrl, slide->size().toSize(),"PNG",-1);
         m_fileUrlList.append(fileUrl);
-        i++;
     }
 }
 
 void KPrHtmlExport::generateHtml()
 {
-    KUrl fileUrl;
-    int i=0;
-    QFile file;
-    QString fileName = KStandardDirs::locate( "data","kpresenter/templates/exportHTML/slides.html" );
-    file.setFileName(fileName);
+    QFile file(KStandardDirs::locate( "data", "kpresenter/templates/exportHTML/slides.html" ));
     file.open(QIODevice::ReadOnly);
     QString slideContent = file.readAll();
     file.close();
     int nbSlides = m_parameters.slides.size();
-    foreach(QString slide, m_parameters.slidesNames) {
+    for(int i=0; i < m_parameters.slidesNames.size();i++){
         QString content = slideContent;
         content.replace("::TITLE::", m_parameters.title);
         content.replace("::AUTHOR::", m_parameters.author);
-        content.replace("::IMAGE_PATH::", "slide"+QString::number(i)+".png");
-        content.replace("::SLIDE_NUM::", QString::number(i+1));
-        content.replace("::NB_SLIDES::", QString::number(nbSlides));
-        content.replace("::TITLE_SLIDE::", slide);
-        content.replace("::LAST_PATH::", "slide"+QString::number(nbSlides-1)+".html");
-        content.replace("::NEXT_PATH::", "slide"+QString::number((((i+1) < nbSlides) ? i+1 : i))+".html");
-        content.replace("::PREVIOUS_PATH::", "slide"+QString::number(((i>0) ? i-1 : 0))+".html");
-        content.replace("::FIRST_PATH::", "slide"+QString::number(0)+".html");
-        writeHtmlFileToTmpDir("slide" + QString::number(i) + ".html", content);
-        i++;
+        content.replace("::IMAGE_PATH::", QString("slide%1.png").arg(i));
+        content.replace("::SLIDE_NUM::", QString("%1").arg(i+1));
+        content.replace("::NB_SLIDES::", QString("%1").arg(nbSlides));
+        content.replace("::TITLE_SLIDE::", m_parameters.slidesNames.at(i));
+        content.replace("::LAST_PATH::", QString("slide%1.html").arg(nbSlides-1));
+        content.replace("::NEXT_PATH::", QString("slide%1.html").arg(((i+1) < nbSlides) ? i+1 : i));
+        content.replace("::PREVIOUS_PATH::", QString("slide%1.html").arg((i>0) ? i-1 : 0));
+        content.replace("::FIRST_PATH::", QString("slide%1.html").arg(0));
+        writeHtmlFileToTmpDir(QString("slide%1.html").arg(i), content);
     }
     QString style = m_parameters.cssUrl.pathOrUrl();
     QFile styleFile;
@@ -119,38 +113,27 @@ void KPrHtmlExport::generateHtml()
 void KPrHtmlExport::generateToc()
 {
     QString toc = "<ul>";
-    int i = 0; 
-    foreach(QString slideName, m_parameters.slidesNames) {
-        toc.append("<li><a href=\"slide"+QString::number(i)+".html\">"+slideName+"</a></li>");
-        i++;
+    for(int i=0; i < m_parameters.slidesNames.size(); i++){
+        toc.append(QString("<li><a href=\"slide%1.html\">%2</a></li>").arg(i).arg(m_parameters.slidesNames.at(i)));
     }
     toc.append("</ul>");
-    QString fileName = KStandardDirs::locate( "data","kpresenter/templates/exportHTML/toc.html" );
-    QFile file;
-    file.setFileName(fileName);
+    QFile file(KStandardDirs::locate( "data", "kpresenter/templates/exportHTML/toc.html" ));
     file.open(QIODevice::ReadOnly);
     QString content = file.readAll();
     file.close();
-    int nbSlides = m_parameters.slides.size();
     content.replace("::TITLE::", m_parameters.title);
     content.replace("::AUTHOR::", m_parameters.author);
-    content.replace("::SLIDE_NUM::", QString::number(i+1));
-    content.replace("::NB_SLIDES::", QString::number(nbSlides));
-    content.replace("::LAST_PATH::", "slide"+QString::number(nbSlides-1)+".html");
-    content.replace("::NEXT_PATH::", "slide"+QString::number(0)+".html");
     content.replace("::TOC::", toc);
     writeHtmlFileToTmpDir("index.html", content);
 }
 
 void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString &htmlBody)
 {
-    QTextStream stream;
-    QFile file;
     KUrl fileUrl = m_tmpDirPath;
     fileUrl.addPath(fileName);
-    file.setFileName(fileUrl.toLocalFile());
+    QFile file(fileUrl.toLocalFile());
     file.open(QIODevice::WriteOnly);
-    stream.setDevice(&file);
+    QTextStream stream(&file);
     stream << htmlBody;
     stream.flush();
     file.close();
@@ -159,21 +142,21 @@ void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString
 
 void KPrHtmlExport::copyFromTmpToDest()
 {
-    KIO::CopyJob *job = KIO::move(m_fileUrlList, m_parameters.dest_url);
+    KIO::CopyJob *job = KIO::move(m_fileUrlList, m_parameters.destination);
     job->setUiDelegate(new KPrHtmlExportUiDelegate);
-    connect( job, SIGNAL(result(KJob *)), this, SLOT(moveResult(KJob *)));
+    connect(job, SIGNAL(result(KJob *)), this, SLOT(moveResult(KJob *)));
     job->exec();
 }
 
 void KPrHtmlExport::moveResult(KJob *job)
 {
     KTempDir::removeDir(m_tmpDirPath);
-    if(job->error()){
-        KMessageBox::error(m_parameters.kprView,job->errorText());
+    if(job->error()) {
+        KMessageBox::error(m_parameters.kprView, job->errorText());
     }
     else {
-        if(KMessageBox::questionYesNo(0,i18n("Open in browser"),i18n("Export successfull")) == KMessageBox::Yes){
-            KUrl url = m_parameters.dest_url;
+        if(KMessageBox::questionYesNo(0, i18n("Open in browser"), i18n("Export successfull")) == KMessageBox::Yes){
+            KUrl url = m_parameters.destination;
             url.addPath("index.html");
             KRun::runUrl(url, "text/html", m_parameters.kprView);
         }
