@@ -137,14 +137,16 @@ void KPrHtmlExportDialog::loadCssList()
             }
         }        
     }
+    ui.kcombobox->insertSeparator(ui.kcombobox->count());
 }
 
 void KPrHtmlExportDialog::browserAction(){
     KFileDialog dialog(KUrl("/"),QString("*.css"),this);
 	if ( dialog.exec() == QDialog::Accepted ){
         QString name=dialog.selectedFile();
-        if (name.endsWith(QString(".css"),Qt::CaseInsensitive)){
-		    ui.kcombobox->addItem(name,QVariant(name));
+        if (! ui.kcombobox->contains(name)){
+            ui.kcombobox->addItem(name,QVariant(name));
+            ui.kcombobox->setCurrentIndex(ui.kcombobox->count()-1);
         }
    }
 }
