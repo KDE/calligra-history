@@ -286,7 +286,7 @@ void KPrView::configurePresenterView()
 
 void KPrView::exportToHtml()
 {
-	KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),koDocument()->documentInfo()->aboutInfo("title"),this);
+    KPrHtmlExportDialog *dialog = new KPrHtmlExportDialog(kopaDocument()->pages(),koDocument()->documentInfo()->aboutInfo("title"), koDocument()->documentInfo()->authorInfo("creator"), this);
     if ( dialog->exec() == QDialog::Accepted &&  !dialog->checkedSlides().isEmpty()){
         // Get the export directory
         KUrl directoryUrl = KFileDialog::getExistingDirectoryUrl();
@@ -294,7 +294,7 @@ void KPrView::exportToHtml()
             directoryUrl.adjustPath(KUrl::AddTrailingSlash);
             KPrHtmlExport exportHtml;
             ExportParameter parameters;
-            parameters.author = koDocument()->documentInfo()->authorInfo("creator");
+            parameters.author = dialog->author(); //koDocument()->documentInfo()->authorInfo("creator");
             parameters.cssUrl = dialog->css();
             parameters.dest_url = directoryUrl;
             parameters.kprView = this;

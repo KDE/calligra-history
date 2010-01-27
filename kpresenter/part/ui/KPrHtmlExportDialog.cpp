@@ -32,7 +32,7 @@
 #include <QPainter>
 #include <KPrView.h>
 
-KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QWidget *parent) : KDialog(parent), m_allSlides(slides), m_title(title) 
+KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QString author, QWidget *parent) : KDialog(parent), m_allSlides(slides), m_title(title)
 {
     QWidget *widget = new QWidget( this );
     ui.setupUi( widget );
@@ -40,11 +40,13 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
     setCaption( i18n( "Html Export"));
     setButtonText(Ok, i18n("Export"));
     ui.klineedit_title->setText(m_title);
+    ui.klineedit_author->setText(author);
 
     connect( ui.kpushbuttonBrowseCSS, SIGNAL( clicked() ), this, SLOT( browserAction()));
 
     connect( &preview                  , SIGNAL( loadFinished(bool) ), this, SLOT(renderPreview()));
     connect( ui.klineedit_title        , SIGNAL( editingFinished() ), this, SLOT(generatePreview()));
+    connect( ui.klineedit_author       , SIGNAL( editingFinished() ), this, SLOT(generatePreview()));
     connect( ui.kListBox_slides        , SIGNAL( currentRowChanged(int) ), this, SLOT(generatePreview(int)));
     connect( ui.kcombobox              , SIGNAL( currentIndexChanged(int) ), this, SLOT(generatePreview()));
     connect( ui.kPushButton_selectAll  , SIGNAL( clicked() ),        this, SLOT( checkAllItems()  ) );
@@ -152,6 +154,11 @@ QString KPrHtmlExportDialog::title()
     return  ui.klineedit_title->text();
 }
 
+QString KPrHtmlExportDialog::author()
+{
+    return ui.klineedit_author->text();
+}
+
 void KPrHtmlExportDialog::generatePrevious() {
     generatePreview(--frameToRender);
 }
@@ -172,7 +179,7 @@ void KPrHtmlExportDialog::generatePreview(int item) {
 
     KPrHtmlExport previewGenerator;
     ExportParameter previewParameters;
-    previewParameters.author = "John Doe";
+    previewParameters.author = this->author();
     previewParameters.cssUrl = this->css();
     previewParameters.dest_url = "";
     previewParameters.slides.append(this->m_allSlides.at(frameToRender));
