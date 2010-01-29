@@ -25,11 +25,9 @@
 #include <kdebug.h>
 
 
-#define DEBUG_WMFPAINT 0
-
-
 KoWmfPaint::KoWmfPaint()
     : KoWmfRead()
+    , mTextPen()
 {
     mTarget = 0;
     mIsInternalPainter = true;
@@ -146,6 +144,15 @@ void KoWmfPaint::setFont(const QFont &font)
 }
 
 
+void KoWmfPaint::setTextPen(const QPen &pen)
+{
+#if DEBUG_WMFPAINT
+    kDebug(31000) << pen;
+#endif
+
+    mTextPen = pen;
+}
+
 void KoWmfPaint::setPen(const QPen &pen)
 {
 #if DEBUG_WMFPAINT
@@ -207,15 +214,20 @@ void KoWmfPaint::setBackgroundColor(const QColor &c)
     // FIXME: This needs more investigation, but it seems that the
     //        concept of "background" in WMF is the same as the
     //        "brush" in QPainter.
-    mPainter->setBrush(QBrush(c));
-    //mPainter->setBackground(QBrush(c));
+    // Update: No, it wasn't.  I changed back now because it didn't work.  I'm leaving
+    //         the fixme and this comment to remind the next fixer that calling
+    //         setBrush() is not the solution.  I hope nothing breaks now.
+    //         The date is now 2010-01-20.  If nothing breaks in a couple of months,
+    //         all this commentry can be removed.
+    //mPainter->setBrush(QBrush(c));
+    mPainter->setBackground(QBrush(c));
 }
 
 
 void KoWmfPaint::setBackgroundMode(Qt::BGMode mode)
 {
 #if DEBUG_WMFPAINT
-    kDebug(31000) << mode;
+    kDebug(31000) << mode << "(ignored)";
 #endif
 
     mPainter->setBackgroundMode(mode);
@@ -408,7 +420,7 @@ void KoWmfPaint::drawPolyline(const QPolygon &pa)
 void KoWmfPaint::drawPolygon(const QPolygon &pa, bool winding)
 {
 #if DEBUG_WMFPAINT
-    kDebug(31000) << pa;
+    kDebug(31000) << pa << winding;
     kDebug(31000) << "Using QPainter: " << mPainter->pen() << mPainter->brush();
 #endif
 
@@ -500,12 +512,17 @@ void KoWmfPaint::drawText(int x, int y, int w, int h, int flags, const QString& 
 #endif
     }
 
+    QPen  savePen = mPainter->pen();
+
     // Sometimes it happens that w and/or h == -1, and then the
     // bounding box isn't valid any more.  In that case, no text at
     // all is shown.
+    mPainter->setPen(mTextPen);
     if (w == -1 || h == -1)
         mPainter->drawText(x, y, s);
     else
         // FIXME: Find out which Qt flags should be there instead of the 0.
         mPainter->drawText(x, y, w, h, 0, s);
+
+    mPainter->setPen(savePen);
 }

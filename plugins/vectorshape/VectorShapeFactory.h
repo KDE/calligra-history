@@ -23,12 +23,12 @@
 #define VECTORSHAPE_FACTORY_H
 
 // KOffice
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 
 class KoShape;
 
-class VectorShapeFactory : public KoShapeFactory {
+class VectorShapeFactory : public KoShapeFactoryBase {
     Q_OBJECT
 
 public:
@@ -36,8 +36,7 @@ public:
     explicit VectorShapeFactory(QObject *parent);
     ~VectorShapeFactory() {}
 
-    KoShape *createDefaultShape() const;
-    KoShape *createShape(const KoProperties * params) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
 
     /// Reimplemented
     virtual bool supports(const KoXmlElement & e) const;

@@ -21,10 +21,10 @@
 #ifndef CONNECTIONTOOLFACTORY_H
 #define CONNECTIONTOOLFACTORY_H
 
-#include "KoToolFactory.h"
+#include "KoToolFactoryBase.h"
 
 /// The factory for the ConnectionTool
-class ConnectionToolFactory : public KoToolFactory
+class ConnectionToolFactory : public KoToolFactoryBase
 {
 public:
     /// Constructor
@@ -32,7 +32,7 @@ public:
     /// Destructor
     ~ConnectionToolFactory();
     /// reimplemented
-    KoTool* createTool( KoCanvasBase *canvas );
+    KoToolBase* createTool( KoCanvasBase *canvas );
 };
 
 #endif

@@ -153,6 +153,7 @@ const char* FormulaToken::idAsString() const
     case MemFunc:      s = "MemFunc"; break;
     case MemAreaN:     s = "MemAreaN"; break;
     case MemNoMemN:    s = "MemNoMemN"; break;
+    case Attr:         s = "Attr"; break;
     case 0:            s = ""; break; // NOPE...
     default:
         s = "Unknown";
@@ -243,6 +244,8 @@ unsigned FormulaToken::size() const
 
     case MemArea:
         s = 7; break;
+    case MemErr:
+        s = 6; break;
 
     case 0: // NOPE
         s = 0; break;
@@ -250,7 +253,6 @@ unsigned FormulaToken::size() const
     case NatFormula:
     case Sheet:
     case EndSheet:
-    case MemErr:
     case MemNoMem:
     case MemFunc:
     case MemAreaN:
@@ -758,29 +760,49 @@ unsigned FormulaToken::attr() const
     return attr;
 }
 
-unsigned FormulaToken::nameIndex() const
+unsigned long FormulaToken::nameIndex() const
 {
     // FIXME check data size !
-    unsigned ni = 0;
-    unsigned char buf[2];
+    unsigned long ni = 0;
+    unsigned char buf[4];
+    if (d->id == Name) {
+        if (d->ver == Excel97) {
+            buf[0] = d->data[0];
+            buf[1] = d->data[1];
+            buf[2] = d->data[2];
+            buf[3] = d->data[3];
+            ni = readU32(buf);
+        }
+        else if (d->ver == Excel95) {
+            buf[0] = d->data[8];
+            buf[1] = d->data[9];
+            ni = readU16(buf);
+        }
+    }
+    return ni;
+}
 
-    if (d->id == NameX)
+unsigned long FormulaToken::nameXIndex() const
+{
+    // FIXME check data size !
+    unsigned long ni = 0;
+    unsigned char buf[4];
+    if (d->id == NameX) {
         if (d->ver == Excel97) {
             buf[0] = d->data[2];
             buf[1] = d->data[3];
-            ni = readU16(buf);
+            buf[2] = d->data[4];
+            buf[3] = d->data[5];
+            ni = readU32(buf);
         }
-
-    if (d->id == NameX)
-        if (d->ver == Excel95) {
+        else if (d->ver == Excel95) {
             buf[0] = d->data[10];
             buf[1] = d->data[11];
             ni = readU16(buf);
         }
-
+    }
     return ni;
 }
-
 
 UString FormulaToken::area(unsigned row, unsigned col, bool relative) const
 {
@@ -1216,5 +1238,409 @@ std::ostream& operator<<(std::ostream& s,  Swinder::FormulaToken token)
     return s;
 }
 
+typedef std::vector<UString> UStringStack;
+
+static void mergeTokens(UStringStack* stack, unsigned count, UString mergeString)
+{
+    if (!stack) return;
+    if (stack->size() < count) return;
+
+    UString s1, s2;
+
+    while (count) {
+        count--;
+
+        UString last = (*stack)[stack->size()-1];
+        UString tmp = last;
+        tmp.append(s1);
+        s1 = tmp;
+
+        if (count) {
+            tmp = mergeString;
+            tmp.append(s1);
+            s1 = tmp;
+        }
+
+        stack->resize(stack->size() - 1);
+    }
+
+    stack->push_back(s1);
+}
+
+#ifdef SWINDER_XLS2RAW
+static void dumpStack(std::vector<UString> stack)
+{
+    std::cout << std::endl;
+    std::cout << "Stack now is: " ;
+    if (!stack.size())
+        std::cout << "(empty)" ;
+
+    for (unsigned i = 0; i < stack.size(); i++)
+        std::cout << "  " << i << ": " << stack[i].ascii() << std::endl;
+    std::cout << std::endl;
+}
+#endif
+
+UString FormulaDecoder::decodeFormula(unsigned row, unsigned col, bool isShared, const FormulaTokens& tokens)
+{
+    UStringStack stack;
+
+    for (unsigned c = 0; c < tokens.size(); c++) {
+        FormulaToken token = tokens[c];
+
+#ifdef SWINDER_XLS2RAW
+        std::cout << "Formula Token " << c << ": ";
+        std::cout <<  token.id() << "  ";
+        std::cout << token.idAsString() << std::endl;
+#endif
+
+        switch (token.id()) {
+        case FormulaToken::Add:
+            mergeTokens(&stack, 2, UString("+"));
+            break;
+
+        case FormulaToken::Sub:
+            mergeTokens(&stack, 2, UString("-"));
+            break;
+
+        case FormulaToken::Mul:
+            mergeTokens(&stack, 2, UString("*"));
+            break;
+
+        case FormulaToken::Div:
+            mergeTokens(&stack, 2, UString("/"));
+            break;
+
+        case FormulaToken::Power:
+            mergeTokens(&stack, 2, UString("^"));
+            break;
+
+        case FormulaToken::Concat:
+            mergeTokens(&stack, 2, UString("&"));
+            break;
+
+        case FormulaToken::LT:
+            mergeTokens(&stack, 2, UString("<"));
+            break;
+
+        case FormulaToken::LE:
+            mergeTokens(&stack, 2, UString("<="));
+            break;
+
+        case FormulaToken::EQ:
+            mergeTokens(&stack, 2, UString("="));
+            break;
+
+        case FormulaToken::GE:
+            mergeTokens(&stack, 2, UString(">="));
+            break;
+
+        case FormulaToken::GT:
+            mergeTokens(&stack, 2, UString(">"));
+            break;
+
+        case FormulaToken::NE:
+            mergeTokens(&stack, 2, UString("<>"));
+            break;
+
+        case FormulaToken::Intersect:
+            mergeTokens(&stack, 2, UString(" "));
+            break;
+
+        case FormulaToken::List:
+            mergeTokens(&stack, 2, UString(";"));
+            break;
+
+        case FormulaToken::Range:
+            mergeTokens(&stack, 2, UString(";"));
+            break;
+
+        case FormulaToken::UPlus: {
+            UString str("+");
+            str.append(stack[stack.size()-1]);
+            stack[stack.size()-1] = str;
+            break;
+        }
+
+        case FormulaToken::UMinus: {
+            UString str("-");
+            str.append(stack[ stack.size()-1 ]);
+            stack[stack.size()-1] = str;
+            break;
+        }
+
+        case FormulaToken::Percent:
+            stack[stack.size()-1].append(UString("%"));
+            break;
+
+        case FormulaToken::Paren: {
+            UString str("(");
+            str.append(stack[ stack.size()-1 ]);
+            str.append(UString(")"));
+            stack[stack.size()-1] = str;
+            break;
+        }
+
+        case FormulaToken::MissArg:
+            // just ignore
+            stack.push_back(UString(" "));
+            break;
+
+        case FormulaToken::String: {
+            UString str('\"');
+            str.append(token.value().asString());
+            str.append(UString('\"'));
+            stack.push_back(str);
+            break;
+        }
+
+        case FormulaToken::Bool:
+            if (token.value().asBoolean())
+                stack.push_back(UString("TRUE"));
+            else
+                stack.push_back(UString("FALSE"));
+            break;
+
+        case FormulaToken::Integer:
+            stack.push_back(UString::from(token.value().asInteger()));
+            break;
+
+        case FormulaToken::Float:
+            stack.push_back(UString::from(token.value().asFloat()));
+            break;
+
+        case FormulaToken::Array:
+            stack.push_back(token.array(row, col));
+            break;
+
+        case FormulaToken::Ref:
+            stack.push_back(token.ref(row, col));
+            break;
+
+        case FormulaToken::RefN:
+            stack.push_back(token.refn(row, col));
+            break;
+
+        case FormulaToken::Ref3d:
+            stack.push_back(token.ref3d(externSheets(), row, col));
+            break;
+
+        case FormulaToken::Area:
+            stack.push_back(token.area(row, col));
+            break;
+
+        case FormulaToken::AreaN:
+            stack.push_back(token.area(row, col, true));
+            break;
+
+        case FormulaToken::Area3d:
+            stack.push_back(token.area3d(externSheets(), row, col));
+            break;
+
+        case FormulaToken::Function: {
+            mergeTokens(&stack, token.functionParams(), UString(";"));
+            if (stack.size()) {
+                UString str(token.functionName() ? token.functionName() : "??");
+                str.append(UString("("));
+                str.append(stack[stack.size()-1]);
+                str.append(UString(")"));
+                stack[stack.size()-1] = str;
+            }
+            break;
+        }
+
+        case FormulaToken::FunctionVar:
+            if (token.functionIndex() != 255) {
+                mergeTokens(&stack, token.functionParams(), UString(";"));
+                if (stack.size()) {
+                    UString str;
+                    if (token.functionIndex() != 255)
+                        str = token.functionName() ? token.functionName() : "??";
+                    str.append(UString("("));
+                    str.append(stack[stack.size()-1]);
+                    str.append(UString(")"));
+                    stack[stack.size()-1] = str;
+                }
+            } else {
+                unsigned count = token.functionParams() - 1;
+                mergeTokens(&stack, count, UString(";"));
+                if (stack.size()) {
+                    UString str;
+                    str.append(UString("("));
+                    str.append(stack[ stack.size()-1 ]);
+                    str.append(UString(")"));
+                    stack[stack.size()-1] = str;
+                }
+            }
+            break;
+
+        case FormulaToken::Attr:
+            if (token.attr() & 0x10) { // SUM
+                mergeTokens(&stack, 1, UString(";"));
+                if (stack.size()) {
+                    UString str("SUM");
+                    str.append(UString("("));
+                    str.append(stack[ stack.size()-1 ]);
+                    str.append(UString(")"));
+                    stack[stack.size()-1] = str;
+                }
+            }
+            break;
+
+        case FormulaToken::Name:
+            stack.push_back(nameFromIndex(token.nameIndex()-1));
+            break;
+
+        case FormulaToken::NameX:
+            stack.push_back(externNameFromIndex(token.nameXIndex()-1));
+            break;
+
+        case FormulaToken::Matrix: {
+            std::pair<unsigned, unsigned> formulaCellPos = token.baseFormulaRecord();
+            if( isShared ) {
+              FormulaTokens ft = sharedFormulas(formulaCellPos);
+              if (ft.size() > 0)
+                  stack.push_back(decodeFormula(row, col, isShared, ft));
+            } else {
+              // "2.5.198.58 PtgExp" says that if its not a sharedFormula then it's an indication that the
+              // result is an reference to cells. So, we can savly ignore that case...
+              std::cout << "MATRIX first=%i second=" << formulaCellPos.first << " " << formulaCellPos.second << std::endl;
+            }
+            break;
+        }
+
+        case FormulaToken::Table: {
+            std::pair<unsigned, unsigned> formulaCellPos = token.baseFormulaRecord();
+            if( isShared ) {
+              DataTableRecord* dt = tableRecord(formulaCellPos);
+              if(dt)
+                  stack.push_back(dataTableFormula(row, col, dt));
+            } else {
+              std::cout << "TABLE first=%i second=" << formulaCellPos.first << " " << formulaCellPos.second << std::endl;
+            }
+            break;
+        }
+
+        case FormulaToken::MemArea: {
+            UString s = token.areaMap(row, col);
+            stack.push_back(s);
+            break;
+        }
+
+        case FormulaToken::AreaErr:
+        case FormulaToken::AreaErr3d:
+        case FormulaToken::RefErr:
+        case FormulaToken::RefErr3d:
+            stack.push_back(UString("#REF!"));
+            break;
+            
+        case FormulaToken::MemErr: // specifies that the result is an error-code
+            break;
+
+        case FormulaToken::ErrorCode:
+            stack.push_back(token.value().asString());
+            break;
+            
+        case 0: break; // NOPE
+
+        case FormulaToken::NatFormula:
+        case FormulaToken::Sheet:
+        case FormulaToken::EndSheet:
+        case FormulaToken::MemNoMem:
+        case FormulaToken::MemFunc:
+        case FormulaToken::MemAreaN:
+        case FormulaToken::MemNoMemN:
+        default:
+            // FIXME handle this !
+            std::cout << "Unhandled token=" << token.idAsString() << std::endl;
+            stack.push_back(UString("Unknown"));
+            break;
+        };
+
+#ifdef SWINDER_XLS2RAW
+        dumpStack(stack);
+#endif
+    }
+
+    UString result;
+    for (unsigned i = 0; i < stack.size(); i++)
+        result.append(stack[i]);
+
+#ifdef SWINDER_XLS2RAW
+    std::cout << "FORMULA Result: " << result << std::endl;
+#endif
+    return result;
+}
+
+UString FormulaDecoder::dataTableFormula(unsigned row, unsigned col, const DataTableRecord* record)
+{
+    UString result("MULTIPLE.OPERATIONS(");
+
+    unsigned formulaRow = 0, formulaCol = 0;
+    switch (record->direction()) {
+    case DataTableRecord::InputRow:
+        formulaRow = row;
+        formulaCol = record->firstColumn() - 1;
+        break;
+    case DataTableRecord::InputColumn:
+        formulaRow = record->firstRow() - 1;
+        formulaCol = col;
+        break;
+    case DataTableRecord::Input2D:
+        formulaRow = record->firstRow() - 1;
+        formulaCol = record->firstColumn() - 1;
+        break;
+    }
+
+    result.append(UString("[.$"));
+    result.append(Cell::columnLabel(formulaCol));
+    result.append(UString("$"));
+    result.append(UString::from(formulaRow + 1));
+    result.append(UString("]"));
+
+    if (record->direction() == DataTableRecord::Input2D) {
+        result.append(UString(";[.$"));
+        result.append(Cell::columnLabel(record->inputColumn2()));
+        result.append(UString("$"));
+        result.append(UString::from(record->inputRow2() + 1));
+        result.append(UString("]"));
+    } else {
+        result.append(UString(";[.$"));
+        result.append(Cell::columnLabel(record->inputColumn1()));
+        result.append(UString("$"));
+        result.append(UString::from(record->inputRow1() + 1));
+        result.append(UString("]"));
+    }
+
+    if (record->direction() == DataTableRecord::Input2D || record->direction() == DataTableRecord::InputColumn) {
+        result.append(UString(";[.$"));
+        result.append(Cell::columnLabel(record->firstColumn() - 1));
+        result.append(UString::from(row + 1));
+        result.append(UString("]"));
+    }
+
+    if (record->direction() == DataTableRecord::Input2D) {
+        result.append(UString(";[.$"));
+        result.append(Cell::columnLabel(record->inputColumn1()));
+        result.append(UString("$"));
+        result.append(UString::from(record->inputRow1() + 1));
+        result.append(UString("]"));
+    }
+
+    if (record->direction() == DataTableRecord::Input2D || record->direction() == DataTableRecord::InputRow) {
+        result.append(UString(";[."));
+        result.append(Cell::columnLabel(col));
+        result.append(UString("$"));
+        result.append(UString::from(record->firstRow() - 1 + 1));
+        result.append(UString("]"));
+    }
+
+    result.append(UString(")"));
+
+#ifdef SWINDER_XLS2RAW
+    std::cout << "DATATABLE Result: " << result << std::endl;
+#endif
+    return result;
+}
 
 } // namespace Swinder

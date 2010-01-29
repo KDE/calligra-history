@@ -23,11 +23,11 @@
 #include "flake_export.h"
 
 #include <KoGenericRegistry.h>
-#include <KoShapeBorderFactory.h>
+#include <KoShapeBorderFactoryBase.h>
 
 #include <QObject>
 
-class FLAKE_EXPORT KoShapeBorderRegistry : public QObject,  public KoGenericRegistry<KoShapeBorderFactory*>
+class FLAKE_EXPORT KoShapeBorderRegistry : public QObject,  public KoGenericRegistry<KoShapeBorderFactoryBase*>
 {
     Q_OBJECT
 
@@ -45,6 +45,9 @@ private:
     KoShapeBorderRegistry(const KoShapeBorderRegistry&);
     KoShapeBorderRegistry operator=(const KoShapeBorderRegistry&);
     void init();
+
+    class Private;
+    Private *d;
 };
 
 #endif

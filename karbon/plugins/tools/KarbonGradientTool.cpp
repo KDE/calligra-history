@@ -26,7 +26,7 @@
 
 #include <KoShape.h>
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoShapeManager.h>
 #include <KoSelection.h>
 #include <KoPointerEvent.h>
@@ -62,7 +62,7 @@ GradientStrategy * createStrategy(KoShape * shape, const QGradient * gradient, G
 }
 
 KarbonGradientTool::KarbonGradientTool(KoCanvasBase *canvas)
-        : KoTool(canvas)
+        : KoToolBase(canvas)
         , m_gradient(0)
         , m_currentStrategy(0)
         , m_hoverStrategy(0)
@@ -301,7 +301,7 @@ void KarbonGradientTool::keyPressEvent(QKeyEvent *event)
             handleRadius--;
         else
             handleRadius++;
-        canvas()->resourceProvider()->setHandleRadius(handleRadius);
+        canvas()->resourceManager()->setHandleRadius(handleRadius);
     }
     break;
     default:
@@ -435,8 +435,8 @@ void KarbonGradientTool::initialize()
 
     delete m_gradient;
     GradientStrategy * strategy = m_currentStrategy ? m_currentStrategy : m_strategies.values().first();
-    GradientStrategy::setHandleRadius(canvas()->resourceProvider()->handleRadius());
-    GradientStrategy::setGrabSensitivity(canvas()->resourceProvider()->grabSensitivity());
+    GradientStrategy::setHandleRadius(canvas()->resourceManager()->handleRadius());
+    GradientStrategy::setGrabSensitivity(canvas()->resourceManager()->grabSensitivity());
     m_gradient = KoFlake::cloneGradient(strategy->gradient());
     if (m_gradientWidget) {
         m_gradientWidget->setGradient(*m_gradient);

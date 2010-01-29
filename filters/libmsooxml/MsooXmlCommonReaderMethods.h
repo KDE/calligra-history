@@ -27,9 +27,12 @@
 // included by DocxXmlDocumentReader and PptxXmlSlideReader
 
 protected:
-void initInternal();
+void initInternal(); //!< should be called from ctor
+void doneInternal(); //!< sould be called from dtor
 
 KoFilter::ConversionStatus read_hyperlink();
+//KoFilter::ConversionStatus read_commentRangeEnd();
+KoFilter::ConversionStatus read_commentRangeStart();
 KoFilter::ConversionStatus read_p();
 KoFilter::ConversionStatus read_pPr();
 KoFilter::ConversionStatus read_rPr();
@@ -64,6 +67,7 @@ KoFilter::ConversionStatus read_wrapTight();
 KoFilter::ConversionStatus read_wrapThrough();
 KoFilter::ConversionStatus read_shd();
 KoFilter::ConversionStatus read_jc();
+KoFilter::ConversionStatus read_vertAlign();
 
 void setParentParagraphStyleName(const QXmlStreamAttributes& attrs);
 
@@ -78,6 +82,10 @@ void saveStyleWrap(const char * style);
 
 //! Used by read_wrap*()
 void readWrap();
+
+//! Copies file to destination directory. @a destinationName is set.
+KoFilter::ConversionStatus copyFile(const QString& sourceName, const QString& destinationDir,
+    QString& destinationName);
 
 //! ODF 1.1., 15.14.9 Fill Image Rendering Style
 //! Set by read_stretch()
@@ -105,5 +113,8 @@ bool m_hasPosOffsetH; //!< used by read_posOffset()
 bool m_insideHdr; //!< used to indicate that we're parsing inside hdr (header)
 //! @todo set it
 bool m_insideFtr; //!< used to indicate that we're parsing inside ftr (footer)
+
+bool m_drawing_anchor; //! set by read_drawing() to indicate if we have encountered drawing/anchor, used by read_pic()
+bool m_drawing_inline; //! set by read_drawing() to indicate if we have encountered drawing/inline, used by read_pic()
 
 #endif

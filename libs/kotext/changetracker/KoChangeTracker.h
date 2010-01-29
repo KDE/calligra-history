@@ -21,7 +21,6 @@
 
 //KOffice includes
 #include "kotext_export.h"
-#include <KoDataCenter.h>
 //#include "KoChangeTrackerElement.h"
 class KoChangeTrackerElement;
 
@@ -44,7 +43,7 @@ class QString;
 //#include <QList>
 class QTextDocumentFragment;
 
-class KOTEXT_EXPORT KoChangeTracker : public QObject, public KoDataCenter
+class KOTEXT_EXPORT KoChangeTracker : public QObject
 {
     Q_OBJECT
 public:
@@ -85,8 +84,11 @@ public:
     /// Splits a changeElement. This creates a duplicate changeElement with a different changeId. This is used because we do not support overlapping change regions. The function returns the new changeId
     int split(int changeId);
 
-    bool isParent(int testedId, int baseId);
+    bool isParent(int testedParentId, int testedChildId);
     void setParent(int child, int parent);
+    int parent(int changeId);
+
+    void acceptRejectChange(int changeId, bool set);
 
     /// Load/save methods
     bool saveInlineChange(int changeId, KoGenChange &change);
@@ -95,12 +97,6 @@ public:
     int getLoadedChangeId(QString odfId);
 
 private:
-
-    /// reimplemented
-    virtual bool completeLoading(KoStore *store);
-
-    /// reimplemented
-    virtual bool completeSaving(KoStore *store, KoXmlWriter *manifestWriter, KoShapeSavingContext *context);
 
     class Private;
     Private* const d;

@@ -20,27 +20,23 @@
 #ifndef VIDEOSHAPEFACTORY_H
 #define VIDEOSHAPEFACTORY_H
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShape;
 class VideoShapeConfigWidget;
 
-class VideoShapeFactory : public KoShapeFactory
+class VideoShapeFactory : public KoShapeFactoryBase
 {
 public:
     VideoShapeFactory(QObject *parent);
     ~VideoShapeFactory() {}
 
-    virtual KoShape *createDefaultShape() const;
-    virtual KoShape *createShape(const KoProperties *params) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports(const KoXmlElement &e) const;
 
     /// reimplemented
-    virtual void populateDataCenterMap(QMap<QString, KoDataCenter*> &dataCenterMap);
-    /// reimplemented
     virtual QList<KoShapeConfigWidgetBase*> createShapeOptionPanels();
-
-    VideoShapeConfigWidget *m_configWidget;
+    virtual void newDocumentResourceManager(KoResourceManager *manager);
 };
 
 #endif

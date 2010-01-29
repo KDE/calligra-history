@@ -20,19 +20,18 @@
 #ifndef KORECTANGLESHAPEFACTORY_H
 #define KORECTANGLESHAPEFACTORY_H
 
-#include "KoShapeFactory.h"
+#include "KoShapeFactoryBase.h"
 
 class KoShape;
 
 /// Factory for path shapes
-class RectangleShapeFactory : public KoShapeFactory
+class RectangleShapeFactory : public KoShapeFactoryBase
 {
 public:
     /// constructor
     explicit RectangleShapeFactory(QObject *parent);
     ~RectangleShapeFactory() {}
-    KoShape *createDefaultShape() const;
-    KoShape *createShape(const KoProperties *params) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports(const KoXmlElement &e) const;
     virtual QList<KoShapeConfigWidgetBase*> createShapeOptionPanels();
 };

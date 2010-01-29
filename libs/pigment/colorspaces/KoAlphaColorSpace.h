@@ -29,6 +29,7 @@
 #include "KoColorSpaceTraits.h"
 
 #include "KoColorModelStandardIds.h"
+#include "KoSimpleColorSpaceFactory.h"
 
 typedef KoColorSpaceTrait<quint8, 1, 0> AlphaU8Traits;
 
@@ -89,11 +90,11 @@ public:
     }
 
     virtual const KoColorProfile* profile() const {
-        return 0;
+        return m_profile;
     }
 
     virtual KoColorProfile* profile() {
-        return 0;
+        return m_profile;
     }
 
     virtual QImage convertToQImage(const quint8 *data, qint32 width, qint32 height,
@@ -171,6 +172,27 @@ public:
                                  quint8 *dst, const KoColorSpace * dstColorSpace,
                                  quint32 numPixels,
                                  KoColorConversionTransformation::Intent  renderingIntent = KoColorConversionTransformation::IntentPerceptual) const;
+private:
+    KoColorProfile* m_profile;
+};
+
+
+class KoAlphaColorSpaceFactory : public KoSimpleColorSpaceFactory
+{
+
+public:
+    KoAlphaColorSpaceFactory()
+            : KoSimpleColorSpaceFactory("ALPHA",
+                                        i18n("Alpha mask"),
+                                        true,
+                                        AlphaColorModelID,
+                                        Integer8BitsColorDepthID,
+                                        8) {
+    }
+
+    virtual KoColorSpace *createColorSpace(const KoColorProfile *) const {
+        return new KoAlphaColorSpace();
+    }
 
 };
 

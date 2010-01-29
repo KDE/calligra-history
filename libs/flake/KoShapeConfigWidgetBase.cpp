@@ -20,7 +20,7 @@
 #include "KoShapeConfigWidgetBase.h"
 
 KoShapeConfigWidgetBase::KoShapeConfigWidgetBase()
-        : m_resourceProvider(0)
+        : m_resourceManager(0)
 {
 }
 
@@ -33,9 +33,9 @@ void KoShapeConfigWidgetBase::setUnit(KoUnit unit)
     Q_UNUSED(unit);
 }
 
-void KoShapeConfigWidgetBase::setResourceProvider(KoCanvasResourceProvider* provider)
+void KoShapeConfigWidgetBase::setResourceManager(KoResourceManager *rm)
 {
-    m_resourceProvider = provider;
+    m_resourceManager = rm;
 }
 
 bool KoShapeConfigWidgetBase::showOnShapeCreate()

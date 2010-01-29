@@ -27,7 +27,7 @@
 #include <KoPathPointData.h>
 #include <KoViewConverter.h>
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <QtGui/QPainter>
 
 KoPathToolSelection::KoPathToolSelection(KoPathTool * tool)
@@ -41,7 +41,7 @@ KoPathToolSelection::~KoPathToolSelection()
 
 void KoPathToolSelection::paint(QPainter &painter, const KoViewConverter &converter)
 {
-    int handleRadius = m_tool->canvas()->resourceProvider()->handleRadius();
+    int handleRadius = m_tool->canvas()->resourceManager()->handleRadius();
 
     PathShapePointMap::iterator it(m_shapePointMap.begin());
     for (; it != m_shapePointMap.end(); ++it) {

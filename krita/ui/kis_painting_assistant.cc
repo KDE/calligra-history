@@ -131,3 +131,27 @@ QList<KisPaintingAssistantHandleSP> KisPaintingAssistant::handles()
 {
     return d->handles;
 }
+
+KisPaintingAssistantFactory::KisPaintingAssistantFactory()
+{
+}
+
+KisPaintingAssistantFactory::~KisPaintingAssistantFactory()
+{
+}
+
+KisPaintingAssistantFactoryRegistry* KisPaintingAssistantFactoryRegistry::s_instance = 0;
+
+KisPaintingAssistantFactoryRegistry::KisPaintingAssistantFactoryRegistry()
+{
+}
+
+KisPaintingAssistantFactoryRegistry* KisPaintingAssistantFactoryRegistry::instance()
+{
+    if(!s_instance)
+    {
+      s_instance = new KisPaintingAssistantFactoryRegistry;
+    }
+    return s_instance;
+}
+

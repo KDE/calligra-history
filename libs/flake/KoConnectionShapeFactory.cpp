@@ -30,7 +30,7 @@
 #include <KoLineBorder.h>
 
 KoConnectionShapeFactory::KoConnectionShapeFactory(QObject* parent)
-        : KoShapeFactory(parent, KOCONNECTIONSHAPEID, i18n("Tie"))
+        : KoShapeFactoryBase(parent, KOCONNECTIONSHAPEID, i18n("Tie"))
 {
     setToolTip(i18n("A connection between two other shapes"));
     setIcon("x-shape-connection");
@@ -38,18 +38,12 @@ KoConnectionShapeFactory::KoConnectionShapeFactory(QObject* parent)
     setLoadingPriority(1);
 }
 
-KoShape* KoConnectionShapeFactory::createDefaultShape() const
+KoShape* KoConnectionShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     KoConnectionShape * shape = new KoConnectionShape();
     shape->setBorder(new KoLineBorder());
     shape->setShapeId(KoPathShapeId);
     return shape;
-}
-
-KoShape* KoConnectionShapeFactory::createShape(const KoProperties* params) const
-{
-    Q_UNUSED(params);
-    return createDefaultShape();
 }
 
 bool KoConnectionShapeFactory::supports(const KoXmlElement & e) const

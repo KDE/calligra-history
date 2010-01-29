@@ -153,7 +153,7 @@ public:
     /**
      * @return the deselected global selection or 0 if no global selection was deselected
      */
-    KisSelectionSP deleselectedGlobalSelection();
+    KisSelectionSP deselectedGlobalSelection();
 
     /**
      * Set deselected global selection
@@ -511,6 +511,10 @@ public slots:
 
     void slotProjectionUpdated(const QRect & rc);
     void updateProjection(KisNodeSP node, const QRect& rc);
+    
+    /**
+     * Triggers synchronous recomposition of the projection
+     */
     void refreshGraph();
 
 private:

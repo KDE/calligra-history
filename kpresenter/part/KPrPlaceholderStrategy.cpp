@@ -28,7 +28,7 @@
 
 #include <klocale.h>
 #include <KoShape.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeRegistry.h>
 #include <KoShapeSavingContext.h>
 #include <KoShapeLoadingContext.h>
@@ -114,13 +114,13 @@ KPrPlaceholderStrategy::~KPrPlaceholderStrategy()
 {
 }
 
-KoShape * KPrPlaceholderStrategy::createShape( const QMap<QString, KoDataCenter *> & dataCenterMap )
+KoShape *KPrPlaceholderStrategy::createShape(KoResourceManager *rm)
 {
     KoShape * shape = 0;
-    KoShapeFactory * factory = KoShapeRegistry::instance()->value( m_placeholderData->m_shapeId );
+    KoShapeFactoryBase * factory = KoShapeRegistry::instance()->value( m_placeholderData->m_shapeId );
     Q_ASSERT( factory );
     if ( factory ) {
-        shape = factory->createDefaultShapeAndInit( dataCenterMap );
+        shape = factory->createDefaultShape(rm);
     }
     return shape;
 }
@@ -161,9 +161,8 @@ QString KPrPlaceholderStrategy::text() const
     return i18n( m_placeholderData->m_text );
 }
 
-void KPrPlaceholderStrategy::init( const QMap<QString, KoDataCenter *> & dataCenterMap )
+void KPrPlaceholderStrategy::init(KoResourceManager *)
 {
-    Q_UNUSED( dataCenterMap );
 }
 
 KoShapeUserData * KPrPlaceholderStrategy::userData() const

@@ -20,11 +20,11 @@
 #ifndef SHAPEPROPERTIESDOCKERFACTORY_H
 #define SHAPEPROPERTIESDOCKERFACTORY_H
 
-#include <KoDockFactory.h>
+#include <KoDockFactoryBase.h>
 #include <QtGui/QDockWidget>
 
 /// the factory which creates the shape properties docker
-class ShapePropertiesDockerFactory : public KoDockFactory
+class ShapePropertiesDockerFactory : public KoDockFactoryBase
 {
 public:
     ShapePropertiesDockerFactory();

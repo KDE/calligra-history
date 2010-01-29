@@ -24,7 +24,7 @@
 
 
 KarbonCalligraphicShapeFactory::KarbonCalligraphicShapeFactory(QObject *parent)
-        : KoShapeFactory(parent, KarbonCalligraphicShapeId, i18n("A calligraphic shape"))
+        : KoShapeFactoryBase(parent, KarbonCalligraphicShapeId, i18n("A calligraphic shape"))
 {
     setToolTip(i18n("Calligraphic Shape"));
     setIcon("calligraphy");
@@ -36,7 +36,7 @@ KarbonCalligraphicShapeFactory::~KarbonCalligraphicShapeFactory()
 {
 }
 
-KoShape * KarbonCalligraphicShapeFactory::createDefaultShape() const
+KoShape *KarbonCalligraphicShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     KarbonCalligraphicShape *path = new KarbonCalligraphicShape();
 
@@ -44,12 +44,6 @@ KoShape * KarbonCalligraphicShapeFactory::createDefaultShape() const
     path->setShapeId(KarbonCalligraphicShapeId);
 
     return path;
-}
-
-KoShape * KarbonCalligraphicShapeFactory::createShape(const KoProperties * params) const
-{
-    Q_UNUSED(params);
-    return createDefaultShape();
 }
 
 /*bool KarbonCalligraphicShapeFactory::supports(const KoXmlElement & e) const

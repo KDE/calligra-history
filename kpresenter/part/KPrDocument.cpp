@@ -21,6 +21,7 @@
 
 
 #include "KPrView.h"
+#include "KPresenter.h"
 #include "KPrPage.h"
 #include "KPrMasterPage.h"
 #include "KPrShapeApplicationData.h"
@@ -28,12 +29,14 @@
 #include "KPrViewModeNotes.h"
 #include "KPrPlaceholderShapeFactory.h"
 #include "KPrSoundCollection.h"
+#include "KPrDeclarations.h"
 #include "pagelayout/KPrPageLayouts.h"
 #include "tools/KPrPlaceholderToolFactory.h"
 #include "commands/KPrSetCustomSlideShowsCommand.h"
 #include <KoPACanvas.h>
 #include <KoPAViewModeNormal.h>
 #include <KoPASavingContext.h>
+#include <KoPALoadingContext.h>
 #include <KoShapeManager.h>
 #include <KoShapeLoadingContext.h>
 #include <KoShapeRegistry.h>
@@ -63,6 +66,7 @@ KPrDocument::KPrDocument( QWidget* parentWidget, QObject* parent, bool singleVie
 , m_customSlideShows(new KPrCustomSlideShows())
 , m_presentationMonitor( 0 )
 , m_presenterViewEnabled( false )
+, m_declarations( new KPrDeclarations() )
 {
     K_GLOBAL_STATIC( InitOnce, s_initOnce );
     InitOnce * initOnce = s_initOnce;
@@ -81,10 +85,12 @@ KPrDocument::KPrDocument( QWidget* parentWidget, QObject* parent, bool singleVie
                                                        KoXmlNS::presentation, "class",
                                                        "presentation:class" ) );
 
-    KPrSoundCollection *soundCol = new KPrSoundCollection();
-    insertIntoDataCenterMap("SoundCollection", soundCol);
+    QVariant variant;
+    variant.setValue(new KPrSoundCollection(this));
+    resourceManager()->setResource(KPresenter::SoundCollection, variant);
 
-    insertIntoDataCenterMap( PageLayouts, new KPrPageLayouts() );
+    variant.setValue(new KPrPageLayouts(this));
+    resourceManager()->setResource(KPresenter::PageLayouts, variant);
 
     loadKPrConfig();
 }
@@ -119,7 +125,8 @@ bool KPrDocument::saveOdfEpilogue( KoPASavingContext & context )
 void KPrDocument::saveOdfDocumentStyles( KoPASavingContext & context )
 {
     KoPADocument::saveOdfDocumentStyles( context );
-    KPrPageLayouts * layouts = dynamic_cast<KPrPageLayouts *>( dataCenterMap().value( PageLayouts ) );
+    KPrPageLayouts *layouts = resourceManager()->resource(KPresenter::PageLayouts).value<KPrPageLayouts*>();
+
     Q_ASSERT( layouts );
     if ( layouts ) {
         layouts->saveOdf( context );
@@ -146,8 +153,7 @@ bool KPrDocument::loadOdfEpilogue( const KoXmlElement & body, KoPALoadingContext
 
 bool KPrDocument::loadOdfDocumentStyles( KoPALoadingContext & context )
 {
-    KPrPageLayouts * layouts = dynamic_cast<KPrPageLayouts *>( dataCenterMap().value( PageLayouts ) );
-    Q_ASSERT( layouts );
+    KPrPageLayouts *layouts = resourceManager()->resource(KPresenter::PageLayouts).value<KPrPageLayouts*>();
     if ( layouts ) {
         layouts->loadOdf( context );
     }
@@ -340,6 +346,18 @@ void KPrDocument::setActiveCustomSlideShow( const QString &customSlideShow )
         emit activeCustomSlideShowChanged( customSlideShow );
     }
 }
+
+bool KPrDocument::loadOdfProlog( const KoXmlElement & body, KoPALoadingContext & context )
+{
+    Q_UNUSED( context );
+    return m_declarations->loadOdf( body, context );
+}
+
+KPrDeclarations * KPrDocument::declarations() const
+{
+    return m_declarations;
+}
+
 
 #include "KPrDocument.moc"
 

@@ -61,6 +61,7 @@ void RenderQueue::renderImage()
 //////////////
 PictureShape::PictureShape()
     : KoFrameShape(KoXmlNS::draw, "image"),
+    m_imageCollection(0),
     m_renderQueue(new RenderQueue(this))
 {
     setKeepAspectRatio(true);
@@ -215,9 +216,4 @@ bool PictureShape::loadOdfFrameElement(const KoXmlElement &element, KoShapeLoadi
 KoImageCollection *PictureShape::imageCollection() const
 {
     return m_imageCollection;
-}
-
-void PictureShape::init(const QMap<QString, KoDataCenter*> &dataCenterMap)
-{
-    m_imageCollection = dynamic_cast<KoImageCollection *>(dataCenterMap.value("ImageCollection"));
 }

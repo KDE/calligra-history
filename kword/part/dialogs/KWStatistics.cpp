@@ -24,7 +24,7 @@
 #include "frames/KWFrameSet.h"
 #include "frames/KWTextFrameSet.h"
 
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoExecutePolicy.h>
 #include <KoAction.h>
 #include <KoSelection.h>
@@ -35,9 +35,9 @@
 #include <QTextBlock>
 #include <QTimer>
 
-KWStatistics::KWStatistics(KoCanvasResourceProvider *provider, KWDocument* document, KoSelection *selection, QWidget *parent)
+KWStatistics::KWStatistics(KoResourceManager *provider, KWDocument* document, KoSelection *selection, QWidget *parent)
         : QWidget(parent),
-        m_resourceProvider(provider),
+        m_resourceManager(provider),
         m_action(new KoAction(this)),
         m_selection(selection),
         m_document(document),
@@ -70,7 +70,7 @@ KWStatistics::KWStatistics(KoCanvasResourceProvider *provider, KWDocument* docum
         widget.setupUi(this);
         m_action->setExecutePolicy(KoExecutePolicy::onlyLastPolicy);
 
-        connect(m_resourceProvider, SIGNAL(resourceChanged(int, const QVariant &)), this, SLOT(updateResource(int)));
+        connect(m_resourceManager, SIGNAL(resourceChanged(int, const QVariant &)), this, SLOT(updateResource(int)));
         connect(m_action, SIGNAL(triggered(const QVariant&)), this, SLOT(updateData()), Qt::DirectConnection);
         connect(m_action, SIGNAL(updateUi(const QVariant&)), this, SLOT(updateDataUi()), Qt::DirectConnection);
         connect(widget.footEndNotes, SIGNAL(toggled(bool)), m_action, SLOT(execute()));
@@ -249,13 +249,13 @@ void KWStatistics::updateDataUi()
     } else {
         // tab 1
         widget.pages->setText(
-            KGlobal::locale()->formatNumber(m_resourceProvider->intResource(KWord::CurrentPageCount), 0));
+            KGlobal::locale()->formatNumber(m_resourceManager->intResource(KWord::CurrentPageCount), 0));
         widget.frames->setText(
-            KGlobal::locale()->formatNumber(m_resourceProvider->intResource(KWord::CurrentFrameSetCount), 0));
+            KGlobal::locale()->formatNumber(m_resourceManager->intResource(KWord::CurrentFrameSetCount), 0));
         widget.pictures->setText(
-            KGlobal::locale()->formatNumber(m_resourceProvider->intResource(KWord::CurrentPictureCount), 0));
+            KGlobal::locale()->formatNumber(m_resourceManager->intResource(KWord::CurrentPictureCount), 0));
         widget.tables->setText(
-            KGlobal::locale()->formatNumber(m_resourceProvider->intResource(KWord::CurrentTableCount), 0));
+            KGlobal::locale()->formatNumber(m_resourceManager->intResource(KWord::CurrentTableCount), 0));
 
         // tab 2
         widget.words->setText(KGlobal::locale()->formatNumber(m_words, 0));

@@ -46,7 +46,7 @@
 #include <KoTextDocument.h>
 #include <KoShapeCreateCommand.h>
 #include <KoImageSelectionWidget.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoCutController.h>
 #include <KoStandardAction.h>
 #include <KoPasteController.h>
@@ -62,7 +62,7 @@
 #include <KoMainWindow.h>
 #include <KoTextEditor.h>
 #include <KoToolProxy.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoTextAnchor.h>
 #include <KoShapeGroupCommand.h>
 #include <KoZoomController.h>
@@ -116,7 +116,7 @@ KWView::KWView(const QString& viewMode, KWDocument* document, QWidget *parent)
 
     connect(m_canvas->shapeManager()->selection(), SIGNAL(selectionChanged()), this, SLOT(selectionChanged()));
 
-    new KoFind(this, m_canvas->resourceProvider(), actionCollection());
+    new KoFind(this, m_canvas->resourceManager(), actionCollection());
 
     m_zoomController = new KoZoomController(m_gui->canvasController(), &m_zoomHandler, actionCollection(), 0, this);
 
@@ -170,7 +170,6 @@ void KWView::setupActions()
     actionCollection()->addAction("format_frameset", m_actionFormatFrameSet);
     m_actionFormatFrameSet->setToolTip(i18n("Alter frameset properties"));
     m_actionFormatFrameSet->setEnabled(false);
-    m_actionFormatFrameSet->setWhatsThis(i18n("Alter frameset properties.<p>Currently you can change the frame background."));
     connect(m_actionFormatFrameSet, SIGNAL(triggered()), this, SLOT(editFrameProperties()));
 
     m_actionInsertFrameBreak  = new KAction(QString(), this);
@@ -919,15 +918,14 @@ void KWView::selectBookmark()
     QString tool = KoToolManager::instance()->preferredToolForSelection(selection->selectedShapes());
     KoToolManager::instance()->switchToolRequested(tool);
 
-    KoCanvasResourceProvider *provider = m_canvas->resourceProvider();
-
+    KoResourceManager *rm = m_canvas->resourceManager();
     if (bookmark->hasSelection()) {
-        provider->setResource(KoText::CurrentTextPosition, bookmark->position());
-        provider->setResource(KoText::CurrentTextAnchor, bookmark->endBookmark()->position() + 1);
-        provider->clearResource(KoText::SelectedTextPosition);
-        provider->clearResource(KoText::SelectedTextAnchor);
+        rm->setResource(KoText::CurrentTextPosition, bookmark->position());
+        rm->setResource(KoText::CurrentTextAnchor, bookmark->endBookmark()->position() + 1);
+        rm->clearResource(KoText::SelectedTextPosition);
+        rm->clearResource(KoText::SelectedTextAnchor);
     } else
-        provider->setResource(KoText::CurrentTextPosition, bookmark->position() + 1);
+        rm->setResource(KoText::CurrentTextPosition, bookmark->position() + 1);
 }
 
 void KWView::deleteBookmark(const QString &name)
@@ -949,16 +947,16 @@ void KWView::deleteBookmark(const QString &name)
     KoTextEditor *handler = qobject_cast<KoTextEditor*> (kwcanvas()->toolProxy()->selection());
     Q_ASSERT(handler);
 
-    KoCanvasResourceProvider *provider = m_canvas->resourceProvider();
+    KoResourceManager *rm = m_canvas->resourceManager();
 
     if (bookmark->hasSelection())
         endPosition = bookmark->endBookmark()->position() - 1;
 
-    provider->setResource(KoText::CurrentTextPosition, bookmark->position());
+    rm->setResource(KoText::CurrentTextPosition, bookmark->position());
     handler->deleteInlineObjects(false);
 
     if (endPosition != -1) {
-        provider->setResource(KoText::CurrentTextPosition, endPosition);
+        rm->setResource(KoText::CurrentTextPosition, endPosition);
         handler->deleteInlineObjects(false);
     }
 }
@@ -1014,7 +1012,7 @@ void KWView::adjustZOrderOfSelectedFrames(KoShapeReorderCommand::MoveShapeType d
 
 void KWView::toggleViewFrameBorders(bool on)
 {
-    kwcanvas()->resourceProvider()->setResource(KoText::ShowTextFrames, on);
+    kwcanvas()->resourceManager()->setResource(KoText::ShowTextFrames, on);
     kwcanvas()->update();
     m_document->config().setViewFrameBorders(on);
 }
@@ -1149,11 +1147,11 @@ void KWView::handleDeletePageAction()
 
 void KWView::setShowFormattingChars(bool on)
 {
-    KoCanvasResourceProvider *provider = m_canvas->resourceProvider();
-    provider->setResource(KoText::ShowSpaces, on);
-    provider->setResource(KoText::ShowTabs, on);
-    provider->setResource(KoText::ShowEnters, on);
-    provider->setResource(KoText::ShowSpecialCharacters, on);
+    KoResourceManager *rm = m_canvas->resourceManager();
+    rm->setResource(KoText::ShowSpaces, on);
+    rm->setResource(KoText::ShowTabs, on);
+    rm->setResource(KoText::ShowEnters, on);
+    rm->setResource(KoText::ShowSpecialCharacters, on);
 }
 
 void KWView::editSelectAllFrames()
@@ -1199,7 +1197,7 @@ void KWView::createCustomOutline()
 
 void KWView::insertImage()
 {
-    KoShape *shape = KoImageSelectionWidget::selectImageShape(m_document->dataCenterMap(), this);
+    KoShape *shape = KoImageSelectionWidget::selectImageShape(m_document->resourceManager(), this);
     if (shape) {
         if (m_currentPage.isValid()) {
             QRectF page = m_currentPage.rect();
@@ -1277,9 +1275,9 @@ void KWView::selectionChanged()
         Q_ASSERT(frame);
         QVariant variant;
         variant.setValue<void*>(frame);
-        m_canvas->resourceProvider()->setResource(KWord::CurrentFrame, variant);
+        m_canvas->resourceManager()->setResource(KWord::CurrentFrame, variant);
         variant.setValue<void*>(frame->frameSet());
-        m_canvas->resourceProvider()->setResource(KWord::CurrentFrameSet, variant);
+        m_canvas->resourceManager()->setResource(KWord::CurrentFrameSet, variant);
         break;
     }
 }
@@ -1289,7 +1287,7 @@ void KWView::setCurrentPage(const KWPage &currentPage)
     Q_ASSERT(currentPage.isValid());
     if (currentPage != m_currentPage) {
         m_currentPage = currentPage;
-        m_canvas->resourceProvider()->setResource(KoCanvasResource::CurrentPage, m_currentPage.pageNumber());
+        m_canvas->resourceManager()->setResource(KoCanvasResource::CurrentPage, m_currentPage.pageNumber());
         m_zoomController->setPageSize(m_currentPage.rect().size());
         m_actionViewHeader->setChecked(m_currentPage.pageStyle().headerPolicy() != KWord::HFTypeNone);
         m_actionViewFooter->setChecked(m_currentPage.pageStyle().footerPolicy() != KWord::HFTypeNone);

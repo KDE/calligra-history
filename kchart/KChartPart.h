@@ -53,7 +53,7 @@ class QStandardItemModel;
 
 class KoXmlWriter;
 class KoGenStyles;
-class KoDataCenter;
+class KoDataCenterBase;
 
 class KoShape;
 class KoOdfStylesReader;
@@ -76,7 +76,6 @@ public:
 
     virtual void addShape( KoShape* );
     virtual void removeShape( KoShape* );
-    virtual QMap<QString, KoDataCenter *>  dataCenterMap() const;
 
     // Methods unique to KChart, and available in the new interface
     // (see /interfaces/koChart.h.)

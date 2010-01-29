@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2008-2009 Lukáš Tvrdý <lukast.dev@gmail.com>
+ *  Copyright (c) 2008,2009,2010 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,18 @@
 #include <kis_paintop_option.h>
 #include <krita_export.h>
 
+const QString SPRAY_DIAMETER = "Spray/diameter";
+const QString SPRAY_ASPECT = "Spray/aspect";
+const QString SPRAY_COVERAGE = "Spray/coverage";
+const QString SPRAY_SCALE = "Spray/scale";
+const QString SPRAY_ROTATION = "Spray/rotation";
+const QString SPRAY_PARTICLE_COUNT = "Spray/particleCount";
+const QString SPRAY_JITTER_MOVE_AMOUNT = "Spray/jitterMoveAmount";
+const QString SPRAY_JITTER_MOVEMENT = "Spray/jitterMovement";
+const QString SPRAY_SPACING = "Spray/spacing";
+const QString SPRAY_GAUSS_DISTRIBUTION = "Spray/gaussianDistribution";
+const QString SPRAY_USE_DENSITY = "Spray/useDensity";
+
 class KisSprayOpOptionsWidget;
 
 class KisSprayOpOption : public KisPaintOpOption
@@ -30,10 +42,9 @@ public:
     ~KisSprayOpOption();
 
     int diameter() const;
-    qreal aspect() const;
-    
     void setDiamter(int diameter) const;
     
+    qreal aspect() const;
     int particleCount() const;
 
     qreal coverage() const;

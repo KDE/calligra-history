@@ -20,17 +20,17 @@
 #ifndef CHANGETRACKINGTOOLFACTORY_H
 #define CHANGETRACKINGTOOLFACTORY_H
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 
-class ChangeTrackingToolFactory : public KoToolFactory
+class ChangeTrackingToolFactory : public KoToolFactoryBase
 {
     Q_OBJECT
 public:
     explicit ChangeTrackingToolFactory(QObject *parent);
     ~ChangeTrackingToolFactory();
 
-    KoTool * createTool(KoCanvasBase *canvas);
+    KoToolBase * createTool(KoCanvasBase *canvas);
 };
 
 #endif

@@ -30,7 +30,7 @@
 
 //KOffice includes
 #include <KoPACanvas.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoPAView.h>
 #include <KoPAPageBase.h> // this is needed to make setResource work correctly
 #include <KoPointerEvent.h>
@@ -41,7 +41,7 @@
 #include "KoPABackgroundToolWidget.h"
 
 KoPABackgroundTool::KoPABackgroundTool( KoCanvasBase *canvas )
-: KoTool( canvas )
+: KoToolBase( canvas )
 {
     m_view = static_cast<KoPACanvas *>(canvas)->koPAView();
 
@@ -65,12 +65,12 @@ void KoPABackgroundTool::activate( bool temporary )
     Q_UNUSED( temporary );
 
     canvas()->shapeManager()->selection()->deselectAll();
-    canvas()->resourceProvider()->setResource( KoPageApp::CurrentPage, m_view->activePage() );
+    canvas()->resourceManager()->setResource( KoPageApp::CurrentPage, m_view->activePage() );
 }
 
 void KoPABackgroundTool::deactivate()
 {
-    canvas()->resourceProvider()->clearResource( KoPageApp::CurrentPage );
+    canvas()->resourceManager()->clearResource( KoPageApp::CurrentPage );
 }
 
 void KoPABackgroundTool::mousePressEvent( KoPointerEvent *event )
@@ -90,7 +90,7 @@ void KoPABackgroundTool::mouseReleaseEvent( KoPointerEvent *event )
 
 void KoPABackgroundTool::slotActivePageChanged()
 {
-    canvas()->resourceProvider()->setResource( KoPageApp::CurrentPage, m_view->activePage() );
+    canvas()->resourceManager()->setResource( KoPageApp::CurrentPage, m_view->activePage() );
 }
 
 KoPAView * KoPABackgroundTool::view() const

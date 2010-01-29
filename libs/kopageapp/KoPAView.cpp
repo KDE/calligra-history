@@ -31,7 +31,7 @@
 #include <QLabel>
 
 #include <KoCanvasController.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoColorBackground.h>
 #include <KoFind.h>
 #include <KoTextDocumentLayout.h>
@@ -215,12 +215,12 @@ void KoPAView::initGUI()
     d->verticalRuler->setUnit(d->doc->unit());
     d->verticalRuler->setShowMousePosition(true);
 
-    new KoRulerController(d->horizontalRuler, d->canvas->resourceProvider());
+    new KoRulerController(d->horizontalRuler, d->canvas->resourceManager());
 
-    connect(d->doc, SIGNAL(unitChanged(KoUnit)),
-            d->horizontalRuler, SLOT(setUnit(KoUnit)));
-    connect(d->doc, SIGNAL(unitChanged(KoUnit)),
-            d->verticalRuler, SLOT(setUnit(KoUnit)));
+    connect(d->doc, SIGNAL(unitChanged(const KoUnit&)),
+            d->horizontalRuler, SLOT(setUnit(const KoUnit&)));
+    connect(d->doc, SIGNAL(unitChanged(const KoUnit&)),
+            d->verticalRuler, SLOT(setUnit(const KoUnit&)));
 
     gridLayout->addWidget(d->horizontalRuler, 0, 1);
     gridLayout->addWidget(d->verticalRuler, 1, 0);
@@ -355,7 +355,7 @@ void KoPAView::initActions()
     actionCollection()->addAction("configure", d->actionConfigure);
     connect(d->actionConfigure, SIGNAL(triggered()), this, SLOT(configure()));
 
-    d->find = new KoFind( this, d->canvas->resourceProvider(), actionCollection() );
+    d->find = new KoFind( this, d->canvas->resourceManager(), actionCollection() );
 
     actionCollection()->action( "object_group" )->setShortcut( QKeySequence( "Ctrl+G" ) );
     actionCollection()->action( "object_ungroup" )->setShortcut( QKeySequence( "Ctrl+Shift+G" ) );
@@ -666,7 +666,7 @@ void KoPAView::doUpdateActivePage( KoPAPageBase * page )
     // the page is in the center of the canvas
     d->zoomController->setDocumentSize(pageSize * 3);
     d->zoomController->setPageSize(pageSize);
-    d->canvas->resourceProvider()->setResource( KoCanvasResource::PageSize, pageSize );
+    d->canvas->resourceManager()->setResource( KoCanvasResource::PageSize, pageSize );
 
     d->canvas->update();
 
@@ -720,7 +720,7 @@ void KoPAView::setActivePage( KoPAPageBase* page )
     }
     
     // Set the current page number in the canvas resource provider
-    d->canvas->resourceProvider()->setResource( KoCanvasResource::CurrentPage, d->doc->pageIndex(d->activePage)+1 );
+    d->canvas->resourceManager()->setResource( KoCanvasResource::CurrentPage, d->doc->pageIndex(d->activePage)+1 );
 }
 
 void KoPAView::navigatePage( KoPageApp::PageNavigation pageNavigation )

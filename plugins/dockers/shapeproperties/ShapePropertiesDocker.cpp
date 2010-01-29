@@ -22,7 +22,7 @@
 #include <KoPathShape.h>
 #include <KoShapeConfigWidgetBase.h>
 #include <KoShapeManager.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeRegistry.h>
 #include <KoCanvasBase.h>
 #include <KoCanvasController.h>
@@ -67,7 +67,7 @@ void ShapePropertiesDocker::setCanvas( KoCanvasBase *canvas )
             this, SLOT( selectionChanged() ) );
         connect( d->canvas->shapeManager(), SIGNAL( selectionContentChanged() ),
             this, SLOT( selectionChanged() ) );
-        connect( d->canvas->resourceProvider(), SIGNAL( resourceChanged( int, const QVariant& ) ),
+        connect( d->canvas->resourceManager(), SIGNAL( resourceChanged( int, const QVariant& ) ),
             this, SLOT( resourceChanged( int, const QVariant& ) ) );
     }
 }
@@ -117,7 +117,7 @@ void ShapePropertiesDocker::addWidgetForShape( KoShape * shape )
             if( paramShape && ! paramShape->isParametricShape() )
                 shapeId = shape->shapeId();
         }
-        KoShapeFactory *factory = KoShapeRegistry::instance()->value( shapeId );
+        KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value( shapeId );
         if( ! factory )
             return;
         QList<KoShapeConfigWidgetBase*> panels = factory->createShapeOptionPanels();
@@ -158,10 +158,10 @@ void ShapePropertiesDocker::shapePropertyChanged()
     }
 }
 
-void ShapePropertiesDocker::resourceChanged( int key, const QVariant & )
+void ShapePropertiesDocker::resourceChanged(int key, const QVariant &variant)
 {
-    if( key == KoCanvasResource::Unit && d->canvas && d->currentPanel )
-        d->currentPanel->setUnit( d->canvas->unit() );
+    if (key == KoCanvasResource::Unit && d->currentPanel)
+        d->currentPanel->setUnit(variant.value<KoUnit>());
 }
 
-#include "ShapePropertiesDocker.moc"
+#include <ShapePropertiesDocker.moc>

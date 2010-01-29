@@ -20,16 +20,16 @@
 #ifndef TOOLFACTORY_H
 #define TOOLFACTORY_H
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 
-class DivineProportionToolFactory : public KoToolFactory {
+class DivineProportionToolFactory : public KoToolFactoryBase {
     Q_OBJECT
 public:
     explicit DivineProportionToolFactory(QObject *parent);
     ~DivineProportionToolFactory();
 
-    KoTool * createTool(KoCanvasBase *canvas);
+    KoToolBase * createTool(KoCanvasBase *canvas);
 };
 
 #endif

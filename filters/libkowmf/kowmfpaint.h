@@ -25,6 +25,9 @@
 
 class QPolygon;
 
+#define DEBUG_WMFPAINT 0
+
+
 /**
  * KoWmfPaint inherits the abstract class KoWmfRead
  * and redirects WMF actions onto a QPaintDevice.
@@ -72,6 +75,7 @@ private:
     void  setFont(const QFont& font);
     // the pen : the width of the pen is in logical coordinate
     void  setPen(const QPen& pen);
+    void  setTextPen(const QPen& pen);
     const QPen& pen() const;
     void  setBrush(const QBrush& brush);
 
@@ -124,6 +128,7 @@ private:
 protected:
     bool  mIsInternalPainter;      // True if the painter wasn't externally provided.
     QPainter *mPainter;
+    QPen  mTextPen;
     QPaintDevice *mTarget;
     bool  mRelativeCoord;
     // memorisation of WMF matrix transformation (in relative coordinate)

@@ -22,6 +22,7 @@
 #include <KoShapeManager.h>
 #include <KoToolProxy.h>
 #include <KoUnit.h>
+#include <KoText.h>
 
 #include "KoPADocument.h"
 #include "KoPAView.h"
@@ -193,9 +194,11 @@ const QPoint & KoPACanvas::documentOffset() const
 
 void KoPACanvas::paintEvent( QPaintEvent *event )
 {
+    KoPAPageBase *activePage(d->view->activePage());
     if (d->view->activePage()) {
         int pageNumber = d->doc->pageIndex( d->view->activePage() ) + 1;
-        static_cast<KoPAPageProvider*>( d->doc->dataCenterMap()[KoPAPageProvider::ID] )->setMasterPageNumber( pageNumber );
+        QVariant var = d->doc->resourceManager()->resource(KoText::PageProvider);
+        static_cast<KoPAPageProvider*>(var.value<void*>())->setPageData(pageNumber, activePage);
         d->view->viewMode()->paintEvent( this, event );
     }
 }

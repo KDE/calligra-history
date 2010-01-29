@@ -21,7 +21,7 @@
 #include "KoText.h"
 #include "styles/KoParagraphStyle.h"
 
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 
 #include <KDebug>
 
@@ -44,9 +44,9 @@ static int compareTabs(KoText::Tab &tab1, KoText::Tab &tab2)
 class KoRulerController::Private
 {
 public:
-    Private(KoRuler *r, KoCanvasResourceProvider *crp)
+    Private(KoRuler *r, KoResourceManager *crp)
             : ruler(r),
-            resourceProvider(crp),
+            resourceManager(crp),
             lastPosition(-1),
             originalTabIndex(-2),
             currentTabIndex(-2) {
@@ -105,14 +105,14 @@ public:
     }
 
     void tabChanged(int originalIndex, KoRuler::Tab *tab) {
-        QVariant docVar = resourceProvider->resource(KoText::CurrentTextDocument);
+        QVariant docVar = resourceManager->resource(KoText::CurrentTextDocument);
         if (docVar.isNull())
             return;
         QTextDocument *doc = static_cast<QTextDocument*>(docVar.value<void*>());
         if (doc == 0)
             return;
-        const int position = resourceProvider->intResource(KoText::CurrentTextPosition);
-        const int anchor = resourceProvider->intResource(KoText::CurrentTextAnchor);
+        const int position = resourceManager->intResource(KoText::CurrentTextPosition);
+        const int anchor = resourceManager->intResource(KoText::CurrentTextAnchor);
 
         QTextCursor cursor(doc);
         cursor.setPosition(anchor);
@@ -166,13 +166,13 @@ public:
     }
 
     QTextBlock currentBlock() {
-        QVariant docVar = resourceProvider->resource(KoText::CurrentTextDocument);
+        QVariant docVar = resourceManager->resource(KoText::CurrentTextDocument);
         if (docVar.isNull())
             return QTextBlock();
         QTextDocument *doc = static_cast<QTextDocument*>(docVar.value<void*>());
         if (doc == 0)
             return QTextBlock();
-        return doc->findBlock(resourceProvider->intResource(KoText::CurrentTextPosition));
+        return doc->findBlock(resourceManager->intResource(KoText::CurrentTextPosition));
     }
 
     void tabChangeInitiated() {
@@ -182,14 +182,14 @@ public:
 
 private:
     KoRuler *ruler;
-    KoCanvasResourceProvider *resourceProvider;
+    KoResourceManager *resourceManager;
     int lastPosition; // the last position in the text document.
     QList<KoText::Tab> tabList;
     KoText::Tab currentTab;
     int originalTabIndex, currentTabIndex;
 };
 
-KoRulerController::KoRulerController(KoRuler *horizontalRuler, KoCanvasResourceProvider *crp)
+KoRulerController::KoRulerController(KoRuler *horizontalRuler, KoResourceManager *crp)
         : QObject(horizontalRuler),
         d(new Private(horizontalRuler, crp))
 {

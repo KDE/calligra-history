@@ -46,8 +46,7 @@
 #include <KarbonCanvas.h>
 
 #include <KoApplication.h>
-#include <KoDataCenter.h>
-#include <KoUndoStack.h>
+#include <KoDataCenterBase.h>
 #include <KoOdfStylesReader.h>
 #include <KoOdfLoadingContext.h>
 #include <KoOdfReadStore.h>
@@ -62,7 +61,7 @@
 #include <KoShapeManager.h>
 #include <KoShapeLayer.h>
 #include <KoShapeRegistry.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoStoreDevice.h>
 #include <KoShapePainter.h>
 
@@ -70,6 +69,7 @@
 #include <kconfiggroup.h>
 #include <kdebug.h>
 #include <klocale.h>
+#include <KUndoStack>
 
 #include <QtXml/QDomDocument>
 #include <QtXml/QDomElement>
@@ -115,8 +115,8 @@ public:
             grabSensitivity = miscGroup.readEntry("GrabSensitivity", grabSensitivity);
             handleRadius = miscGroup.readEntry("HandleRadius", handleRadius);
         }
-        canvas->resourceProvider()->setHandleRadius(handleRadius);
-        canvas->resourceProvider()->setGrabSensitivity(grabSensitivity);
+        canvas->resourceManager()->setHandleRadius(handleRadius);
+        canvas->resourceManager()->setGrabSensitivity(grabSensitivity);
 
         QColor color(Qt::white);
         if (config->hasGroup("Interface")) {
@@ -136,11 +136,12 @@ KarbonPart::KarbonPart(QWidget* parentWidget, const char* widgetName, QObject* p
         : KoDocument(parentWidget, parent, singleViewMode), d(new Private())
 {
     Q_UNUSED(widgetName);
+    d->document.setResourceManager(resourceManager());
 
     setObjectName(name);
     setComponentData(KarbonFactory::componentData(), false);
     setTemplateType("karbon_template");
-    d->document.addToDataCenterMap("UndoStack", undoStack());
+    resourceManager()->setUndoStack(undoStack());
 
     initConfig();
 
@@ -168,7 +169,7 @@ KoView* KarbonPart::createViewInstance(QWidget* parent)
 {
     KarbonView *result = new KarbonView(this, parent);
 
-    KoCanvasResourceProvider * provider = result->canvasWidget()->resourceProvider();
+    KoResourceManager * provider = result->canvasWidget()->resourceManager();
     provider->setResource(KoCanvasResource::PageSize, d->document.pageSize());
 
     d->applyCanvasConfiguration(result->canvasWidget(), this);
@@ -248,7 +249,7 @@ bool KarbonPart::loadOdf(KoOdfReadStore & odfStore)
     }
 
     KoOdfLoadingContext context(odfStore.styles(), odfStore.store());
-    KoShapeLoadingContext shapeContext(context, dataCenterMap());
+    KoShapeLoadingContext shapeContext(context, resourceManager());
 
     d->document.loadOasis(page, shapeContext);
 
@@ -265,7 +266,7 @@ bool KarbonPart::loadOdf(KoOdfReadStore & odfStore)
 bool KarbonPart::completeLoading(KoStore* store)
 {
     bool ok = true;
-    foreach(KoDataCenter *dataCenter, dataCenterMap()) {
+    foreach(KoDataCenterBase *dataCenter, dataCenterMap()) {
         ok = ok && dataCenter->completeLoading(store);
     }
     return ok;
@@ -485,7 +486,7 @@ void KarbonPart::removeShape(KoShape* shape)
     setModified(true);
 }
 
-QMap<QString, KoDataCenter*> KarbonPart::dataCenterMap() const
+QMap<QString, KoDataCenterBase*> KarbonPart::dataCenterMap() const
 {
     return d->document.dataCenterMap();
 }
@@ -495,7 +496,7 @@ void KarbonPart::setPageSize(const QSizeF &pageSize)
     d->document.setPageSize(pageSize);
     foreach(KoView *view, views()) {
         KarbonCanvas *canvas = ((KarbonView*)view)->canvasWidget();
-        canvas->resourceProvider()->setResource(KoCanvasResource::PageSize, pageSize);
+        canvas->resourceManager()->setResource(KoCanvasResource::PageSize, pageSize);
     }
 }
 

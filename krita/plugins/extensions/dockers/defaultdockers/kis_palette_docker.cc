@@ -25,7 +25,7 @@
 #include <KoResource.h>
 #include <KoColorSet.h>
 #include <KoColorSetWidget.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoColorSpaceRegistry.h>
 
 KisPaletteDocker::KisPaletteDocker()
@@ -58,7 +58,7 @@ void KisPaletteDocker::setCanvas(KoCanvasBase * canvas)
 void KisPaletteDocker::colorSelected(const KoColor& c, bool final)
 {
     if (final && m_canvas) {
-        m_canvas->resourceProvider()->setForegroundColor(c);
+        m_canvas->resourceManager()->setForegroundColor(c);
     }
 }
 

@@ -43,11 +43,12 @@
 #include <kis_transaction.h>
 #include <KoColorSpace.h>
 #include <qendian.h>
+#include <KoColorModelStandardIds.h>
 
-typedef KGenericFactory<KisPPMImport> PPMImportFactory;
-K_EXPORT_COMPONENT_FACTORY(libkritappmimport, PPMImportFactory("kofficefilters"))
+K_PLUGIN_FACTORY(PPMImportFactory, registerPlugin<KisPPMImport>();)
+K_EXPORT_PLUGIN(PPMImportFactory("krita"))
 
-KisPPMImport::KisPPMImport(QObject* parent, const QStringList&) : KoFilter(parent)
+KisPPMImport::KisPPMImport(QObject *parent, const QVariantList &) : KoFilter(parent)
 {
 }
 
@@ -271,7 +272,7 @@ KoFilter::ConversionStatus KisPPMImport::loadFromDevice(QIODevice* device, KisDo
     if (maxval <= 255) {
         if (channels == 1 || channels == 0) {
             pixelsize = 1;
-            colorSpace = KoColorSpaceRegistry::instance()->colorSpace("GRAYA", 0);
+            colorSpace = KoColorSpaceRegistry::instance()->colorSpace(GrayAColorModelID.id(), Integer8BitsColorDepthID.id(), 0);
         } else {
             pixelsize = 3;
             colorSpace = KoColorSpaceRegistry::instance()->rgb8();
@@ -279,7 +280,7 @@ KoFilter::ConversionStatus KisPPMImport::loadFromDevice(QIODevice* device, KisDo
     } else if (maxval <= 65535) {
         if (channels == 1 || channels == 0) {
             pixelsize = 2;
-            colorSpace = KoColorSpaceRegistry::instance()->colorSpace("GRAYA16", 0);
+            colorSpace = KoColorSpaceRegistry::instance()->colorSpace(GrayAColorModelID.id(), Integer16BitsColorDepthID.id(), 0);
         } else {
             pixelsize = 6;
             colorSpace = KoColorSpaceRegistry::instance()->rgb16();

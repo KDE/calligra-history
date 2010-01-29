@@ -43,14 +43,14 @@ protected:
 };
 
 
-#include "KoToolFactory.h"
+#include "KoToolFactoryBase.h"
 
-class KisToolPolylineFactory : public KoToolFactory
+class KisToolPolylineFactory : public KoToolFactoryBase
 {
 
 public:
     KisToolPolylineFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolPolyline") {
+            : KoToolFactoryBase(parent, "KisToolPolyline") {
         setToolTip(i18n("Draw a polyline. Shift-mouseclick ends the polyline."));
         setToolType(TOOL_TYPE_SHAPE);
         //setActivationShapeId( KIS_NODE_SHAPE_ID );
@@ -61,7 +61,7 @@ public:
 
     virtual ~KisToolPolylineFactory() {}
 
-    virtual KoTool * createTool(KoCanvasBase *canvas) {
+    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
         return new KisToolPolyline(canvas);
     }
 

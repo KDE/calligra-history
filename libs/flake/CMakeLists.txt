@@ -13,11 +13,14 @@ add_subdirectory(pics)
 set(flake_SRCS
     KoFlake.cpp
     KoCanvasBase.cpp
-    KoCanvasObserver.cpp
-    KoCanvasResourceProvider.cpp
+    KoResourceManager.cpp
+    KoCanvasObserverBase.cpp
+    KoCanvasSupervisor.cpp
     KoCutController.cpp
     KoCopyController.cpp
+    KoDockFactoryBase.cpp
     KoDockRegistry.cpp
+    KoDataCenterBase.cpp
     KoInsets.cpp
     KoPasteController.cpp
     KoGuidesData.cpp
@@ -36,13 +39,13 @@ set(flake_SRCS
     KoShapeManager.cpp
     KoShapePainter.cpp
     KoFrameShape.cpp
-    KoTool.cpp
+    KoToolBase.cpp
     KoCanvasController.cpp
     KoCanvasController_p.cpp
     KoShapeRegistry.cpp
-    KoToolFactory.cpp
+    KoToolFactoryBase.cpp
     KoPathShapeFactory.cpp
-    KoShapeFactory.cpp
+    KoShapeFactoryBase.cpp
     KoShapeUserData.cpp
     KoPointGroup.cpp
     KoParameterShape.cpp
@@ -62,7 +65,7 @@ set(flake_SRCS
     KoPathShapeLoader.cpp
     ShapeDeleter_p.cpp
     KoShapeBorderModel.cpp
-    KoShapeBorderFactory.cpp
+    KoShapeBorderFactoryBase.cpp
     KoShapeBorderRegistry.cpp
     KoLineBorder.cpp
     KoLineBorderFactory.cpp
@@ -71,6 +74,7 @@ set(flake_SRCS
     KoGradientBackground.cpp
     KoPatternBackground.cpp
     KoShapeConfigWidgetBase.cpp
+    KoShapeConfigFactoryBase.cpp
     KoDrag.cpp
     KoDragOdfSaveHelper.cpp
     KoShapeOdfSaveHelper.cpp
@@ -87,11 +91,11 @@ set(flake_SRCS
     KoShapeShadow.cpp
     KoSharedSavingData.cpp
     KoViewConverter.cpp
-    KoDevice.cpp
-    KoDeviceEvent.cpp
-    KoDeviceRegistry.cpp
+    KoInputDeviceHandler.cpp
+    KoInputDeviceHandlerEvent.cpp
+    KoInputDeviceHandlerRegistry.cpp
     KoEventAction.cpp
-    KoEventActionFactory.cpp
+    KoEventActionFactoryBase.cpp
     KoEventActionRegistry.cpp
     KoImageData.cpp
     KoImageData_p.cpp
@@ -99,7 +103,7 @@ set(flake_SRCS
     KoOdfWorkaround.cpp
     KoFilterEffect.cpp
     KoFilterEffectStack.cpp
-    KoFilterEffectFactory.cpp
+    KoFilterEffectFactoryBase.cpp
     KoFilterEffectRegistry.cpp
     KoFilterEffectConfigWidgetBase.cpp
     KoFilterEffectRenderContext.cpp
@@ -208,13 +212,13 @@ install(
     flake_export.h
     KoCanvasBase.h
     KoCanvasController.h
-    KoCanvasObserver.h
-    KoCanvasObserverProvider.h
-    KoCanvasResourceProvider.h
+    KoCanvasObserverBase.h
+    KoCanvasSupervisor.h
+    KoResourceManager.h
     KoCopyController.h
     KoCutController.h
-    KoDataCenter.h
-    KoDockFactory.h
+    KoDataCenterBase.h
+    KoDockFactoryBase.h
     KoDockRegistry.h
     KoDrag.h
     KoDragOdfSaveHelper.h
@@ -236,7 +240,7 @@ install(
     KoChildrenData.h
     KoShapeController.h
     KoShapeControllerBase.h
-    KoShapeFactory.h
+    KoShapeFactoryBase.h
     KoShapeGroup.h
     KoShapeLayer.h
     KoShapePainter.h
@@ -250,9 +254,9 @@ install(
     KoShapeUserData.h
     KoShapeApplicationData.h
     KoSharedSavingData.h
-    KoTool.h
+    KoToolBase.h
     KoToolManager.h
-    KoToolFactory.h
+    KoToolFactoryBase.h
     KoToolProxy.h
     KoToolRegistry.h
     commands/KoEventActionAddCommand.h

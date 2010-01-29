@@ -27,10 +27,10 @@
 #include "kis_curve_option.h"
 
 KisCurveOptionWidget::KisCurveOptionWidget(KisCurveOption* curveOption)
-    : KisPaintOpOption(curveOption->label(), curveOption->isChecked())
-    , m_widget(new QWidget)
-    , m_curveOptionWidget(new Ui_WdgCurveOption()) 
-    , m_curveOption(curveOption)
+        : KisPaintOpOption(curveOption->label(), curveOption->isChecked())
+        , m_widget(new QWidget)
+        , m_curveOptionWidget(new Ui_WdgCurveOption())
+        , m_curveOption(curveOption)
 {
     m_curveOptionWidget->setupUi(m_widget);
     setConfigurationPage(m_widget);
@@ -52,6 +52,8 @@ void KisCurveOptionWidget::writeOptionSetting(KisPropertiesConfiguration* settin
 void KisCurveOptionWidget::readOptionSetting(const KisPropertiesConfiguration* setting)
 {
     m_curveOption->readOptionSetting(setting);
+    m_curveOptionWidget->curveWidget->setCurve(m_curveOption->curve());
+    m_curveOptionWidget->sensorSelector->setCurrent(m_curveOption->sensor());
 }
 
 bool KisCurveOptionWidget::isCheckable()
@@ -81,18 +83,7 @@ QWidget* KisCurveOptionWidget::curveWidget()
 
 void KisCurveOptionWidget::transferCurve()
 {
-    QVector<double> curve(256);
-    double value;
-    for (int i = 0; i < 256; i++) {
-        value = m_curveOptionWidget->curveWidget->getCurveValue(i / 255.0);
-        if (value < PRESSURE_MIN)
-            curve[i] = PRESSURE_MIN;
-        else if (value > PRESSURE_MAX)
-            curve[i] = PRESSURE_MAX;
-        else
-            curve[i] = value;
-    }
-    m_curveOption->setCurve(curve);
+    m_curveOption->setCurve(m_curveOptionWidget->curveWidget->curve());
 
     emit sigSettingChanged();
 }

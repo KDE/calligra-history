@@ -51,8 +51,9 @@
 #include <KoOdfWriteStore.h>
 #include <KoToolManager.h>
 #include <KoShapeRegistry.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoStyleManager.h>
+#include <KoResourceManager.h>
 #include <KoInteractionTool.h>
 #include <KoInlineTextObjectManager.h>
 #include <KoDocumentInfo.h>
@@ -60,9 +61,7 @@
 #include <KoParagraphStyle.h>
 #include <KoListStyle.h>
 #include <KoListLevelProperties.h>
-#include <KoDataCenter.h>
 #include <KoTextShapeData.h>
-#include <KoUndoStack.h>
 
 // KDE + Qt includes
 #include <klocale.h>
@@ -133,6 +132,7 @@ KWDocument::KWDocument(QWidget *parentWidget, QObject* parent, bool singleViewMo
         m_mainFramesetEverFinished(false)
 {
     m_frameLayout.setDocument(this);
+    resourceManager()->setOdfDocument(this);
 
     setComponentData(KWFactory::componentData(), false);
     setTemplateType("kword_template");
@@ -141,16 +141,17 @@ KWDocument::KWDocument(QWidget *parentWidget, QObject* parent, bool singleViewMo
     connect(&m_frameLayout, SIGNAL(removedFrameSet(KWFrameSet*)), this, SLOT(removeFrameSet(KWFrameSet*)));
 
     // Init shape Factories with our frame based configuration panels.
-    // and ask every shapefactory to populate the dataCenterMap
-    QList<KoShapeConfigFactory *> panels = KWFrameDialog::panels(this);
+    QList<KoShapeConfigFactoryBase *> panels = KWFrameDialog::panels(this);
     foreach (const QString &id, KoShapeRegistry::instance()->keys()) {
-        KoShapeFactory *shapeFactory = KoShapeRegistry::instance()->value(id);
+        KoShapeFactoryBase *shapeFactory = KoShapeRegistry::instance()->value(id);
         shapeFactory->setOptionPanels(panels);
-        shapeFactory->populateDataCenterMap(m_dataCenterMap);
     }
 
-    //Populate the document undoStack in the dataCenterMap. This can be used later by shapes for their undo/redo mechanism.
-    m_dataCenterMap["UndoStack"] = undoStack();
+    resourceManager()->setUndoStack(undoStack());
+
+    QVariant variant;
+    variant.setValue(new KoChangeTracker(resourceManager()));
+    resourceManager()->setResource(KoText::ChangeTracker, variant);
 
     connect(documentInfo(), SIGNAL(infoUpdated(const QString &, const QString &)),
             inlineTextObjectManager(), SLOT(documentInformationUpdated(const QString &, const QString &)));
@@ -164,7 +165,6 @@ KWDocument::~KWDocument()
     delete m_magicCurtain;
     saveConfig();
     qDeleteAll(m_frameSets);
-    qDeleteAll(m_dataCenterMap);
 }
 
 void KWDocument::addShape(KoShape *shape)
@@ -286,7 +286,7 @@ void KWDocument::removeFrameSet(KWFrameSet *fs)
         removeFrame(frame);
     foreach (KoView *view, views()) {
         KWCanvas *canvas = static_cast<KWView*>(view)->kwcanvas();
-        canvas->resourceProvider()->setResource(KWord::CurrentFrameSetCount, m_frameSets.count());
+        canvas->resourceManager()->setResource(KWord::CurrentFrameSetCount, m_frameSets.count());
     }
 }
 
@@ -356,7 +356,7 @@ void KWDocument::addFrame(KWFrame *frame)
             canvas->shapeManager()->add(frame->outlineShape()->parent());
         else
             canvas->shapeManager()->add(frame->shape());
-        canvas->resourceProvider()->setResource(KWord::CurrentFrameSetCount, m_frameSets.count());
+        canvas->resourceManager()->setResource(KWord::CurrentFrameSetCount, m_frameSets.count());
     }
     if (frame->loadingPageNumber() > 0) {
         if (m_magicCurtain == 0) {
@@ -412,7 +412,8 @@ KWTextFrameSet *KWDocument::mainFrameSet() const
 
 KoInlineTextObjectManager *KWDocument::inlineTextObjectManager() const
 {
-    return dynamic_cast<KoInlineTextObjectManager*>(dataCenterMap()["InlineTextObjectManager"]);
+    QVariant var = resourceManager()->resource(KoText::InlineTextObjectManager);
+    return var.value<KoInlineTextObjectManager*>();
 }
 
 QString KWDocument::uniqueFrameSetName(const QString& suggestion)
@@ -467,7 +468,8 @@ void KWDocument::initEmpty()
 
     appendPage("Standard");
 
-    KoStyleManager *styleManager = dynamic_cast<KoStyleManager *>(dataCenterMap()["StyleManager"]);
+    Q_ASSERT(resourceManager()->hasResource(KoText::StyleManager));
+    KoStyleManager *styleManager = resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
     Q_ASSERT(styleManager);
     KoParagraphStyle *parag = new KoParagraphStyle();
     parag->setName(i18n("Head 1"));
@@ -524,7 +526,7 @@ void KWDocument::clear()
     padding.right = MM_TO_POINT(3);
     m_pageManager.setPadding(padding);
 
-    if (dataCenterMap().contains("InlineTextObjectManager"))
+    if (inlineTextObjectManager())
         inlineTextObjectManager()->setProperty(KoInlineObject::PageCount, pageCount());
 }
 
@@ -533,7 +535,7 @@ bool KWDocument::loadOdf(KoOdfReadStore & odfStore)
     clear();
     foreach (KoView *view, views()) {
         KWCanvas *canvas = static_cast<KWView*>(view)->kwcanvas();
-        canvas->resourceProvider()->setResource(KoCanvasResource::DocumentIsLoading, true);
+        canvas->resourceManager()->setResource(KoCanvasResource::DocumentIsLoading, true);
     }
     KWOdfLoader loader(this);
     bool rc = loader.load(odfStore);
@@ -546,7 +548,7 @@ bool KWDocument::loadXML(const KoXmlDocument & doc, KoStore *store)
 {
     foreach (KoView *view, views()) {
         KWCanvas *canvas = static_cast<KWView*>(view)->kwcanvas();
-        canvas->resourceProvider()->setResource(KoCanvasResource::DocumentIsLoading, true);
+        canvas->resourceManager()->setResource(KoCanvasResource::DocumentIsLoading, true);
     }
     clear();
     KoXmlElement root = doc.documentElement();
@@ -705,19 +707,6 @@ void KWDocument::endOfLoading() // called by both oasis and oldxml
     // Note that more stuff will happen in completeLoading
     firePageSetupChanged();
     setModified(false);
-}
-
-bool KWDocument::completeLoading(KoStore *store)
-{
-    bool ok = true;
-    foreach (KoDataCenter *dataCenter, m_dataCenterMap) {
-        ok = ok && dataCenter->completeLoading(store);
-    }
-    foreach (KoView *view, views()) {
-        KWCanvas *canvas = static_cast<KWView*>(view)->kwcanvas();
-        canvas->resourceProvider()->setResource(KoCanvasResource::DocumentIsLoading, false);
-    }
-    return ok;
 }
 
 bool KWDocument::saveOdf(SavingContext &documentContext)

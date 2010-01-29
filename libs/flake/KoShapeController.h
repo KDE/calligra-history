@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
  *
- * Copyright (C) 2006-2007 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2006-2007, 2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2006-2008 Thorsten Zachmann <zachmann@kde.org>
  *
  * This library is free software; you can redistribute it and/or
@@ -25,13 +25,12 @@
 #include "flake_export.h"
 
 #include <QList>
-#include <QMap>
 
 class KoCanvasBase;
 class KoShape;
 class KoShapeControllerBase;
 class QUndoCommand;
-class KoDataCenter;
+class KoResourceManager;
 
 /**
  * Class used by tools to maintain the list of shapes.
@@ -105,18 +104,13 @@ public:
     void setShapeControllerBase(KoShapeControllerBase* shapeControllerBase);
 
     /**
-     * @brief Returns pointer to data center with given name.
-     *
-     * @return pointer to requested data center if it exist, else null
+     * Return a pointer to the resource manager associated with the
+     * shape-set (typically a document). The resource manager contains
+     * document wide resources * such as variable managers, the image
+     * collection and others.
+     * @see KoCanvasBase::resourceManager()
      */
-    KoDataCenter * dataCenter(const QString &dataCenterName);
-
-    /**
-     * @brief Get the dataCenterMap used in the shape controller base
-     *
-     * @return The data center map
-     */
-    QMap<QString, KoDataCenter *> dataCenterMap();
+    KoResourceManager *resourceManager() const;
 
 private:
     class Private;

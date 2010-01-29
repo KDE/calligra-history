@@ -22,7 +22,6 @@
 #include <klocale.h>
 
 #include <KoShape.h>
-#include <KoUndoStack.h>
 #include <KoShapeContainer.h>
 #include <KoShapeManager.h>
 #include <KoShapeRegistry.h>
@@ -56,7 +55,8 @@
 
 #include <KoTextDocumentLayout.h>
 #include <KoTextShapeData.h>
-#include <KoDataCenter.h>
+#include <KoResourceManager.h>
+#include <KoDataCenterBase.h>
 #include <commands/kis_image_layer_add_command.h>
 #include <kis_undo_adapter.h>
 
@@ -69,7 +69,7 @@ public:
     KisNodeMap nodeShapes; // maps from krita/image layers to shapes
     KisDoc2 * doc;
     KisNameServer * nameServer;
-    QMap<QString, KoDataCenter *>  dataCenterMap;
+    QMap<QString, KoDataCenterBase *>  dataCenterMap;
     bool selectionShapeToBeAdded;
 
     void removeShapeFromMap(KoShape*);
@@ -112,13 +112,7 @@ KisShapeController::KisShapeController(KisDoc2 * doc, KisNameServer *nameServer)
     m_d->nameServer = nameServer;
     m_d->image = 0;
     m_d->selectionShapeToBeAdded = false;
-    // Ask every shapefactory to populate the dataCenterMap
-    QList<KoShapeFactory*> shapeFactories = KoShapeRegistry::instance()->values();
-    foreach(KoShapeFactory* shapeFactory, shapeFactories) {
-        shapeFactory->populateDataCenterMap(m_d->dataCenterMap);
-    }
-
-    m_d->dataCenterMap["UndoStack"] = doc->undoStack();
+    resourceManager()->setUndoStack(doc->undoStack());
 }
 
 
@@ -335,7 +329,7 @@ void KisShapeController::addShape(KoShape* shape)
     m_d->doc->setModified(true);
 }
 
-QMap<QString, KoDataCenter *> KisShapeController::dataCenterMap() const
+QMap<QString, KoDataCenterBase *> KisShapeController::dataCenterMap() const
 {
     return m_d->dataCenterMap;
 }

@@ -46,7 +46,7 @@ KoColorConversionSystem::KoColorConversionSystem() : d(new Private)
     d->alphaNode->crossingCost = 1000000;
     d->alphaNode->isInitialized = true;
     d->alphaNode->isGray = true; // <- FIXME: it's a little bit hacky as alpha doesn't really have color information
-    d->graph[ NodeKey(d->alphaNode->modelId, d->alphaNode->depthId, "")] = d->alphaNode;
+    d->graph[ NodeKey(d->alphaNode->modelId, d->alphaNode->depthId, "Dummy profile")] = d->alphaNode;
 
     Vertex* v = createVertex(d->alphaNode, d->alphaNode);
     v->setFactoryFromSrc(new KoCopyColorConversionTransformationFactory(AlphaColorModelID.id(), Integer8BitsColorDepthID.id(), ""));
@@ -178,7 +178,7 @@ void KoColorConversionSystem::insertColorProfile(const KoColorProfile* _profile)
 
 const KoColorSpace* KoColorConversionSystem::defaultColorSpaceForNode(const Node* node) const
 {
-    return KoColorSpaceRegistry::instance()->colorSpace(KoColorSpaceRegistry::instance()->colorSpaceId(node->modelId, node->depthId), node->profileName);
+    return KoColorSpaceRegistry::instance()->colorSpace(node->modelId, node->depthId, node->profileName);
 }
 
 KoColorConversionSystem::Node* KoColorConversionSystem::createNode(const QString& _modelId, const QString& _depthId, const QString& _profileName)
@@ -273,7 +273,7 @@ void KoColorConversionSystem::createColorConverters(const KoColorSpace* colorSpa
     Path* bestPath = 0;
     typedef QPair<KoID, KoID> KoID2KoID;
     foreach(const KoID2KoID & possibility, possibilities) {
-        const KoColorSpaceFactory* csf = KoColorSpaceRegistry::instance()->get(KoColorSpaceRegistry::instance()->colorSpaceId(possibility.first.id(), possibility.second.id()));
+        const KoColorSpaceFactory* csf = KoColorSpaceRegistry::instance()->colorSpaceFactory(KoColorSpaceRegistry::instance()->colorSpaceId(possibility.first.id(), possibility.second.id()));
         if (csf) {
             Path* path = findBestPath(csNode, nodeFor(csf->colorModelId().id(), csf->colorDepthId().id(), csf->defaultProfile()));
             Q_ASSERT(path);

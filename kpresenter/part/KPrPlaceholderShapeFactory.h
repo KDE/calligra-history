@@ -20,18 +20,17 @@
 #ifndef KPRPLACEHOLDERSHAPEFACTORY_H
 #define KPRPLACEHOLDERSHAPEFACTORY_H
 
-#include "KoShapeFactory.h"
+#include "KoShapeFactoryBase.h"
 
 class KoShape;
 
-class KPrPlaceholderShapeFactory : public KoShapeFactory
+class KPrPlaceholderShapeFactory : public KoShapeFactoryBase
 {
 public:
     explicit KPrPlaceholderShapeFactory( QObject *parent );
     virtual ~KPrPlaceholderShapeFactory();
 
-    KoShape * createDefaultShape() const;
-    KoShape * createShape( const KoProperties * params ) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports( const KoXmlElement & e ) const;
 };
 

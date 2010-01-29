@@ -24,7 +24,7 @@
 
 #include <KoInteractionTool.h>
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoShapeManager.h>
 #include <KoSelection.h>
 #include <commands/KoShapeMoveCommand.h>
@@ -69,7 +69,7 @@ DefaultToolWidget::DefaultToolWidget( KoInteractionTool* tool,
     connect( manager, SIGNAL( selectionContentChanged() ), this, SLOT( updatePosition() ) );
     connect( manager, SIGNAL( selectionContentChanged() ), this, SLOT( updateSize() ) );
 
-    connect( m_tool->canvas()->resourceProvider(), SIGNAL( resourceChanged( int, const QVariant& ) ),
+    connect( m_tool->canvas()->resourceManager(), SIGNAL( resourceChanged( int, const QVariant& ) ),
         this, SLOT( resourceChanged( int, const QVariant& ) ) );
 
     aspectButton->setKeepAspectRatio( false );
@@ -80,7 +80,7 @@ DefaultToolWidget::DefaultToolWidget( KoInteractionTool* tool,
 
 void DefaultToolWidget::positionSelected( KoFlake::Position position )
 {
-    m_tool->canvas()->resourceProvider()->setResource( DefaultTool::HotPosition, QVariant(position) );
+    m_tool->canvas()->resourceManager()->setResource( DefaultTool::HotPosition, QVariant(position) );
     updatePosition();
 }
 
@@ -239,7 +239,7 @@ void DefaultToolWidget::setUnit( const KoUnit &unit )
 void DefaultToolWidget::resourceChanged( int key, const QVariant & res )
 {
     if( key == KoCanvasResource::Unit )
-        setUnit( m_tool->canvas()->unit() );
+        setUnit(res.value<KoUnit>());
     else if( key == DefaultTool::HotPosition )
     {
         if( res.toInt() != positionSelector->position() )

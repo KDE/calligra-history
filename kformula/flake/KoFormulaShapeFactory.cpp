@@ -19,12 +19,12 @@
 #include "KoFormulaShapeFactory.h"
 #include "KoFormulaShape.h"
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <klocale.h>
 #include <kdebug.h>
 
 KoFormulaShapeFactory::KoFormulaShapeFactory( QObject *parent )
-    : KoShapeFactory( parent, KoFormulaShapeId, i18n( "Formula" ) )
+    : KoShapeFactoryBase( parent, KoFormulaShapeId, i18n( "Formula" ) )
 {
     setToolTip(i18n( "A formula"));
     setIcon( "x-shape-formula" );
@@ -43,25 +43,12 @@ KoFormulaShapeFactory::KoFormulaShapeFactory( QObject *parent )
 KoFormulaShapeFactory::~KoFormulaShapeFactory()
 {}
 
-KoShape* KoFormulaShapeFactory::createDefaultShape() const
+KoShape *KoFormulaShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     KoFormulaShape* formula = new KoFormulaShape();
     formula->setShapeId( KoFormulaShapeId );
     return formula;
 }
-
-KoShape* KoFormulaShapeFactory::createShape( const KoProperties* params ) const
-{
-    Q_UNUSED( params );
-
-    KoFormulaShape* formula = new KoFormulaShape();
-    if( !formula )
-        return 0;
-
-    formula->setShapeId( KoFormulaShapeId );
-    return formula;
-}
-
 
 bool KoFormulaShapeFactory::supports(const KoXmlElement& e) const
 {

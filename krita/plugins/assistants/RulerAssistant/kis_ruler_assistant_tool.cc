@@ -30,16 +30,13 @@
 #include <kis_image.h>
 #include <kis_view2.h>
 
-#include "RulerAssistant.h"
-#include "Ruler.h"
 #include <kis_painting_assistants_manager.h>
 
 KisRulerAssistantTool::KisRulerAssistantTool(KoCanvasBase * canvas)
-        : KisTool(canvas, KisCursor::arrowCursor()), m_canvas(dynamic_cast<KisCanvas2*>(canvas))
+        : KisTool(canvas, KisCursor::arrowCursor()), m_canvas(dynamic_cast<KisCanvas2*>(canvas)), m_optionsWidget(0)
 {
     Q_ASSERT(m_canvas);
     setObjectName("tool_rulerassistanttool");
-    m_widget = 0;
 }
 
 KisRulerAssistantTool::~KisRulerAssistantTool()
@@ -55,15 +52,6 @@ void KisRulerAssistantTool::activate(bool)
 {
     // Add code here to initialize your tool when it got activated
     KisTool::activate();
-
-    RulerAssistant* m_rulerAssistant = new RulerAssistant();
-
-    QRectF imageArea = QRectF(pixelToView(QPoint(0, 0)),
-                              m_canvas->image()->pixelToDocument(QPoint(m_canvas->image()->width(), m_canvas->image()->height())));
-
-    m_canvas->view()->paintingAssistantManager()->addAssistant(m_rulerAssistant);
-
-    dbgPlugins << imageArea << *m_rulerAssistant->handles()[0] << *m_rulerAssistant->handles()[1];
 
     m_handles = m_canvas->view()->paintingAssistantManager()->handles();
     m_canvas->view()->paintingAssistantManager()->setVisible(true);
@@ -131,5 +119,31 @@ void KisRulerAssistantTool::paint(QPainter& _gc, const KoViewConverter &_convert
     }
 }
 
+void KisRulerAssistantTool::createNewAssistant()
+{
+    QString key = m_options.comboBox->model()->index( m_options.comboBox->currentIndex(), 0 ).data(Qt::UserRole).toString();
+    dbgPlugins << ppVar(key) << m_options.comboBox->view()->currentIndex().row() << ppVar(m_options.comboBox->currentText());
+    QRectF imageArea = QRectF(pixelToView(QPoint(0, 0)),
+                              m_canvas->image()->pixelToDocument(QPoint(m_canvas->image()->width(), m_canvas->image()->height())));
+    KisPaintingAssistant* assistant = KisPaintingAssistantFactoryRegistry::instance()->get(key)->paintingAssistant(imageArea);
+    m_canvas->view()->paintingAssistantManager()->addAssistant(assistant);
+    m_handles = m_canvas->view()->paintingAssistantManager()->handles();
+    m_canvas->updateCanvas();
+}
+
+QWidget *KisRulerAssistantTool::createOptionWidget()
+{
+    if (!m_optionsWidget) {
+        m_optionsWidget = new QWidget;
+        m_options.setupUi(m_optionsWidget);
+        m_options.toolButton->setIcon(KIcon("document-new"));
+        foreach(const QString& key, KisPaintingAssistantFactoryRegistry::instance()->keys()) {
+            QString name = KisPaintingAssistantFactoryRegistry::instance()->get(key)->name();
+            m_options.comboBox->addItem(name, key);
+        }
+        connect(m_options.toolButton, SIGNAL(released()), SLOT(createNewAssistant()));
+    }
+    return m_optionsWidget;
+}
 
 #include "kis_ruler_assistant_tool.moc"

@@ -23,6 +23,7 @@
 #include <KFileDialog>
 #include <KUrl>
 #include <KoImageCollection.h>
+#include <KoResourceManager.h>
 #include <KoImageData.h>
 #include <KoShape.h>
 #include <kio/netaccess.h>
@@ -37,15 +38,16 @@ KPrPlaceholderPictureStrategy::~KPrPlaceholderPictureStrategy()
 {
 }
 
-KoShape * KPrPlaceholderPictureStrategy::createShape( const QMap<QString, KoDataCenter *> & dataCenterMap )
+KoShape *KPrPlaceholderPictureStrategy::createShape(KoResourceManager *rm)
 {
     KoShape * shape = 0;
 
     KUrl url = KFileDialog::getOpenUrl();
     if ( !url.isEmpty() ) {
-        shape = KPrPlaceholderStrategy::createShape( dataCenterMap );
+        shape = KPrPlaceholderStrategy::createShape(rm);
 
-        KoImageCollection * collection = dynamic_cast<KoImageCollection *>( dataCenterMap.value( "ImageCollection" ) );
+        KoImageCollection *collection = rm->imageCollection();
+        Q_ASSERT(collection);
 
         QString tmpFile;
         if (KIO::NetAccess::download(url, tmpFile, 0)) {

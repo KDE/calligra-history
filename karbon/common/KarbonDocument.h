@@ -45,7 +45,8 @@ class KoShapeSavingContext;
 class KoShapeLayer;
 class KoImageCollection;
 class KoStore;
-class KoDataCenter;
+class KoDataCenterBase;
+class KoResourceManager;
 
 /**
  * All non-visual, static doc info is in here.
@@ -173,6 +174,16 @@ public:
     */
     void remove(KoShape* shape);
 
+    /**
+     * Fetch the current resourceManager.
+     * See KoShapeController::resourceManager() for more details.
+     */
+    KoResourceManager *resourceManager() const;
+    /**
+     * Set a new resource manager.
+     */
+    void setResourceManager(KoResourceManager *rm);
+
     /// Returns the united bounding rectangle of the documents content and the document page
     QRectF boundingRect() const;
 
@@ -189,12 +200,12 @@ public:
     KoImageCollection * imageCollection();
 
     /// Returns the documents data centers
-    QMap<QString, KoDataCenter*> dataCenterMap() const;
+    QMap<QString, KoDataCenterBase*> dataCenterMap() const;
 
     /// Sets the data centers to be used by this document
-    void useExternalDataCenterMap(QMap<QString, KoDataCenter*> dataCenters);
+    void useExternalDataCenterMap(QMap<QString, KoDataCenterBase*> dataCenters);
 
-    void addToDataCenterMap(const QString &key, KoDataCenter* dataCenter);
+    void addToDataCenterMap(const QString &key, KoDataCenterBase* dataCenter);
 
 private:
 

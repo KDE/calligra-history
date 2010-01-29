@@ -21,16 +21,16 @@
 #ifndef KPRANIMATIONTOOLFACTORY_H
 #define KPRANIMATIONTOOLFACTORY_H
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 /// Factory for the KPrAnimationTool
-class KPrAnimationToolFactory : public KoToolFactory {
+class KPrAnimationToolFactory : public KoToolFactoryBase {
 public:
     /// constructor
     KPrAnimationToolFactory(QObject *parent);
     ~KPrAnimationToolFactory();
 
     bool canCreateTool(KoCanvasBase *canvas) const;
-    KoTool* createTool(KoCanvasBase *canvas);
+    KoToolBase* createTool(KoCanvasBase *canvas);
 };
 #endif

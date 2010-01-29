@@ -30,13 +30,14 @@
 
 #include <kactioncollection.h>
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 #include <kis_layer.h>
 #include "kis_tool.h"
 #include <kis_undo_adapter.h>
 #include <kis_perspective_math.h>
 
+class Ui_WdgPerspectiveTransform;
 
 class WdgToolPerspectiveTransform;
 
@@ -51,13 +52,13 @@ class KisToolPerspectiveTransform : public KisTool, KisCommandHistoryListener
 
     enum InterractionMode { DRAWRECTINTERRACTION, EDITRECTINTERRACTION };
     enum HandleSelected { NOHANDLE, TOPHANDLE, BOTTOMHANDLE, RIGHTHANDLE, LEFTHANDLE, MIDDLEHANDLE };
+
+    typedef QVector<QPointF> QPointFVector;
 public:
     KisToolPerspectiveTransform(KoCanvasBase * canvas);
     virtual ~KisToolPerspectiveTransform();
-#if 0
     virtual QWidget* createOptionWidget();
     virtual QWidget* optionWidget();
-#endif
     virtual void setup(KActionCollection *collection);
     virtual void paint(QPainter &painter, const KoViewConverter &converter);
     virtual void paint(QPainter &painter, const QRect& rc);
@@ -77,40 +78,46 @@ private:
     void paintOutline(QPainter& gc, const QRect& rc);
     void transform();
     void initHandles();
+    void orderHandles();
+    bool isConvex(QPolygonF);
+    QLineF::IntersectType middleHandlePos(QPolygonF, QPointF&);
+    QPolygonF midpointHandles(QPolygonF);
 
 protected slots:
     virtual void activate(bool);
     virtual void deactivate();
 
 private:
-    bool m_dragging;
+    bool m_drawing;
+    QPointF m_currentPt;
     InterractionMode m_interractionMode;
     QRect m_initialRect;
-    QPointF m_dragStart, m_dragEnd;
+    QPointF m_dragEnd;
     QPointF m_topleft, m_topright, m_bottomleft, m_bottomright;
     QPointF* m_currentSelectedPoint;
+    bool m_hasMoveAfterFirstTime;
     bool m_actualyMoveWhileSelected;
-
-    WdgToolPerspectiveTransform *m_optWidget;
 
     KisPaintDeviceSP m_origDevice;
     KisSelectionSP m_origSelection;
     int m_handleHalfSize, m_handleSize;
 
     // The following variables are used in during the draw rect interraction mode
-    typedef QVector<QPointF> QPointFVector;
     QPointFVector m_points;
     // The following variables are used when moving a middle handle
     HandleSelected m_handleSelected;
 
+    QWidget* m_optWidget;
+    Ui_WdgPerspectiveTransform* m_optForm;
+
 };
 
-class KisToolPerspectiveTransformFactory : public KoToolFactory
+class KisToolPerspectiveTransformFactory : public KoToolFactoryBase
 {
 
 public:
     KisToolPerspectiveTransformFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolPerspectiveTransform") {
+            : KoToolFactoryBase(parent, "KisToolPerspectiveTransform") {
         setToolTip(i18n("Transform the perspective appearance of a layer or a selection"));
         setToolType(TOOL_TYPE_TRANSFORM);
         setIcon("tool_perspectivetransform");
@@ -120,7 +127,7 @@ public:
 
     virtual ~KisToolPerspectiveTransformFactory() {}
 
-    virtual KoTool * createTool(KoCanvasBase *canvas) {
+    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
         return new KisToolPerspectiveTransform(canvas);
     }
 

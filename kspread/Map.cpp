@@ -448,8 +448,8 @@ bool Map::saveOdf(KoXmlWriter & xmlWriter, KoShapeSavingContext & savingContext)
 
     tableContext.valStyle.writeStyle(xmlWriter);
 
-    d->namedAreaManager->saveOdf(xmlWriter);
-    d->databaseManager->saveOdf(xmlWriter);
+    d->namedAreaManager->saveOdf(savingContext.xmlWriter());
+    d->databaseManager->saveOdf(savingContext.xmlWriter());
     return true;
 }
 
@@ -510,7 +510,7 @@ bool Map::loadOdf(const KoXmlElement& body, KoOdfLoadingContext& odfContext)
     tableContext.validities = Validity::preloadValidities(body); // table:content-validations
 
     // load text styles for rich-text content
-    KoShapeLoadingContext shapeContext(odfContext, doc()->dataCenterMap());
+    KoShapeLoadingContext shapeContext(odfContext, 0); // TODO find a proper documentResourceManager somewhere.
     tableContext.shapeContext = &shapeContext;
     KoTextSharedLoadingData * sharedData = new KoTextSharedLoadingData();
     sharedData->loadOdfStyles(odfContext, textStyleManager());

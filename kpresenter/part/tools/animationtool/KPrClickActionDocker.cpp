@@ -36,10 +36,11 @@
 #include <KoShapeController.h>
 #include <KoShapeManager.h>
 #include <KoEventAction.h>
-#include <KoEventActionFactory.h>
+#include <KoEventActionFactoryBase.h>
 #include <KoEventActionRegistry.h>
 #include <KPrEventActionWidget.h>
 #include "KPrSoundData.h"
+#include <KPresenter.h>
 #include "KPrSoundCollection.h"
 #include "KPrView.h"
 #include "KPrPage.h"
@@ -58,8 +59,8 @@ KPrClickActionDocker::KPrClickActionDocker( QWidget* parent, Qt::WindowFlags fla
     m_cbPlaySound = new QComboBox();
     //layout->addWidget(m_cbPlaySound);
 
-    QList<KoEventActionFactory *> factories = KoEventActionRegistry::instance()->presentationEventActions();
-    foreach ( KoEventActionFactory * factory, factories ) {
+    QList<KoEventActionFactoryBase *> factories = KoEventActionRegistry::instance()->presentationEventActions();
+    foreach ( KoEventActionFactoryBase * factory, factories ) {
         QWidget * optionWidget = factory->createOptionWidget();
         layout->addWidget( optionWidget );
         m_eventActionWidgets.insert( factory->id(), optionWidget );
@@ -121,7 +122,10 @@ void KPrClickActionDocker::setCanvas( KoCanvasBase *canvas )
 void KPrClickActionDocker::setView(KoPAView  *view )
 {
     m_view = view;
-    m_soundCollection = dynamic_cast<KPrSoundCollection *>( m_view->kopaDocument()->dataCenterMap()["SoundCollection"] );
+    if (m_view->kopaDocument()->resourceManager()->hasResource(KPresenter::SoundCollection)) {
+        QVariant variant = m_view->kopaDocument()->resourceManager()->resource(KPresenter::SoundCollection);
+        m_soundCollection = variant.value<KPrSoundCollection*>();
+    }
 
     setCanvas(view->kopaCanvas());
 }

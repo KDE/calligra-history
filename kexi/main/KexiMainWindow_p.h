@@ -27,6 +27,9 @@
 # define KEXI_NO_PENDING_DIALOGS
 #endif
 
+#define PROJECT_NAVIGATOR_TABBAR_ID 0
+#define PROPERTY_EDITOR_TABBAR_ID 1
+
 #include <KToolBar>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -179,12 +182,12 @@ KexiTabbedToolBar::KexiTabbedToolBar(QWidget *parent)
     setCurrentWidget(tbar); // the default
     addAction(tbar, "project_new");
     addAction(tbar, "project_open");
-    addAction(tbar, "project_print");
-    addAction(tbar, "project_print_preview");
-    addAction(tbar, "project_print_setup");
+//! @todo re-add    addAction(tbar, "project_print");
+//! @todo re-add    addAction(tbar, "project_print_preview");
+//! @todo re-add    addAction(tbar, "project_print_setup");
     //no "project_save" here...
-    addSeparatorAndAction(tbar, "project_saveas");
-    addSeparatorAndAction(tbar, "project_properties");
+//! @todo re-add    addSeparatorAndAction(tbar, "project_saveas");
+//! @todo re-add    addSeparatorAndAction(tbar, "project_properties");
     addSeparatorAndAction(tbar, "project_close");
 
     if (!userMode) {
@@ -192,8 +195,9 @@ KexiTabbedToolBar::KexiTabbedToolBar(QWidget *parent)
     }
 
     tbar = d->createToolBar("data", i18n("Data"));
+    addAction(tbar, "edit_cut");
     addAction(tbar, "edit_copy");
-    addAction(tbar, "edit_copy_special_data_table");
+//moved to project navigator    addAction(tbar, "edit_copy_special_data_table");
     addAction(tbar, "edit_paste");
     if (!userMode)
         addAction(tbar, "edit_paste_special_data_table");
@@ -217,9 +221,10 @@ KexiTabbedToolBar::KexiTabbedToolBar(QWidget *parent)
       QToolBar *sub_tbar = new KToolBar(gbox);
       gbox_lyr->addWidget(sub_tbar);
     */
-    if (!userMode)
+    if (!userMode) {
         addAction(tbar, "project_import_data_table");
-
+        addAction(tbar, "tools_import_tables");
+    }
     /*   gbox = new QGroupBox( i18n("Export"), tbar );
       gbox->setFlat(true);
       gbox->setFont(Kexi::smallFont(this));
@@ -230,11 +235,10 @@ KexiTabbedToolBar::KexiTabbedToolBar(QWidget *parent)
       sub_tbar = new KToolBar(gbox);
       gbox_lyr->addWidget(sub_tbar);
     */
-    addAction(tbar, "project_export_data_table");
+    addSeparatorAndAction(tbar, "project_export_data_table");
 
     tbar = d->createToolBar("tools", i18n("Tools"));
     addAction(tbar, "tools_import_project");
-    addAction(tbar, "tools_import_tables");
     addAction(tbar, "tools_compact_database");
 
 //! @todo move to form plugin
@@ -580,6 +584,8 @@ public:
         forceHideProjectNavigatorOnCreation = false;
         navWasVisibleBeforeProjectClosing = false;
         saveSettingsForShowProjectNavigator = true;
+        propertyEditorCollapsed = false;
+        enable_slotPropertyEditorVisibilityChanged = true;
     }
     ~Private() {
         qDeleteAll(m_openedCustomObjectsForItem);
@@ -773,7 +779,31 @@ public:
         const bool visible = (viewMode == Kexi::DesignViewMode)
             && ((currentWindow && currentWindow->propertySet()) || info->isPropertyEditorAlwaysVisibleInDesignMode());
         kDebug() << "visible == " << visible;
-        propEditorDockWidget->setVisible(visible);
+        enable_slotPropertyEditorVisibilityChanged = false;
+        if (visible && propertyEditorCollapsed) { // used when we're switching back to a window with propeditor available but collapsed
+            propEditorDockWidget->setVisible(!visible);
+            setPropertyEditorTabBarVisible(true);
+        }
+        else {
+            propEditorDockWidget->setVisible(visible);
+            setPropertyEditorTabBarVisible(false);
+        }
+        enable_slotPropertyEditorVisibilityChanged = true;
+    }
+
+    void setPropertyEditorTabBarVisible(bool visible) {
+        KMultiTabBar *mtbar = multiTabBars[KMultiTabBar::Right];
+        int id = PROPERTY_EDITOR_TABBAR_ID;
+        if (!visible) {
+            mtbar->removeTab(id);
+        }
+        else if (!mtbar->tab(id)) {
+            QString t(propEditorDockWidget->windowTitle());
+            t.remove('&');
+            mtbar->appendTab(QPixmap(), id, t);
+            KMultiTabBarTab *tab = mtbar->tab(id);
+            QObject::connect(tab, SIGNAL(clicked(int)), wnd, SLOT(slotMultiTabBarTabClicked(int)));
+        }
     }
 
 //2.0: unused
@@ -1091,6 +1121,11 @@ public:
     bool windowExistedBeforeCloseProject;
 
 //2.0: unused  KMdi::MdiMode mdiModeToSwitchAfterRestart;
+
+    QMap<KMultiTabBar::KMultiTabBarPosition, KMultiTabBar*> multiTabBars;
+    bool propertyEditorCollapsed;
+
+    bool enable_slotPropertyEditorVisibilityChanged;
 
 private:
     //! @todo move to KexiProject

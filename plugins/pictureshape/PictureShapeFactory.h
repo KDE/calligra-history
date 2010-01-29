@@ -20,22 +20,21 @@
 #ifndef PICTURESHAPEFACTORY_H
 #define PICTURESHAPEFACTORY_H
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShape;
 
-class PictureShapeFactory : public KoShapeFactory
+class PictureShapeFactory : public KoShapeFactoryBase
 {
 public:
     PictureShapeFactory(QObject *parent);
     ~PictureShapeFactory() {}
 
-    virtual KoShape *createDefaultShape() const;
-    virtual KoShape *createShape(const KoProperties *params) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports(const KoXmlElement &e) const;
 
     /// reimplemented
-    virtual void populateDataCenterMap(QMap<QString, KoDataCenter*> &dataCenterMap);
+    virtual void newDocumentResourceManager(KoResourceManager *manager);
     /// reimplemented
     virtual QList<KoShapeConfigWidgetBase*> createShapeOptionPanels();
 };

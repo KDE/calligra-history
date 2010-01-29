@@ -24,14 +24,14 @@
 #include <KoCanvasBase.h>
 #include <KoPointerEvent.h>
 #include <KoShapeManager.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShape.h>
 #include <KoShapeController.h>
 #include <KoShapeLayer.h>
 #include <KoShapeRegistry.h>
 #include <KoSelection.h>
 #include <KoLineBorder.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 
 #include <QUndoCommand>
 #include <QPointF>
@@ -99,7 +99,7 @@ void ConnectionTool::paint(QPainter &painter, const KoViewConverter &converter)
 
         painter.setPen(Qt::blue);
         painter.setBrush(Qt::white);
-        int radius = canvas()->resourceProvider()->handleRadius();
+        int radius = canvas()->resourceManager()->handleRadius();
         // Apply the conversion make by the matrix transformation
         painter.setMatrix(tempShape->absoluteTransformation(&converter) * painter.matrix());
         // ... handle unselected
@@ -107,7 +107,7 @@ void ConnectionTool::paint(QPainter &painter, const KoViewConverter &converter)
 
         painter.restore();
 
-        int grabSensitivity = canvas()->resourceProvider()->grabSensitivity();
+        int grabSensitivity = canvas()->resourceManager()->grabSensitivity();
         QRectF rec(m_mouse.x()-grabSensitivity/2, m_mouse.y()-grabSensitivity/2, grabSensitivity, grabSensitivity);
         int handleId = tempShape->handleIdAt(tempShape->documentToShape(rec));
 
@@ -141,7 +141,7 @@ void ConnectionTool::mousePressEvent(KoPointerEvent *event)
     KoConnectionShape * tempConnectionShape = dynamic_cast<KoConnectionShape*>(m_shapeOn);
     if(tempConnectionShape && m_connectionShape == 0){
         // grabSensitivity is defined by the user
-        int grabSensitivity = canvas()->resourceProvider()->grabSensitivity();
+        int grabSensitivity = canvas()->resourceManager()->grabSensitivity();
         QRectF rec(m_mouse.x()-grabSensitivity/2, m_mouse.y()-grabSensitivity/2, grabSensitivity, grabSensitivity);
         m_activeHandle = tempConnectionShape->handleIdAt(tempShape->documentToShape(rec));
         
@@ -154,8 +154,8 @@ void ConnectionTool::mousePressEvent(KoPointerEvent *event)
     // First click
     if(m_connectionShape == 0) {
         // All sizes and positions are hardcoded for now
-        KoShapeFactory *factory = KoShapeRegistry::instance()->value("KoConnectionShape");
-        KoShape *shape = factory->createDefaultShapeAndInit(canvas()->shapeController()->dataCenterMap());
+        KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value("KoConnectionShape");
+        KoShape *shape = factory->createDefaultShape(canvas()->shapeController()->resourceManager());
         if((m_connectionShape = dynamic_cast<KoConnectionShape*>(shape))){
             KoConnectionShape * connectionShapeTest = dynamic_cast<KoConnectionShape*>(tempShape);
             if(isInRoi()) {
@@ -399,7 +399,7 @@ float ConnectionTool::distanceSquare(QPointF p1, QPointF p2)
 
 bool ConnectionTool::isInRoi()
 {
-    int grabSensitivity = canvas()->resourceProvider()->grabSensitivity() * canvas()->resourceProvider()->grabSensitivity();
+    int grabSensitivity = canvas()->resourceManager()->grabSensitivity() * canvas()->resourceManager()->grabSensitivity();
     if(m_lastShapeOn == 0)
         return false;
     

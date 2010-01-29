@@ -26,7 +26,7 @@
 #include <KoPointerEvent.h>
 #include <KoCanvasBase.h>
 #include <KoCanvasController.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoViewConverter.h>
 #include <KoGuidesData.h>
 #include <KoToolManager.h>
@@ -36,7 +36,7 @@
 #include <QtGui/QPainter>
 
 GuidesTool::GuidesTool(KoCanvasBase *canvas)
-    : KoTool(canvas),
+    : KoToolBase(canvas),
     m_orientation(Qt::Horizontal),
     m_index(-1),
     m_position(0),
@@ -341,7 +341,7 @@ GuidesTool::GuideLine GuidesTool::guideLineAtPosition(const QPointF &position)
     // check if we are on a guide line
     KoGuidesData *guidesData = canvas()->guidesData();
     if (guidesData && guidesData->showGuideLines()) {
-        qreal handleRadius = canvas()->resourceProvider()->handleRadius();
+        qreal handleRadius = canvas()->resourceManager()->handleRadius();
         qreal minDistance = canvas()->viewConverter()->viewToDocumentX(handleRadius);
         int i = 0;
         foreach (qreal guidePos, guidesData->horizontalGuideLines()) {
@@ -370,10 +370,9 @@ GuidesTool::GuideLine GuidesTool::guideLineAtPosition(const QPointF &position)
 
 void GuidesTool::resourceChanged(int key, const QVariant &res)
 {
-    Q_UNUSED(res);
     if (key == KoCanvasResource::Unit) {
         if (m_options)
-            m_options->setUnit(canvas()->unit());
+            m_options->setUnit(res.value<KoUnit>());
     }
 }
 
@@ -405,7 +404,7 @@ void GuidesTool::insertorCreateGuidesSlot(GuidesTransaction *result)
 {
     QPoint documentStart = canvas()->documentOrigin();
     KoGuidesData *guidesData = canvas()->guidesData();
-    const QSizeF pageSize = canvas()->resourceProvider()->sizeResource(KoCanvasResource::PageSize);
+    const QSizeF pageSize = canvas()->resourceManager()->sizeResource(KoCanvasResource::PageSize);
 
     QList< qreal > verticalLines;
     QList< qreal > horizontalLines;

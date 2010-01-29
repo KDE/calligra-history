@@ -17,14 +17,13 @@
 #ifndef KEXIRELATIONDESIGNFACTORY_H
 #define KEXIRELATIONDESIGNFACTORY_H
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 
-class KexiRelationDesignFactory : public KoShapeFactory {
+class KexiRelationDesignFactory : public KoShapeFactoryBase {
     public:
         KexiRelationDesignFactory( QObject *parent );
-        virtual KoShape* createShape ( const KoProperties* params ) const;
-        virtual KoShape* createDefaultShape() const;
+        virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
         virtual bool supports(const KoXmlElement & e) const;
 };
 

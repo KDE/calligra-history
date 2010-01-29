@@ -141,11 +141,14 @@ KisImageWSP KisKraLoader::loadXML(const KoXmlElement& element)
         if (colorspacename  == "Grayscale + Alpha")
             colorspacename  = "GRAYA";
 
+        QString colorspaceModel = KoColorSpaceRegistry::instance()->colorSpaceColorModelId(colorspacename).id();
+        QString colorspaceDepth = KoColorSpaceRegistry::instance()->colorSpaceColorDepthId(colorspacename).id();
+
         if ((profileProductName = element.attribute(PROFILE)).isNull()) {
             // no mention of profile so get default profile
-            cs = KoColorSpaceRegistry::instance()->colorSpace(colorspacename, "");
+            cs = KoColorSpaceRegistry::instance()->colorSpace(colorspaceModel, colorspaceDepth, "");
         } else {
-            cs = KoColorSpaceRegistry::instance()->colorSpace(colorspacename, profileProductName);
+            cs = KoColorSpaceRegistry::instance()->colorSpace(colorspaceModel, colorspaceDepth, profileProductName);
         }
 
         if (cs == 0) {
@@ -205,7 +208,7 @@ void KisKraLoader::loadBinaryData(KoStore * store, KisImageWSP image, const QStr
         QByteArray data; data.resize(store->size());
         store->read(data.data(), store->size());
         store->close();
-        image->setProfile(KoColorSpaceRegistry::instance()->createProfile("icc", data));
+        image->setProfile(KoColorSpaceRegistry::instance()->createColorProfile(image->colorSpace()->colorModelId().id(), image->colorSpace()->colorDepthId().id(), data));
     }
 
 
@@ -270,11 +273,18 @@ KisNode* KisKraLoader::loadNode(const KoXmlElement& element, KisImageWSP image)
     if (opacity > OPACITY_OPAQUE) opacity = OPACITY_OPAQUE;
 
     const KoColorSpace* colorSpace = 0;
-    if ((element.attribute(COLORSPACE_NAME)).isNull())
+    if ((element.attribute(COLORSPACE_NAME)).isNull()) {
+        dbgFile << "No attribute color space for layer: " << name;
         colorSpace = image->colorSpace();
-    else
+    } else {
+        QString colorspacename = element.attribute(COLORSPACE_NAME);
+        QString colorspaceModel = KoColorSpaceRegistry::instance()->colorSpaceColorModelId(colorspacename).id();
+        QString colorspaceDepth = KoColorSpaceRegistry::instance()->colorSpaceColorDepthId(colorspacename).id();
+
         // use default profile - it will be replaced later in completeLoading
-        colorSpace = KoColorSpaceRegistry::instance()->colorSpace(element.attribute(COLORSPACE_NAME), "");
+        colorSpace = KoColorSpaceRegistry::instance()->colorSpace(colorspaceModel, colorspaceDepth, "");
+        dbgFile << "Using color space: " << colorspacename << colorspaceModel << colorspaceDepth << " " << colorSpace << " for layer: " << name;
+    }
 
     bool visible = element.attribute(VISIBLE, "1") == "0" ? false : true;
     bool locked = element.attribute(LOCKED, "0") == "0" ? false : true;
@@ -487,7 +497,7 @@ KisNode* KisKraLoader::loadCloneLayer(const KoXmlElement& element, KisImageWSP i
                                       const QString& name, const KoColorSpace* cs, quint32 opacity)
 {
     Q_UNUSED(cs);
-  
+
     KisCloneLayer* layer = new KisCloneLayer(0, image, name, opacity);
 
     if ((element.attribute(CLONE_FROM)).isNull()) {

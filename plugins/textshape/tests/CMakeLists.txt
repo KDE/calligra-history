@@ -37,7 +37,9 @@ set(TestChangeListCommand_test_SRCS
     ../commands/DeleteCommand.cpp
     ../commands/ShowChangesCommand.cpp
     ../commands/AcceptChangeCommand.cpp
+    ../commands/RejectChangeCommand.cpp
     ../TextTool.cpp
+    ../TextEditingPluginContainer.cpp
     ../ChangeTracker.cpp
     ../dialogs/FontDia.cpp
     ../dialogs/InsertCharacter.cpp
@@ -56,7 +58,6 @@ set(TestChangeListCommand_test_SRCS
     ../dialogs/ParagraphDecorations.cpp
     ../dialogs/ParagraphBulletsNumbers.cpp
     ../dialogs/ListsSpinBox.cpp
-    ../dialogs/OptionButton.cpp
     ../dialogs/StylesModel.cpp
     ../dialogs/ParagraphGeneral.cpp
     ../dialogs/CharacterGeneral.cpp
@@ -66,7 +67,6 @@ set(TestChangeListCommand_test_SRCS
     ../dialogs/TableDialog.cpp
     ../dialogs/TrackedChangeManager.cpp
     ../dialogs/TrackedChangeModel.cpp
-    ../dialogs/modeltest.cpp
     ../dialogs/ChangeConfigureDialog.cpp
     ../ListItemsHelper.cpp
     ../TextShape.cpp

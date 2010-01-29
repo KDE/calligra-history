@@ -35,7 +35,7 @@
 
 
 VectorShapeFactory::VectorShapeFactory(QObject *parent)
-    : KoShapeFactory(parent, VectorShape_SHAPEID, i18n("Vector"))
+    : KoShapeFactoryBase(parent, VectorShape_SHAPEID, i18n("Vector"))
 {
     setToolTip(i18n("A shape that shows a vector image"));
     setIcon( "vector-shape" );
@@ -43,17 +43,12 @@ VectorShapeFactory::VectorShapeFactory(QObject *parent)
     setLoadingPriority(1);
 }
 
-KoShape *VectorShapeFactory::createDefaultShape() const
+KoShape *VectorShapeFactory::createDefaultShape(KoResourceManager *documentResources) const
 {
     VectorShape *shape = new VectorShape();
     shape->setShapeId(VectorShape_SHAPEID);
 
     return shape;
-}
-
-KoShape *VectorShapeFactory::createShape(const KoProperties * /*params*/) const
-{
-    return createDefaultShape();
 }
 
 bool VectorShapeFactory::supports(const KoXmlElement & e) const
@@ -68,4 +63,4 @@ QList<KoShapeConfigWidgetBase*> VectorShapeFactory::createShapeOptionPanels()
     return result;
 }
 
-#include "VectorShapeFactory.moc"
+#include <VectorShapeFactory.moc>

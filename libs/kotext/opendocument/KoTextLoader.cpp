@@ -36,7 +36,7 @@
 #include <KoOdfStylesReader.h>
 #include <KoProperties.h>
 #include <KoShapeContainer.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeLoadingContext.h>
 #include <KoShapeRegistry.h>
 #include <KoTableColumnAndRowStyleManager.h>
@@ -65,6 +65,7 @@
 #include "styles/KoTableStyle.h"
 #include "styles/KoTableColumnStyle.h"
 #include "styles/KoTableCellStyle.h"
+#include "styles/KoSectionStyle.h"
 
 #include <klocale.h>
 
@@ -509,6 +510,8 @@ void KoTextLoader::loadHeading(const KoXmlElement &element, QTextCursor &cursor)
 void KoTextLoader::loadList(const KoXmlElement &element, QTextCursor &cursor)
 {
     const bool numberedParagraph = element.localName() == "numbered-paragraph";
+    const QTextBlockFormat defaultBlockFormat = cursor.blockFormat();
+    const QTextCharFormat defaultCharFormat = cursor.charFormat();
 
     QString styleName = element.attributeNS(KoXmlNS::text, "style-name", QString());
     KoListStyle *listStyle = d->textSharedData->listStyle(styleName, d->stylesDotXml);
@@ -557,12 +560,8 @@ void KoTextLoader::loadList(const KoXmlElement &element, QTextCursor &cursor)
         if (!numberedParagraph && e.tagName() != "list-item" && !listHeader)
             continue;
 
-        if (!firstTime && !numberedParagraph) {
-            // use empty formats to not inherit from the prev parag
-            QTextBlockFormat bf;
-            QTextCharFormat cf;
-            cursor.insertBlock(bf, cf);
-        }
+        if (!firstTime && !numberedParagraph)
+            cursor.insertBlock(defaultBlockFormat, defaultCharFormat);
         firstTime = false;
 
         QTextBlock current = cursor.block();
@@ -614,9 +613,23 @@ void KoTextLoader::loadList(const KoXmlElement &element, QTextCursor &cursor)
 
 void KoTextLoader::loadSection(const KoXmlElement &sectionElem, QTextCursor &cursor)
 {
-    Q_UNUSED(sectionElem);
-    Q_UNUSED(cursor);
-    loadBody(sectionElem,cursor);
+    qDebug() << "loading a section" << endl;
+    // Add a frame to the current layout
+    QTextFrameFormat sectionFormat;
+    QString sectionStyleName = sectionElem.attributeNS(KoXmlNS::text, "style-name", "");
+    if (!sectionStyleName.isEmpty()) {
+        KoSectionStyle *secStyle = d->textSharedData->sectionStyle(sectionStyleName, d->stylesDotXml);
+        if(secStyle)
+            secStyle->applyStyle(sectionFormat);
+    }
+    cursor.insertFrame(sectionFormat);
+    // Get the cursor of the frame
+    QTextCursor cursorFrame = cursor.currentFrame()->lastCursorPosition();
+
+    loadBody(sectionElem, cursorFrame);
+    
+    // Get out of the frame
+    cursor.movePosition(QTextCursor::End);
 }
 
 void KoTextLoader::loadNote(const KoXmlElement &noteElem, QTextCursor &cursor)

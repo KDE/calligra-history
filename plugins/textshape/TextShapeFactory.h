@@ -21,12 +21,12 @@
 #ifndef TEXTSHAPEFACTORY_H
 #define TEXTSHAPEFACTORY_H
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShape;
 class KoInlineTextObjectManager;
 
-class TextShapeFactory : public KoShapeFactory
+class TextShapeFactory : public KoShapeFactoryBase
 {
     Q_OBJECT
 
@@ -35,13 +35,11 @@ public:
     explicit TextShapeFactory(QObject *parent);
     ~TextShapeFactory() {}
 
-    KoShape *createDefaultShape() const;
-    KoShape *createShape(const KoProperties * params) const;
+    virtual KoShape *createShape(const KoProperties *params, KoResourceManager *documentResources = 0) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports(const KoXmlElement & e) const;
-    virtual void populateDataCenterMap(QMap<QString, KoDataCenter *>  & dataCenterMap);
 
-private:
-    KoInlineTextObjectManager *m_inlineTextObjectManager;
+    virtual void newDocumentResourceManager(KoResourceManager *manager);
 };
 
 #endif

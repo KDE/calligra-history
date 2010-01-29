@@ -48,14 +48,15 @@ public:
     virtual void readOptionSetting(const KisPropertiesConfiguration* setting);
 
     const QString & label() const;
-    
-    void setCurve(QVector<double> curve);
-    
+
+    KisCubicCurve curve() const;
+    void setCurve(const KisCubicCurve& curve);
+
     KisDynamicSensor* sensor() const;
     void setSensor(KisDynamicSensor* sensor);
-    
+
     bool isCheckable();
-    
+
     bool isChecked() const;
     void setChecked(bool checked);
 protected:
@@ -71,11 +72,7 @@ protected:
 
     double scaleToCurve(double pressure) const {
         int offset = int(255.0 * pressure);
-        if (offset < 0)
-            offset = 0;
-        if (offset > 255)
-            offset =  255; // Was: clamp(..., 0, 255);
-        return m_curve[offset];
+        return m_curve.floatTransfer()[qBound(0, offset, 255)];
     }
 
     bool customCurve() const {
@@ -86,7 +83,7 @@ protected:
     QString m_label;
     KisDynamicSensor* m_sensor;
     bool m_customCurve;
-    QVector<double> m_curve;
+    KisCubicCurve m_curve;
     QString m_name;
     bool m_checkable;
     bool m_checked;

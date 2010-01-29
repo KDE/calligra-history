@@ -28,7 +28,7 @@
 #include <klocale.h>
 
 RectangleShapeFactory::RectangleShapeFactory(QObject *parent)
-: KoShapeFactory(parent, RectangleShapeId, i18n("Rectangle"))
+: KoShapeFactoryBase(parent, RectangleShapeId, i18n("Rectangle"))
 {
     setToolTip(i18n("A rectangle"));
     setIcon("rectangle-shape");
@@ -37,7 +37,7 @@ RectangleShapeFactory::RectangleShapeFactory(QObject *parent)
     setLoadingPriority(1);
 }
 
-KoShape *RectangleShapeFactory::createDefaultShape() const
+KoShape *RectangleShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     RectangleShape *rect = new RectangleShape();
 
@@ -52,12 +52,6 @@ KoShape *RectangleShapeFactory::createDefaultShape() const
     rect->setBackground(new KoGradientBackground(gradient));
 
     return rect;
-}
-
-KoShape * RectangleShapeFactory::createShape(const KoProperties * params) const 
-{
-    Q_UNUSED(params);
-    return createDefaultShape();
 }
 
 bool RectangleShapeFactory::supports(const KoXmlElement & e) const

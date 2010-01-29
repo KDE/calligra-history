@@ -51,7 +51,9 @@ K_EXPORT_COMPONENT_FACTORY(libexcelimport, ExcelImportFactory("kofficefilters"))
 #define UNICODE_EUR 0x20AC
 #define UNICODE_GBP 0x00A3
 #define UNICODE_JPY 0x00A5
-static const int minimumColumnCount = 256;
+
+static const int minimumColumnCount = 1024;
+static const int minimumRowCount = 32768;
 
 // UString -> QConstString conversion. Use  to get the QString.
 // Always store the QConstString into a variable first, to avoid a deep copy.
@@ -122,10 +124,10 @@ public:
     QHash<FormatFont, QString> fontStyles;
     QString subScriptStyle, superScriptStyle;
 
-    bool createStyles(KoOdfWriteStore* store);
+    bool createStyles(KoOdfWriteStore* store, KoXmlWriter* manifestWriter);
     bool createContent(KoOdfWriteStore* store);
     bool createMeta(KoOdfWriteStore* store);
-    bool createManifest(KoOdfWriteStore* store);
+    bool createManifest(KoOdfWriteStore* store, KoXmlWriter* manifestWriter);
     bool createSettings(KoOdfWriteStore* store);
 
     int sheetFormatIndex;
@@ -217,6 +219,7 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     d->mainStyles = new KoGenStyles();
 
     KoOdfWriteStore oasisStore(storeout);
+    KoXmlWriter* manifestWriter = oasisStore.manifestWriter("application/vnd.oasis.opendocument.spreadsheet");
 
     // header and footer are read from each sheet and saved in styles
     // So creating content before styles
@@ -230,7 +233,7 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     }
 
     // store document styles
-    if ( !d->createStyles( &oasisStore ) )
+    if ( !d->createStyles( &oasisStore, manifestWriter ) )
     {
         kWarning() << "Couldn't open the file 'styles.xml'.";
         delete d->workbook;
@@ -255,7 +258,7 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     }
 
     // store document manifest
-    if (!d->createManifest(&oasisStore)) {
+    if (!d->createManifest(&oasisStore, manifestWriter)) {
         kWarning() << "Couldn't open the file 'META-INF/manifest.xml'.";
         delete d->workbook;
         delete storeout;
@@ -322,7 +325,7 @@ bool ExcelImport::Private::createContent(KoOdfWriteStore* store)
     return store->closeContentWriter();
 }
 
-bool ExcelImport::Private::createStyles(KoOdfWriteStore* store)
+bool ExcelImport::Private::createStyles(KoOdfWriteStore* store, KoXmlWriter* manifestWriter)
 {
     if (!store->store()->open("styles.xml"))
         return false;
@@ -340,6 +343,7 @@ bool ExcelImport::Private::createStyles(KoOdfWriteStore* store)
     stylesWriter->addAttribute("xmlns:fo", "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0");
     stylesWriter->addAttribute("xmlns:svg", "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0");
     stylesWriter->addAttribute("office:version", "1.0");
+#if 0
     stylesWriter->startElement("office:styles");
     stylesWriter->startElement("style:default-style");
     stylesWriter->addAttribute("style:family", "table-cell");
@@ -365,10 +369,11 @@ bool ExcelImport::Private::createStyles(KoOdfWriteStore* store)
     stylesWriter->addAttribute("style:family", "table-cell");
     stylesWriter->endElement(); // style:style
     stylesWriter->endElement(); // office:styles
+#endif
 
-    // office:automatic-styles
-    mainStyles->saveOdfAutomaticStyles(stylesWriter, false);
     mainStyles->saveOdfMasterStyles(stylesWriter);
+    mainStyles->saveOdfDocumentStyles(stylesWriter); // office:style
+    mainStyles->saveOdfAutomaticStyles(stylesWriter, false); // office:automatic-styles
 
     stylesWriter->endElement();  // office:document-styles
     stylesWriter->endDocument();
@@ -483,14 +488,14 @@ bool ExcelImport::Private::createSettings(KoOdfWriteStore* store)
         settingsWriter->addConfigItem("CursorPositionY", point.y());
         settingsWriter->addConfigItem("xOffset", columnWidth(sheet,point.x()));
         settingsWriter->addConfigItem("yOffset", rowHeight(sheet,point.y()));
-        settingsWriter->addConfigItem("ShowZeroValues", true);
-        settingsWriter->addConfigItem("ShowGrid", true);
+        settingsWriter->addConfigItem("ShowZeroValues", sheet->showZeroValues());
+        settingsWriter->addConfigItem("ShowGrid", sheet->showGrid());
         settingsWriter->addConfigItem("FirstLetterUpper", false);
         settingsWriter->addConfigItem("ShowFormulaIndicator", false);
         settingsWriter->addConfigItem("ShowCommentIndicator", true);
-        settingsWriter->addConfigItem("ShowPageBorders", false);
+        settingsWriter->addConfigItem("ShowPageBorders", sheet->isPageBreakViewEnabled()); // best match kspread provides
         settingsWriter->addConfigItem("lcmode", false);
-        settingsWriter->addConfigItem("autoCalc", true);
+        settingsWriter->addConfigItem("autoCalc", sheet->autoCalc());
         settingsWriter->addConfigItem("ShowColumnNumber", false);
         settingsWriter->endElement();
     }
@@ -507,10 +512,8 @@ bool ExcelImport::Private::createSettings(KoOdfWriteStore* store)
     return store->store()->close();
 }
 
-bool ExcelImport::Private::createManifest(KoOdfWriteStore* store)
+bool ExcelImport::Private::createManifest(KoOdfWriteStore* store, KoXmlWriter* manifestWriter)
 {
-    KoXmlWriter* manifestWriter = store->manifestWriter("application/vnd.oasis.opendocument.spreadsheet");
-
     manifestWriter->addManifestEntry("meta.xml", "text/xml");
     manifestWriter->addManifestEntry("styles.xml", "text/xml");
     manifestWriter->addManifestEntry("content.xml", "text/xml");
@@ -528,6 +531,24 @@ void ExcelImport::Private::processWorkbookForBody(Workbook* workbook, KoXmlWrite
     for (unsigned i = 0; i < workbook->sheetCount(); i++) {
         Sheet* sheet = workbook->sheet(i);
         processSheetForBody(sheet, xmlWriter);
+    }
+    
+    std::map<UString, UString> &namedAreas = workbook->namedAreas();
+    if(namedAreas.size() > 0) {
+        xmlWriter->startElement("table:named-expressions");
+        for(std::map<UString, UString>::iterator it = namedAreas.begin(); it != namedAreas.end(); it++) {
+            xmlWriter->startElement("table:named-range");
+            xmlWriter->addAttribute("table:name", string((*it).first) ); // e.g. "My Named Range"
+            
+            QString range = string((*it).second);
+            if(range.startsWith('[') && range.endsWith(']')) {
+                range = range.mid(1,range.length()-2);
+            }
+                
+            xmlWriter->addAttribute("table:cell-range-address", range); // e.g. "$Sheet1.$B$2:.$B$3"
+            xmlWriter->endElement();//[Sheet1.$B$2:$B$3]
+        }
+        xmlWriter->endElement();
     }
 
     xmlWriter->endElement();  // office:spreadsheet
@@ -635,17 +656,26 @@ void ExcelImport::Private::processSheetForBody(Sheet* sheet, KoXmlWriter* xmlWri
         }
     }
 
-    // in odf default-cell-style's only apply to cells (or at least columns) that are present in the file in xls though
-    // row styles should apply to all cells in that row, so make sure to always write out 256 columns
+    // in odf default-cell-style's only apply to cells/rows/columns that are present in the file while in Excel
+    // row/column styles should apply to all cells in that row/column. So, try to fake that behavior by writting
+    // a number-columns-repeated to apply the styles/formattings to "all" columns.
     if (sheet->maxColumn() < minimumColumnCount-1) {
         xmlWriter->startElement("table:table-column");
         xmlWriter->addAttribute("table:number-columns-repeated", minimumColumnCount - 1 - sheet->maxColumn());
         xmlWriter->endElement();
     }
 
+    // add rows
     for (unsigned i = 0; i <= sheet->maxRow(); i++) {
         // FIXME optimized this when operator== in Swinder::Format is implemented
         processRowForBody(sheet->row(i, false), 1, xmlWriter);
+    }
+
+    // same we did above with columns is also needed for rows.
+    if(sheet->maxRow() < minimumRowCount-1) {
+        xmlWriter->startElement("table:table-row");
+        xmlWriter->addAttribute("table:number-rows-repeated", minimumRowCount - 1 - sheet->maxRow());
+        xmlWriter->endElement();
     }
 
     xmlWriter->endElement();  // table:table
@@ -1266,7 +1296,7 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
     } else if (value.isText() || value.isError()) {
         QString str = string(value.asString());
         xmlWriter->addAttribute("office:value-type", "string");
-        if (value.isString())
+        if (value.isString() && !(cell->format().font().subscript() || cell->format().font().superscript()))
             xmlWriter->addAttribute("office:string-value", str);
 
         xmlWriter->startElement("text:p", false);
@@ -1458,13 +1488,12 @@ QString convertColor(const Color& color)
     return QString(buf);
 }
 
-void convertBorder(const QString& which, const Pen& pen, KoGenStyle& style)
+void convertBorder(const QString& which, const QString& lineWidthProperty, const Pen& pen, KoGenStyle& style)
 {
-    QString result;
     if (pen.style == Pen::NoLine || pen.width == 0) {
-        result = "none";
-        style.addProperty("fo:border-" + which, result);
+        //style.addProperty(which, "none");
     } else {
+        QString result;
         if (pen.style == Pen::DoubleLine) {
             result += QString::number(pen.width * 3);
         } else {
@@ -1483,11 +1512,11 @@ void convertBorder(const QString& which, const Pen& pen, KoGenStyle& style)
 
         result += convertColor(pen.color);
 
-        style.addProperty("fo:border-" + which, result);
+        style.addProperty(which, result);
         if (pen.style == Pen::DoubleLine) {
             result = QString::number(pen.width);
             result = result + "pt " + result + "pt " + result + "pt";
-            style.addProperty("fo:border-line-width-" + which, result);
+            style.addProperty(lineWidthProperty, result);
         }
     }
 }
@@ -1563,21 +1592,100 @@ void ExcelImport::Private::processFormat(Format* format, KoGenStyle& style)
     }
 
     if (!borders.isNull()) {
-        convertBorder("left", borders.leftBorder(), style);
-        convertBorder("right", borders.rightBorder(), style);
-        convertBorder("top", borders.topBorder(), style);
-        convertBorder("bottom", borders.bottomBorder(), style);
-        //TODO diagonal 'borders'
+        convertBorder("fo:border-left", "fo:border-line-width-left", borders.leftBorder(), style);
+        convertBorder("fo:border-right", "fo:border-line-width-right", borders.rightBorder(), style);
+        convertBorder("fo:border-top", "fo:border-line-width-top", borders.topBorder(), style);
+        convertBorder("fo:border-bottom", "fo:border-line-width-bottom", borders.bottomBorder(), style);
+        convertBorder("style:diagonal-tl-br", "style:diagonal-tl-br-widths", borders.topLeftBorder(), style);
+        convertBorder("style:diagonal-tr-bl", "style:diagonal-tr-bl-widths", borders.bottomLeftBorder(), style);
     }
 
     if (!back.isNull() && back.pattern() != FormatBackground::EmptyPattern) {
+        KoGenStyle fillStyle = KoGenStyle(KoGenStyle::StyleGraphicAuto, "graphic");
+
         Color backColor = back.backgroundColor();
         if (back.pattern() == FormatBackground::SolidPattern)
             backColor = back.foregroundColor();
-
-        style.addProperty("fo:background-color", convertColor(backColor));
-
-        //TODO patterns
+        const QString bgColor = convertColor(backColor);
+        style.addProperty("fo:background-color", bgColor);
+        switch(back.pattern()) {
+            case FormatBackground::SolidPattern:
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "0%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense3Pattern: // 75% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "75%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense4Pattern: // 50% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "94%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense5Pattern: // 25% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "25%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense6Pattern: // 12.5% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "12%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense7Pattern: // 6.25% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "6%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense1Pattern: // diagonal crosshatch
+            case FormatBackground::Dense2Pattern: // thick diagonal crosshatch
+            case FormatBackground::HorPattern: // Horizonatal lines
+            case FormatBackground::VerPattern: // Vertical lines
+            case FormatBackground::BDiagPattern: // Left-bottom to right-top diagonal lines
+            case FormatBackground::FDiagPattern: // Left-top to right-bottom diagonal lines
+            case FormatBackground::CrossPattern: // Horizontal and Vertical lines
+            case FormatBackground::DiagCrossPattern: { // Crossing diagonal lines
+                fillStyle.addProperty("draw:fill", "hatch");
+                KoGenStyle hatchStyle(KoGenStyle::StyleHatch);
+                hatchStyle.addAttribute("draw:color", "#000000");
+                switch (back.pattern()) {
+                case FormatBackground::Dense1Pattern:
+                case FormatBackground::HorPattern:
+                    hatchStyle.addAttribute("draw:style", "single");
+                    hatchStyle.addAttribute("draw:rotation", 0);
+                    break;
+                case FormatBackground::VerPattern:
+                    hatchStyle.addAttribute("draw:style", "single");
+                    hatchStyle.addAttribute("draw:rotation", 900);
+                    break;
+                case FormatBackground::Dense2Pattern:
+                case FormatBackground::BDiagPattern:
+                    hatchStyle.addAttribute("draw:style", "single");
+                    hatchStyle.addAttribute("draw:rotation", 450);
+                    break;
+                case FormatBackground::FDiagPattern:
+                    hatchStyle.addAttribute("draw:style", "single");
+                    hatchStyle.addAttribute("draw:rotation", 1350);
+                    break;
+                case FormatBackground::CrossPattern:
+                    hatchStyle.addAttribute("draw:style", "double");
+                    hatchStyle.addAttribute("draw:rotation", 0);
+                    break;
+                case FormatBackground::DiagCrossPattern:
+                    hatchStyle.addAttribute("draw:style", "double");
+                    hatchStyle.addAttribute("draw:rotation", 450);
+                    break;
+                default:
+                    break;
+                }
+                fillStyle.addProperty("draw:fill-hatch-name", mainStyles->lookup(hatchStyle, "hatch"));
+            } break;
+            default:
+                break;
+        }
+        style.addProperty("draw:style-name", styles->lookup(fillStyle, "gr"));
     }
 
     if (!align.isNull()) {

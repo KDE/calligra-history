@@ -28,7 +28,7 @@
 #include <QPixmap>
 
 KoCreatePathToolFactory::KoCreatePathToolFactory(QObject *parent)
-        : KoToolFactory(parent, KoCreatePathTool_ID)
+        : KoToolFactoryBase(parent, KoCreatePathTool_ID)
 {
     setToolTip(i18n("Create Path"));
     setToolType(mainToolType());
@@ -41,7 +41,7 @@ KoCreatePathToolFactory::~KoCreatePathToolFactory()
 {
 }
 
-KoTool* KoCreatePathToolFactory::createTool(KoCanvasBase *canvas)
+KoToolBase* KoCreatePathToolFactory::createTool(KoCanvasBase *canvas)
 {
     return new KoCreatePathTool(canvas);
 }

@@ -45,6 +45,7 @@
 #include <KoOdfStylesReader.h>
 
 #include <KoShape.h>
+#include <KoResourceManager.h>
 #include <KoShapeLoadingContext.h>
 #include <KoShapeManager.h>
 #include <KoShapeRegistry.h>
@@ -176,6 +177,12 @@ Sheet::Sheet(Map* map, const QString& sheetName)
         , KoShapeControllerBase()
         , d(new Private)
 {
+    if (map->doc()) {
+        resourceManager()->setUndoStack(map->doc()->undoStack());
+        QVariant variant;
+        variant.setValue<void*>(map->doc()->sheetAccessModel());
+        resourceManager()->setResource(75751149, variant); // duplicated in kchart.
+    }
     if (s_mapSheets == 0)
         s_mapSheets = new QHash<int, Sheet*>;
 
@@ -360,11 +367,6 @@ void Sheet::removeShape(KoShape* shape)
             }
         }
     }
-}
-
-QMap<QString, KoDataCenter*> Sheet::dataCenterMap() const
-{
-    return doc() ? doc()->dataCenterMap() : QMap<QString, KoDataCenter*>();
 }
 
 QList<KoShape*> Sheet::shapes() const
@@ -2319,7 +2321,7 @@ bool Sheet::loadOdf(const KoXmlElement& sheetElement,
                     // OpenDocument v1.1, 8.3.4 Shapes:
                     // The <table:shapes> element contains all graphic shapes
                     // with an anchor on the table this element is a child of.
-                    KoShapeLoadingContext shapeLoadingContext(odfContext, dataCenterMap());
+                    KoShapeLoadingContext shapeLoadingContext(odfContext, resourceManager());
                     KoXmlElement element;
                     forEachElement(element, rowElement) {
                         if (element.namespaceURI() != KoXmlNS::draw)
@@ -3133,9 +3135,9 @@ void Sheet::saveOdfColRowCell(KoXmlWriter& xmlWriter, KoGenStyles &mainStyles,
     if (tableContext.rowDefaultStyles.count() != 0)
         maxRows = qMax(maxRows, (--tableContext.rowDefaultStyles.constEnd()).key());
     // OpenDocument needs at least one cell per sheet.
-    maxCols = qMax(1, maxCols);
-    maxRows = qMax(1, maxRows);
-    maxMaxRows = qMax(1, maxMaxRows);
+    maxCols = qMin(KS_colMax, qMax(1, maxCols));
+    maxRows = qMin(KS_rowMax, qMax(1, maxRows));
+    maxMaxRows = maxMaxRows;
     kDebug(36003) << "\t Sheet dimension:" << maxCols << " x" << maxRows;
 
     // saving the columns
@@ -3226,7 +3228,7 @@ void Sheet::saveOdfColRowCell(KoXmlWriter& xmlWriter, KoGenStyles &mainStyles,
 
     // saving the rows and the cells
     // we have to loop through all rows of the used area
-    for (i = 1; i < maxRows; ++i) {
+    for (i = 1; i <= maxRows; ++i) {
         const RowFormat* row = rowFormat(i);
 
         // default cell style for row
@@ -3323,7 +3325,7 @@ void Sheet::saveOdfColRowCell(KoXmlWriter& xmlWriter, KoGenStyles &mainStyles,
                 xmlWriter.addAttribute("table:visibility", "filter");
 
             int j = i + 1;
-            while (compareRows(i, j, maxCols, tableContext) && j < maxRows) {
+            while (j <= maxRows && compareRows(i, j, maxCols, tableContext)) {
                 j++;
                 repeated++;
             }

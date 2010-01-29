@@ -22,11 +22,11 @@
 #include "KoGenericRegistryModel.h"
 #include "KoFilterEffect.h"
 #include "KoFilterEffectStack.h"
-#include "KoFilterEffectFactory.h"
+#include "KoFilterEffectFactoryBase.h"
 #include "KoFilterEffectRegistry.h"
 #include "KoFilterEffectConfigWidgetBase.h"
 #include "KoCanvasBase.h"
-#include "KoCanvasResourceProvider.h"
+#include "KoResourceManager.h"
 #include "KoShapeManager.h"
 #include "KoSelection.h"
 #include "FilterEffectEditWidget.h"
@@ -103,7 +103,7 @@ public:
             currentEffect = filterEffect;
 
             KoFilterEffectRegistry * registry = KoFilterEffectRegistry::instance();
-            KoFilterEffectFactory * factory = registry->value(currentEffect->id());
+            KoFilterEffectFactoryBase * factory = registry->value(currentEffect->id());
             if (!factory)
                 return;
 
@@ -153,7 +153,7 @@ public:
 };
 
 KarbonFilterEffectsTool::KarbonFilterEffectsTool(KoCanvasBase *canvas)
-        : KoTool(canvas), d(new Private())
+        : KoToolBase(canvas), d(new Private())
 {
     connect(canvas->shapeManager(), SIGNAL(selectionChanged()),
             this, SLOT(selectionChanged()));
@@ -199,7 +199,7 @@ void KarbonFilterEffectsTool::repaintDecorations()
 {
     if (d->currentShape && d->currentShape->filterEffectStack()) {
         QRectF bb = d->currentShape->boundingRect();
-        int radius = canvas()->resourceProvider()->handleRadius();
+        int radius = canvas()->resourceManager()->handleRadius();
         canvas()->updateCanvas(bb.adjusted(-radius, -radius, radius, radius));
     }
 }

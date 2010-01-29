@@ -22,9 +22,9 @@
 #include <QCursor>
 
 #include <KoColor.h>
-#include <KoTool.h>
+#include <KoToolBase.h>
 #include <KoID.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <krita_export.h>
 #include <kis_types.h>
 
@@ -47,7 +47,7 @@ static const QString TOOL_TYPE_VIEW = "4 Krita/View";                // Tools th
 static const QString TOOL_TYPE_SELECTED = "5 Krita/Select";          // Tools that select pixels
 
 class  KRITAUI_EXPORT KisTool
-        : public KoTool
+        : public KoToolBase
 {
     Q_OBJECT
 
@@ -56,7 +56,7 @@ public:
     KisTool(KoCanvasBase * canvas, const QCursor & cursor);
     virtual ~KisTool();
 
-// KoTool Implementation.
+// KoToolBase Implementation.
 
 public slots:
 

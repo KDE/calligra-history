@@ -33,7 +33,7 @@
 #include <kis_debug.h>
 #include <kis_paint_device.h>
 #include <kdialog.h>
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
 #include <knuminput.h>
 #include <kpassworddialog.h>
 
@@ -54,10 +54,10 @@
 // plugins's headers
 #include "kis_pdf_import_widget.h"
 
-typedef KGenericFactory<KisPDFImport, KoFilter> PDFImportFactory;
-K_EXPORT_COMPONENT_FACTORY(libkritapdfimport, PDFImportFactory("kofficefilters"))
+K_PLUGIN_FACTORY(PDFImportFactory, registerPlugin<KisPDFImport>();)
+K_EXPORT_PLUGIN(PDFImportFactory("krita"))
 
-KisPDFImport::KisPDFImport(QObject* parent, const QStringList&) : KoFilter(parent)
+KisPDFImport::KisPDFImport(QObject *parent, const QVariantList &) : KoFilter(parent)
 {
 }
 
@@ -129,7 +129,7 @@ KisPDFImport::ConversionStatus KisPDFImport::convert(const QByteArray& , const Q
 
     doc -> prepareForImport();
     // Create the krita image
-    const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace(KoID("RGBA"), "");
+    const KoColorSpace* cs = KoColorSpaceRegistry::instance()->rgb8();
     int width = wdg->intWidth->value();
     int height = wdg->intHeight->value();
     KisImageWSP image = new KisImage(doc->undoAdapter(), width, height, cs, "built image");

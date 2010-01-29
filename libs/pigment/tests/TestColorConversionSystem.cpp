@@ -39,7 +39,7 @@ TestColorConversionSystem::TestColorConversionSystem()
             }
         }
     }
-    listModels.append(ModelDepthProfile(AlphaColorModelID.id(), Integer8BitsColorDepthID.id(), ""));
+    listModels.append(ModelDepthProfile(AlphaColorModelID.id(), Integer8BitsColorDepthID.id(), "Dummy profile"));
 }
 
 void TestColorConversionSystem::testConnections()
@@ -63,7 +63,7 @@ void TestColorConversionSystem::testGoodConnections()
         }
     }
     int failed = 0;
-    if (!KoColorSpaceRegistry::instance()->colorSpace("RgbAF32", 0)) {
+    if (!KoColorSpaceRegistry::instance()->colorSpace( RGBAColorModelID.id(), Float32BitsColorDepthID.id(), 0) && KoColorSpaceRegistry::instance()->colorSpace( "KS6", Float32BitsColorDepthID.id(), 0) ) {
         failed = 42;
     }
     QVERIFY2(countFail == failed, QString("%1 tests have fails (it should have been %2)").arg(countFail).arg(failed).toLatin1());

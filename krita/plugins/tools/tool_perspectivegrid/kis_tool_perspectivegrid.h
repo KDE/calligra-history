@@ -22,7 +22,7 @@
 
 #include <kis_perspective_grid.h>
 #include <kis_tool.h>
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 class KisCanvas2;
 
@@ -70,11 +70,11 @@ private:
     KisPerspectiveGridNodeSP nodeNearPoint(KisSubPerspectiveGrid* grid, QPointF point);
 
 protected:
-    QPointF m_dragStart;
     QPointF m_dragEnd;
 
-    bool m_dragging;
-    bool m_hasMoveAfterFirstTime;
+    bool m_drawing;
+    bool m_isFirstPoint;
+    QPointF m_currentPt;
 private:
     typedef QVector<QPointF> QPointFVector;
 
@@ -86,12 +86,12 @@ private:
 };
 
 
-class KisToolPerspectiveGridFactory : public KoToolFactory
+class KisToolPerspectiveGridFactory : public KoToolFactoryBase
 {
 
 public:
     KisToolPerspectiveGridFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolPerspectiveGrid") {
+            : KoToolFactoryBase(parent, "KisToolPerspectiveGrid") {
         setToolTip(i18n("Edit the perspective grid"));
         setToolType(TOOL_TYPE_VIEW);
         setIcon("tool_perspectivegrid");
@@ -101,7 +101,7 @@ public:
 
     virtual ~KisToolPerspectiveGridFactory() {}
 
-    virtual KoTool * createTool(KoCanvasBase * canvas) {
+    virtual KoToolBase * createTool(KoCanvasBase * canvas) {
         return new KisToolPerspectiveGrid(canvas);
     }
 

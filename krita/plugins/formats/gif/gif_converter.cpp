@@ -38,6 +38,7 @@
 #include <KoColorSpaceRegistry.h>
 #include <KoColorSpaceTraits.h>
 
+#include <kis_fill_painter.h>
 #include <kis_types.h>
 #include <kis_doc2.h>
 #include <kis_image.h>
@@ -58,7 +59,8 @@ int doInput(GifFileType* gif, GifByteType* data, int i)
 }
 
 GifConverter::GifConverter(KisDoc2 *doc, KisUndoAdapter *adapter)
-    : m_doc(doc)
+    : m_transparentColorIndex(-1)
+    , m_doc(doc)
     , m_img(0)
 {
     Q_UNUSED(adapter);
@@ -66,6 +68,46 @@ GifConverter::GifConverter(KisDoc2 *doc, KisUndoAdapter *adapter)
 
 GifConverter::~GifConverter()
 {
+}
+
+bool GifConverter::convertLine(GifFileType* gifFile, GifPixelType* line, int row, GifImageDesc &image, KisRandomAccessorPixel &accessor, KisPaintLayerSP layer) {
+
+    GifColorType color;
+
+    if (DGifGetLine(gifFile, line, image.Width) == GIF_ERROR) {
+        return false;
+    }
+    for (int col = 0; col < image.Width; ++col) {
+
+        accessor.moveTo(col + image.Left, row);
+
+        GifPixelType colorIndex = line[col];
+        if (image.ColorMap && colorIndex < image.ColorMap->ColorCount) {
+            color = image.ColorMap->Colors[colorIndex];
+        }
+        else if (gifFile->SColorMap && colorIndex < gifFile->SColorMap->ColorCount) {
+            color = gifFile->SColorMap->Colors[colorIndex];
+        }
+        else {
+            dbgFile << "color" << colorIndex << "not in any map";
+            color.Red = 255;
+            color.Green = 0;
+            color.Blue = 0;
+        }
+
+        quint8* dst = accessor.rawData();
+        KoRgbTraits<quint8>::setRed(dst, color.Red);
+        KoRgbTraits<quint8>::setGreen(dst, color.Green);
+        KoRgbTraits<quint8>::setBlue(dst, color.Blue);
+
+        if (colorIndex == m_transparentColorIndex) {
+            layer->colorSpace()->setAlpha(dst, OPACITY_TRANSPARENT, 1);
+        }
+        else {
+            layer->colorSpace()->setAlpha(dst, OPACITY_OPAQUE, 1);
+        }
+    }
+    return true;
 }
 
 KisNodeSP GifConverter::getNode(GifFileType* gifFile, KisImageWSP kisImage) {
@@ -87,80 +129,26 @@ KisNodeSP GifConverter::getNode(GifFileType* gifFile, KisImageWSP kisImage) {
     Q_ASSERT(gifFile->SBackGroundColor < gifFile->SColorMap->ColorCount);
     GifColorType color = gifFile->SColorMap->Colors[gifFile->SBackGroundColor];
     quint8 fillPixel[4];
-    fillPixel[0] = color.Blue;
-    fillPixel[1] = color.Green;
-    fillPixel[2] = color.Red;
-    if (gifFile->SBackGroundColor == m_transparentColorIndex) {
-        fillPixel[3] = OPACITY_TRANSPARENT;
-    }
-    else {
-        fillPixel[3] = OPACITY_OPAQUE;
-    }
-    layer->paintDevice()->fill(image.Left, image.Top, image.Width, image.Height,
-                               fillPixel);
+
+    // always prefil the layer with transparency
+    KoRgbTraits<quint8>::setRed(fillPixel, color.Red);
+    KoRgbTraits<quint8>::setGreen(fillPixel, color.Green);
+    KoRgbTraits<quint8>::setBlue(fillPixel, color.Blue);
+    layer->colorSpace()->setAlpha(fillPixel, OPACITY_TRANSPARENT, 1);
+
+    layer->paintDevice()->fill(0, 0, m_img->width(), m_img->height(), fillPixel);
 
     GifPixelType* line = new GifPixelType[image.Width];
     KisRandomAccessorPixel accessor = layer->paintDevice()->createRandomAccessor(image.Left, image.Top);
     if (image.Interlace) {
         for (int i = 0; i < 4; i++) {
             for (int row = image.Top + InterlacedOffset[i]; row < image.Top + image.Height; row += InterlacedJumps[i]) {
-                if (DGifGetLine(gifFile, line, image.Width) == GIF_ERROR) {
-                    return 0;
-                }
-                for (int col = 0; col < image.Width; ++col) {
-
-                    accessor.moveTo(col + image.Left, row);
-
-                    GifPixelType colorIndex = line[col];
-                    color = image.ColorMap->Colors[colorIndex];
-
-                    quint8* dst = accessor.rawData();
-                    KoRgbTraits<quint8>::setRed(dst, color.Red);
-                    KoRgbTraits<quint8>::setGreen(dst, color.Blue);
-                    KoRgbTraits<quint8>::setBlue(dst, color.Red);
-                    if (colorIndex == m_transparentColorIndex) {
-                        layer->colorSpace()->setAlpha(dst, OPACITY_TRANSPARENT, 1);
-                    }
-                    else {
-                        layer->colorSpace()->setAlpha(dst, OPACITY_OPAQUE, 1);
-                    }
-                }
+                convertLine(gifFile, line, row, image, accessor, layer);
             }
         }
     } else {
         for (int row = image.Top; row < image.Top + image.Height; ++ row) {
-            if (DGifGetLine(gifFile, line, image.Width) == GIF_ERROR) {
-                return 0;
-            }
-            for (int col = 0; col < image.Width; ++col) {
-
-                accessor.moveTo(col + image.Left, row);
-
-                GifPixelType colorIndex = line[col];
-
-                if (image.ColorMap && colorIndex < image.ColorMap->ColorCount) {
-                    color = image.ColorMap->Colors[colorIndex];
-                }
-                else if (gifFile->SColorMap && colorIndex < gifFile->SColorMap->ColorCount) {
-                    color = gifFile->SColorMap->Colors[colorIndex];
-                }
-                else {
-                    color.Red = 0;
-                    color.Green = 0;
-                    color.Blue = 0;
-                }
-
-                quint8* dst = accessor.rawData();
-                KoRgbTraits<quint8>::setRed(dst, color.Red);
-                KoRgbTraits<quint8>::setGreen(dst, color.Blue);
-                KoRgbTraits<quint8>::setBlue(dst, color.Red);
-                if (colorIndex == m_transparentColorIndex) {
-                    layer->colorSpace()->setAlpha(dst, OPACITY_TRANSPARENT, 1);
-                }
-                else {
-                    layer->colorSpace()->setAlpha(dst, OPACITY_OPAQUE, 1);
-                }
-            }
+            convertLine(gifFile, line, row, image, accessor, layer);
         }
     }
 
@@ -191,15 +179,15 @@ KisImageBuilder_Result GifConverter::decode(const KUrl& uri)
     dbgFile << "reading gif file" << uri;
 
     // Creating the KisImageWSP
-    KisImageWSP img = new KisImage(m_doc->undoAdapter(),
+    m_img = new KisImage(m_doc->undoAdapter(),
                                    gifFile->SWidth,
                                    gifFile->SHeight,
                                    KoColorSpaceRegistry::instance()->rgb8(),
                                    uri.toLocalFile());
-    Q_CHECK_PTR(img);
-    img->lock();
+    Q_CHECK_PTR(m_img);
+    m_img->lock();
 
-    dbgFile << "image" << img << "width" << gifFile->SWidth << "height" << gifFile->SHeight;
+    dbgFile << "image" << m_img << "width" << gifFile->SWidth << "height" << gifFile->SHeight;
 
     GifRecordType recordType = UNDEFINED_RECORD_TYPE;
 
@@ -209,17 +197,17 @@ KisImageBuilder_Result GifConverter::decode(const KUrl& uri)
         case IMAGE_DESC_RECORD_TYPE:
             {
                 dbgFile << "reading IMAGE_DESC_RECORD_TYPE";
-                KisNodeSP node = getNode(gifFile, img);
+                KisNodeSP node = getNode(gifFile, m_img);
                 if (!node) {
                     return KisImageBuilder_RESULT_FAILURE;
                 }
-                img->addNode(node);
+                m_img->addNode(node);
             }
             break;
         case EXTENSION_RECORD_TYPE:
             {
                 dbgFile << "reading EXTENSION_RECORD_TYPE";
-                int extCode, len;
+                int extCode;
                 GifByteType* extData = 0;
                 if (DGifGetExtension(gifFile, &extCode, &extData) == GIF_ERROR) {
                     warnFile << "Error reading extension";
@@ -227,9 +215,9 @@ KisImageBuilder_Result GifConverter::decode(const KUrl& uri)
                 }
 
                 if (extData != 0) {
-                    len = extData[0];
+                    int len = extData[0];
 
-                    dbgFile << "\tCode" << extCode << "lenght" << len;
+                    dbgFile << "\tCode" << extCode << "length" << len << extData[0] << extData[1] << extData[2] << extData[3] << extData[4];
 
                     switch(extCode) {
                     case GRAPHICS_EXT_FUNC_CODE:
@@ -239,8 +227,8 @@ KisImageBuilder_Result GifConverter::decode(const KUrl& uri)
                             // wouldn't store and save the animation information anyway.
                             if (extData[1] & 0x01)
                             {
-                                m_transparentColorIndex = extData[3];
-                                dbgFile << "Transparent color index" << m_transparentColorIndex;
+                                m_transparentColorIndex = extData[4];
+                                dbgFile << "\t\tTransparent color index" << m_transparentColorIndex;
                             }
                         }
                         break;
@@ -274,8 +262,7 @@ KisImageBuilder_Result GifConverter::decode(const KUrl& uri)
         }
     }
 
-    img->unlock();
-    m_img = img;
+    m_img->unlock();
     return KisImageBuilder_RESULT_OK;
 }
 
@@ -312,6 +299,49 @@ KisImageWSP GifConverter::image()
 }
 
 
+int doOutput(GifFileType* gif, const GifByteType * data, int i)
+{
+    QIODevice* out = (QIODevice*)gif->UserData;
+    return out->write((const char*)data, i);
+}
+
+int fillColorMap(const QImage& image, ColorMapObject& cmap) {
+
+    Q_ASSERT(image.format() == QImage::Format_Indexed8);
+
+    QVector<QRgb> colorTable = image.colorTable();
+
+    dbgFile << "Color table size" << colorTable.size();
+
+    Q_ASSERT(colorTable.size() <= 256);
+
+    // numColors must be a power of 2
+    int numColors = 1 << BitSize(image.numColors());
+
+    cmap.ColorCount = numColors;
+    cmap.BitsPerPixel = 8;
+    GifColorType* colorValues = (GifColorType*)malloc(cmap.ColorCount * sizeof(GifColorType));
+    cmap.Colors = colorValues;
+    int c = 0;
+    for(; c < image.numColors(); ++c)
+    {
+        colorValues[c].Red = qRed(colorTable[c]);
+        colorValues[c].Green = qGreen(colorTable[c]);
+        colorValues[c].Blue = qBlue(colorTable[c]);
+    }
+    // In case we had an actual number of colors that's not a power of 2,
+    // fill the rest with something (black perhaps).
+    for (; c < numColors; ++c)
+    {
+        colorValues[c].Red = 0;
+        colorValues[c].Green = 0;
+        colorValues[c].Blue = 0;
+    }
+
+    return numColors;
+}
+
+
 KisImageBuilder_Result GifConverter::buildFile(const KUrl& uri, KisImageWSP image)
 {
     if (!image)
@@ -323,23 +353,90 @@ KisImageBuilder_Result GifConverter::buildFile(const KUrl& uri, KisImageWSP imag
     if (!uri.isLocalFile())
         return KisImageBuilder_RESULT_NOT_LOCAL;
 
+    // Open file for writing
+    QFile file(QFile::encodeName(uri.toLocalFile()));
+    if (!file.open(QIODevice::WriteOnly)) {
+        return (KisImageBuilder_RESULT_FAILURE);
+    }
+
     m_img = image;
 
     // get a list of all layers converted to 8 bit indexed QImages
     KisGifWriterVisitor visitor;
     m_img->rootLayer()->accept(visitor);
 
+    dbgFile << "Created" << visitor.m_layers.count() << "indexed layers";
 
-    // Open file for writing
-#if 0
-    FILE *fp = fopen(QFile::encodeName(uri.path()), "wb");
-    if (!fp)
-    {
-        return (KisImageBuilder_RESULT_FAILURE);
+    // get a global colormap from the projection
+    QImage projection = m_img->projection()->convertToQImage(0).convertToFormat(QImage::Format_Indexed8);
+    ColorMapObject cmap;
+    int numColors = fillColorMap(projection, cmap);
+
+    dbgFile << "Filled colormap with" << numColors << "colors";
+
+    EGifSetGifVersion("89a");
+    GifFileType* gif = EGifOpen(&file, doOutput);
+
+    if (EGifPutScreenDesc(gif, m_img->width(), m_img->height(), numColors, 0, &cmap) == GIF_ERROR) {
+        dbgFile << "Failed to put the gif screen" << GifLastError();
+        return KisImageBuilder_RESULT_FAILURE;
     }
-    uint height = img->height();
-    uint width = img->width();
-#endif
+
+    dbgFile << "gif screen width" << m_img->width() << ", height" << m_img->height();
+
+    QString comments = m_doc->documentInfo()->aboutInfo("comments");
+    if (!comments.isEmpty()) {
+        dbgFile << "Comments:" << comments;
+        EGifPutComment(gif, comments.toAscii().constData());
+    }
+
+    // disposition for the frames go in packed fields here, but we only
+    // care that Qt puts the transparent color in the first entry in its
+    // colortable.
+    char extensionBlock[4];
+    extensionBlock[0] = 9;
+    extensionBlock[1] = 20;
+    extensionBlock[2] = 0;
+    extensionBlock[3] = 0;
+
+    EGifPutExtension(gif, GRAPHICS_EXT_FUNC_CODE, 4, &extensionBlock);
+
+
+    // now save all the layers as gif images.
+    foreach(const IndexedLayer layer, visitor.m_layers) {
+
+        ColorMapObject cmapLayer;
+        int numColorsLayer = fillColorMap(layer.image, cmapLayer);
+        Q_ASSERT(numColorsLayer <= 256);
+
+        QRect rc(layer.topLeft, layer.image.size());
+        // Make sure the individual layers are not outside the gif screen bounds
+        rc = m_img->bounds().intersected(rc);
+
+        dbgFile << "layer size" << rc << "image bounds" << m_img->bounds();
+
+        if (EGifPutImageDesc(gif, rc.x(), rc.y(), rc.width(), rc.height(), 0, &cmapLayer) == GIF_ERROR) {
+            dbgFile << "Failed to add layer" << GifLastError();
+            return KisImageBuilder_RESULT_FAILURE;
+        }
+
+        int rowcount = rc.height();
+        int lineLength = rc.width();
+
+        dbgFile << "rows" << rowcount << "line length" << lineLength;
+
+        for (int row = 0; row < rowcount; ++row)
+        {
+            const uchar* line = layer.image.scanLine(row);
+            if (EGifPutLine(gif, (GifPixelType*)line, lineLength) == GIF_ERROR) {
+                dbgFile << "Failed to save scanline" << GifLastError() << "at row" << row;
+                return KisImageBuilder_RESULT_FAILURE;
+            }
+        }
+
+    }
+
+    EGifCloseFile(gif);
 
     return KisImageBuilder_RESULT_OK;
 }

@@ -37,7 +37,7 @@
 #include <QBuffer>
 
 CollectionShapeFactory::CollectionShapeFactory(QObject *parent, const QString &id, KoShape* shape)
-    : KoShapeFactory(parent, id, shape->name()), m_shape(shape)
+    : KoShapeFactoryBase(parent, id, shape->name()), m_shape(shape)
 {
 }
 
@@ -46,7 +46,7 @@ CollectionShapeFactory::~CollectionShapeFactory()
     delete m_shape;
 }
 
-KoShape* CollectionShapeFactory::createDefaultShape( KoShapeControllerBase * shapeController )
+KoShape *CollectionShapeFactory::createDefaultShape(KoResourceManager *documentResources) const
 {
     QList<KoShape*> shapes;
 
@@ -89,7 +89,7 @@ KoShape* CollectionShapeFactory::createDefaultShape( KoShapeControllerBase * sha
         }
 
         KoOdfLoadingContext loadingContext(odfStore.styles(), odfStore.store());
-        KoShapeLoadingContext context(loadingContext, shapeController->dataCenterMap());
+        KoShapeLoadingContext context(loadingContext, documentResources);
 
         KoXmlElement element;
 
@@ -105,26 +105,4 @@ KoShape* CollectionShapeFactory::createDefaultShape( KoShapeControllerBase * sha
 
     delete data;
     return shape;
-}
-
-KoShape* CollectionShapeFactory::createShape( const KoProperties* params, KoShapeControllerBase * shapeController )
-{
-    Q_UNUSED(params)
-    Q_UNUSED(shapeController);
-    return createDefaultShape();
-}
-
-KoShape* CollectionShapeFactory::createDefaultShape() const
-{
-    // this code should never be reached as createDefaultShape( KoShapeControllerBase * ) is reimplemented
-    Q_ASSERT( false );
-    return 0;
-}
-
-KoShape* CollectionShapeFactory::createShape(const KoProperties* params) const
-{
-    Q_UNUSED( params );
-    // this code should never be reached as createDefaultShape( KoShapeControllerBase * ) is reimplemented
-    Q_ASSERT( false );
-    return 0;
 }

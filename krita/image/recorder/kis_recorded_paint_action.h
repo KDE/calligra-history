@@ -44,7 +44,7 @@ public:
                            KoColor backgroundColor,
                            int opacity,
                            bool paintIncremental,
-                           const KoCompositeOp * compositeOp);
+                           const QString& compositeOp);
 
     KisRecordedPaintAction(const KisRecordedPaintAction&);
 
@@ -58,7 +58,15 @@ protected:
 
     virtual void playPaint(const KisPlayInfo&, KisPainter* painter) const = 0;
 
+public:
     KisPaintOpPresetSP paintOpPreset() const;
+    void setPaintOpPreset(KisPaintOpPresetSP preset);
+    int opacity() const;
+    void setOpacity(int );
+    KoColor paintColor() const;
+    void setPaintColor(const KoColor& color);
+    KoColor backgroundColor() const;
+    void setBackgroundColor(const KoColor& color);
 private:
 
     struct Private;
@@ -72,7 +80,7 @@ public:
     virtual ~KisRecordedPaintActionFactory() {}
 protected:
 
-    KisPaintOpPresetSP paintOpPresetFromXML(const QString& paintOpId, const QDomElement& elt, KisImageWSP image);
+    KisPaintOpPresetSP paintOpPresetFromXML(const QDomElement& elt);
 };
 
 

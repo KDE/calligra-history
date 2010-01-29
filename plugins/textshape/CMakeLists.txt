@@ -17,6 +17,7 @@ SET ( textshape_SRCS
     TextShape.cpp
     TextShapeFactory.cpp
     TextTool.cpp
+    TextEditingPluginContainer.cpp
     TextToolFactory.cpp
     Layout.cpp
     ListItemsHelper.cpp
@@ -37,7 +38,6 @@ SET ( textshape_SRCS
     dialogs/ParagraphDecorations.cpp
     dialogs/ParagraphBulletsNumbers.cpp
     dialogs/ParagraphSettingsDialog.cpp
-    dialogs/OptionButton.cpp
     dialogs/ListsSpinBox.cpp
     dialogs/StylesModel.cpp
     dialogs/StyleManager.cpp
@@ -58,7 +58,6 @@ SET ( textshape_SRCS
     dialogs/ChangeConfigureDialog.cpp
     dialogs/TrackedChangeModel.cpp
     dialogs/TrackedChangeManager.cpp
-    dialogs/modeltest.cpp
 
     commands/ChangeListCommand.cpp
     commands/ChangeListLevelCommand.cpp
@@ -69,6 +68,7 @@ SET ( textshape_SRCS
     commands/ShowChangesCommand.cpp
     commands/DeleteCommand.cpp
     commands/AcceptChangeCommand.cpp
+    commands/RejectChangeCommand.cpp
 )
 
 kde4_add_ui_files(textshape_SRCS

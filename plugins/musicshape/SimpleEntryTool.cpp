@@ -41,7 +41,7 @@
 #include "MusicCursor.h"
 
 #include "SimpleEntryTool.h"
-#include "SimpleEntryTool.moc"
+#include <SimpleEntryTool.moc>
 
 #include "dialogs/SimpleEntryWidget.h"
 
@@ -78,7 +78,7 @@
 using namespace MusicCore;
 
 SimpleEntryTool::SimpleEntryTool( KoCanvasBase* canvas )
-    : KoTool( canvas ),
+    : KoToolBase( canvas ),
     m_musicshape(0),
     m_voice(0),
     m_selectionStart(-1),

@@ -20,16 +20,16 @@
 #ifndef ARTISTICTEXTTOOLFACTORY_H
 #define ARTISTICTEXTTOOLFACTORY_H
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
-class ArtisticTextToolFactory : public KoToolFactory
+class ArtisticTextToolFactory : public KoToolFactoryBase
 {
     Q_OBJECT
     public:
         explicit ArtisticTextToolFactory( QObject *parent );
         ~ArtisticTextToolFactory();
 
-        KoTool * createTool( KoCanvasBase *canvas );
+        KoToolBase * createTool( KoCanvasBase *canvas );
 };
 
 #endif // ARTISTICTEXTTOOLFACTORY_H

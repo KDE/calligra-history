@@ -18,7 +18,7 @@
  */
 #include "CollectionItemModel.h"
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 #include <kdebug.h>
 
@@ -121,4 +121,4 @@ KoProperties* CollectionItemModel::properties(const QModelIndex& index) const
     return m_shapeTemplateList[index.row()].properties;
 }
 
-#include "CollectionItemModel.moc"
+#include <CollectionItemModel.moc>

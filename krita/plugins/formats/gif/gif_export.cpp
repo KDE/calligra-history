@@ -22,7 +22,8 @@
 
 #include <kapplication.h>
 #include <kdialog.h>
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
+#include <kmessagebox.h>
 
 #include <KoFilterChain.h>
 #include <KoColorSpaceConstants.h>
@@ -37,10 +38,10 @@
 
 class KisExternalLayer;
 
-typedef KGenericFactory<gifExport> ExportFactory;
-K_EXPORT_COMPONENT_FACTORY(libkritagifexport, ExportFactory("kofficefilters"))
+K_PLUGIN_FACTORY(ExportFactory, registerPlugin<gifExport>();)
+K_EXPORT_PLUGIN(ExportFactory("kofficefilters"))
 
-gifExport::gifExport(QObject *parent, const QStringList&) : KoFilter(parent)
+gifExport::gifExport(QObject *parent, const QVariantList &) : KoFilter(parent)
 {
 }
 
@@ -54,6 +55,15 @@ KoFilter::ConversionStatus gifExport::convert(const QByteArray& from, const QByt
 
     if (from != "application/x-krita")
         return KoFilter::NotImplemented;
+
+    if (KMessageBox::warningContinueCancel(0,
+                                       i18n("You are trying to save an image in the GIF format.\n\n"
+                                            "The GIF file format does not support true color images.\n"
+                                            "All Krita images are true color. There will be changes in "
+                                            "color and (if present) animation effects."),
+                                       i18n("Krita")) == KMessageBox::Cancel) {
+        return KoFilter::UserCancelled;
+    }
 
     KisDoc2 *output = dynamic_cast<KisDoc2*>(m_chain->inputDocument());
     QString filename = m_chain->outputFile();

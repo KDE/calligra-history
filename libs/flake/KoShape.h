@@ -54,7 +54,7 @@ class KoCanvasBase;
 class KoShapeLoadingContext;
 class KoGenStyle;
 class KoShapeControllerBase;
-class KoDataCenter;
+class KoDataCenterBase;
 class KoShapeShadow;
 class KoEventAction;
 class KoShapePrivate;
@@ -160,7 +160,7 @@ public:
      * @param painter used for painting the shape
      * @param converter to convert between internal and view coordinates.
      * @param canvas the canvas that requested this paint.  This can be used to retrieve canvas specific properties
-     *      like selection and get a reference to the KoCanvasResourceProvider.
+     *      like selection and get a reference to the KoResourceManager.
      */
     virtual void paintDecorations(QPainter &painter, const KoViewConverter &converter, const KoCanvasBase *canvas);
 
@@ -198,13 +198,6 @@ public:
      * The office:event-listeners and draw:glue-point are saved.
      */
     void saveOdfCommonChildElements(KoShapeSavingContext &context) const;
-
-    /**
-     * After the shape has been created this method is called so it can get access to any DataCenter it
-     * might want.
-     * The default implementation does nothing.
-     */
-    virtual void init(const QMap<QString, KoDataCenter*> &dataCenterMap);
 
     /**
      * @brief Scale the shape using the zero-point which is the top-left corner.
@@ -610,7 +603,7 @@ public:
 
     /**
      * Return the Id of this shape, identifying the type of shape by the id of the factory.
-     * @see KoShapeFactory::shapeId()
+     * @see KoShapeFactoryBase::shapeId()
      * @return the id of the shape-type
      */
     QString shapeId() const;
@@ -618,7 +611,7 @@ public:
     /**
      * Set the Id of this shape.  A shapeFactory is expected to set the Id at creation
      * so applications can find out what kind of shape this is.
-     * @see KoShapeFactory::shapeId()
+     * @see KoShapeFactoryBase::shapeId()
      * @param id the ID from the factory that created this shape
      */
     void setShapeId(const QString &id);

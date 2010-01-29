@@ -64,7 +64,7 @@
 #include <KoMainWindow.h>
 #include <KoLineBorder.h>
 #include <KoCanvasController.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoFilterManager.h>
 #include <KoUnitDoubleSpinBox.h>
 #include <KoPageLayoutDialog.h>
@@ -102,7 +102,7 @@
 #include <KoCopyController.h>
 #include <KoPasteController.h>
 #include <KoSnapGuide.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeRegistry.h>
 #include <KoImageCollection.h>
 #include <KoImageData.h>
@@ -261,10 +261,10 @@ KarbonView::KarbonView(KarbonPart* p, QWidget* parent)
     d->horizRuler->setUnit(p->unit());
     d->horizRuler->setRightToLeft(false);
     d->horizRuler->setVisible(false);
-    new KoRulerController(d->horizRuler, d->canvas->resourceProvider());
+    new KoRulerController(d->horizRuler, d->canvas->resourceManager());
 
     layout->addWidget(d->horizRuler, 0, 1);
-    connect(p, SIGNAL(unitChanged(KoUnit)), this, SLOT(updateUnit(KoUnit)));
+    connect(p, SIGNAL(unitChanged(const KoUnit&)), this, SLOT(updateUnit(const KoUnit&)));
 
     d->vertRuler = new KoRuler(this, Qt::Vertical, d->canvas->viewConverter());
     d->vertRuler->setShowMousePosition(true);
@@ -365,7 +365,7 @@ void KarbonView::dropEvent(QDropEvent *e)
         if (! part())
             return;
 
-        if (d->canvas->resourceProvider()->intResource(KoCanvasResource::ActiveStyleType) == KoFlake::Foreground) {
+        if (d->canvas->resourceManager()->intResource(KoCanvasResource::ActiveStyleType) == KoFlake::Foreground) {
             QList<KoShapeBorderModel*> borders;
             QList<KoShape*> selectedShapes = selection->selectedShapes();
             foreach(KoShape * shape, selectedShapes) {
@@ -411,7 +411,7 @@ void KarbonView::fileImportGraphic()
     QString currentMimeFilter = dialog ? dialog->currentMimeFilter() : QString();
     delete dialog;
 
-    QMap<QString, KoDataCenter*> dataCenters = part()->document().dataCenterMap();
+    QMap<QString, KoDataCenterBase*> dataCenters = part()->document().dataCenterMap();
 
     KarbonPart importPart;
     // use data centers of this document for importing
@@ -445,14 +445,14 @@ void KarbonView::fileImportGraphic()
             KMessageBox::error(0, i18n("Could not load image."), i18n("Import graphic"), 0);
             return;
         }
-        KoShapeFactory * factory = KoShapeRegistry::instance()->get("PictureShape");
+        KoShapeFactoryBase * factory = KoShapeRegistry::instance()->get("PictureShape");
         if (!factory) {
             KMessageBox::error(0, i18n("Could not create image shape."), i18n("Import graphic"), 0);
             return;
         }
 
-        KoShape * picture = factory->createDefaultShapeAndInit(dataCenters);
-        KoImageCollection * imageCollection = dynamic_cast<KoImageCollection*>(dataCenters["ImageCollection"]);
+        KoShape *picture = factory->createDefaultShape(part()->document().resourceManager());
+        KoImageCollection *imageCollection = part()->document().resourceManager()->imageCollection();
         if (!picture || !imageCollection) {
             KMessageBox::error(0, i18n("Could not create image shape."), i18n("Import graphic"), 0);
             return;
@@ -1166,11 +1166,11 @@ void KarbonView::updateReadWrite(bool readwrite)
     Q_UNUSED(readwrite);
 }
 
-void KarbonView::updateUnit(KoUnit unit)
+void KarbonView::updateUnit(const KoUnit &unit)
 {
     d->horizRuler->setUnit(unit);
     d->vertRuler->setUnit(unit);
-    d->canvas->resourceProvider()->setUnitChanged();
+    d->canvas->resourceManager()->setResource(KoCanvasResource::Unit, unit);
 }
 
 QList<KoPathShape*> KarbonView::selectedPathShapes()

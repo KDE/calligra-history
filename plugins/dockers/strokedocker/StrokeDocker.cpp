@@ -33,8 +33,8 @@
 #include <KoToolManager.h>
 #include <KoCanvasBase.h>
 #include <KoCanvasController.h>
-#include <KoCanvasResourceProvider.h>
-#include <KoDockFactory.h>
+#include <KoResourceManager.h>
+#include <KoDockFactoryBase.h>
 #include <KoUnitDoubleSpinBox.h>
 #include <KoShapeManager.h>
 #include <KoShapeBorderCommand.h>
@@ -186,7 +186,7 @@ void StrokeDocker::applyChanges()
     KoCanvasController* canvasController = KoToolManager::instance()->activeCanvasController();
     KoSelection *selection = canvasController->canvas()->shapeManager()->selection();
 
-    canvasController->canvas()->resourceProvider()->setActiveBorder( d->border );
+    canvasController->canvas()->resourceManager()->setActiveBorder( d->border );
 
     if( ! selection || ! selection->count() )
         return;
@@ -301,7 +301,7 @@ void StrokeDocker::setCanvas( KoCanvasBase *canvas )
     {
         connect( canvas->shapeManager()->selection(), SIGNAL( selectionChanged() ), 
                  this, SLOT( selectionChanged() ) );
-        connect( canvas->resourceProvider(), SIGNAL(resourceChanged(int, const QVariant&)),
+        connect( canvas->resourceManager(), SIGNAL(resourceChanged(int, const QVariant&)),
                  this, SLOT(resourceChanged(int, const QVariant&)) );
         setUnit( canvas->unit() );
     }
@@ -309,15 +309,9 @@ void StrokeDocker::setCanvas( KoCanvasBase *canvas )
 
 void StrokeDocker::resourceChanged(int key, const QVariant & value )
 {
-    Q_UNUSED(value);
-
-    switch(key)
-    {
+    switch(key) {
     case KoCanvasResource::Unit:
-        {
-            KoCanvasController* canvasController = KoToolManager::instance()->activeCanvasController();
-            setUnit( canvasController->canvas()->unit() );
-        }
+        setUnit(value.value<KoUnit>());
         break;
     }
 }
@@ -340,5 +334,5 @@ void StrokeDocker::locationChanged(Qt::DockWidgetArea area)
     d->layout->invalidate();
 }
 
-#include "StrokeDocker.moc"
+#include <StrokeDocker.moc>
 

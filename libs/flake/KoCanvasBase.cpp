@@ -19,7 +19,7 @@
 */
 
 #include "KoCanvasBase.h"
-#include "KoCanvasResourceProvider.h"
+#include "KoResourceManager.h"
 #include "KoShapeController.h"
 #include "KoCanvasController.h"
 #include "KoSnapGuide.h"
@@ -33,14 +33,14 @@
 class KoCanvasBase::Private
 {
 public:
-    Private() : shapeController(0), resourceProvider(0), controller(0) {}
+    Private() : shapeController(0), resourceManager(0), controller(0) {}
     ~Private() {
         delete shapeController;
-        delete resourceProvider;
+        delete resourceManager;
         delete snapGuide;
     }
     KoShapeController *shapeController;
-    KoCanvasResourceProvider * resourceProvider;
+    KoResourceManager * resourceManager;
     KoCanvasController *controller;
     KoSnapGuide * snapGuide;
 };
@@ -48,7 +48,7 @@ public:
 KoCanvasBase::KoCanvasBase(KoShapeControllerBase *shapeControllerBase)
         : d(new Private())
 {
-    d->resourceProvider = new KoCanvasResourceProvider();
+    d->resourceManager = new KoResourceManager();
     d->shapeController = new KoShapeController(this, shapeControllerBase);
     d->snapGuide = new KoSnapGuide(this);
 }
@@ -64,9 +64,9 @@ KoShapeController *KoCanvasBase::shapeController() const
     return d->shapeController;
 }
 
-KoCanvasResourceProvider *KoCanvasBase::resourceProvider() const
+KoResourceManager *KoCanvasBase::resourceManager() const
 {
-    return d->resourceProvider;
+    return d->resourceManager;
 }
 
 void KoCanvasBase::ensureVisible(const QRectF &rect)

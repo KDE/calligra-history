@@ -20,16 +20,16 @@
 #ifndef _KARBONCALLIGRAPHYTOOLFACTORY_H_
 #define _KARBONCALLIGRAPHYTOOLFACTORY_H_
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
-class KarbonCalligraphyToolFactory : public KoToolFactory
+class KarbonCalligraphyToolFactory : public KoToolFactoryBase
 {
     Q_OBJECT
 public:
     explicit KarbonCalligraphyToolFactory(QObject *parent);
     ~KarbonCalligraphyToolFactory();
 
-    KoTool * createTool(KoCanvasBase *canvas);
+    KoToolBase * createTool(KoCanvasBase *canvas);
 };
 
 #endif // _KARBONCALLIGRAPHYTOOLFACTORY_H_

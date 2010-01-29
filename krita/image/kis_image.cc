@@ -255,7 +255,7 @@ void KisImage::removeGlobalSelection()
     m_d->globalSelection = 0;
 }
 
-KisSelectionSP KisImage::deleselectedGlobalSelection()
+KisSelectionSP KisImage::deselectedGlobalSelection()
 {
     return m_d->deselectedGlobalSelection;
 }
@@ -631,7 +631,7 @@ void KisImage::setProfile(const KoColorProfile *profile)
 
     kDebug() << profile;
 
-    const KoColorSpace *dstCs = KoColorSpaceRegistry::instance()->colorSpace(colorSpace()->id(), profile);
+    const KoColorSpace *dstCs = KoColorSpaceRegistry::instance()->colorSpace(colorSpace()->colorModelId().id(), colorSpace()->colorDepthId().id(), profile);
     if (dstCs) {
 
         lock();

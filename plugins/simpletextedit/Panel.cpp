@@ -23,7 +23,7 @@
 #include <KoDockRegistry.h>
 #include <KoCanvasBase.h>
 #include <KoToolProxy.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoTextEditor.h>
 #include <KoText.h>
 
@@ -104,7 +104,7 @@ void Panel::setCanvas (KoCanvasBase *canvas)
     m_canvas = canvas;
     Q_ASSERT(m_canvas);
     connect(m_canvas->toolProxy(), SIGNAL(toolChanged(const QString&)), this, SLOT(toolChangeDetected(const QString&)));
-    connect(m_canvas->resourceProvider(), SIGNAL(resourceChanged(int,const QVariant &)),
+    connect(m_canvas->resourceManager(), SIGNAL(resourceChanged(int,const QVariant &)),
             this, SLOT(resourceChanged(int,const QVariant&)));
 }
 
@@ -215,4 +215,4 @@ void Panel::style3ButtonClicked()
    Make the icon size 'configurable' using a context menu.
  */
 
-#include "Panel.moc"
+#include <Panel.moc>

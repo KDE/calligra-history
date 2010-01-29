@@ -45,8 +45,9 @@ public:
     std::vector<UString> externBookTable;
     std::vector<UString> externSheetTable;
 
-    // for NAME and EXTERNNAME
+    // for NAME
     std::vector<UString> nameTable;
+    // for EXTERNNAME
     std::vector<UString> externNameTable;
 
     // password protection flag
@@ -77,7 +78,7 @@ public:
 };
 
 GlobalsSubStreamHandler::GlobalsSubStreamHandler(Workbook* workbook, unsigned version)
-        : d(new Private)
+        : SubStreamHandler(), FormulaDecoder(), d(new Private)
 {
     d->workbook = workbook;
     d->version = version;
@@ -190,16 +191,16 @@ UString GlobalsSubStreamHandler::nameFromIndex(unsigned index) const
 {
     if (index < d->nameTable.size())
         return d->nameTable[index];
-    else
-        return UString();
+    std::cerr << "Invalid index in GlobalsSubStreamHandler::nameFromIndex index=" << index << " size=" << d->externNameTable.size() << std::endl;
+    return UString();
 }
 
 UString GlobalsSubStreamHandler::externNameFromIndex(unsigned index) const
 {
     if (index < d->externNameTable.size())
         return d->externNameTable[index];
-    else
-        return UString();
+    std::cerr << "Invalid index in GlobalsSubStreamHandler::externNameFromIndex index=" << index << " size=" << d->externNameTable.size() << std::endl;
+    return UString();
 }
 
 FormatFont GlobalsSubStreamHandler::convertedFont(unsigned index) const
@@ -478,6 +479,18 @@ Format GlobalsSubStreamHandler::convertedFormat(unsigned index) const
     pen.color = convertedColor(xf.bottomBorderColor());
     borders.setBottomBorder(pen);
 
+    if(xf.diagonalTopLeft()) {
+        pen = convertBorderStyle(xf.diagonalStyle());
+        pen.color = convertedColor(xf.diagonalColor());
+        borders.setTopLeftBorder(pen);
+    }
+
+    if(xf.diagonalBottomLeft()) {
+        pen = convertBorderStyle(xf.diagonalStyle());
+        pen.color = convertedColor(xf.diagonalColor());
+        borders.setBottomLeftBorder(pen);
+    }
+    
     format.setBorders(borders);
 
     FormatBackground background;
@@ -531,7 +544,7 @@ void GlobalsSubStreamHandler::handleRecord(Record* record)
     else if (type == 0xA) {} //EofRecord
     //else if (type == 0xEC) Q_ASSERT(false); // MsoDrawing
     else {
-        std::cout << "Unhandled global record with type=" << type << " name=" << record->name() << std::endl;
+        //std::cout << "Unhandled global record with type=" << type << " name=" << record->name() << std::endl;
     }
 
 }
@@ -663,6 +676,16 @@ void GlobalsSubStreamHandler::handleName(NameRecord* record)
     if (!record) return;
 
     d->nameTable.push_back(record->definedName());
+    
+    if(record->m_formula.id() != FormulaToken::Unused) {
+        FormulaTokens tokens;
+        tokens.push_back(record->m_formula);
+        UString f = decodeFormula(0, 0, false, tokens);
+        if(!f.isEmpty()) {
+            UString n = record->definedName();
+            d->workbook->setNamedArea(n, f);
+        }
+    }
 }
 
 void GlobalsSubStreamHandler::handlePalette(PaletteRecord* record)
@@ -731,12 +754,11 @@ void GlobalsSubStreamHandler::handleMsoDrawingGroup(MsoDrawingGroupRecord* recor
 
 MsoDrawingBlibItem* GlobalsSubStreamHandler::drawing(unsigned long pid) const
 {
-    const uint index = pid - 1;
-    if(index < 0 || index >= d->drawingTable.size()) {
-        std::cerr << "GlobalsSubStreamHandler::drawing: Invalid index=" << index << std::endl;
+    if (pid <= 0 || pid > d->drawingTable.size()) {
+        std::cerr << "GlobalsSubStreamHandler::drawing: Invalid index=" << (pid - 1) << std::endl;
         return 0;
     }
-    return d->drawingTable.at(index);
+    return d->drawingTable.at(pid - 1);
 }
 
 Store* GlobalsSubStreamHandler::store() const

@@ -21,7 +21,7 @@
 
 #include "kis_tool_freehand.h"
 
-#include "KoToolFactory.h"
+#include "KoToolFactoryBase.h"
 
 #include <flake/kis_node_shape.h>
 
@@ -72,12 +72,12 @@ private:
 };
 
 
-class KisToolBrushFactory : public KoToolFactory
+class KisToolBrushFactory : public KoToolFactoryBase
 {
 
 public:
     KisToolBrushFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KritaShape/KisToolBrush") {
+            : KoToolFactoryBase(parent, "KritaShape/KisToolBrush") {
 
         setToolTip(i18n("Paint with brushes"));
 
@@ -92,7 +92,7 @@ public:
 
     virtual ~KisToolBrushFactory() {}
 
-    virtual KoTool * createTool(KoCanvasBase *canvas) {
+    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
         return new KisToolBrush(canvas);
     }
 

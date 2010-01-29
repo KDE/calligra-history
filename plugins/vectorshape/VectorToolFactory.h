@@ -22,16 +22,16 @@
 #define VECTORTOOL_FACTORY_H
 
 // Qt
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 
-class VectorToolFactory : public KoToolFactory {
+class VectorToolFactory : public KoToolFactoryBase {
     Q_OBJECT
 public:
     explicit VectorToolFactory(QObject *parent);
     ~VectorToolFactory();
 
-    KoTool * createTool(KoCanvasBase *canvas);
+    KoToolBase * createTool(KoCanvasBase *canvas);
 };
 
 #endif

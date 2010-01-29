@@ -53,7 +53,7 @@
 #include <ktemporaryfile.h>
 
 #include <KoApplication.h>
-#include <KoDataCenter.h>
+#include <KoDataCenterBase.h>
 #include <KoDocumentInfo.h>
 #include <KoMainWindow.h>
 #include <KoOasisSettings.h>
@@ -61,8 +61,8 @@
 #include <KoOdfStylesReader.h>
 #include <KoOdfReadStore.h>
 #include <KoOdfWriteStore.h>
-#include <KoShapeConfigFactory.h>
-#include <KoShapeFactory.h>
+#include <KoShapeConfigFactoryBase.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeManager.h>
 #include <KoShapeRegistry.h>
 #include <KoStoreDevice.h>
@@ -71,7 +71,6 @@
 #include <KoXmlWriter.h>
 #include <KoZoomHandler.h>
 #include <KoShapeSavingContext.h>
-#include <KoUndoStack.h>
 
 #include "BindingManager.h"
 #include "CalculationSettings.h"
@@ -112,8 +111,6 @@ class Doc::Private
 {
 public:
     Map *map;
-    QMap<QString, KoDataCenter *>  dataCenterMap;
-
     static QList<Doc*> s_docs;
     static int s_docId;
 
@@ -125,9 +122,10 @@ public:
 
     // document properties
     int syntaxVersion;
-bool configLoadFromFile       : 1;
+    bool configLoadFromFile : 1;
     QStringList spellListIgnoreAll;
     SavedDocParts savedDocParts;
+    SheetAccessModel *sheetAccessModel;
 };
 
 /*****************************************************************************
@@ -157,21 +155,14 @@ Doc::Doc(QWidget *parentWidget, QObject* parent, bool singleViewMode)
     // default document properties
     d->syntaxVersion = CURRENT_SYNTAX_VERSION;
 
-    d->dataCenterMap["SheetAccessModel"] = new SheetAccessModel( d->map );
+    d->sheetAccessModel = new SheetAccessModel(d->map);
 
     // Init chart shape factory with KSpread's specific configuration panels.
-    QList<KoShapeConfigFactory*> panels = ChartDialog::panels(this);
-    // Ask every shapefactory to populate the dataCenterMap
-    foreach(QString id, KoShapeRegistry::instance()->keys()) {
-        KoShapeFactory *shapeFactory = KoShapeRegistry::instance()->value(id);
-        shapeFactory->populateDataCenterMap(d->dataCenterMap);
-        if (id == ChartShapeId) {
-            shapeFactory->setOptionPanels(panels);
-        }
+    KoShapeFactoryBase *chartShape = KoShapeRegistry::instance()->value(ChartShapeId);
+    if (chartShape) {
+        QList<KoShapeConfigFactoryBase*> panels = ChartDialog::panels(this);
+        chartShape->setOptionPanels(panels);
     }
-
-    // Populate the document undoStack in the dataCenterMap. This can be used later by shapes for their undo/redo mechanism.                                               
-    d->dataCenterMap["UndoStack"] = undoStack();
 
     // Load the function modules.
     FunctionModuleRegistry::instance();
@@ -184,8 +175,7 @@ Doc::~Doc()
         saveConfig();
 
     delete d->map;
-    qDeleteAll(d->dataCenterMap);
-
+    delete d->sheetAccessModel;
     delete d;
 }
 
@@ -226,11 +216,6 @@ void Doc::initEmpty()
 Map *Doc::map() const
 {
     return d->map;
-}
-
-QMap<QString, KoDataCenter *> Doc::dataCenterMap() const
-{
-    return d->dataCenterMap;
 }
 
 void Doc::saveConfig()
@@ -727,9 +712,6 @@ bool Doc::completeLoading(KoStore* store)
 
     setModified(false);
     bool ok = map()->completeLoading(store);
-    foreach(KoDataCenter *dataCenter, d->dataCenterMap) {
-        ok = ok && dataCenter->completeLoading(store);
-    }
     return ok;
 }
 
@@ -981,6 +963,10 @@ void Doc::repaint(const QRectF& rect)
     }
 }
 
+SheetAccessModel *Doc::sheetAccessModel() const
+{
+    return d->sheetAccessModel;
+}
 
 #if 0 // UNDOREDOLIMIT
 int Doc::undoRedoLimit() const

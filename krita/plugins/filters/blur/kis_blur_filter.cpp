@@ -40,8 +40,8 @@ KisBlurFilter::KisBlurFilter() : KisFilter(id(), categoryBlur(), i18n("&Blur..."
 {
     setSupportsPainting(true);
     setSupportsPreview(true);
-    setSupportsIncrementalPainting(false);
-    setSupportsAdjustmentLayers(false);
+    setSupportsIncrementalPainting(true);
+    setSupportsAdjustmentLayers(true);
     setColorSpaceIndependence(FULLY_INDEPENDENT);
 }
 
@@ -110,11 +110,20 @@ void KisBlurFilter::process(KisConstProcessingInformation srcInfo,
 
 }
 
-int KisBlurFilter::overlapMarginNeeded(const KisFilterConfiguration* _config) const
+QRect KisBlurFilter::neededRect(const QRect & rect, const KisFilterConfiguration* _config) const
 {
     QVariant value;
     uint halfWidth = (_config->getProperty("halfWidth", value)) ? value.toUInt() : 5;
     uint halfHeight = (_config->getProperty("halfHeight", value)) ? value.toUInt() : 5;
-    return qMax(halfWidth, halfHeight);
+
+    return rect.adjusted(-halfWidth * 2, -halfHeight * 2, halfWidth * 2, halfHeight * 2);
 }
 
+QRect KisBlurFilter::changedRect(const QRect & rect, const KisFilterConfiguration* _config) const
+{
+    QVariant value;
+    uint halfWidth = (_config->getProperty("halfWidth", value)) ? value.toUInt() : 5;
+    uint halfHeight = (_config->getProperty("halfHeight", value)) ? value.toUInt() : 5;
+
+    return rect.adjusted(-halfWidth, -halfHeight, halfWidth, halfHeight);
+}

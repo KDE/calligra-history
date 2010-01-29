@@ -237,10 +237,8 @@ bool KisShapeSelection::loadSelection(KoStore* store)
         return false;
     }
 
-    QMap<QString, KoDataCenter*> dataCenterMap;
     KoOdfLoadingContext context(odfStore.styles(), odfStore.store());
-    KoShapeLoadingContext shapeContext(context, dataCenterMap);
-
+    KoShapeLoadingContext shapeContext(context, 0);
 
     KoXmlElement layerElement;
     forEachElement(layerElement, context.stylesReader().layerSet()) {
@@ -372,20 +370,9 @@ KoShapeManager* KisShapeSelection::shapeManager() const
 }
 
 KisShapeSelectionFactory::KisShapeSelectionFactory(QObject* parent)
-        : KoShapeFactory(parent, "KisShapeSelection", "selection shape container")
+        : KoShapeFactoryBase(parent, "KisShapeSelection", "selection shape container")
 {
     setHidden(true);
-}
-
-KoShape* KisShapeSelectionFactory::createDefaultShape() const
-{
-    return 0;
-}
-
-KoShape* KisShapeSelectionFactory::createShape(const KoProperties* params) const
-{
-    Q_UNUSED(params);
-    return 0;
 }
 
 #include "kis_shape_selection.moc"

@@ -1,7 +1,7 @@
 /* This file is part of the KDE project
 
    Copyright (C) 2006 Jan Hambrecht <jaham@gmx.net>
-   Copyright (C) 2006 Thomas Zander <zander@kde.org>
+   Copyright (C) 2006, 2010 Thomas Zander <zander@kde.org>
    Copyright (C) 2008 Casper Boemann <cbr@boemann.dk>
 
    This library is free software; you can redistribute it and/or
@@ -23,12 +23,12 @@
 #ifndef KOSHAPECONTROLLERBASE_H
 #define KOSHAPECONTROLLERBASE_H
 
-#include <QMap>
 #include "flake_export.h"
 
 class KoShape;
 class QString;
-class KoDataCenter;
+class KoShapeControllerBasePrivate;
+class KoResourceManager;
 
 /**
  * The shape controller is an abstract interface that the applications class
@@ -57,11 +57,16 @@ public:
     virtual void removeShape(KoShape *shape) = 0;
 
     /**
-     * This method returns a map of KoDataCenter classes.
-     * Typically some class-factories have created DataCenters and added them to this map.
-     * This map is started from scratch with each new document (ehem KoShapeControllerBase)
+     * Return a pointer to the resource manager associated with the
+     * shape-set (typically a document). The resource manager contains
+     * document wide resources * such as variable managers, the image
+     * collection and others.
+     * @see KoCanvasBase::resourceManager()
      */
-    virtual QMap<QString, KoDataCenter *>  dataCenterMap() const = 0;
+    KoResourceManager *resourceManager() const;
+
+private:
+    KoShapeControllerBasePrivate * d;
 };
 
 #endif

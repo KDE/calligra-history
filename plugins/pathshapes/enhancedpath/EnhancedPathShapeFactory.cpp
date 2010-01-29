@@ -33,7 +33,7 @@
 #include <math.h>
 
 EnhancedPathShapeFactory::EnhancedPathShapeFactory(QObject *parent)
-    : KoShapeFactory(parent, EnhancedPathShapeId, i18n("An enhanced path shape"))
+    : KoShapeFactoryBase(parent, EnhancedPathShapeId, i18n("An enhanced path shape"))
 {
     setToolTip(i18n("An enhanced path"));
     setIcon("enhancedpath");
@@ -48,7 +48,7 @@ EnhancedPathShapeFactory::EnhancedPathShapeFactory(QObject *parent)
     addGearhead();
 }
 
-KoShape *EnhancedPathShapeFactory::createDefaultShape() const
+KoShape *EnhancedPathShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     EnhancedPathShape *shape = new EnhancedPathShape(QRectF(0, 0, 100, 100));
     shape->setBorder(new KoLineBorder(1.0));
@@ -75,7 +75,7 @@ KoShape *EnhancedPathShapeFactory::createDefaultShape() const
     return shape;
 }
 
-KoShape *EnhancedPathShapeFactory::createShape(const KoProperties *params) const
+KoShape *EnhancedPathShapeFactory::createShape(const KoProperties *params, KoResourceManager *) const
 {
     QRectF viewBox(0, 0, 100, 100);
     QVariant viewboxData;
@@ -551,4 +551,4 @@ bool EnhancedPathShapeFactory::supports(const KoXmlElement & e) const
     return (e.localName() == "custom-shape" && e.namespaceURI() == KoXmlNS::draw);
 }
 
-#include "EnhancedPathShapeFactory.moc"
+#include <EnhancedPathShapeFactory.moc>

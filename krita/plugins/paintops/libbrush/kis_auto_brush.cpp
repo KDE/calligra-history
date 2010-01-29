@@ -34,7 +34,7 @@
 
 struct KisAutoBrush::Private {
     KisMaskGenerator* shape;
-    double angle;
+    qreal angle;
 };
 
 KisAutoBrush::KisAutoBrush(KisMaskGenerator* as, double angle)
@@ -165,11 +165,11 @@ QImage KisAutoBrush::createBrushPreview()
 
     double centerX = image.width() * 0.5;
     double centerY = image.height() * 0.5;
-    for (int j = 0; j < d->shape->height(); j++) {
+    for (int j = 0; j < height; ++j) {
         QRgb *pixel = reinterpret_cast<QRgb *>(image.scanLine(j));
-        for (int i = 0; i < d->shape->width(); i++) {
+        for (int i = 0; i < width; ++i) {
             qint8 v = d->shape->valueAt(i - centerX, j - centerY);
-            pixel[j] = qRgb(v, v, v);
+            pixel[i] = qRgb(v, v, v);
         }
     }
     return image.transformed(QMatrix().rotate(-d->angle * 180 / M_PI));
@@ -178,4 +178,14 @@ QImage KisAutoBrush::createBrushPreview()
 QPointF KisAutoBrush::hotSpot(double scaleX, double scaleY, double rotation) const
 {
     return KisBrush::hotSpot(scaleX, scaleY, rotation + d->angle);
+}
+
+const KisMaskGenerator* KisAutoBrush::maskGenerator() const
+{
+    return d->shape;
+}
+
+qreal KisAutoBrush::angle() const
+{
+    return d->angle;
 }

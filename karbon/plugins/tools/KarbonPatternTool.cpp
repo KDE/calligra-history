@@ -25,7 +25,7 @@
 #include <KoShapeManager.h>
 #include <KoSelection.h>
 #include <KoShape.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoShapeBackgroundCommand.h>
 #include <KoPointerEvent.h>
 #include <KoPattern.h>
@@ -44,7 +44,7 @@
 #include <QtGui/QUndoCommand>
 
 KarbonPatternTool::KarbonPatternTool(KoCanvasBase *canvas)
-        : KoTool(canvas), m_currentStrategy(0), m_optionsWidget(0)
+        : KoToolBase(canvas), m_currentStrategy(0), m_optionsWidget(0)
 {
 }
 
@@ -135,12 +135,12 @@ void KarbonPatternTool::keyPressEvent(QKeyEvent *event)
 {
     switch (event->key()) {
     case Qt::Key_I: {
-        uint handleRadius = canvas()->resourceProvider()->handleRadius();
+        uint handleRadius = canvas()->resourceManager()->handleRadius();
         if (event->modifiers() & Qt::ControlModifier)
             handleRadius--;
         else
             handleRadius++;
-        canvas()->resourceProvider()->setHandleRadius(handleRadius);
+        canvas()->resourceManager()->setHandleRadius(handleRadius);
     }
     break;
     default:
@@ -183,8 +183,7 @@ void KarbonPatternTool::initialize()
         strategy->repaint();
     }
 
-    KoDataCenter * dataCenter = canvas()->shapeController()->dataCenter("ImageCollection");
-    KoImageCollection * imageCollection = dynamic_cast<KoImageCollection*>(dataCenter);
+    KoImageCollection *imageCollection = canvas()->shapeController()->resourceManager()->imageCollection();
 
     // now create new strategies if needed
     foreach(KoShape *shape, selectedShapes) {
@@ -221,8 +220,8 @@ void KarbonPatternTool::activate(bool temporary)
 
     initialize();
 
-    KarbonPatternEditStrategyBase::setHandleRadius(canvas()->resourceProvider()->handleRadius());
-    KarbonPatternEditStrategyBase::setGrabSensitivity(canvas()->resourceProvider()->grabSensitivity());
+    KarbonPatternEditStrategyBase::setHandleRadius(canvas()->resourceManager()->handleRadius());
+    KarbonPatternEditStrategyBase::setGrabSensitivity(canvas()->resourceManager()->grabSensitivity());
 
     useCursor(Qt::ArrowCursor);
 
@@ -297,8 +296,7 @@ void KarbonPatternTool::patternSelected(KoResource * resource)
     if (! currentPattern || ! currentPattern->valid())
         return;
 
-    KoDataCenter * dataCenter = canvas()->shapeController()->dataCenter("ImageCollection");
-    KoImageCollection * imageCollection = dynamic_cast<KoImageCollection*>(dataCenter);
+    KoImageCollection *imageCollection = canvas()->shapeController()->resourceManager()->imageCollection();
     if (imageCollection) {
         QList<KoShape*> selectedShapes = canvas()->shapeManager()->selection()->selectedShapes();
         KoPatternBackground * newFill = new KoPatternBackground(imageCollection);
@@ -329,10 +327,7 @@ void KarbonPatternTool::patternChanged()
         KoPatternBackground * oldFill = dynamic_cast<KoPatternBackground*>(shape->background());
         if (! oldFill)
             return;
-        KoDataCenter * dataCenter = canvas()->shapeController()->dataCenter("ImageCollection");
-        if (! dataCenter)
-            return;
-        KoImageCollection * imageCollection = dynamic_cast<KoImageCollection*>(dataCenter);
+        KoImageCollection *imageCollection = canvas()->shapeController()->resourceManager()->imageCollection();
         if (! imageCollection)
             return;
         KoPatternBackground * newFill = new KoPatternBackground(imageCollection);

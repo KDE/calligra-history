@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2006-2009 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2006-2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2008 Pierre Ducroquet <pinaraf@pinaraf.info>
  *
  * This library is free software; you can redistribute it and/or
@@ -31,7 +31,6 @@
 #include <KoParagraphStyle.h>
 #include <KoTextDocument.h>
 #include <KoTextEditor.h>
-#include <KoUndoStack.h>
 
 #include <changetracker/KoChangeTracker.h>
 
@@ -53,15 +52,13 @@ KWTextFrameSet::KWTextFrameSet(const KWDocument *doc)
     if (m_kwordDocument) {
         KoTextDocument doc(m_document);
         doc.setInlineTextObjectManager(m_kwordDocument->inlineTextObjectManager());
-        KoStyleManager *styleManager = dynamic_cast<KoStyleManager *>(m_kwordDocument->dataCenterMap()["StyleManager"]);
+        KoStyleManager *styleManager = m_kwordDocument->resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
         Q_ASSERT(styleManager);
         doc.setStyleManager(styleManager);
-        KoChangeTracker *changeTracker = dynamic_cast<KoChangeTracker *>(m_kwordDocument->dataCenterMap()["ChangeTracker"]);
+        KoChangeTracker *changeTracker = m_kwordDocument->resourceManager()->resource(KoText::ChangeTracker).value<KoChangeTracker*>();
         Q_ASSERT(changeTracker);
         doc.setChangeTracker(changeTracker);
-        KoUndoStack *undoStack = dynamic_cast<KoUndoStack *>(m_kwordDocument->dataCenterMap()["UndoStack"]);
-        Q_ASSERT(undoStack);
-        doc.setUndoStack(undoStack);
+        doc.setUndoStack(m_kwordDocument->resourceManager()->undoStack());
     }
     m_document->setUseDesignMetrics(true);
 }
@@ -79,12 +76,11 @@ KWTextFrameSet::KWTextFrameSet(const KWDocument *doc, KWord::TextFrameSetType ty
     if (m_kwordDocument) {
         KoTextDocument doc(m_document);
         doc.setInlineTextObjectManager(m_kwordDocument->inlineTextObjectManager());
-        KoStyleManager *styleManager = dynamic_cast<KoStyleManager *>(m_kwordDocument->dataCenterMap()["StyleManager"]);
+        KoStyleManager *styleManager = m_kwordDocument->resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
         doc.setStyleManager(styleManager);
-        KoChangeTracker *changeTracker = dynamic_cast<KoChangeTracker *>(m_kwordDocument->dataCenterMap()["ChangeTracker"]);
+        KoChangeTracker *changeTracker = m_kwordDocument->resourceManager()->resource(KoText::ChangeTracker).value<KoChangeTracker*>();
         doc.setChangeTracker(changeTracker);
-        KoUndoStack *undoStack = dynamic_cast<KoUndoStack *>(m_kwordDocument->dataCenterMap()["UndoStack"]);
-        doc.setUndoStack(undoStack);
+        doc.setUndoStack(m_kwordDocument->resourceManager()->undoStack());
     }
     m_document->setUseDesignMetrics(true);
     switch (m_textFrameSetType) {
@@ -144,13 +140,12 @@ void KWTextFrameSet::setupFrame(KWFrame *frame)
         m_document->setDocumentLayout(new KWTextDocumentLayout(this));
         if (m_kwordDocument) {
             KoTextDocument doc(m_document);
-            KoStyleManager *styleManager = dynamic_cast<KoStyleManager *>(m_kwordDocument->dataCenterMap()["StyleManager"]);
+            KoStyleManager *styleManager = m_kwordDocument->resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
             doc.setStyleManager(styleManager);
-            KoChangeTracker *changeTracker = dynamic_cast<KoChangeTracker *>(m_kwordDocument->dataCenterMap()["ChangeTracker"]);
+            KoChangeTracker *changeTracker = m_kwordDocument->resourceManager()->resource(KoText::ChangeTracker).value<KoChangeTracker*>();
             doc.setChangeTracker(changeTracker);
             doc.setInlineTextObjectManager(m_kwordDocument->inlineTextObjectManager());
-            KoUndoStack *undoStack = dynamic_cast<KoUndoStack *>(m_kwordDocument->dataCenterMap()["UndoStack"]);
-            doc.setUndoStack(undoStack);
+            doc.setUndoStack(m_kwordDocument->resourceManager()->undoStack());
         }
         data->setDocument(m_document, false);
     } else {

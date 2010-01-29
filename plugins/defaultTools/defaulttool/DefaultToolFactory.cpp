@@ -24,7 +24,7 @@
 #include <klocale.h>
 
 DefaultToolFactory::DefaultToolFactory(QObject *parent)
-    : KoToolFactory(parent, KoInteractionTool_ID)
+    : KoToolFactoryBase(parent, KoInteractionTool_ID)
 {
     setToolTip(i18n("Default tool"));
     setToolType(mainToolType());
@@ -36,6 +36,6 @@ DefaultToolFactory::DefaultToolFactory(QObject *parent)
 DefaultToolFactory::~DefaultToolFactory() {
 }
 
-KoTool* DefaultToolFactory::createTool(KoCanvasBase *canvas) {
+KoToolBase* DefaultToolFactory::createTool(KoCanvasBase *canvas) {
     return new DefaultTool(canvas);
 }

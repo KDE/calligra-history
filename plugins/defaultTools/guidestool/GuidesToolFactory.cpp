@@ -22,7 +22,7 @@
 #include <KLocale>
 
 GuidesToolFactory::GuidesToolFactory( QObject *parent )
-    : KoToolFactory(parent, GuidesToolId)
+    : KoToolFactoryBase(parent, GuidesToolId)
 {
     setToolTip(i18n("Edit guidelines"));
     setToolType("never");
@@ -35,7 +35,7 @@ GuidesToolFactory::~GuidesToolFactory()
 {
 }
 
-KoTool* GuidesToolFactory::createTool(KoCanvasBase *canvas)
+KoToolBase* GuidesToolFactory::createTool(KoCanvasBase *canvas)
 {
     return new GuidesTool(canvas);
 }

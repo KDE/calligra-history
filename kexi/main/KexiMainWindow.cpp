@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2003 Lucijan Busch <lucijan@kde.org>
-   Copyright (C) 2003-2009 Jarosław Staniek <staniek@kde.org>
+   Copyright (C) 2003-2010 Jarosław Staniek <staniek@kde.org>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -69,6 +69,7 @@
 #include <krecentdocument.h>
 #include <KMenu>
 #include <KXMLGUIFactory>
+#include <KMultiTabBar>
 
 #include <kexidb/connection.h>
 #include <kexidb/utils.h>
@@ -750,7 +751,8 @@ void KexiMainWindow::setupActions()
         ac->addAction("project_import_data_table",
                       d->action_project_import_data_table = new KAction(
             KIcon("table"), /*! @todo: change to "file_import" with a table or so */
-            i18nc("Import->Table Data From File...", "Table Data From &File..."), this));
+            i18nc("Import->Table Data From File...", "Import Data From &File..."), this));
+//orig            i18nc("Import->Table Data From File...", "Table Data From &File..."), this));
         d->action_project_import_data_table->setToolTip(i18n("Import table data from a file"));
         d->action_project_import_data_table->setWhatsThis(i18n("Imports table data from a file."));
         connect(d->action_project_import_data_table, SIGNAL(triggered()),
@@ -760,7 +762,8 @@ void KexiMainWindow::setupActions()
     ac->addAction("project_export_data_table",
                   d->action_project_export_data_table = new KAction(
         KIcon("table"), /*! @todo: change to "file_export" with a table or so */
-        i18nc("Export->Table or Query Data to File...", "Table or Query Data to &File..."), this));
+        i18nc("Export->Table or Query Data to File...", "Export Data to &File..."), this));
+//orig:        i18nc("Export->Table or Query Data to File...", "Table or Query Data to &File..."), this));
     d->action_project_export_data_table->setToolTip(
         i18n("Export data from the active table or query data to a file"));
     d->action_project_export_data_table->setWhatsThis(
@@ -808,7 +811,8 @@ void KexiMainWindow::setupActions()
         ac->addAction("edit_paste_special_data_table",
                       d->action_edit_paste_special_data_table = new KAction(
             KIcon("table"),
-            i18nc("Paste Special->As Data &Table...", "As Data &Table..."), this));
+            i18nc("Paste Special->As Data &Table...", "Paste Special..."), this));
+//orig            i18nc("Paste Special->As Data &Table...", "As Data &Table..."), this));
         d->action_edit_paste_special_data_table->setToolTip(
             i18n("Paste clipboard data as a table"));
         d->action_edit_paste_special_data_table->setWhatsThis(
@@ -820,7 +824,8 @@ void KexiMainWindow::setupActions()
     ac->addAction("edit_copy_special_data_table",
                   d->action_edit_copy_special_data_table = new KAction(
         KIcon("table"),
-        i18nc("Copy Special->Table or Query Data...", "Table or Query as Data Table..."),
+        i18nc("Copy Special->Table or Query Data...", "Copy Special..."),
+//orig        i18nc("Copy Special->Table or Query Data...", "Table or Query as Data Table..."),
         this));
     d->action_edit_copy_special_data_table->setToolTip(
         i18n("Copy selected table or query data to clipboard"));
@@ -1101,12 +1106,6 @@ void KexiMainWindow::setupActions()
        actionCollection(), "options_show_contexthelp");
       d->action_show_helper->setCheckedState(i18n("Hide Context Help"));
       */
-#endif
-
-#ifdef KEXI_REPORTS_SUPPORT
-    Kexi::tempShowReports() = true;
-#else
-    Kexi::tempShowReports() = false;
 #endif
 
 #ifdef KEXI_MACROS_SUPPORT
@@ -1954,12 +1953,84 @@ void KexiMainWindow::setupMainWidget()
     d->tabbedToolBar = new KexiTabbedToolBar(tabbedToolBarContainer);
     tabbedToolBarContainerLyr->addWidget(d->tabbedToolBar);
 
+    QWidget *mainWidgetContainer = new QWidget();
+    vlyr->addWidget(mainWidgetContainer, 1);
+    QHBoxLayout *mainWidgetContainerLyr = new QHBoxLayout(mainWidgetContainer);
+    mainWidgetContainerLyr->setContentsMargins(0, 0, 0, 0);
+    mainWidgetContainerLyr->setSpacing(0);
+
+    KMultiTabBar *mtbar = new KMultiTabBar(KMultiTabBar::Left);
+    mtbar->setStyle(KMultiTabBar::KDEV3ICON);
+    mainWidgetContainerLyr->addWidget(mtbar, 0);
+    d->multiTabBars.insert(mtbar->position(), mtbar);
+
     d->mainWidget = new KexiMainWidget();
-    vlyr->addWidget(d->mainWidget, 1);
     d->mainWidget->setParent(this);
+    mainWidgetContainerLyr->addWidget(d->mainWidget, 1);
+
+    mtbar = new KMultiTabBar(KMultiTabBar::Right);
+    mtbar->setStyle(KMultiTabBar::KDEV3ICON);
+    mainWidgetContainerLyr->addWidget(mtbar, 0);
+    d->multiTabBars.insert(mtbar->position(), mtbar);
 
     d->statusBar = new KexiStatusBar(this);
+#if 0 // still disabled, see KexiStatusBar
+    connect(d->statusBar->m_showNavigatorAction, SIGNAL(triggered(bool)),
+        this, SLOT(slotSetProjectNavigatorVisible(bool)));
+    connect(d->statusBar->m_showPropertyEditorAction, SIGNAL(triggered(bool)),
+        this, SLOT(slotSetPropertyEditorVisible(bool)));
+#endif
     vlyr->addWidget(d->statusBar);
+}
+
+void KexiMainWindow::slotSetProjectNavigatorVisible(bool set)
+{
+    if (d->navDockWidget)
+        d->navDockWidget->setVisible(set);
+}
+
+void KexiMainWindow::slotSetPropertyEditorVisible(bool set)
+{
+    if (d->propEditorDockWidget)
+        d->propEditorDockWidget->setVisible(set);
+}
+
+void KexiMainWindow::slotProjectNavigatorVisibilityChanged(bool visible)
+{
+    KMultiTabBar *mtbar = d->multiTabBars[KMultiTabBar::Left];
+    int id = PROJECT_NAVIGATOR_TABBAR_ID;
+    if (visible) {
+        mtbar->removeTab(id);
+    }
+    else {
+        QString t(d->navDockWidget->windowTitle());
+        t.remove('&');
+        mtbar->appendTab(QPixmap(), id, t);
+        KMultiTabBarTab *tab = mtbar->tab(id);
+        connect(tab, SIGNAL(clicked(int)), this, SLOT(slotMultiTabBarTabClicked(int)));
+    }
+}
+
+void KexiMainWindow::slotPropertyEditorVisibilityChanged(bool visible)
+{
+    if (!d->enable_slotPropertyEditorVisibilityChanged)
+        return;
+    d->setPropertyEditorTabBarVisible(!visible);
+    if (!visible)
+        d->propertyEditorCollapsed = true;
+}
+
+void KexiMainWindow::slotMultiTabBarTabClicked(int id)
+{
+    if (id == PROJECT_NAVIGATOR_TABBAR_ID) {
+        slotProjectNavigatorVisibilityChanged(true);
+        d->navDockWidget->show();
+    }
+    else if (id == PROPERTY_EDITOR_TABBAR_ID) {
+        slotPropertyEditorVisibilityChanged(true);
+        d->propEditorDockWidget->show();
+        d->propertyEditorCollapsed = false;
+    }
 }
 
 static Qt::DockWidgetArea loadDockAreaSetting(KConfigGroup& group, const char* configEntry, Qt::DockWidgetArea defaultArea)
@@ -2043,7 +2114,9 @@ void KexiMainWindow::setupProjectNavigator()
                 this, SLOT(renameObject(KexiPart::Item*, const QString&, bool&)));
         connect(d->nav, SIGNAL(executeItem(KexiPart::Item*)),
                 this, SLOT(executeItem(KexiPart::Item*)));
-        connect(d->nav, SIGNAL(exportItemAsDataTable(KexiPart::Item*)),
+        connect(d->nav, SIGNAL(exportItemToClipboardAsDataTable(KexiPart::Item*)),
+                this, SLOT(copyItemToClipboardAsDataTable(KexiPart::Item*)));
+        connect(d->nav, SIGNAL(exportItemToFileAsDataTable(KexiPart::Item*)),
                 this, SLOT(exportItemAsDataTable(KexiPart::Item*)));
         connect(d->nav, SIGNAL(printItem(KexiPart::Item*)),
                 this, SLOT(printItem(KexiPart::Item*)));
@@ -2055,6 +2128,8 @@ void KexiMainWindow::setupProjectNavigator()
         }
         connect(d->nav, SIGNAL(selectionChanged(KexiPart::Item*)),
                 this, SLOT(slotPartItemSelectedInNavigator(KexiPart::Item*)));
+        connect(d->navDockWidget, SIGNAL(visibilityChanged(bool)),
+            this, SLOT(slotProjectNavigatorVisibilityChanged(bool)));
 
 //  d->restoreNavigatorWidth();
     }
@@ -2116,6 +2191,8 @@ void KexiMainWindow::setupPropertyEditor()
             d->propEditorDockWidget,
             Qt::Vertical
         );
+        connect(d->propEditorDockWidget, SIGNAL(visibilityChanged(bool)),
+            this, SLOT(slotPropertyEditorVisibilityChanged(bool)));
 
         d->propEditorDockableWidget = new KexiDockableWidget(d->propEditorDockWidget);
         d->propEditorDockWidget->setWidget(d->propEditorDockableWidget);
@@ -2155,7 +2232,9 @@ void KexiMainWindow::setupPropertyEditor()
               ds->setSeparatorPosInPercent(d->config->readEntry("RightDockPosition", 80));
           #endif
             }*/
+        d->enable_slotPropertyEditorVisibilityChanged = false;
         d->propEditorDockWidget->setVisible(false);
+        d->enable_slotPropertyEditorVisibilityChanged = true;
     }
 }
 
@@ -4508,8 +4587,6 @@ bool KexiMainWindow::userMode() const
 bool
 KexiMainWindow::setupUserMode(KexiProjectData *projectData)
 {
-// Kexi::tempShowForms() = true;
-// Kexi::tempShowReports() = true;
 // Kexi::tempShowMacros() = true;
 // Kexi::tempShowScripts() = true;
     if (!projectData)

@@ -97,6 +97,11 @@ KWordTextHandler::KWordTextHandler(wvWare::SharedPtr<wvWare::Parser> parser, KoX
     } else {
         kWarning() << "No mainStyles!";
     }
+
+    //[MS-DOC] — v20090708 - 2.7.2 DopBase pg.163
+    if ((0x00D9 >= m_parser->fib().nFib) && (m_parser->dop().nfcFtnRef2 == 0)) {
+        m_footNoteNumber = m_parser->dop().nFtn - 1;
+    }
 }
 
 //increment m_sectionNumber
@@ -625,11 +630,11 @@ void KWordTextHandler::fieldEnd(const wvWare::FLD* /*fld*/, wvWare::SharedPtr<co
             writer.startElement("text:a");
             writer.addAttribute("xlink:type", "simple");
 
-            // Remove unneeded word and '"' characters from the URL
+            // Remove unneeded word and '"' or ' ' characters from the URL
             QString urlStr = m_hyperLinkList[0].remove(" HYPERLINK ");
-            if (urlStr.startsWith("\""))
+            while(urlStr.startsWith("\"") || urlStr.startsWith(" "))
                 urlStr = urlStr.remove(0, 1);
-            if (urlStr.endsWith("\""))
+            while(urlStr.endsWith("\"") || urlStr.endsWith(" "))
                 urlStr = urlStr.remove(urlStr.length() - 1, 1);
 
             writer.addAttribute("xlink:href", QUrl(urlStr).toEncoded());

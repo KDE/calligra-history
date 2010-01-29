@@ -25,14 +25,14 @@
 
 #include <kparts/mainwindow.h>
 
-#include <KoCanvasObserver.h>
-#include <KoCanvasObserverProvider.h>
+#include <KoCanvasObserverBase.h>
+#include <KoCanvasSupervisor.h>
 
 class KoMainWindowPrivate;
 class KoDocument;
 class KoView;
 class KoPrintJob;
-class KoDockFactory;
+class KoDockFactoryBase;
 class KRecentFilesAction;
 class QDockWidget;
 class QLabel;
@@ -54,7 +54,7 @@ class PartManager;
  *
  * @note This class does NOT need to be subclassed in your application.
  */
-class KOMAIN_EXPORT KoMainWindow : public KParts::MainWindow, public KoCanvasObserverProvider
+class KOMAIN_EXPORT KoMainWindow : public KParts::MainWindow, public KoCanvasSupervisor
 {
     Q_OBJECT
 public:
@@ -162,12 +162,12 @@ public:
      * @param factory the factory used to create the dock widget if needed
      * @return the dock widget specified by @p factory (may be 0)
      */
-    QDockWidget* createDockWidget(KoDockFactory* factory);
+    QDockWidget* createDockWidget(KoDockFactoryBase* factory);
 
     /// Return the list of dock widgets belonging to this main window.
     QList<QDockWidget*> dockWidgets();
 
-    QList<KoCanvasObserver*> canvasObservers();
+    QList<KoCanvasObserverBase*> canvasObservers();
 
     /**
      * @return the KoDockerManager which is assigned

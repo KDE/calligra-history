@@ -20,15 +20,15 @@
 #ifndef KARBONFILTEREFFECTSTOOLFACTORY_H
 #define KARBONFILTEREFFECTSTOOLFACTORY_H
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
-class KarbonFilterEffectsToolFactory : public KoToolFactory
+class KarbonFilterEffectsToolFactory : public KoToolFactoryBase
 {
     Q_OBJECT
 public:
     explicit KarbonFilterEffectsToolFactory(QObject *parent);
     virtual ~KarbonFilterEffectsToolFactory();
-    virtual KoTool * createTool(KoCanvasBase *canvas);
+    virtual KoToolBase * createTool(KoCanvasBase *canvas);
 };
 
 #endif // KARBONFILTEREFFECTSTOOLFACTORY_H

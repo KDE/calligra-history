@@ -40,9 +40,9 @@
 #endif
 
 #include <libs/main/KoDocument.h>
-#include <KoImageResource.h>
 #include <KoColorProfile.h>
 
+#include <kmessagebox.h>
 #include <kcolorbutton.h>
 #include <kcombobox.h>
 #include <kfiledialog.h>
@@ -84,10 +84,10 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
     m_cmbCursorShape->setCurrentIndex(cfg.cursorStyle());
     chkShowRootLayer->setChecked(cfg.showRootLayer());
 
-    int autosaveInterval=cfg.autoSaveInterval();
+    int autosaveInterval = cfg.autoSaveInterval();
     //convert to minutes
-    m_autosaveSpinBox->setValue(autosaveInterval/60);
-    m_autosaveCheckBox->setChecked(autosaveInterval>0);
+    m_autosaveSpinBox->setValue(autosaveInterval / 60);
+    m_autosaveCheckBox->setChecked(autosaveInterval > 0);
 }
 
 void GeneralTab::setDefault()
@@ -98,7 +98,7 @@ void GeneralTab::setDefault()
     chkShowRootLayer->setChecked(false);
     m_autosaveCheckBox->setChecked(true);
     //convert to minutes
-    m_autosaveSpinBox->setValue(KoDocument::defaultAutoSave()/60);
+    m_autosaveSpinBox->setValue(KoDocument::defaultAutoSave() / 60);
 }
 
 enumCursorStyle GeneralTab::cursorStyle()
@@ -111,9 +111,10 @@ bool GeneralTab::showRootLayer()
     return chkShowRootLayer->isChecked();
 }
 
-int GeneralTab::autoSaveInterval() {
+int GeneralTab::autoSaveInterval()
+{
     //convert to seconds
-    return m_autosaveCheckBox->isChecked()?m_autosaveSpinBox->value()*60:0;
+    return m_autosaveCheckBox->isChecked() ? m_autosaveSpinBox->value()*60 : 0;
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -162,7 +163,7 @@ ColorSettingsTab::ColorSettingsTab(QWidget *parent, const char *name)
 
     m_page->cmbMonitorIntent->setCurrentIndex(cfg.renderIntent());
 
-    if (KoColorProfile * profile = KisCanvasResourceProvider::getScreenProfile()) {
+    if (const KoColorProfile * profile = KisCanvasResourceProvider::getScreenProfile()) {
         // We've got an X11 profile, don't allow to override
         m_page->cmbMonitorProfile->hide();
         m_page->lblMonitorProfile->setText(i18n("Monitor profile: ") + profile->name());
@@ -198,7 +199,7 @@ void ColorSettingsTab::setDefault()
 
 void ColorSettingsTab::refillMonitorProfiles(const KoID & s)
 {
-    KoColorSpaceFactory * csf = KoColorSpaceRegistry::instance()->value(s.id());
+    const KoColorSpaceFactory * csf = KoColorSpaceRegistry::instance()->colorSpaceFactory(s.id());
 
     m_page->cmbMonitorProfile->clear();
 
@@ -217,7 +218,7 @@ void ColorSettingsTab::refillMonitorProfiles(const KoID & s)
 
 void ColorSettingsTab::refillPrintProfiles(const KoID & s)
 {
-    KoColorSpaceFactory * csf = KoColorSpaceRegistry::instance()->value(s.id());
+    const KoColorSpaceFactory * csf = KoColorSpaceRegistry::instance()->colorSpaceFactory(s.id());
 
     m_page->cmbPrintProfile->clear();
 
@@ -306,6 +307,7 @@ DisplaySettingsTab::DisplaySettingsTab(QWidget *parent, const char *name)
     intCheckSize->setValue(cfg.checkSize());
     chkMoving->setChecked(cfg.scrollCheckers());
     colorChecks->setColor(cfg.checkersColor());
+    chkCurveAntialiasing->setChecked(cfg.antialiasCurves());
 
     connect(cbUseOpenGL, SIGNAL(toggled(bool)), SLOT(slotUseOpenGLToggled(bool)));
 }
@@ -345,16 +347,23 @@ GridSettingsTab::GridSettingsTab(QWidget* parent) : WdgGridSettingsBase(parent)
 
     intHSpacing->setValue(cfg.getGridHSpacing());
     intVSpacing->setValue(cfg.getGridVSpacing());
-    linkSpacingToggled(cfg.getGridHSpacing()==cfg.getGridVSpacing());
+    spacingAspectButton->setKeepAspectRatio(cfg.getGridSpacingAspect());
+    linkSpacingToggled(cfg.getGridSpacingAspect());
 
     intSubdivision->setValue(cfg.getGridSubdivisions());
-    intOffsetX->setValue(cfg.getGridOffsetX());
-    intOffsetY->setValue(cfg.getGridOffsetY());
 
-    connect(bnLinkSpacing, SIGNAL(toggled(bool)), this, SLOT(linkSpacingToggled(bool)));
+    intXOffset->setValue(cfg.getGridOffsetX());
+    intYOffset->setValue(cfg.getGridOffsetY());
+    offsetAspectButton->setKeepAspectRatio(cfg.getGridOffsetAspect());
+    linkOffsetToggled(cfg.getGridOffsetAspect());
+
+    connect(spacingAspectButton, SIGNAL(keepAspectRatioChanged(bool)), this, SLOT(linkSpacingToggled(bool)));
+    connect(offsetAspectButton, SIGNAL(keepAspectRatioChanged(bool)), this, SLOT(linkOffsetToggled(bool)));
 
     connect(intHSpacing, SIGNAL(valueChanged(int)), this, SLOT(spinBoxHSpacingChanged(int)));
     connect(intVSpacing, SIGNAL(valueChanged(int)), this, SLOT(spinBoxVSpacingChanged(int)));
+    connect(intXOffset, SIGNAL(valueChanged(int)), this, SLOT(spinBoxXOffsetChanged(int)));
+    connect(intYOffset, SIGNAL(valueChanged(int)), this, SLOT(spinBoxYOffsetChanged(int)));
 
 
 }
@@ -370,10 +379,11 @@ void GridSettingsTab::setDefault()
 
     intHSpacing->setValue(10);
     intVSpacing->setValue(10);
-    linkSpacingToggled(true);
+    linkSpacingToggled(false);
     intSubdivision->setValue(1);
-    intOffsetX->setValue(0);
-    intOffsetY->setValue(0);
+    intXOffset->setValue(0);
+    intYOffset->setValue(0);
+    linkOffsetToggled(false);
 }
 
 void GridSettingsTab::spinBoxHSpacingChanged(int v)
@@ -390,17 +400,35 @@ void GridSettingsTab::spinBoxVSpacingChanged(int v)
     }
 }
 
-
 void GridSettingsTab::linkSpacingToggled(bool b)
 {
-    bnLinkSpacing->setChecked(b);
     m_linkSpacing = b;
 
-    KoImageResource kir;
-    if (b) {
-        bnLinkSpacing->setIcon(QIcon(kir.chain()));
-    } else {
-        bnLinkSpacing->setIcon(QIcon(kir.chainBroken()));
+    if (m_linkSpacing) {
+        intVSpacing->setValue(intHSpacing->value());
+    }
+}
+
+void GridSettingsTab::spinBoxXOffsetChanged(int v)
+{
+    if (m_linkOffset) {
+        intYOffset->setValue(v);
+    }
+}
+
+void GridSettingsTab::spinBoxYOffsetChanged(int v)
+{
+    if (m_linkOffset) {
+        intXOffset->setValue(v);
+    }
+}
+
+void GridSettingsTab::linkOffsetToggled(bool b)
+{
+    m_linkOffset = b;
+
+    if (m_linkOffset) {
+        intYOffset->setValue(intXOffset->value());
     }
 }
 
@@ -493,14 +521,14 @@ bool KisDlgPreferences::editPreferences()
         cfg.setShowRootLayer(dialog->m_general->showRootLayer());
 
         cfg.setAutoSaveInterval(dialog->m_general->autoSaveInterval());
-        foreach (KoDocument* doc, *KoDocument::documentList()) {
+        foreach(KoDocument* doc, *KoDocument::documentList()) {
             doc->setAutoSave(dialog->m_general->autoSaveInterval());
-         }
+        }
 
         // Color settings
         cfg.setMonitorProfile(dialog->m_colorSettings->m_page->cmbMonitorProfile->itemHighlighted());
-        cfg.setWorkingColorSpace(dialog->m_colorSettings->m_page->cmbWorkingColorSpace->currentText());
-        cfg.setPrinterColorSpace(dialog->m_colorSettings->m_page->cmbPrintingColorSpace->currentText());
+        cfg.setWorkingColorSpace(dialog->m_colorSettings->m_page->cmbWorkingColorSpace->currentItem().id());
+        cfg.setPrinterColorSpace(dialog->m_colorSettings->m_page->cmbPrintingColorSpace->currentItem().id());
         cfg.setPrinterProfile(dialog->m_colorSettings->m_page->cmbPrintProfile->itemHighlighted());
 
         cfg.setUseBlackPointCompensation(dialog->m_colorSettings->m_page->chkBlackpoint->isChecked());
@@ -523,12 +551,26 @@ bool KisDlgPreferences::editPreferences()
 #endif
 
 #ifdef HAVE_OPENGL
+        if (dialog->m_displaySettings->cbUseOpenGL->isChecked() && cfg.canvasState() == "OPENGL_NOT_TRIED") {
+            cfg.setCanvasState("TRY_OPENGL");
+        }
+        if (dialog->m_displaySettings->cbUseOpenGL->isChecked() && cfg.canvasState() == "OPENGL_FAILED") {
+            if (KMessageBox::warningYesNo(0, i18n("You are trying to enable OpenGL\n\n"
+                                                  "But Krita might have had problems with the OpenGL canvas before,\n"
+                                                  "either because of driver issues, or because of issues with window effects.\n\n"
+                                                  "Are you sure you want to enable OpenGL?\n"), i18n("Krita")) == KMessageBox::Yes) {
+                cfg.setCanvasState("TRY_OPENGL");
+            }
+        }
+
         cfg.setUseOpenGL(dialog->m_displaySettings->cbUseOpenGL->isChecked());
         cfg.setUseOpenGLShaders(dialog->m_displaySettings->cbUseOpenGLShaders->isChecked());
+
 #endif
         cfg.setCheckSize(dialog->m_displaySettings->intCheckSize->value());
         cfg.setScrollingCheckers(dialog->m_displaySettings->chkMoving->isChecked());
         cfg.setCheckersColor(dialog->m_displaySettings->colorChecks->color());
+        cfg.setAntialiasCurves(dialog->m_displaySettings->chkCurveAntialiasing->isChecked());
         // Grid settings
         cfg.setGridMainStyle(dialog->m_gridSettings->selectMainStyle->currentIndex());
         cfg.setGridSubdivisionStyle(dialog->m_gridSettings->selectSubdivisionStyle->currentIndex());
@@ -538,9 +580,11 @@ bool KisDlgPreferences::editPreferences()
 
         cfg.setGridHSpacing(dialog->m_gridSettings->intHSpacing->value());
         cfg.setGridVSpacing(dialog->m_gridSettings->intVSpacing->value());
+        cfg.setGridSpacingAspect(dialog->m_gridSettings->spacingAspectButton->keepAspectRatio());
         cfg.setGridSubdivisions(dialog->m_gridSettings->intSubdivision->value());
-        cfg.setGridOffsetX(dialog->m_gridSettings->intOffsetX->value());
-        cfg.setGridOffsetY(dialog->m_gridSettings->intOffsetY->value());
+        cfg.setGridOffsetX(dialog->m_gridSettings->intXOffset->value());
+        cfg.setGridOffsetY(dialog->m_gridSettings->intYOffset->value());
+        cfg.setGridOffsetAspect(dialog->m_gridSettings->offsetAspectButton->keepAspectRatio());
 
     }
     delete dialog;

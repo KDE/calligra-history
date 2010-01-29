@@ -31,11 +31,12 @@
 
 #include <KoShape.h>
 #include <KoShapeRegistry.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeLayer.h>
 #include <KoShapeContainer.h>
 #include <KoShapeGroup.h>
 #include <KoPathShape.h>
+#include <KoResourceManager.h>
 #include <KoPathShapeLoader.h>
 #include <commands/KoShapeGroupCommand.h>
 #include <KoUnit.h>
@@ -59,8 +60,8 @@
 #include <QtCore/QDir>
 
 
-SvgParser::SvgParser(const QMap<QString, KoDataCenter*> & dataCenters)
-        : m_dataCenters(dataCenters)
+SvgParser::SvgParser(KoResourceManager *documentResourceManager)
+        : m_documentResourceManager(documentResourceManager)
 {
     m_fontAttributes << "font-family" << "font-size" << "font-weight" << "text-decoration";
     // the order of the style attributes is important, don't change without reason !!!
@@ -598,10 +599,10 @@ bool SvgParser::parseGradient(const KoXmlElement &e, const KoXmlElement &referen
         QLinearGradient * g = new QLinearGradient();
         if (gradhelper.gradientUnits() == SvgGradientHelper::ObjectBoundingBox) {
             g->setCoordinateMode(QGradient::ObjectBoundingMode);
-            g->setStart(QPointF(SvgUtil::toPercentage(b.attribute("x1", "0%")),
-                                SvgUtil::toPercentage(b.attribute("y1", "0%"))));
-            g->setFinalStop(QPointF(SvgUtil::toPercentage(b.attribute("x2", "100%")),
-                                    SvgUtil::toPercentage(b.attribute("y2", "0%"))));
+            g->setStart(QPointF(SvgUtil::fromPercentage(b.attribute("x1", "0%")),
+                                SvgUtil::fromPercentage(b.attribute("y1", "0%"))));
+            g->setFinalStop(QPointF(SvgUtil::fromPercentage(b.attribute("x2", "100%")),
+                                    SvgUtil::fromPercentage(b.attribute("y2", "0%"))));
         } else {
             g->setStart(QPointF(SvgUtil::fromUserSpace(b.attribute("x1").toDouble()),
                                 SvgUtil::fromUserSpace(b.attribute("y1").toDouble())));
@@ -616,11 +617,11 @@ bool SvgParser::parseGradient(const KoXmlElement &e, const KoXmlElement &referen
         QRadialGradient * g = new QRadialGradient();
         if (gradhelper.gradientUnits() == SvgGradientHelper::ObjectBoundingBox) {
             g->setCoordinateMode(QGradient::ObjectBoundingMode);
-            g->setCenter(QPointF(SvgUtil::toPercentage(b.attribute("cx", "50%")),
-                                 SvgUtil::toPercentage(b.attribute("cy", "50%"))));
-            g->setRadius(SvgUtil::toPercentage(b.attribute("r", "50%")));
-            g->setFocalPoint(QPointF(SvgUtil::toPercentage(b.attribute("fx", "50%")),
-                                     SvgUtil::toPercentage(b.attribute("fy", "50%"))));
+            g->setCenter(QPointF(SvgUtil::fromPercentage(b.attribute("cx", "50%")),
+                                 SvgUtil::fromPercentage(b.attribute("cy", "50%"))));
+            g->setRadius(SvgUtil::fromPercentage(b.attribute("r", "50%")));
+            g->setFocalPoint(QPointF(SvgUtil::fromPercentage(b.attribute("fx", "50%")),
+                                     SvgUtil::fromPercentage(b.attribute("fy", "50%"))));
         } else {
             g->setCenter(QPointF(SvgUtil::fromUserSpace(b.attribute("cx").toDouble()),
                                  SvgUtil::fromUserSpace(b.attribute("cy").toDouble())));
@@ -1093,7 +1094,7 @@ void SvgParser::applyFillStyle(KoShape * shape)
     break;
     case SvgGraphicsContext::Pattern: {
         SvgPatternHelper * pattern = findPattern(gc->fillId);
-        KoImageCollection * imageCollection = dynamic_cast<KoImageCollection *>(m_dataCenters["ImageCollection"]);
+        KoImageCollection *imageCollection = m_documentResourceManager->imageCollection();
         if (pattern && imageCollection) {
             QRectF objectBound = QRectF(QPoint(), shape->size());
             QRectF currentBoundbox = gc->currentBoundbox;
@@ -1939,7 +1940,7 @@ KoShape * SvgParser::createObject(const KoXmlElement &b, const SvgStyles &style)
         QImage img;
         if (parseImage(fname, img)) {
             KoShape * picture = createShape("PictureShape");
-            KoImageCollection * imageCollection = dynamic_cast<KoImageCollection *>(m_dataCenters["ImageCollection"]);
+            KoImageCollection *imageCollection = m_documentResourceManager->imageCollection();
 
             if (picture && imageCollection) {
                 // TODO use it already for loading
@@ -2009,13 +2010,13 @@ QString SvgParser::absoluteFilePath(const QString &href, const QString &xmlBase)
 
 KoShape * SvgParser::createShape(const QString &shapeID)
 {
-    KoShapeFactory * factory = KoShapeRegistry::instance()->get(shapeID);
+    KoShapeFactoryBase * factory = KoShapeRegistry::instance()->get(shapeID);
     if (! factory) {
         kWarning(30514) << "Could not find factory for shape id" << shapeID;
         return 0;
     }
 
-    KoShape * shape = factory->createDefaultShapeAndInit(m_dataCenters);
+    KoShape *shape = factory->createDefaultShape(m_documentResourceManager);
     if (shape && shape->shapeId().isEmpty())
         shape->setShapeId(factory->id());
 

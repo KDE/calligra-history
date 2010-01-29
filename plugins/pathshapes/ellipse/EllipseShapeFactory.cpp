@@ -29,7 +29,7 @@
 
 
 EllipseShapeFactory::EllipseShapeFactory(QObject *parent)
-    : KoShapeFactory(parent, EllipseShapeId, i18n("Ellipse"))
+    : KoShapeFactoryBase(parent, EllipseShapeId, i18n("Ellipse"))
 {
     setToolTip(i18n( "An ellipse"));
     setIcon("ellipse-shape");
@@ -40,7 +40,7 @@ EllipseShapeFactory::EllipseShapeFactory(QObject *parent)
     setLoadingPriority(1);
 }
 
-KoShape *EllipseShapeFactory::createDefaultShape() const
+KoShape *EllipseShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     EllipseShape *ellipse = new EllipseShape();
 
@@ -54,12 +54,6 @@ KoShape *EllipseShapeFactory::createDefaultShape() const
     ellipse->setBackground(new KoGradientBackground(gradient));
 
     return ellipse;
-}
-
-KoShape *EllipseShapeFactory::createShape(const KoProperties *params) const
-{
-    Q_UNUSED(params);
-    return createDefaultShape();
 }
 
 bool EllipseShapeFactory::supports(const KoXmlElement &e) const

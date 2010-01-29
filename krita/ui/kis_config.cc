@@ -27,6 +27,7 @@
 #include <kconfig.h>
 #include <QFont>
 #include <QThread>
+#include <QStringList>
 
 #include "kis_global.h"
 
@@ -136,7 +137,7 @@ QString KisConfig::workingColorSpace() const
 
 void KisConfig::setWorkingColorSpace(const QString & workingColorSpace)
 {
-    m_cfg.writeEntry(workingColorSpace, workingColorSpace);
+    m_cfg.writeEntry("workingColorSpace", workingColorSpace);
 }
 
 
@@ -207,7 +208,8 @@ void KisConfig::setRenderIntent(qint32 renderIntent)
 
 bool KisConfig::useOpenGL() const
 {
-    return m_cfg.readEntry("useOpenGL", false);
+    QString canvasState = m_cfg.readEntry("canvasState");
+    return (m_cfg.readEntry("useOpenGL", false) && (canvasState == "OPENGL_SUCCESS" || canvasState == "TRY_OPENGL"));
 }
 
 void KisConfig::setUseOpenGL(bool useOpenGL)
@@ -324,6 +326,17 @@ void KisConfig::setGridVSpacing(quint32 v)
     m_cfg.writeEntry("gridvspacing", v);
 }
 
+bool KisConfig::getGridSpacingAspect()
+{
+    bool v = m_cfg.readEntry("gridspacingaspect", false);
+    return v;
+}
+
+void KisConfig::setGridSpacingAspect(bool v)
+{
+    m_cfg.writeEntry("gridspacingaspect", v);
+}
+
 quint32 KisConfig::getGridSubdivisions()
 {
     qint32 v = m_cfg.readEntry("gridsubsivisons", 2);
@@ -357,6 +370,17 @@ void KisConfig::setGridOffsetY(quint32 v)
     m_cfg.writeEntry("gridoffsety", v);
 }
 
+bool KisConfig::getGridOffsetAspect()
+{
+    bool v = m_cfg.readEntry("gridoffsetaspect", false);
+    return v;
+}
+
+void KisConfig::setGridOffsetAspect(bool v)
+{
+    m_cfg.writeEntry("gridoffsetaspect", v);
+}
+
 qint32 KisConfig::checkSize()
 {
     return m_cfg.readEntry("checksize", 32);
@@ -386,6 +410,16 @@ QColor KisConfig::checkersColor()
 void KisConfig::setCheckersColor(const QColor & v)
 {
     m_cfg.writeEntry("checkerscolor", v);
+}
+
+bool KisConfig::antialiasCurves()
+{
+    return m_cfg.readEntry("antialiascurves", false);
+}
+
+void KisConfig::setAntialiasCurves(bool v)
+{
+    m_cfg.writeEntry("antialiascurves", v);
 }
 
 int KisConfig::numProjectionThreads()
@@ -538,7 +572,6 @@ void KisConfig::setMaxCachedImageSize(quint32 size)
     m_cfg.writeEntry("maxCachedImageSize", size);
 }
 
-
 bool KisConfig::showFilterGallery()
 {
     return m_cfg.readEntry("showFilterGallery", true);
@@ -549,12 +582,38 @@ void KisConfig::setShowFilterGallery(bool showFilterGallery)
     m_cfg.writeEntry("showFilterGallery", showFilterGallery);
 }
 
-QString KisConfig::defaultPainterlyColorSpace()
+QString KisConfig::defaultPainterlyColorModelId()
 {
-    return m_cfg.readEntry("defaultpainterlycolorspace", "KS6F32");;
+    return m_cfg.readEntry("defaultpainterlycolormodel", "KS6");
 }
 
-void KisConfig::setDefaultPainterlyColorSpace(const QString& def)
+void KisConfig::setDefaultPainterlyColorModelId(const QString& def)
 {
-    m_cfg.writeEntry("defaultpainterlycolorspace", def);;
+    m_cfg.writeEntry("defaultpainterlycolormodel", def);;
+}
+
+QString KisConfig::defaultPainterlyColorDepthId()
+{
+    return m_cfg.readEntry("defaultpainterlycolordepth", "F32");
+}
+
+void KisConfig::setDefaultPainterlyColorDepthId(const QString& def)
+{
+    m_cfg.writeEntry("defaultpainterlycolordepth", def);;
+}
+
+QString KisConfig::canvasState() const
+{
+    return m_cfg.readEntry("canvasState", "OPENGL_NOT_TRIED");
+}
+
+void KisConfig::setCanvasState(const QString& state)
+{
+    static QStringList acceptableStates;
+    if (acceptableStates.isEmpty()) {
+        acceptableStates << "OPENGL_SUCCESS" << "TRY_OPENGL" << "OPENGL_NOT_TRIED" << "OPENGL_FAILED";
+    }
+    if (acceptableStates.contains(state)) {
+        m_cfg.writeEntry("canvasState", state);
+    }
 }

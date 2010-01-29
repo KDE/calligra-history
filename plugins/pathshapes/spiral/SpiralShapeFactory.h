@@ -20,19 +20,18 @@
 #ifndef KOSPIRALSHAPEFACTORY_H
 #define KOSPIRALSHAPEFACTORY_H
 
-#include "KoShapeFactory.h"
+#include "KoShapeFactoryBase.h"
 
 class KoShape;
 
 /// Factory for spiral shapes
-class SpiralShapeFactory : public KoShapeFactory
+class SpiralShapeFactory : public KoShapeFactoryBase
 {
 public:
     /// constructor
     explicit SpiralShapeFactory(QObject *parent);
     ~SpiralShapeFactory() {}
-    KoShape *createDefaultShape() const;
-    KoShape *createShape(const KoProperties *params) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual QList<KoShapeConfigWidgetBase*> createShapeOptionPanels();
 };
 

@@ -32,7 +32,7 @@
 #include <KoSelection.h>
 #include <KarbonCurveFit.h>
 #include <KoColorBackground.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoColor.h>
 
 #include <KAction>
@@ -49,7 +49,7 @@ using std::sqrt;
 
 
 KarbonCalligraphyTool::KarbonCalligraphyTool(KoCanvasBase *canvas)
-        : KoTool(canvas), m_shape(0), m_angle(0),
+        : KoToolBase(canvas), m_shape(0), m_angle(0),
         m_selectedPath(0), m_isDrawing(false), m_speed(0, 0), m_lastShape(0)
 {
     connect(canvas->shapeManager(), SIGNAL(selectionChanged()),
@@ -100,7 +100,7 @@ void KarbonCalligraphyTool::mousePressEvent(KoPointerEvent *event)
     m_isDrawing = true;
     m_pointCount = 0;
     m_shape = new KarbonCalligraphicShape(m_caps);
-    m_shape->setBackground(new KoColorBackground(canvas()->resourceProvider()->backgroundColor().toQColor()));
+    m_shape->setBackground(new KoColorBackground(canvas()->resourceManager()->backgroundColor().toQColor()));
     //addPoint( event );
 }
 

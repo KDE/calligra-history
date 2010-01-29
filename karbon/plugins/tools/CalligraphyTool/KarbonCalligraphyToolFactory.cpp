@@ -26,7 +26,7 @@
 #include <kdebug.h>
 
 KarbonCalligraphyToolFactory::KarbonCalligraphyToolFactory(QObject *parent)
-        : KoToolFactory(parent, "KarbonCalligraphyTool")
+        : KoToolFactoryBase(parent, "KarbonCalligraphyTool")
 {
     setToolTip(i18n("Calligraphy Tool"));
     setToolType(mainToolType());
@@ -39,7 +39,7 @@ KarbonCalligraphyToolFactory::~KarbonCalligraphyToolFactory()
 {
 }
 
-KoTool * KarbonCalligraphyToolFactory::createTool(KoCanvasBase *canvas)
+KoToolBase * KarbonCalligraphyToolFactory::createTool(KoCanvasBase *canvas)
 {
     return new KarbonCalligraphyTool(canvas);
 }

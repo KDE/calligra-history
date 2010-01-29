@@ -28,10 +28,11 @@
 #include "KoDocumentInfoDlg.h"
 #include "KoFileDialog.h"
 #include "KoVersionDialog.h"
-#include "KoDockFactory.h"
+#include "KoDockFactoryBase.h"
 #include "KoDockWidgetTitleBar.h"
 #include "KoPrintJob.h"
 #include "KoDocumentEntry.h"
+#include "KoDockerManager.h"
 
 #include <krecentfilesaction.h>
 #include <kaboutdata.h>
@@ -71,8 +72,6 @@
 #include <QtGui/QPrintPreviewDialog>
 
 #include "kofficeversion.h"
-
-class KoDockerManager : public QObject { }; // little hack to be able to use this class as a qobject
 
 class KoPartManager : public KParts::PartManager
 {
@@ -1754,7 +1753,7 @@ void KoMainWindow::setDocToOpen(KoDocument *doc)
     d->docToOpen = doc;
 }
 
-QDockWidget* KoMainWindow::createDockWidget(KoDockFactory* factory)
+QDockWidget* KoMainWindow::createDockWidget(KoDockFactoryBase* factory)
 {
     QDockWidget* dockWidget = 0;
 
@@ -1785,18 +1784,18 @@ QDockWidget* KoMainWindow::createDockWidget(KoDockFactory* factory)
         bool visible = true;
 
         switch (factory->defaultDockPosition()) {
-        case KoDockFactory::DockTornOff:
+        case KoDockFactoryBase::DockTornOff:
             dockWidget->setFloating(true); // position nicely?
             break;
-        case KoDockFactory::DockTop:
+        case KoDockFactoryBase::DockTop:
             side = Qt::TopDockWidgetArea; break;
-        case KoDockFactory::DockLeft:
+        case KoDockFactoryBase::DockLeft:
             side = Qt::LeftDockWidgetArea; break;
-        case KoDockFactory::DockBottom:
+        case KoDockFactoryBase::DockBottom:
             side = Qt::BottomDockWidgetArea; break;
-        case KoDockFactory::DockRight:
+        case KoDockFactoryBase::DockRight:
             side = Qt::RightDockWidgetArea; break;
-        case KoDockFactory::DockMinimized:
+        case KoDockFactoryBase::DockMinimized:
         default:
             side = Qt::RightDockWidgetArea;
             visible = false;
@@ -1859,13 +1858,13 @@ QList<QDockWidget*> KoMainWindow::dockWidgets()
     return d->dockWidgetsMap.values();
 }
 
-QList<KoCanvasObserver*> KoMainWindow::canvasObservers()
+QList<KoCanvasObserverBase*> KoMainWindow::canvasObservers()
 {
 
-    QList<KoCanvasObserver*> observers;
+    QList<KoCanvasObserverBase*> observers;
 
     foreach(QDockWidget *docker, dockWidgets()) {
-        KoCanvasObserver *observer = dynamic_cast<KoCanvasObserver*>(docker);
+        KoCanvasObserverBase *observer = dynamic_cast<KoCanvasObserverBase*>(docker);
         if (observer) {
             observers << observer;
         }
@@ -1883,8 +1882,7 @@ void KoMainWindow::setDockerManager(KoDockerManager *dm)
 {
     d->dockerManager = dm;
     if (dm) {
-        QObject *manager = static_cast<QObject*> (dm);
-        manager->setParent(this); // make sure that the dockerManager is deleted by us.
+        dm->setParent(this); // make sure that the dockerManager is deleted by us.
         connect(this, SIGNAL(restoringDone()), d->dockerManager, SLOT(removeUnusedOptionWidgets()));
     }
 }

@@ -4,9 +4,10 @@ project(krita)
 # turn on QImage as buffer for QPainter based canvas
 add_definitions(-DINDEPENDENT_CANVAS)
 
-if(GCC)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-operator-names")
-endif(GCC)
+if(CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS_KRITADEVS "-O2 -g" CACHE STRING "" FORCE)
+endif(CMAKE_COMPILER_IS_GNUCXX)
+
 include(CheckFunctionExists)
 
 macro_optional_find_package(GLEW)
@@ -92,6 +93,7 @@ add_subdirectory( dtd )
 add_subdirectory( plugins )
 add_subdirectory( data )
 add_subdirectory( pics )
+add_subdirectory( benchmarks )
 
 set(kritapart_PART_SRCS krita_part_init.cc)
 kde4_add_plugin(kritapart WITH_PREFIX ${kritapart_PART_SRCS})

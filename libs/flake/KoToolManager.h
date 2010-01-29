@@ -31,13 +31,13 @@
 class ToolHelper;
 class KoCanvasController;
 class KoCanvasBase;
-class KoTool;
+class KoToolBase;
 class KoCreateShapesTool;
 class KActionCollection;
 class KoShape;
 class KoToolProxy;
 class QToolButton;
-class KoDeviceEvent;
+class KoInputDeviceHandlerEvent;
 class KoShapeLayer;
 
 /**
@@ -145,7 +145,7 @@ public:
      *    who's tool you want.
      * @see addController()
      */
-    KoTool *toolById(KoCanvasBase *canvas, const QString id) const;
+    KoToolBase *toolById(KoCanvasBase *canvas, const QString id) const;
 
     /// @return the currently active pointing device
     KoInputDevice currentInputDevice() const;
@@ -161,7 +161,7 @@ public:
     struct Button {
         QToolButton *button;///< a newly created button.
         QString section;        ///< The section the button wants to be in.
-        int priority;           ///< Higher priority means coming first in the section.
+        int priority;           ///< Lower number (higher priority) means coming first in the section.
         int buttonGroupId;      ///< An unique ID for this button as passed by changedTool()
         QString visibilityCode; ///< This button should become visible when we emit this string in toolCodesSelected()
     };
@@ -177,7 +177,7 @@ public:
     void requestToolActivation(KoCanvasController *controller);
 
     /// Injects an input event from a plugin based input device
-    void injectDeviceEvent(KoDeviceEvent *event);
+    void injectDeviceEvent(KoInputDeviceHandlerEvent *event);
 
     /// Returns the toolId of the currently active tool
     QString activeToolId() const;

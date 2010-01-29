@@ -981,7 +981,7 @@ void MulRKRecord::dump(std::ostream& out) const
 
 // ========== NAME ==========
 
-const unsigned int NameRecord::id = 0x0018;
+const unsigned int NameRecord::id = 0x0018; // Lbl record
 
 class NameRecord::Private
 {
@@ -1034,7 +1034,11 @@ void NameRecord::setData(unsigned size, const unsigned char* data, const unsigne
     //const bool reserved2 = d->optionFlags & 0xC000;
 
     const unsigned len = readU8(data + 3); // cch
-    // 2 bytes cce + 2 bytes reserved + 2 bytes itab + 4 bytes reserved = 10 bytes
+    const unsigned cce = readU16(data + 4); // len of rgce
+    // 2 bytes reserved
+    const unsigned iTab = readU16(data + 8); // if !=0 then its a local name
+    // 4 bytes reserved
+
     if (version() == Excel95) {
         char* buffer = new char[ len+1 ];
         memcpy(buffer, data + 14, len);
@@ -1043,8 +1047,25 @@ void NameRecord::setData(unsigned size, const unsigned char* data, const unsigne
         delete[] buffer;
     } else  if (version() == Excel97) {
         if( fBuiltin ) { // field is for a build-in name
-            printf( "TODO: build-in name\n" );
-            //d->definedName = ;
+            const unsigned opts = readU8(data + 14);
+            const bool fHighByte = opts & 0x01;
+            const unsigned id = fHighByte ? readU16(data + 15) : readU8(data + 15) + 0x0*256;
+            switch(id) {
+                case 0x00: d->definedName = "Consolidate_Area"; break;
+                case 0x01: d->definedName = "Auto_Open"; break;
+                case 0x02: d->definedName = "Auto_Close"; break;
+                case 0x03: d->definedName = "Extract"; break;
+                case 0x04: d->definedName = "Database"; break;
+                case 0x05: d->definedName = "Criteria"; break;
+                case 0x06: d->definedName = "Print_Area"; break;
+                case 0x07: d->definedName = "Print_Titles"; break;
+                case 0x08: d->definedName = "Recorder"; break;
+                case 0x09: d->definedName = "Data_Form"; break;
+                case 0x0A: d->definedName = "Auto_Activate"; break;
+                case 0x0B: d->definedName = "Auto_Deactivate"; break;
+                case 0x0C: d->definedName = "Sheet_Title"; break;
+                default: break;
+            }
         } else { // must satisfy same restrictions then name field on XLNameUnicodeString
             const unsigned opts = readU8(data + 14);
             const bool fHighByte = opts & 0x01;
@@ -1075,6 +1096,24 @@ void NameRecord::setData(unsigned size, const unsigned char* data, const unsigne
     } else {
         setIsValid(false);
     }
+    
+    // rgce, NamedParsedFormula 
+    if(cce >= 1) {
+        /*
+        FormulaDecoder decoder;
+        m_formula = decoder.decodeNamedFormula(cce, data + size - cce, version());
+        std::cout << ">>" << m_formula.ascii() << std::endl;
+        */
+        const unsigned char* startNamedParsedFormula = data + size - cce;
+        unsigned ptg = readU8(startNamedParsedFormula);
+        ptg = ((ptg & 0x40) ? (ptg | 0x20) : ptg) & 0x3F;
+        FormulaToken t(ptg);
+        t.setVersion(version());
+        t.setData(cce - 1, startNamedParsedFormula + 1);
+        m_formula = t;
+    }
+        
+    std::cout << "NameRecord name=" << d->definedName << " iTab=" << iTab << " fBuiltin=" << fBuiltin << " formula=" << m_formula.id() << " (" << m_formula.idAsString() << ")" << std::endl;
 }
 
 void NameRecord::dump(std::ostream& /*out*/) const
@@ -2536,13 +2575,14 @@ void XFRecord::setData(unsigned size, const unsigned char* data, const unsigned 
         setTopBorderStyle((linestyle >> 8) & 0xf);
         setBottomBorderStyle((linestyle >> 12) & 0xf);
 
-        setLeftBorderColor(color1 & 0x7f);
+        setLeftBorderColor(color1 & 0x7f);//127
         setRightBorderColor((color1 >> 7) & 0x7f);
         setTopBorderColor(color2 & 0x7f);
         setBottomBorderColor((color2 >> 7) & 0x7f);
 
-        setDiagonalTopLeft(color1 & 0x40);
-        setDiagonalBottomLeft(color1 & 0x80);
+        const unsigned grbitDiag = color1 >> 14;
+        setDiagonalTopLeft(grbitDiag == 0x1 || grbitDiag == 0x3);
+        setDiagonalBottomLeft(grbitDiag == 0x2 || grbitDiag == 0x3);
         setDiagonalStyle((flag >> 4) & 0x1e);
         setDiagonalColor(((flag & 0x1f) << 2) + ((color2 >> 14) & 3));
 

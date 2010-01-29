@@ -30,7 +30,7 @@
 class KoShape;
 class KoXmlWriter;
 class KoGenStyles;
-class KoDataCenter;
+class KoDataCenterBase;
 class KoEmbeddedDocumentSaver;
 class KoImageData;
 class KoShapeLayer;
@@ -66,14 +66,13 @@ public:
          */
         UniqueMasterPages = 8
     };
-    Q_DECLARE_FLAGS(KoShapeSavingOptions, ShapeSavingOption)
+    Q_DECLARE_FLAGS(ShapeSavingOptions, ShapeSavingOption)
 
     /**
      * @brief Constructor
      * @param xmlWriter used for writing the xml
      * @param mainStyles for saving the styles
      * @param embeddedSaver for saving embedded documents
-     * @param savingMode either Store (a KoStore will be used) or Flat (all data must be inline in the XML)
      */
     KoShapeSavingContext(KoXmlWriter &xmlWriter, KoGenStyles &mainStyles,
                          KoEmbeddedDocumentSaver &embeddedSaver);
@@ -122,7 +121,7 @@ public:
      *
      * @param options to use
      */
-    void setOptions(KoShapeSavingOptions options);
+    void setOptions(ShapeSavingOptions options);
 
     /// add an option to the set of options stored on this context, will leave the other options intact.
     void addOption(ShapeSavingOption option);
@@ -135,7 +134,7 @@ public:
      *
      * @return options used
      */
-    KoShapeSavingOptions options() const;
+    ShapeSavingOptions options() const;
 
     /**
      * @brief Get the draw id for a shape
@@ -198,12 +197,12 @@ public:
     /**
      * Add data center
      */
-    void addDataCenter(KoDataCenter *dataCenter);
+    void addDataCenter(KoDataCenterBase *dataCenter);
 
     /**
      * Save the data centers
      *
-     * This calls KoDataCenter::completeSaving()
+     * This calls KoDataCenterBase::completeSaving()
      * @returns false if an error occurred, which typically cancels the save.
      */
     bool saveDataCenter(KoStore *store, KoXmlWriter *manifestWriter);
@@ -267,6 +266,6 @@ private:
     KoShapeSavingContextPrivate *d;
 };
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(KoShapeSavingContext::KoShapeSavingOptions)
+Q_DECLARE_OPERATORS_FOR_FLAGS(KoShapeSavingContext::ShapeSavingOptions)
 
 #endif // KOSHAPESAVINGCONTEXT_H

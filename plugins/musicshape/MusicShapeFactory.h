@@ -20,7 +20,7 @@
 #define MUSIC_SHAPE_FACTORY
 
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShape;
 
@@ -35,14 +35,13 @@ public:
 
 };
 
-class MusicShapeFactory : public KoShapeFactory
+class MusicShapeFactory : public KoShapeFactoryBase
 {
 public:
     MusicShapeFactory( QObject* parent );
     ~MusicShapeFactory() {}
 
-    KoShape* createDefaultShape() const;
-    KoShape* createShape( const KoProperties* params ) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports(const KoXmlElement & e) const;
 };
 

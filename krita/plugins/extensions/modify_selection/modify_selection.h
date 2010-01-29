@@ -38,6 +38,7 @@ private slots:
     void slotGrowSelection();
     void slotShrinkSelection();
     void slotBorderSelection();
+    void slotFeatherSelection();
 
 private:
 

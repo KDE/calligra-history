@@ -20,7 +20,7 @@
 #ifndef KOSHAPECONFIGWIDGETBASE_H
 #define KOSHAPECONFIGWIDGETBASE_H
 
-#include "KoCanvasResourceProvider.h"
+#include "KoResourceManager.h"
 
 #include <QWidget>
 
@@ -35,9 +35,9 @@ class QUndoCommand;
 /**
  * Base widget for shape-configuration panels.
  * This is an interface type class used by classes that intend to provide
- * a GUI for configuring newly created shapes as created by a KoShapeFactory.
+ * a GUI for configuring newly created shapes as created by a KoShapeFactoryBase.
  *
- * Every time after a shape is created the KoShapeFactory for that shape-type
+ * Every time after a shape is created the KoShapeFactoryBase for that shape-type
  * will be queried for all the config widgets; both factory specific as well as
  * those set by the hosting application.
  * A dialog will be shown with all those panels, each extending this class.
@@ -76,8 +76,8 @@ public:
      */
     virtual void setUnit(KoUnit unit);
 
-    /// called to set the canvas resource provider of the canvas the user used to insert the new shape.
-    void setResourceProvider(KoCanvasResourceProvider* provider);
+    /// called to set the canvas resource manager of the canvas the user used to insert the new shape.
+    void setResourceManager(KoResourceManager *rm);
 
     /// Return true if the shape config panel should be shown after the shape is created
     virtual bool showOnShapeCreate();
@@ -93,7 +93,7 @@ signals:
     void propertyChanged();
 
 protected:
-    KoCanvasResourceProvider *m_resourceProvider; ///< the resource provider with data for this canvas
+    KoResourceManager *m_resourceManager; ///< the resource provider with data for this canvas
 };
 
 #endif

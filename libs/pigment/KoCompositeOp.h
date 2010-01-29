@@ -20,6 +20,7 @@
 #define KOCOMPOSITEOP_H
 
 #include <QtCore>
+#include <klocale.h>
 
 #include "pigment_export.h"
 
@@ -70,6 +71,7 @@ const QString COMPOSITE_VIVID_LIGHT = "vivid light"; // XXX: not implemented any
 const QString COMPOSITE_LINEAR_LIGHT = "linear light"; // XXX: not implemented anywhere yet
 const QString COMPOSITE_PIN_LIGHT = "pin light"; // XXX: not implemented anywhere yet
 const QString COMPOSITE_HARD_MIX = "hard mix"; // XXX: not implemented anywhere yet
+const QString COMPOSITE_PASS_THROUGH = "pass through"; // XXX: not implemented anywhere yet
 
 const QString COMPOSITE_UNDEF = "underfined";
 

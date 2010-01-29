@@ -1,7 +1,7 @@
 /* This file is part of the KDE project
 
    Copyright (C) 2006-2008 Thorsten Zachmann <zachmann@kde.org>
-   Copyright (C) 2006-2009 Thomas Zander <zander@kde.org>
+   Copyright (C) 2006-2010 Thomas Zander <zander@kde.org>
    Copyright (C) 2009 Jan Hambrecht <jaham@gmx.net>
 
    This library is free software; you can redistribute it and/or
@@ -65,6 +65,13 @@ public:
      * updates to the tree are done when they are asked for but when they are needed.
      */
     void updateTree();
+
+    /**
+     * Recursively paints the given group shape to the specified painter
+     * This is needed for filter effects on group shapes where the filter effect
+     * applies to all the children of the group shape at once
+     */
+    void paintGroup(KoShapeGroup *group, QPainter &painter, const KoViewConverter &converter, bool forPrint);
 
     class DetectCollision
     {
@@ -137,6 +144,25 @@ void KoShapeManager::Private::updateTree()
     if (selectionModified) {
         selection->updateSizeAndPosition();
         emit q->selectionContentChanged();
+    }
+}
+
+void KoShapeManager::Private::paintGroup(KoShapeGroup *group, QPainter &painter, const KoViewConverter &converter, bool forPrint)
+{
+    QList<KoShape*> childShapes = group->childShapes();
+    qSort(childShapes.begin(), childShapes.end(), KoShape::compareShapeZIndex);
+    foreach(KoShape *child, childShapes) {
+        // we paint recursively here, so we do not have to check recursively for visibility
+        if (!child->isVisible())
+            continue;
+        KoShapeGroup * childGroup = dynamic_cast<KoShapeGroup*>(child);
+        if (childGroup) {
+            paintGroup(childGroup, painter, converter, forPrint);
+        } else {
+            painter.save();
+            strategy->paint(child, painter, converter, forPrint);
+            painter.restore();
+        }
     }
 }
 
@@ -268,10 +294,29 @@ void KoShapeManager::paint(QPainter &painter, const KoViewConverter &converter, 
     }
 
     // filter all hidden shapes from the list
+    // also filter shapes with a parent which has filter effects applied
     QList<KoShape*> sortedShapes;
     foreach(KoShape * shape, unsortedShapes) {
-        if (shape->isVisible(true))
+        if (!shape->isVisible(true))
+            continue;
+        bool addShapeToList = true;
+        // check if one of the shapes ancestors have filter effects
+        KoShapeContainer *parent = shape->parent();
+        while (parent) {
+            // parent must be part of the shape manager to be taken into account
+            if (!d->shapes.contains(parent))
+                break;
+            if (parent->filterEffectStack() && !parent->filterEffectStack()->isEmpty()) {
+                    addShapeToList = false;
+                    break;
+            }
+            parent = parent->parent();
+        }
+        if (addShapeToList) {
             sortedShapes.append(shape);
+        } else if (parent) {
+            sortedShapes.append(parent);
+        }
     }
 
     qSort(sortedShapes.begin(), sortedShapes.end(), KoShape::compareShapeZIndex);
@@ -280,7 +325,9 @@ void KoShapeManager::paint(QPainter &painter, const KoViewConverter &converter, 
         if (shape->parent() != 0 && shape->parent()->childClipped(shape))
             continue;
 
+        painter.save();
         d->strategy->paint(shape, painter, converter, forPrint);
+        painter.restore();
     }
 
 #ifdef KOFFICE_RTREE_DEBUG
@@ -305,13 +352,13 @@ void KoShapeManager::paintShape(KoShape * shape, QPainter &painter, const KoView
     if (transparency > 0.0) {
         painter.setOpacity(1.0-transparency);
     }
-    
+
     if (shape->shadow()) {
         painter.save();
         shape->shadow()->paint(shape, painter, converter);
         painter.restore();
     }
-    if(!shape->filterEffectStack() || shape->filterEffectStack()->filterEffects().isEmpty()) {
+    if(!shape->filterEffectStack() || shape->filterEffectStack()->isEmpty()) {
         painter.save();
         shape->paint(painter, converter);
         painter.restore();
@@ -342,15 +389,21 @@ void KoShapeManager::paintShape(KoShape * shape, QPainter &painter, const KoView
         imagePainter.setRenderHint(QPainter::Antialiasing, painter.testRenderHint(QPainter::Antialiasing));
 
         // Paint the shape on the image
-        imagePainter.save();
-        shape->paint(imagePainter, converter);
-        imagePainter.restore();
-        if (shape->border()) {
+        KoShapeGroup * group = dynamic_cast<KoShapeGroup*>(shape);
+        if (group) {
+            imagePainter.setMatrix(group->absoluteTransformation(&converter).inverted(), true);
+            d->paintGroup(group, imagePainter, converter, forPrint);
+        } else {
             imagePainter.save();
-            shape->border()->paint(shape, imagePainter, converter);
+            shape->paint(imagePainter, converter);
             imagePainter.restore();
+            if (shape->border()) {
+                imagePainter.save();
+                shape->border()->paint(shape, imagePainter, converter);
+                imagePainter.restore();
+            }
+            imagePainter.end();
         }
-        imagePainter.end();
 
         QImage sourceAlpha = sourceGraphic;
         sourceAlpha.fill(qRgba(0,0,0,255));
@@ -364,7 +417,7 @@ void KoShapeManager::paintShape(KoShape * shape, QPainter &painter, const KoView
         QMatrix coordTransform = QMatrix().scale(shapeBound.width(), shapeBound.height());
         KoFilterEffectRenderContext renderContext(converter);
         renderContext.setCoordinateTransformation(coordTransform);
-        
+
         QImage result;
         QList<KoFilterEffect*> filterEffects = shape->filterEffectStack()->filterEffects();
         // Filter

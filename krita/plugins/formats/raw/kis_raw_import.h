@@ -24,7 +24,6 @@
 
 #include "ui_wdgrawimport.h"
 
-class K3Process;
 class KDialog;
 class WdgRawImport;
 class KoColorProfile;
@@ -40,7 +39,7 @@ class KisRawImport : public KoFilter
     Q_OBJECT
 
 public:
-    KisRawImport(QObject* parent, const QStringList&);
+    KisRawImport(QObject *parent, const QVariantList &);
     virtual ~KisRawImport();
 
 public:

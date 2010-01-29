@@ -20,11 +20,12 @@
 #define _KIS_COLOR_SPACE_SELECTOR_H_
 
 #include <QWidget>
+#include <krita_export.h>
 
 class KoID;
 class KoColorSpace;
 
-class KisColorSpaceSelector : public QWidget
+class KRITAUI_EXPORT KisColorSpaceSelector : public QWidget
 {
     Q_OBJECT
 public:
@@ -33,6 +34,8 @@ public:
     const KoColorSpace* currentColorSpace();
     void setCurrentColorModel(const KoID& id);
     void setCurrentColorDepth(const KoID& id);
+    void setCurrentProfile(const QString& name);
+    void setCurrentColorSpace(const KoColorSpace* colorSpace);
 signals:
     /**
      * This signal is emited when a new color space is selected.

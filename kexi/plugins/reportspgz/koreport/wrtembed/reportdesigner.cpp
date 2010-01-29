@@ -241,7 +241,7 @@ ReportDesigner::ReportDesigner(QWidget *parent, QDomElement data) : QWidget(pare
                 m_interpreter->setValue(it.toElement().attribute("report:script-interpreter"));
                 m_script->setValue(it.firstChild().nodeValue());
             } else if (n == "report:grid") {
-                m_showGrid->setValue(it.toElement().attribute("report:grid-snap", QString::number(1)).toInt() != 0);
+                m_showGrid->setValue(it.toElement().attribute("report:grid-visible", QString::number(1)).toInt() != 0);
                 m_gridSnap->setValue(it.toElement().attribute("report:grid-snap", QString::number(1)).toInt() != 0);
                 m_gridDivisions->setValue(it.toElement().attribute("report:grid-divisions", QString::number(4)).toInt());
                 m_unit->setValue(it.toElement().attribute("report:page-unit", "cm"));
@@ -692,7 +692,7 @@ void ReportDesigner::createProperties()
     keys.clear(); strings.clear();
     keys << "portrait" << "landscape";
     strings << i18n("Portrait") << i18n("Landscape");
-    m_orientation = new KoProperty::Property("print-orientation", keys, strings, "Portrait", "Page Orientation");
+    m_orientation = new KoProperty::Property("print-orientation", keys, strings, "portrait", "Page Orientation");
 
     keys.clear(); strings.clear();
 
@@ -961,8 +961,7 @@ void ReportDesigner::sectionMouseReleaseEvent(ReportSceneView * v, QMouseEvent *
                 break;
             case KRObjectData::EntityLine :
                 item = new ReportEntityLine(v->designer(), v->scene());
-                //dynamic_cast<QGraphicsLineItem*>(item)->setLine ( e->x()-10, e->y(), e->x()+10, e->y() );
-                dynamic_cast<QGraphicsLineItem*>(item)->setLine(e->x(), e->y(), e->x() + 20, e->y());
+                dynamic_cast<ReportEntityLine*>(item)->setLineScene(QLineF(QPointF(e->x(), e->y()), QPointF(e->x() + 20, e->y())));
                 break;
             case KRObjectData::EntityChart :
                 item = new ReportEntityChart(v->designer(), v->scene());

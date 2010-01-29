@@ -22,9 +22,9 @@
 #include <QDockWidget>
 #include <klocale.h>
 
-#include <KoDockFactory.h>
+#include <KoDockFactoryBase.h>
 #include <KoColorSet.h>
-#include <KoCanvasObserver.h>
+#include <KoCanvasObserverBase.h>
 
 class KoColor;
 class KisView2;
@@ -36,7 +36,7 @@ class KisView2;
  *  @author was Waldo Bastian <bastian@kde.org> -- much has changed, though,
  * to work with KisPalettes and the resource server.
  */
-class KisPaletteDocker : public QDockWidget, public KoCanvasObserver
+class KisPaletteDocker : public QDockWidget, public KoCanvasObserverBase
 {
     Q_OBJECT
 public:
@@ -45,7 +45,7 @@ public:
 
     QString palette() const;
 
-    /// reimplemented from KoCanvasObserver
+    /// reimplemented from KoCanvasObserverBase
     virtual void setCanvas(KoCanvasBase *canvas);
 
 private slots:
@@ -60,7 +60,7 @@ protected:
     KoCanvasBase* m_canvas;
 };
 
-class KisPaletteDockerFactory : public KoDockFactory
+class KisPaletteDockerFactory : public KoDockFactoryBase
 {
 public:
     KisPaletteDockerFactory() {}

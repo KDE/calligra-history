@@ -27,6 +27,7 @@
 #include <KoPointerEvent.h>
 #include <KoSelection.h>
 #include <KoShapeManager.h>
+#include <KoShapeController.h>
 #include <kiconloader.h>
 #include <klocale.h>
 #include <QKeyEvent>
@@ -52,7 +53,7 @@
 
 
 
-KoFormulaTool::KoFormulaTool( KoCanvasBase* canvas ) : KoTool( canvas ),
+KoFormulaTool::KoFormulaTool( KoCanvasBase* canvas ) : KoToolBase( canvas ),
                                                        m_formulaShape( 0 ),
                                                        m_formulaEditor( 0 )
 {
@@ -376,8 +377,7 @@ void KoFormulaTool::loadFormula()
 
     KoOdfStylesReader stylesReader;
     KoOdfLoadingContext odfContext( stylesReader, 0 );
-    QMap<QString, KoDataCenter *> dataCenterMap;
-    KoShapeLoadingContext shapeContext( odfContext, dataCenterMap );
+    KoShapeLoadingContext shapeContext(odfContext, canvas()->shapeController()->resourceManager());
 
     // setup a DOM structure and start the actual loading process
     KoXmlDocument tmpDocument;
@@ -491,7 +491,7 @@ void KoFormulaTool::copy() const
 
 void KoFormulaTool::deleteSelection()
 {
-    KoTool::deleteSelection();
+    KoToolBase::deleteSelection();
 }
 
 bool KoFormulaTool::paste()

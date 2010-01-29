@@ -21,7 +21,7 @@
 #include "KoPADocument.h"
 
 #include <KoStore.h>
-#include <KoUndoStack.h>
+#include <KoResourceManager.h>
 #include <KoXmlWriter.h>
 #include <KoXmlReader.h>
 #include <KoOdfStylesReader.h>
@@ -41,7 +41,6 @@
 #include <KoPathShape.h>
 #include <KoLineBorder.h>
 #include <KoXmlNS.h>
-#include <KoDataCenter.h>
 
 #include "KoPACanvas.h"
 #include "KoPAView.h"
@@ -66,7 +65,7 @@ public:
     QList<KoPAPageBase*> masterPages;
     KoInlineTextObjectManager *inlineTextObjectManager;
     bool rulersVisible;
-    QMap<QString, KoDataCenter *>  dataCenterMap;
+    KoPAPageProvider *pageProvider;
 };
 
 KoPADocument::KoPADocument( QWidget* parentWidget, QObject* parent, bool singleViewMode )
@@ -75,16 +74,12 @@ KoPADocument::KoPADocument( QWidget* parentWidget, QObject* parent, bool singleV
 {
     d->inlineTextObjectManager = new KoInlineTextObjectManager(this);
 
-    // Ask every shapefactory to populate the dataCenterMap
-    foreach(const QString & id, KoShapeRegistry::instance()->keys())
-    {
-        KoShapeFactory *shapeFactory = KoShapeRegistry::instance()->value(id);
-        shapeFactory->populateDataCenterMap(d->dataCenterMap);
-    }
-
-    //Populate the document undoStack in the dataCenterMap. This can be used later by shapes for their undo/redo mechanism.
-    d->dataCenterMap["UndoStack"] = undoStack();
-    d->dataCenterMap[KoPageProvider::ID] = new KoPAPageProvider();
+    resourceManager()->setUndoStack(undoStack());
+    resourceManager()->setOdfDocument(this);
+    QVariant variant;
+    d->pageProvider = new KoPAPageProvider();
+    variant.setValue<void*>(d->pageProvider);
+    resourceManager()->setResource(KoText::PageProvider, variant);
     loadConfig();
 }
 
@@ -93,7 +88,7 @@ KoPADocument::~KoPADocument()
     saveConfig();
     qDeleteAll( d->pages );
     qDeleteAll( d->masterPages );
-    qDeleteAll( d->dataCenterMap );
+    delete d->pageProvider;
     delete d;
 }
 
@@ -118,7 +113,7 @@ bool KoPADocument::loadOdf( KoOdfReadStore & odfStore )
 {
     emit sigProgress( 0 );
     KoOdfLoadingContext loadingContext( odfStore.styles(), odfStore.store(), componentData() );
-    KoPALoadingContext paContext( loadingContext, dataCenterMap() );
+    KoPALoadingContext paContext(loadingContext, resourceManager());
 
     KoXmlElement content = odfStore.contentDoc().documentElement();
     KoXmlElement realBody ( KoXml::namedItemNS( content, KoXmlNS::office, "body" ) );
@@ -137,11 +132,15 @@ bool KoPADocument::loadOdf( KoOdfReadStore & odfStore )
 
     // Load text styles before the corresponding text shapes try to use them!
     KoTextSharedLoadingData * sharedData = new KoTextSharedLoadingData();
-    KoStyleManager * styleManager = dynamic_cast<KoStyleManager *>( dataCenterMap()["StyleManager"] );
+    KoStyleManager *styleManager = resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
+
     sharedData->loadOdfStyles(loadingContext, styleManager);
     paContext.addSharedData( KOTEXT_SHARED_LOADING_ID, sharedData );
 
     d->masterPages = loadOdfMasterPages( odfStore.styles().masterPages(), paContext );
+    if ( !loadOdfProlog( body, paContext ) ) {
+        return false;
+    }
     d->pages = loadOdfPages( body, paContext );
 
     // create pages if there are none
@@ -166,16 +165,6 @@ bool KoPADocument::loadOdf( KoOdfReadStore & odfStore )
 
     emit sigProgress( -1 );
     return true;
-}
-
-bool KoPADocument::completeLoading( KoStore* store )
-{
-    bool ok=true;
-    foreach(KoDataCenter *dataCenter, d->dataCenterMap)
-    {
-        ok = ok && dataCenter->completeLoading(store);
-    }
-    return ok;
 }
 
 bool KoPADocument::saveOdf( SavingContext & documentContext )
@@ -234,12 +223,6 @@ bool KoPADocument::saveOdf( SavingContext & documentContext )
     return paContext.saveDataCenter( documentContext.odfStore.store(), documentContext.odfStore.manifestWriter() );
 }
 
-bool KoPADocument::completeSaving( KoStore* store)
-{
-    Q_UNUSED(store)
-    return true;
-}
-
 QList<KoPAPageBase *> KoPADocument::loadOdfMasterPages( const QHash<QString, KoXmlElement*> masterStyles, KoPALoadingContext & context )
 {
     context.odfLoadingContext().setUseStylesAutoStyles( true );
@@ -278,6 +261,13 @@ QList<KoPAPageBase *> KoPADocument::loadOdfPages( const KoXmlElement & body, KoP
 }
 
 bool KoPADocument::loadOdfEpilogue( const KoXmlElement & body, KoPALoadingContext & context )
+{
+    Q_UNUSED( body );
+    Q_UNUSED( context );
+    return true;
+}
+
+bool KoPADocument::loadOdfProlog( const KoXmlElement & body, KoPALoadingContext & context )
 {
     Q_UNUSED( body );
     Q_UNUSED( context );
@@ -372,7 +362,7 @@ void KoPADocument::loadOdfSettings(  const KoXmlDocument & settingsDoc )
 
 void KoPADocument::saveOdfDocumentStyles( KoPASavingContext & context )
 {
-    KoStyleManager *styleManager = dynamic_cast<KoStyleManager *>( dataCenterMap()["StyleManager"] );
+    KoStyleManager *styleManager = resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
     Q_ASSERT( styleManager );
     styleManager->saveOdf( context.mainStyles() );
 }
@@ -508,11 +498,6 @@ void KoPADocument::pageRemoved( KoPAPageBase * page, QUndoCommand * parent )
     Q_UNUSED( parent );
 }
 
-QMap<QString, KoDataCenter *> KoPADocument::dataCenterMap() const
-{
-    return d->dataCenterMap;
-}
-
 KoPAPageBase * KoPADocument::pageByShape( KoShape * shape ) const
 {
     KoShape * parent = shape;
@@ -551,7 +536,7 @@ KoPageApp::PageType KoPADocument::pageType() const
 QPixmap KoPADocument::pageThumbnail(KoPAPageBase* page, const QSize& size)
 {
     int pageNumber = pageIndex(page) + 1;
-    static_cast<KoPAPageProvider*>(d->dataCenterMap[KoPAPageProvider::ID])->setMasterPageNumber(pageNumber);
+    d->pageProvider->setPageData(pageNumber, page);
     return page->thumbnail(size);
 }
 
@@ -766,16 +751,11 @@ int KoPADocument::pageCount() const
 
 void KoPADocument::updatePageCount()
 {
-    KoInlineTextObjectManager * om = dynamic_cast<KoInlineTextObjectManager*>( dataCenterMap()["InlineTextObjectManager"] );
-
-    if ( om ) {
+    if (resourceManager()->hasResource(KoText::InlineTextObjectManager)) {
+        QVariant var = resourceManager()->resource(KoText::InlineTextObjectManager);
+        KoInlineTextObjectManager *om = var.value<KoInlineTextObjectManager*>();
         om->setProperty( KoInlineObject::PageCount, pageCount() );
     }
-}
-
-void KoPADocument::insertIntoDataCenterMap(QString key, KoDataCenter *dc)
-{
-    d->dataCenterMap[key] = dc;
 }
 
 #include <KoPADocument.moc>

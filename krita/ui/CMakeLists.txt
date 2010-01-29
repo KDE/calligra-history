@@ -31,7 +31,6 @@ set(kritaui_LIB_SRCS
     canvas/kis_image_pyramid.cpp
     dialogs/kis_dlg_adj_layer_props.cc 
     dialogs/kis_dlg_adjustment_layer.cc
-    dialogs/kis_dlg_apply_profile.cc 
     dialogs/kis_dlg_filter.cpp
     dialogs/kis_dlg_generator_layer.cpp
     dialogs/kis_dlg_image_properties.cc
@@ -109,6 +108,7 @@ set(kritaui_LIB_SRCS
     recorder/kis_recorded_action_editor_factory.cc
     recorder/kis_recorded_action_editor_factory_registry.cc
     recorder/kis_recorded_filter_action_editor.cc
+    recorder/kis_recorded_paint_action_editor.cc
     tool/kis_selection_options.cc 
     tool/kis_selection_tool_helper.cpp 
     tool/kis_shape_tool_helper.cpp 
@@ -132,7 +132,6 @@ set(kritaui_LIB_SRCS
     widgets/kis_gradient_chooser.cc 
     widgets/kis_gradient_slider_widget.cc
     widgets/kis_iconwidget.cc 
-    widgets/kis_item_chooser.cpp
     widgets/kis_mask_widgets.cpp 
     widgets/kis_meta_data_merge_strategy_chooser_widget.cc
     widgets/kis_multi_bool_filter_widget.cc
@@ -199,6 +198,7 @@ kde4_add_ui_files(kritaui_LIB_SRCS
     forms/wdgdlggeneratorlayer.ui
     forms/wdgfilterselector.ui
     forms/wdgfilternodecreation.ui
+    forms/wdgpaintactioneditor.ui
 )
 
 kde4_add_library(kritaui SHARED ${kritaui_LIB_SRCS} )

@@ -31,7 +31,6 @@
 #include "KoColorSpaceConstants.h"
 #include "KoColorConversionTransformation.h"
 #include <KoChannelInfo.h>
-#include <KoColorSpace.h>
 #include <KoID.h>
 #include "pigment_export.h"
 
@@ -90,6 +89,7 @@ enum ColorSpaceIndependence {
 class PIGMENTCMS_EXPORT KoColorSpace
 {
     friend class KoColorSpaceRegistry;
+    friend class KoColorSpaceFactory;
 protected:
     /// Only for use by classes that serve as baseclass for real color spaces
     KoColorSpace();
@@ -98,17 +98,12 @@ public:
 
     /// Should be called by real color spaces
     KoColorSpace(const QString &id, const QString &name, KoMixColorsOp* mixColorsOp, KoConvolutionOp* convolutionOp);
-    virtual ~KoColorSpace();
 
     virtual bool operator==(const KoColorSpace& rhs) const;
+protected:
+    virtual ~KoColorSpace();
 
 public:
-
-    /**
-     * Use this function to create a cloned version of this color space,
-     * and of its profile.
-     */
-    virtual KoColorSpace* clone() const = 0;
     //========== Channels =====================================================//
 
     /// Return a list describing all the channels this color model has.
@@ -273,11 +268,11 @@ public:
     //========== Display profiles =============================================//
 
     /**
-     * Return the profile of this color space. This may be 0
+     * Return the profile of this color space.
      */
     virtual const KoColorProfile * profile() const = 0;
     /**
-     * Return the profile of this color space. This may be 0
+     * Return the profile of this color space.
      */
     virtual KoColorProfile * profile() = 0;
 
@@ -394,6 +389,7 @@ public:
      * Get the alpha value of the given pixel, downscaled to an 8-bit value.
      */
     virtual quint8 alpha(const quint8 * pixel) const = 0;
+    virtual qreal alpha2(const quint8 * pixel) const = 0;
 
     /**
      * Set the alpha channel of the given run of pixels to the given value.
@@ -404,6 +400,7 @@ public:
      *
      */
     virtual void setAlpha(quint8 * pixels, quint8 alpha, qint32 nPixels) const = 0;
+    virtual void setAlpha2(quint8 * pixels, qreal alpha, qint32 nPixels) const = 0;
 
     /**
      * Multiply the alpha channel of the given run of pixels by the given value.

@@ -115,6 +115,9 @@ public:
     quint32 getGridVSpacing();
     void setGridVSpacing(quint32 v);
 
+    bool getGridSpacingAspect();
+    void setGridSpacingAspect(bool v);
+
     quint32 getGridSubdivisions();
     void setGridSubdivisions(quint32 v);
 
@@ -124,6 +127,9 @@ public:
     quint32 getGridOffsetY();
     void setGridOffsetY(quint32 v);
 
+    bool getGridOffsetAspect();
+    void setGridOffsetAspect(bool v);
+
     qint32 checkSize();
     void setCheckSize(qint32 checkSize);
 
@@ -132,6 +138,9 @@ public:
 
     QColor checkersColor();
     void setCheckersColor(const QColor & v);
+
+    bool antialiasCurves();
+    void setAntialiasCurves(bool v);
 
     int numProjectionThreads();
     void setNumProjectThreads(int num);
@@ -191,9 +200,15 @@ public:
     bool showFilterGallery();
     void setShowFilterGallery(bool showFilterGallery);
 
-    QString defaultPainterlyColorSpace();
-    void setDefaultPainterlyColorSpace(const QString& def);
+    QString defaultPainterlyColorModelId();
+    void setDefaultPainterlyColorModelId(const QString& def);
 
+    QString defaultPainterlyColorDepthId();
+    void setDefaultPainterlyColorDepthId(const QString& def);
+
+    // OPENGL_SUCCESS, TRY_OPENGL, OPENGL_NOT_TRIED, OPENGL_FAILED
+    QString canvasState() const;
+    void setCanvasState(const QString& state);
 
 private:
     KisConfig(const KisConfig&);

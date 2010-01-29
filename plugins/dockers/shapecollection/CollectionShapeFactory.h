@@ -19,23 +19,18 @@
 #ifndef KOCOLLECTIONSHAPEFACTORY_H
 #define KOCOLLECTIONSHAPEFACTORY_H
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShapeControllerBase;
 
-class CollectionShapeFactory : public KoShapeFactory
+class CollectionShapeFactory : public KoShapeFactoryBase
 {
     Q_OBJECT
     public:
         CollectionShapeFactory(QObject *parent, const QString &id, KoShape* shape);
         ~CollectionShapeFactory();
 
-        virtual KoShape* createDefaultShape( KoShapeControllerBase * shapeController );
-        virtual KoShape* createShape( const KoProperties* params, KoShapeControllerBase * shapeController );
-
-    protected:
-        virtual KoShape* createDefaultShape() const;
-        virtual KoShape* createShape(const KoProperties* params) const;
+        virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
 
     private:
         KoShape* m_shape;

@@ -46,6 +46,7 @@
 #include <kis_paint_layer.h>
 #include <kis_transparency_mask.h>
 
+#include <KoColorModelStandardIds.h>
 extern "C" {
 
 #include "xcftools.h"
@@ -61,10 +62,10 @@ extern "C" {
 #define GET_ALPHA(x) (x >> ALPHA_SHIFT)
 }
 
-typedef KGenericFactory<KisXCFImport> XCFImportFactory;
-K_EXPORT_COMPONENT_FACTORY(libkritaxcfimport, XCFImportFactory("kofficefilters"))
+K_PLUGIN_FACTORY(XCFImportFactory, registerPlugin<KisXCFImport>();)
+K_EXPORT_PLUGIN(XCFImportFactory("kofficefilters"))
 
-KisXCFImport::KisXCFImport(QObject* parent, const QStringList&) : KoFilter(parent)
+KisXCFImport::KisXCFImport(QObject *parent, const QVariantList &) : KoFilter(parent)
 {
 }
 
@@ -220,7 +221,7 @@ KoFilter::ConversionStatus KisXCFImport::loadFromDevice(QIODevice* device, KisDo
             break;
         case GIMP_GRAY_IMAGE:
         case GIMP_GRAYA_IMAGE:
-            colorSpace = KoColorSpaceRegistry::instance()->colorSpace("GRAYA", "");
+            colorSpace = KoColorSpaceRegistry::instance()->colorSpace(GrayAColorModelID.id(), Integer8BitsColorDepthID.id(), "");
             isRgbA = false;
             break;
         }

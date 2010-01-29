@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2008 Lukas Tvrdy <lukast.dev@gmail.com>
+ *  Copyright (c) 2008,2009,2010 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,76 +28,23 @@
 #include <kis_pressure_opacity_option.h>
 #include <kis_pressure_size_option.h>
 
-class QWidget;
-class QDomElement;
-class QDomDocument;
-
 
 class KisSprayPaintOpSettings : public KisPaintOpSettings
 {
 
 public:
 
-    KisSprayPaintOpSettings();
+    KisSprayPaintOpSettings(){}
     virtual ~KisSprayPaintOpSettings() {}
 
     virtual QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const;
     virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const;
-
-    virtual void changePaintOpSize(qreal x, qreal y) const;
     
     bool paintIncremental();
-
-    // brush settings
-    int diameter() const;
-    qreal aspect() const;
-    qreal coverage() const;
-    qreal amount() const;
-    qreal spacing() const;
-    qreal scale() const;
-    qreal brushRotation() const;
-    bool jitterMovement() const;
-    bool jitterSize() const;    
-    bool useDensity() const;
-    int particleCount() const;
-    
-    // color options
-    bool useRandomOpacity() const;
-    bool useRandomHSV() const;
-    // TODO: these should be intervals like 20..180
-    int hue() const;
-    int saturation() const;
-    int value() const;
-
-    bool colorPerParticle() const;
-    bool fillBackground() const;
-    bool mixBgColor() const;
-    bool sampleInput() const;
-    
-    // shape size
-    int shape() const;
-    bool proportional() const;
-
-    bool jitterShapeSize() const;    
-    int width() const;
-    int height() const;
-    // distributed
-    bool gaussian() const;
-
-    // rotation
-    bool fixedRotation() const;
-    int fixedAngle() const;
-    bool randomRotation() const;
-    qreal randomRotationWeight() const;
-    bool followCursor() const;
-    qreal followCursorWeigth() const;
-
+    void setQImage(const QImage &image){ m_image = image; }
     QImage image() const;
-
-
 private:
-
-    KisSprayPaintOpSettingsWidget* m_options;
+    QImage m_image;
 
 };
 
