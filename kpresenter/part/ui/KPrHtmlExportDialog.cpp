@@ -135,7 +135,6 @@ void KPrHtmlExportDialog::loadCssList()
         for (QStringList::ConstIterator entry=entries.begin(); entry!=entries.end(); ++entry) {
             if (*entry != "." && *entry != "..") {
                 if (dir.exists(*entry + "/style.css")) {
-                    // Rajouter les items inselectionnables
                     ui.kcombobox->addItem(QString(*entry),QVariant(QString(*path + *entry + "/style.css")));
                 } 
             }
@@ -148,6 +147,8 @@ void KPrHtmlExportDialog::browserAction(){
     KFileDialog dialog(KUrl("/"),QString("*.css"),this);
     if (dialog.exec() == QDialog::Accepted) {
         QString name=dialog.selectedFile();
+        QStringList list = name.split("/");
+        name = list[list.count()-1];
         if (! ui.kcombobox->contains(name)) {
             ui.kcombobox->addItem(name,QVariant(name));
             ui.kcombobox->setCurrentIndex(ui.kcombobox->count()-1);
@@ -194,6 +195,11 @@ void KPrHtmlExportDialog::generatePreview(int item) {
                                                             , ui.klineedit_title->text()
                                                             , slidesNames));
     preview.mainFrame()->load(url);
+}
+
+void KPrHtmlExportDialog::addFavoriteCSS( QString path){
+    QString basePath = KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML");
+
 }
 
 void KPrHtmlExportDialog::renderPreview()
