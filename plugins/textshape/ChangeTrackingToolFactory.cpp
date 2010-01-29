@@ -24,12 +24,12 @@
 #include <klocale.h>
 
 ChangeTrackingToolFactory::ChangeTrackingToolFactory(QObject *parent)
-        : KoToolFactory(parent, "ChangeTrackingToolFactory_ID")
+        : KoToolFactoryBase(parent, "ChangeTrackingToolFactory_ID")
 {
     setToolTip(i18n("Change Tracking tool"));
     setToolType(dynamicToolType());
     setIcon("draw-text");
-    setPriority(1);
+    setPriority(3);
     setActivationShapeId(TextShape_SHAPEID);
 }
 
@@ -37,9 +37,9 @@ ChangeTrackingToolFactory::~ChangeTrackingToolFactory()
 {
 }
 
-KoTool * ChangeTrackingToolFactory::createTool(KoCanvasBase *canvas)
+KoToolBase * ChangeTrackingToolFactory::createTool(KoCanvasBase *canvas)
 {
     return new ChangeTrackingTool(canvas);
 }
 
-#include "ChangeTrackingToolFactory.moc"
+#include <ChangeTrackingToolFactory.moc>

@@ -44,7 +44,7 @@ MusicShapePlugin::MusicShapePlugin( QObject * parent,  const QVariantList& )
 
 
 MusicShapeFactory::MusicShapeFactory( QObject* parent )
-    : KoShapeFactory( parent, MusicShapeId, i18n( "Music Shape" ) )
+    : KoShapeFactoryBase( parent, MusicShapeId, i18n( "Music Shape" ) )
 {
     setToolTip( i18n( "A shape which provides a music editor" ) );
     ///@todo setIcon( "musicflake" );
@@ -53,14 +53,8 @@ MusicShapeFactory::MusicShapeFactory( QObject* parent )
     setLoadingPriority( 1 );
 }
 
-KoShape* MusicShapeFactory::createDefaultShape() const
+KoShape *MusicShapeFactory::createDefaultShape(KoResourceManager *) const
 {
-    return createShape(0);
-}
-
-KoShape* MusicShapeFactory::createShape( const KoProperties* params ) const
-{
-    Q_UNUSED( params );
     static bool loadedFont = false;
     if (!loadedFont) {
         QString fontFile = KStandardDirs::locate("data", "musicshape/fonts/Emmentaler-14.ttf");
@@ -71,6 +65,7 @@ KoShape* MusicShapeFactory::createShape( const KoProperties* params ) const
     }
     MusicShape* shape = new MusicShape();
     shape->setSize(QSizeF(400, 300));
+    shape->setShapeId(MusicShapeId);
     return shape;
 }
 
@@ -79,4 +74,4 @@ bool MusicShapeFactory::supports(const KoXmlElement & e) const
     return ( e.localName() == "shape" ) && ( e.namespaceURI() == "http://www.koffice.org/music" );
 }
 
-#include "MusicShapeFactory.moc"
+#include <MusicShapeFactory.moc>

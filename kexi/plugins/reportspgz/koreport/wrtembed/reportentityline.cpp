@@ -41,6 +41,7 @@ void ReportEntityLine::init(QGraphicsScene* s, ReportDesigner *r)
 {
     m_reportDesigner = r;
     setPos(0, 0);
+    setUnit(r->pageUnit());
 
 #if QT_VERSION >= 0x040600
     setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsGeometryChanges);
@@ -72,7 +73,7 @@ ReportEntityLine::ReportEntityLine(QDomNode & entity, ReportDesigner * d, QGraph
         : KRLineData(entity), ReportEntity(d)
 {
     init(scene, d);
-    setLine(m_start.toScene().x(), m_start.toScene().y(), m_end.toScene().x(), m_end.toScene().y());
+    setLine ( m_start.toScene().x(), m_start.toScene().y(), m_end.toScene().x(), m_end.toScene().y() );
 }
 
 ReportEntityLine* ReportEntityLine::clone()
@@ -84,8 +85,6 @@ ReportEntityLine* ReportEntityLine::clone()
     n = e.firstChild();
     return new ReportEntityLine(n, designer(), 0);
 }
-
-
 
 void ReportEntityLine::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                              QWidget *widget)
@@ -115,19 +114,20 @@ void ReportEntityLine::buildXML(QDomDocument & doc, QDomElement & parent)
     QDomElement entity = doc.createElement("report:line");
 
     qreal sx, sy, ex, ey;
-
-    sx = m_start.toPoint().x();
-    sy = m_start.toPoint().y();
-    ex = m_end.toPoint().x();
-    ey = m_end.toPoint().y();
+    QString unitname = KoUnit::unitName(m_start.unit());
+    
+    sx = m_start.toUnit().x();
+    sy = m_start.toUnit().y();
+    ex = m_end.toUnit().x();
+    ey = m_end.toUnit().y();
 
     // properties
     addPropertyAsAttribute(&entity, m_name);
     entity.setAttribute("report:z-index", zValue());
-    entity.setAttribute("report:xstart", QString::number(sx));
-    entity.setAttribute("report:ystart", QString::number(sy));
-    entity.setAttribute("report:xend", QString::number(ex));
-    entity.setAttribute("report:yend", QString::number(ey));
+    entity.setAttribute("svg:x1", QString::number(sx) + unitname);
+    entity.setAttribute("svg:y1", QString::number(sy) + unitname);
+    entity.setAttribute("svg:x2", QString::number(ex) + unitname);
+    entity.setAttribute("svg:y2", QString::number(ey) + unitname);
 
     buildXMLLineStyle(doc, entity, lineStyle());
 
@@ -137,12 +137,12 @@ void ReportEntityLine::buildXML(QDomDocument & doc, QDomElement & parent)
 void ReportEntityLine::slotPropertyChanged(KoProperty::Set &s, KoProperty::Property &p)
 {
     Q_UNUSED(s);
-
-    //TODO KoProperty does not support QPointF
-    if (p.name() == "Start") {
-        //setLine ( _start.toScene().x(), _start.toScene().y(), line().p1().x(), line().p1().y() );
-    } else if (p.name() == "End") {
-        //setLine ( line().p2().x(), line().p2().y(),_end.toScene().x(), _end.toScene().y() );
+    
+    if (p.name() == "Start" || p.name() == "End") {
+	if (p.name() == "Start") m_start.setUnitPos(p.value().toPointF(), false);
+	if (p.name() == "End") m_end.setUnitPos(p.value().toPointF(), false);
+	
+        setLine ( m_start.toScene().x(), m_start.toScene().y(), m_end.toScene().x(), m_end.toScene().y() );
     } else if (p.name() == "Name") {
         //For some reason p.oldValue returns an empty string
         if (!m_reportDesigner->isEntityNameUnique(p.value().toString(), this)) {
@@ -152,7 +152,6 @@ void ReportEntityLine::slotPropertyChanged(KoProperty::Set &s, KoProperty::Prope
         }
     }
     if (m_reportDesigner) m_reportDesigner->setModified(true);
-    if (scene()) scene()->update();
 }
 
 void ReportEntityLine::mousePressEvent(QGraphicsSceneMouseEvent * event)
@@ -164,7 +163,13 @@ void ReportEntityLine::mousePressEvent(QGraphicsSceneMouseEvent * event)
 
 QVariant ReportEntityLine::itemChange(GraphicsItemChange change, const QVariant &value)
 {
+    kDebug();
     return QGraphicsItem::itemChange(change, value);
+}
+
+void ReportEntityLine::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
+{
+    QGraphicsLineItem::mouseReleaseEvent(event);
 }
 
 void ReportEntityLine::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
@@ -172,8 +177,10 @@ void ReportEntityLine::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
     int x;
     int y;
 
-    QPointF p = mapToItem(this, dynamic_cast<ReportScene*>(scene())->gridPoint(event->scenePos()));
+    QPointF p = dynamic_cast<ReportScene*>(scene())->gridPoint(event->scenePos());
 
+    kDebug() << p;
+    
     x = p.x();
     y = p.y();
 
@@ -181,15 +188,15 @@ void ReportEntityLine::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
     if (y < 0) y = 0;
     if (x > scene()->width()) x = scene()->width();
     if (y > scene()->height()) y = scene()->height();
-    //x = event->pos().x();
-    //y = event->pos().y();
 
+    kDebug() << m_grabAction;
+    
     switch (m_grabAction) {
     case 1:
-        setLine(QLineF(x, y, line().x2(), line().y2()));
+	m_start.setScenePos(QPointF(x,y));
         break;
     case 2:
-        setLine(QLineF(line().x1(), line().y1(), x, y));
+	m_end.setScenePos(QPointF(x,y));
         break;
     default:
         QPointF d = mapToItem(this, dynamic_cast<ReportScene*>(scene())->gridPoint(event->scenePos())) - mapToItem(this, dynamic_cast<ReportScene*>(scene())->gridPoint(event->lastScenePos()));
@@ -202,13 +209,9 @@ void ReportEntityLine::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
                 ((line().p2() + d).x() <= scene()->width()) &&
                 ((line().p1() + d).y() <= scene()->height()) &&
                 ((line().p2() + d).y() <= scene()->height()))
-            setLine(QLineF(line().p1() + d, line().p2() + d));
+            setLineScene(QLineF(line().p1() + d, line().p2() + d));
         break;
     }
-    //Update Properties
-    m_start.setScenePos(mapToScene(line().p1()), true);
-    m_end.setScenePos(mapToScene(line().p2()), true);
-
 }
 
 int ReportEntityLine::grabHandle(QPointF pos)
@@ -231,7 +234,6 @@ int ReportEntityLine::grabHandle(QPointF pos)
 
 void ReportEntityLine::hoverMoveEvent(QGraphicsSceneHoverEvent * event)
 {
-    //m_grabAction = 0;
     if (isSelected()) {
         m_grabAction = grabHandle(event->pos());
         switch (m_grabAction) {
@@ -247,4 +249,14 @@ void ReportEntityLine::hoverMoveEvent(QGraphicsSceneHoverEvent * event)
     }
 }
 
+void ReportEntityLine::setUnit(KoUnit u)
+{
+    m_start.setUnit(u);
+    m_end.setUnit(u);
+}
 
+void ReportEntityLine::setLineScene(QLineF l)
+{
+    m_start.setScenePos(l.p1(), false);
+    m_end.setScenePos(l.p2());
+}

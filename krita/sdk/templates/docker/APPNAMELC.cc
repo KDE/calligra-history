@@ -7,11 +7,11 @@
 #include <kactioncollection.h>
 #include <kcomponentdata.h>
 #include <kis_debug.h>
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
 #include <klocale.h>
 #include <kstandarddirs.h>
 
-#include <KoDockFactory.h>
+#include <KoDockFactoryBase.h>
 
 #include "kis_config.h"
 #include "kis_cursor.h"
@@ -21,10 +21,10 @@
 
 #include "%{APPNAMELC}_dock.h"
 
-typedef KGenericFactory<%{APPNAME}Plugin> %{APPNAME}PluginFactory;
-K_EXPORT_COMPONENT_FACTORY( krita%{APPNAMELC}, %{APPNAME}PluginFactory( "krita" ) )
+K_PLUGIN_FACTORY(%{APPNAME}PluginFactory, registerPlugin<%{APPNAME}Plugin>();)
+K_EXPORT_PLUGIN(%{APPNAME}PluginFactory("krita"))
 
-class %{APPNAME}DockFactory : public KoDockFactory {
+class %{APPNAME}DockFactory : public KoDockFactoryBase {
 public:
     %{APPNAME}DockFactory(KisView2 * view)
         : m_view( view )
@@ -60,7 +60,7 @@ private:
 };
 
 
-%{APPNAME}Plugin::%{APPNAME}Plugin(QObject *parent, const QStringList &)
+%{APPNAME}Plugin::%{APPNAME}Plugin(QObject *parent, const QVariantList &)
     : KParts::Plugin(parent)
 {
     dbgPlugins << "%{APPNAME}Plugin";

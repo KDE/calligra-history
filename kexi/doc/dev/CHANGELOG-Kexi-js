@@ -37,7 +37,6 @@ Forms TODO
 TODO Form editor:
  - FormManager::FormManager: register factory (port to koproperty2)
  - port KFDPixmapEdit, PropertyFactory
- - add support for paletteForegroundColor and paletteBackgroundColor properties of Kexi 1.x
  - add translation and simplify "textInteractionFlags" for QTextEdit and QLabel
  - clicking too many time on undo CRASHES
  - fix syncing form geometry with properties in the propeditor
@@ -57,8 +56,67 @@ TODO: replace KexiDataItemChangesListener::handleAction(const QString& actionNam
 TODO: wrap passwordMode property for line edit widget in design mode, otherwise data source is displayed using *
 TODO: use KRichTextWidget or KRichTextEdit instead of KTextEdit
 TODO: text editor: autofill disabled because this makes the widget disappear entirely; now fix the background color because it is getting transparent on mouse out in design mode
+Main Window TODO
+*View menu still disabled as showing hiding would be implemented as side bars; use this view for something else
+*implemented dock hiding as side bars
+TableView TODO
+*mouse move over large ables scrolls the table!
+Security:
+*Set SECURE DELETE on by default http://sqlite.org/compile.html#secure_delete - should be also possible to disable it in the config
 
 ~~~~~~~~~~~~~~~~ 2.2 alpha 1 ~~~~~~~~~~~~~~~~
+
+2010-01-27
+KexiDB
+*fixed memory ownership issues with data structures for ORDER BY in select queries
+**this fixes generation of ORDER BY section of SQL statements
+*improved debug of ORDER BY columns
+** (Predicate updated)
+TODO: Query Designer: switching from design to SQL view still can crash
+
+2010-01-23
+Main Window
+*Added tabbar for the property editor pane
+*Make property editor pane's tabbar show properly when switching between windows being in design/view modes, make is also behave properly when propery pane is collapsed
+
+2010-01-19
+Forms
+*fixed possible crash when setting readonly flag for line edits
+TODO: fix setting readonly flag for line edits
+
+2010-01-18
+Main Window
+*Added tabbar for the project navigator
+TODO: make it work also when the pane on the right/top/bottom
+TODO: support propeditor
+
+2010-01-17
+Main Window
+*Added view menu to the statusbar (but disabled for now)
+**added "show project navigator" and "show property editor" to the view menu
+
+2010-01-16
+Main Window
+*hide not working items in the Project tab
+*added "cut" action to the "data" tab
+*improve name for "copy special" and "paste special" actions
+*moved "copy special" action to project navigator's context menu
+*moved "import tables" action from "tools" to "external data" tab
+
+2010-01-15
+KoProperty
+*ported the line style editor
+
+2010-01-12
+KoProperty
+*color editor ported, improved: oxygen colors displayed
+TODO: enable transparency selection
+TODO: add transparency option
+TODO: reimplement view using KColorCells
+TODO: line style editor: copy from plugins/dockers/LineStyleSelector.h
+Forms
+TODO: add support for paletteForegroundColor and paletteBackgroundColor properties of Kexi 1.x (add special case on load/save)
+
 2010-01-10
 Forms
 *Only add dashed frames for widgets with no frames

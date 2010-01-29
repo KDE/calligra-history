@@ -20,19 +20,18 @@
 #ifndef KARBONCALLIGRAPHICSHAPEFACTORY_H
 #define KARBONCALLIGRAPHICSHAPEFACTORY_H
 
-#include "KoShapeFactory.h"
+#include "KoShapeFactoryBase.h"
 
 class KoShape;
 
 /// Factory for ellipse shapes
-class KarbonCalligraphicShapeFactory : public KoShapeFactory
+class KarbonCalligraphicShapeFactory : public KoShapeFactoryBase
 {
 public:
     /// constructor
-    explicit KarbonCalligraphicShapeFactory( QObject *parent );
+    explicit KarbonCalligraphicShapeFactory(QObject *parent);
     virtual ~KarbonCalligraphicShapeFactory();
-    KoShape * createDefaultShape() const;
-    KoShape * createShape( const KoProperties * params ) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     //virtual bool supports(const KoXmlElement & e) const;
     //virtual QList<KoShapeConfigWidgetBase*> createShapeOptionPanels();
 };

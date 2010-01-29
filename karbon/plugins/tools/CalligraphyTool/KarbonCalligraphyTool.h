@@ -20,7 +20,7 @@
 #ifndef KARBONCALLIGRAPHYTOOL_H
 #define KARBONCALLIGRAPHYTOOL_H
 
-#include <KoTool.h>
+#include <KoToolBase.h>
 #include <KoPathShape.h>
 #include <QtCore/QPointer>
 
@@ -30,49 +30,49 @@ class KoPathPoint;
 class KarbonCalligraphicShape;
 class KarbonCalligraphyOptionWidget;
 
-class KarbonCalligraphyTool : public KoTool
+class KarbonCalligraphyTool : public KoToolBase
 {
     Q_OBJECT
 public:
     explicit KarbonCalligraphyTool(KoCanvasBase *canvas);
     ~KarbonCalligraphyTool();
 
-    void paint( QPainter &painter, const KoViewConverter &converter );
+    void paint(QPainter &painter, const KoViewConverter &converter);
 
-    void mousePressEvent( KoPointerEvent *event ) ;
-    void mouseMoveEvent( KoPointerEvent *event );
-    void mouseReleaseEvent( KoPointerEvent *event );
+    void mousePressEvent(KoPointerEvent *event) ;
+    void mouseMoveEvent(KoPointerEvent *event);
+    void mouseReleaseEvent(KoPointerEvent *event);
 
     QWidget *createOptionWidget();
-    void activate ( bool temporary=false );
+    void activate(bool temporary = false);
     void deactivate();
 
 signals:
     void pathSelectedChanged(bool selection);
 
 private slots:
-    void setUsePath( bool usePath );
-    void setUsePressure( bool usePressure );
-    void setUseAngle(bool useAngle );
-    void setStrokeWidth( double width );
-    void setThinning( double thinning );
-    void setAngle( int angle ); // set theangle in degrees
-    void setFixation( double fixation );
-    void setCaps( double caps );
-    void setMass( double mass );   // set the mass in user friendly format
-    void setDrag( double drag );
+    void setUsePath(bool usePath);
+    void setUsePressure(bool usePressure);
+    void setUseAngle(bool useAngle);
+    void setStrokeWidth(double width);
+    void setThinning(double thinning);
+    void setAngle(int angle);   // set theangle in degrees
+    void setFixation(double fixation);
+    void setCaps(double caps);
+    void setMass(double mass);     // set the mass in user friendly format
+    void setDrag(double drag);
 
     void updateSelectedPath();
 
 private:
-    void addPoint( KoPointerEvent *event );
+    void addPoint(KoPointerEvent *event);
     // auxiliary function that sets m_angle
-    void setAngle( KoPointerEvent *event );
+    void setAngle(KoPointerEvent *event);
     // auxiliary functions to calculate the dynamic parameters
     // returns the new point and sets speed to the speed
     QPointF calculateNewPoint(const QPointF &mousePos, QPointF *speed);
-    qreal calculateWidth( qreal pressure );
-    qreal calculateAngle( const QPointF &oldSpeed, const QPointF &newSpeed);
+    qreal calculateWidth(qreal pressure);
+    qreal calculateAngle(const QPointF &oldSpeed, const QPointF &newSpeed);
 
     QPointF m_lastPoint;
     KarbonCalligraphicShape *m_shape;

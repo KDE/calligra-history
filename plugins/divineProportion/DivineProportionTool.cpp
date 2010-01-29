@@ -33,7 +33,7 @@
 #include <QPainter>
 
 DivineProportionTool::DivineProportionTool(KoCanvasBase *canvas)
-    : KoTool(canvas),
+    : KoToolBase(canvas),
     m_currentShape(0)
 {
     QActionGroup *group = new QActionGroup(this);
@@ -174,4 +174,4 @@ QWidget *DivineProportionTool::createOptionWidget()
     return widget;
 }
 
-#include "DivineProportionTool.moc"
+#include <DivineProportionTool.moc>

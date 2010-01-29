@@ -31,13 +31,13 @@
 #include <sonnet/configdialog.h>
 
 #include <KoCharacterStyle.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 
 #include "BgSpellCheck.h"
 
 SpellCheck::SpellCheck()
     : m_bgSpellCheck(0),
-    m_enableSpellCheck(false),
+    m_enableSpellCheck(true),
     m_allowSignals(true),
     m_documentIsLoading(false)
 {
@@ -270,10 +270,10 @@ void SpellCheck::configureSpellCheck()
     delete dialog;
 }
 
-void SpellCheck::resourceChanged( int key, const QVariant &resource )
+void SpellCheck::resourceChanged(int key, const QVariant &resource)
 {
     if (key == KoCanvasResource::DocumentIsLoading)
         m_documentIsLoading = resource.toBool();
 }
 
-#include "SpellCheck.moc"
+#include <SpellCheck.moc>

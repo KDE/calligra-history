@@ -15,10 +15,10 @@ set(kofficedockers_SRCS
     shapeproperties/ShapePropertiesDocker.cpp
     shapeproperties/ShapePropertiesDockerFactory.cpp
 
-    shapecollection/KoCollectionShapeFactory.cpp
-    shapecollection/KoShapeCollectionDocker.cpp
-    shapecollection/KoCollectionItemModel.cpp
-    shapecollection/KoOdfCollectionLoader.cpp
+    shapecollection/CollectionShapeFactory.cpp
+    shapecollection/ShapeCollectionDocker.cpp
+    shapecollection/CollectionItemModel.cpp
+    shapecollection/OdfCollectionLoader.cpp
 
     shadowdocker/ShadowDocker.cpp
     shadowdocker/ShadowDockerFactory.cpp
@@ -40,13 +40,6 @@ set(kofficedockers_SRCS
     shapeselector/ZoomHandler.cpp
     shapeselector/ClipboardProxyShape.cpp
     shapeselector/ResizeFolderStrategy.cpp
-
-    linestyleselector/LineStyleItemDelegate.h
-    linestyleselector/LineStyleModel.h
-    linestyleselector/LineStyleSelector.h
-    linestyleselector/LineStyleItemDelegate.cpp
-    linestyleselector/LineStyleModel.cpp
-    linestyleselector/LineStyleSelector.cpp
 
     styledocker/StyleButtonBox.cpp
     styledocker/StylePreview.cpp

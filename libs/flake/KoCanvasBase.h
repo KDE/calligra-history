@@ -1,7 +1,7 @@
 /* This file is part of the KDE project
 
    Copyright (C) 2006 Boudewijn Rempt <boud@valdyas.org>
-   Copyright (C) 2006 Thomas Zander <zander@kde.org>
+   Copyright (C) 2006, 2010 Thomas Zander <zander@kde.org>
    Copyright (C) 2006 Thorsten Zachmann <zachmann@kde.org>
 
    This library is free software; you can redistribute it and/or
@@ -33,7 +33,7 @@
 
 #include "flake_export.h"
 
-class KoCanvasResourceProvider;
+class KoResourceManager;
 class QUndoCommand;
 class KoShapeManager;
 class KoToolProxy;
@@ -160,11 +160,17 @@ public:
     virtual void updateInputMethodInfo() = 0;
 
     /**
-     * Return a pointer to the resource provider associated with this
-     * canvas. The resource provider contains per-canvas settings such
+     * Return a pointer to the resource manager associated with this
+     * canvas. The resource manager contains per-canvas settings such
      * as current foreground and background color.
+     * If instead of per-canvas resources you need per-document resources
+     * you can by going via the shapeController instead;
+     * @code
+     *   canvasBase->shapeController()->resourceManager();
+     * @endcode
+     * @see KoShapeController::resourceManager()
      */
-    KoCanvasResourceProvider *resourceProvider() const;
+    KoResourceManager *resourceManager() const;
 
     /**
      * Return the shape controller for this canvas.

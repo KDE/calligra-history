@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2007 Cyrille Berger <cberger@cberger.net>
+ *  Copyright (c) 2007,2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,8 @@
 #include <QRegExp>
 #include <QVariant>
 #include <QStringList>
+
+#include <klocale.h>
 
 #include <kis_debug.h>
 
@@ -186,6 +188,25 @@ bool Value::setVariant(const QVariant& variant)
     return false;
 }
 
+bool Value::setStructureVariant(const QString& fieldNAme, const QVariant& variant)
+{
+    if (type() == Structure) {
+        return (*d->value.structure)[fieldNAme].setVariant(variant);
+    }
+    return false;
+}
+
+bool Value::setArrayVariant(int index, const QVariant& variant)
+{
+    if (isArray()) {
+        for (int i = d->value.array->size(); i <= index; ++i) {
+            d->value.array->append(Value());
+        }
+        (*d->value.array)[index].setVariant(variant);
+    }
+    return false;
+}
+
 KisMetaData::Rational Value::asRational() const
 {
     if (d->type == Rational) {
@@ -214,14 +235,6 @@ QMap<QString, KisMetaData::Value> Value::asStructure() const
         return *d->value.structure;
     }
     return QMap<QString, KisMetaData::Value>();
-}
-
-QMap<QString, KisMetaData::Value>* Value::asStructure()
-{
-    if (type() == Structure) {
-        return d->value.structure;
-    }
-    return 0;
 }
 
 QDebug operator<<(QDebug debug, const Value &v)
@@ -401,4 +414,50 @@ QMap<QString, KisMetaData::Value> Value::asLangArray() const
         langArray[valKeyVar.toString()] = val;
     }
     return langArray;
+}
+
+QString Value::toString() const
+{
+    switch (type()) {
+    case Value::Invalid:
+        return i18n("Invalid value.");
+    case Value::Variant:
+        return d->value.variant->toString();
+        break;
+    case Value::OrderedArray:
+    case Value::UnorderedArray:
+    case Value::AlternativeArray:
+    case Value::LangArray: {
+        QString r = QString("[%1]{ ").arg(d->value.array->size());
+        for (int i = 0; i < d->value.array->size(); ++i) {
+            const Value& val = d->value.array->at(i);
+            r += val.toString();
+            if (i != d->value.array->size() - 1) {
+                r += ",";
+            }
+            r += " ";
+        }
+        r += "}";
+        return r;
+    }
+    case Value::Structure: {
+        QString r = "{ ";
+        QList<QString> fields = d->value.structure->keys();
+        for (int i = 0; i < fields.count(); ++i) {
+            const QString& field = fields[i];
+            const Value& val = d->value.structure->value(field);
+            r += field + " => " + val.toString();
+            if (i != d->value.array->size() - 1) {
+                r += ",";
+            }
+            r += " ";
+        }
+        r += "}";
+        return r;
+    }
+    break;
+    case Value::Rational:
+        return QString("%1 / %2").arg(d->value.rational->numerator).arg(d->value.rational->denominator);
+    }
+    return i18n("Invalid value.");
 }

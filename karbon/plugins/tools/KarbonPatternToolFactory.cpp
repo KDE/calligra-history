@@ -26,18 +26,20 @@
 #include <kdebug.h>
 
 KarbonPatternToolFactory::KarbonPatternToolFactory(QObject *parent)
-    : KoToolFactory(parent, "KarbonPatternTool")
+        : KoToolFactoryBase(parent, "KarbonPatternTool")
 {
-    setToolTip( i18n("Pattern Editing Tool") );
-    setToolType( mainToolType() );
-    setIcon( "pattern" );
-    setPriority( 3 );
+    setToolTip(i18n("Pattern Editing Tool"));
+    setToolType(mainToolType());
+    setIcon("pattern");
+    setPriority(3);
 }
 
-KarbonPatternToolFactory::~KarbonPatternToolFactory() {
+KarbonPatternToolFactory::~KarbonPatternToolFactory()
+{
 }
 
-KoTool * KarbonPatternToolFactory::createTool(KoCanvasBase *canvas) {
+KoToolBase * KarbonPatternToolFactory::createTool(KoCanvasBase *canvas)
+{
     return new KarbonPatternTool(canvas);
 }
 

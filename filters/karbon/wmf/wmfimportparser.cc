@@ -29,7 +29,7 @@
 #include <KoColorBackground.h>
 #include <KoGradientBackground.h>
 #include <KoPatternBackground.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeRegistry.h>
 
 #include <pathshapes/rectangle/RectangleShape.h>
@@ -88,13 +88,13 @@ bool WMFImportParser::begin()
     mCurrentOrg.setY(bounding.top());
 
     if (isStandard()) {
-        mDoc->setUnit(KoUnit(KoUnit::Point));
+        //mDoc->setUnit(KoUnit(KoUnit::Point));
         mDoc->setPageSize(bounding.size());
     } else {
         // Placeable Wmf store the boundingRect() in pixel and the default DPI
         // The placeable format doesn't have information on which Unit to use
         // so we choose millimeters by default
-        mDoc->setUnit(KoUnit(KoUnit::Millimeter));
+        //mDoc->setUnit(KoUnit(KoUnit::Millimeter));
         mDoc->setPageSize(QSizeF(INCH_TO_POINT((double)bounding.width() / defaultDpi()),
                                  INCH_TO_POINT((double)bounding.height() / defaultDpi())));
     }
@@ -137,6 +137,12 @@ void WMFImportParser::setFont(const QFont &font)
 void WMFImportParser::setPen(const QPen &pen)
 {
     mPen = pen;
+}
+
+
+void WMFImportParser::setTextPen(const QPen &pen)
+{
+    mTextPen = pen;
 }
 
 
@@ -484,7 +490,7 @@ void WMFImportParser::drawText(int x, int y, int , int , int flags, const QStrin
         textShape->applyTransformation(matrix);
     }
 
-    textShape->setBackground(new KoColorBackground(mPen.color()));
+    textShape->setBackground(new KoColorBackground(mTextPen.color()));
 
     mDoc->add(textShape);
 }
@@ -574,13 +580,13 @@ double WMFImportParser::scaleH(int height)
 
 KoShape * WMFImportParser::createShape(const QString &shapeID)
 {
-    KoShapeFactory * factory = KoShapeRegistry::instance()->get(shapeID);
+    KoShapeFactoryBase * factory = KoShapeRegistry::instance()->get(shapeID);
     if (! factory) {
         kWarning(30514) << "Could not find factory for shape id" << shapeID;
         return 0;
     }
 
-    KoShape * shape = factory->createDefaultShapeAndInit(mDoc->dataCenterMap());
+    KoShape * shape = factory->createDefaultShape(mDoc->resourceManager());
     if (shape && shape->shapeId().isEmpty())
         shape->setShapeId(factory->id());
 

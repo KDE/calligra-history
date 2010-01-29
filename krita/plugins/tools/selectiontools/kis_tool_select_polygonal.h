@@ -23,9 +23,9 @@
 #ifndef KIS_TOOL_SELECT_POLYGONAL_H_
 #define KIS_TOOL_SELECT_POLYGONAL_H_
 
-#include "KoToolFactory.h"
+#include "KoToolFactoryBase.h"
 #include "krita/ui/tool/kis_tool_select_base.h"
-#include "kis_tool_polygon_base.h"
+#include "kis_tool_polyline_base.h"
 
 class KisToolSelectPolygonal : public KisToolSelectBase
 {
@@ -40,11 +40,11 @@ public:
     QWidget* createOptionWidget();
 
 private:
-    class LokalTool : public KisToolPolygonBase {
+    class LokalTool : public KisToolPolylineBase {
     public:
         LokalTool(KoCanvasBase * canvas, KisToolSelectPolygonal* selectingTool)
-            : KisToolPolygonBase(canvas), m_selectingTool(selectingTool) {}
-        void finishPolygon(const QVector<QPointF> &points);
+            : KisToolPolylineBase(canvas), m_selectingTool(selectingTool) {}
+        void finishPolyline(const QVector<QPointF> &points);
     private:
         KisToolSelectPolygonal* const m_selectingTool;
     };
@@ -61,12 +61,12 @@ private:
 };
 
 
-class KisToolSelectPolygonalFactory : public KoToolFactory
+class KisToolSelectPolygonalFactory : public KoToolFactoryBase
 {
 
 public:
     KisToolSelectPolygonalFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolSelectPolygonal") {
+            : KoToolFactoryBase(parent, "KisToolSelectPolygonal") {
         setToolTip(i18n("Select a polygonal region"));
         setToolType(TOOL_TYPE_SELECTED);
         setIcon("tool_polygonal_selection");
@@ -76,7 +76,7 @@ public:
 
     virtual ~KisToolSelectPolygonalFactory() {}
 
-    virtual KoTool * createTool(KoCanvasBase *canvas) {
+    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
         return new KisToolSelectPolygonal(canvas);
     }
 };

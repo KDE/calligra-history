@@ -106,6 +106,8 @@ public:
     QString expression;
     mutable QVector<Opcode> codes;
     mutable QVector<Value> constants;
+
+    Value valueOrElement(const Map* map, int index, FuncExtra &fe, const Value &v) const;
 };
 
 class TokenStack : public QVector<Token>
@@ -1316,8 +1318,26 @@ Value Formula::eval(CellIndirection cellIndirections) const
     return evalRecursive(cellIndirections, values);
 }
 
+// We need to unroll arrays. Do use the same logic to unroll like OpenOffice.org and Excel are using.
+Value Formula::Private::valueOrElement(const Map* map, int index, FuncExtra &fe, const Value &v) const
+{
+    if(v.isArray()) {
+        if(v.count() == 1) // if there is only one item, use that one
+            return v.element(0);
+        QString c = constants[index].asString();
+        const Region region(c, map, sheet);
+        if(region.isValid()) {
+            const QPoint position = region.firstRange().topLeft();
+            const int idx = fe.myrow - position.y(); // do we need to do the same for columns?
+            if(idx >= 0 && idx < int(v.count()))
+                return v.element(idx); // within the range returns the selected element
+        }
+    }
+    return v;
+}
+
 // On OO.org Calc and MS Excel operations done with +, -, * and / do fail if one of the values is
-// non-numeric. This differs from formulas like SUM which just ignore non numeric values.
+// non-numeric. This differs from formulas like SUM which just ignores non numeric values.
 Value numericOrError(const ValueConverter* converter, const Value &v)
 {
     switch (v.type()) {
@@ -1393,7 +1413,7 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
             // unary operation
         case Opcode::Neg:
             entry.reset();
-            entry.val = stack.pop().val;
+            entry.val = d->valueOrElement(map, index, fe, stack.pop().val);
             if (!entry.val.isError()) // do nothing if we got an error
                 entry.val = calc->mul(entry.val, -1);
             stack.push(entry);
@@ -1403,8 +1423,8 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
             // push the result to stack
         case Opcode::Add:
             entry.reset();
-            val2 = numericOrError(converter, stack.pop().val);
-            val1 = numericOrError(converter, stack.pop().val);
+            val2 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
+            val1 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
             val2 = calc->add(val1, val2);
             entry.reset();
             entry.val = val2;
@@ -1412,8 +1432,8 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
             break;
 
         case Opcode::Sub:
-            val2 = numericOrError(converter, stack.pop().val);
-            val1 = numericOrError(converter, stack.pop().val);
+            val2 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
+            val1 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
             val2 = calc->sub(val1, val2);
             entry.reset();
             entry.val = val2;
@@ -1421,8 +1441,8 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
             break;
 
         case Opcode::Mul:
-            val2 = numericOrError(converter, stack.pop().val);
-            val1 = numericOrError(converter, stack.pop().val);
+            val2 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
+            val1 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
             val2 = calc->mul(val1, val2);
             entry.reset();
             entry.val = val2;
@@ -1430,8 +1450,8 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
             break;
 
         case Opcode::Div:
-            val2 = numericOrError(converter, stack.pop().val);
-            val1 = numericOrError(converter, stack.pop().val);
+            val2 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
+            val1 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
             val2 = calc->div(val1, val2);
             entry.reset();
             entry.val = val2;
@@ -1439,8 +1459,8 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
             break;
 
         case Opcode::Pow:
-            val2 = stack.pop().val;
-            val1 = stack.pop().val;
+            val2 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
+            val1 = numericOrError(converter, d->valueOrElement(map, index, fe, stack.pop().val));
             val2 = calc->pow(val1, val2);
             entry.reset();
             entry.val = val2;
@@ -1462,7 +1482,7 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
 
             // logical not
         case Opcode::Not:
-            val1 = converter->asBoolean(stack.pop().val);
+            val1 = converter->asBoolean(d->valueOrElement(map, index, fe, stack.pop().val));
             if (val1.isError())
                 val1 = Value::errorVALUE();
             else
@@ -1474,10 +1494,12 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
 
             // comparison
         case Opcode::Equal:
-            val1 = stack.pop().val;
-            val2 = stack.pop().val;
-            if (!val1.allowComparison(val2))
-                val1 = Value::errorNA();
+            val1 = d->valueOrElement(map, index, fe, stack.pop().val);
+            val2 = d->valueOrElement(map, index, fe, stack.pop().val);
+            if (val1.isError())
+                ;
+            else if (val2.isError())
+                val1 = val2;
             else if (val2.compare(val1) == 0)
                 val1 = Value(true);
             else
@@ -1489,10 +1511,12 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
 
             // less than
         case Opcode::Less:
-            val1 = stack.pop().val;
-            val2 = stack.pop().val;
-            if (!val1.allowComparison(val2))
-                val1 = Value::errorNA();
+            val1 = d->valueOrElement(map, index, fe, stack.pop().val);
+            val2 = d->valueOrElement(map, index, fe, stack.pop().val);
+            if (val1.isError())
+                ;
+            else if (val2.isError())
+                val1 = val2;
             else if (val2.compare(val1) < 0)
                 val1 = Value(true);
             else
@@ -1504,10 +1528,12 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
 
             // greater than
         case Opcode::Greater: {
-            val1 = stack.pop().val;
-            val2 = stack.pop().val;
-            if (!val1.allowComparison(val2))
-                val1 = Value::errorNA();
+            val1 = d->valueOrElement(map, index, fe, stack.pop().val);
+            val2 = d->valueOrElement(map, index, fe, stack.pop().val);
+            if (val1.isError())
+                ;
+            else if (val2.isError())
+                val1 = val2;
             else if (val2.compare(val1) > 0)
                 val1 = Value(true);
             else
@@ -1549,7 +1575,6 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
                 entry.col1 = entry.col2 = position.x();
                 entry.row1 = entry.row2 = position.y();
             }
-
             entry.val = val1;
             stack.push(entry);
         }
@@ -1571,7 +1596,7 @@ Value Formula::evalRecursive(CellIndirection cellIndirections, QHash<Cell, Value
                 entry.row2 = region.firstRange().bottom();
             }
 
-            entry.val = val1;
+            entry.val = d->valueOrElement(map, index, fe, val1);
             stack.push(entry);
         }
         break;

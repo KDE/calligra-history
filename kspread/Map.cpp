@@ -404,8 +404,8 @@ void Map::saveOdfSettings(KoXmlWriter &settingsWriter)
         if (view) {
             QPoint marker = view->markerFromSheet(sheet);
             QPointF offset = view->offsetFromSheet(sheet);
-            settingsWriter.addConfigItem("CursorPositionX", marker.x());
-            settingsWriter.addConfigItem("CursorPositionY", marker.y());
+            settingsWriter.addConfigItem("CursorPositionX", marker.x() - 1);
+            settingsWriter.addConfigItem("CursorPositionY", marker.y() - 1);
             settingsWriter.addConfigItem("xOffset", offset.x());
             settingsWriter.addConfigItem("yOffset", offset.y());
         }
@@ -433,11 +433,11 @@ bool Map::saveOdf(KoXmlWriter & xmlWriter, KoShapeSavingContext & savingContext)
     defaultRowStyle.setDefaultStyle(true);
     savingContext.mainStyles().lookup(defaultRowStyle, "Default", KoGenStyles::DontForceNumbering);
 
-    if (!d->strPassword.isEmpty()) {
+    if (!d->strPassword.isNull()) {
         xmlWriter.addAttribute("table:structure-protected", "true");
         QByteArray str = KCodecs::base64Encode(d->strPassword);
         // FIXME Stefan: see OpenDocument spec, ch. 17.3 Encryption
-        xmlWriter.addAttribute("table:protection-key", QString(str.data()));
+        xmlWriter.addAttribute("table:protection-key", QString(str));
     }
 
     OdfSavingContext tableContext(savingContext);
@@ -448,8 +448,8 @@ bool Map::saveOdf(KoXmlWriter & xmlWriter, KoShapeSavingContext & savingContext)
 
     tableContext.valStyle.writeStyle(xmlWriter);
 
-    d->namedAreaManager->saveOdf(xmlWriter);
-    d->databaseManager->saveOdf(xmlWriter);
+    d->namedAreaManager->saveOdf(savingContext.xmlWriter());
+    d->databaseManager->saveOdf(savingContext.xmlWriter());
     return true;
 }
 
@@ -485,11 +485,8 @@ QDomElement Map::save(QDomDocument& doc)
     }
 
     if (!d->strPassword.isNull()) {
-        if (d->strPassword.size() > 0) {
-            QByteArray str = KCodecs::base64Encode(d->strPassword);
-            mymap.setAttribute("protected", QString(str.data()));
-        } else
-            mymap.setAttribute("protected", "");
+        QByteArray str = KCodecs::base64Encode(d->strPassword);
+        mymap.setAttribute("protected", QString(str.data()));
     }
 
     foreach(Sheet* sheet, d->lstSheets) {
@@ -513,7 +510,7 @@ bool Map::loadOdf(const KoXmlElement& body, KoOdfLoadingContext& odfContext)
     tableContext.validities = Validity::preloadValidities(body); // table:content-validations
 
     // load text styles for rich-text content
-    KoShapeLoadingContext shapeContext(odfContext, doc()->dataCenterMap());
+    KoShapeLoadingContext shapeContext(odfContext, 0); // TODO find a proper documentResourceManager somewhere.
     tableContext.shapeContext = &shapeContext;
     KoTextSharedLoadingData * sharedData = new KoTextSharedLoadingData();
     sharedData->loadOdfStyles(odfContext, textStyleManager());
@@ -554,13 +551,13 @@ bool Map::loadOdf(const KoXmlElement& body, KoOdfLoadingContext& odfContext)
 
     d->calculationSettings->loadOdf(body); // table::calculation-settings
     if (body.hasAttributeNS(KoXmlNS::table, "structure-protected")) {
-        QByteArray passwd("");
         if (body.hasAttributeNS(KoXmlNS::table, "protection-key")) {
             QString p = body.attributeNS(KoXmlNS::table, "protection-key", QString());
-            QByteArray str(p.toLatin1());
-            passwd = KCodecs::base64Decode(str);
+            if(!p.isNull()) {
+                QByteArray str(p.toUtf8());
+                d->strPassword = KCodecs::base64Decode(str);
+            }
         }
-        d->strPassword = passwd;
     }
 
     KoXmlNode sheetNode = KoXml::namedItemNS(body, KoXmlNS::table, "table");
@@ -668,12 +665,8 @@ bool Map::loadXML(const KoXmlElement& mymap)
 
     if (mymap.hasAttribute("protected")) {
         QString passwd = mymap.attribute("protected");
-
-        if (passwd.length() > 0) {
-            QByteArray str(passwd.toLatin1());
-            d->strPassword = KCodecs::base64Decode(str);
-        } else
-            d->strPassword = QByteArray("");
+        QByteArray str(passwd.toUtf8());
+        d->strPassword = KCodecs::base64Decode(str);
     }
 
     if (!activeSheet.isEmpty()) {

@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -44,8 +45,9 @@ public:
     std::vector<UString> externBookTable;
     std::vector<UString> externSheetTable;
 
-    // for NAME and EXTERNNAME
+    // for NAME
     std::vector<UString> nameTable;
+    // for EXTERNNAME
     std::vector<UString> externNameTable;
 
     // password protection flag
@@ -70,10 +72,13 @@ public:
 
     // table of Xformat
     std::vector<XFRecord> xfTable;
+    
+    // table blib items
+    std::vector< MsoDrawingBlibItem* > drawingTable;
 };
 
 GlobalsSubStreamHandler::GlobalsSubStreamHandler(Workbook* workbook, unsigned version)
-        : d(new Private)
+        : SubStreamHandler(), FormulaDecoder(), d(new Private)
 {
     d->workbook = workbook;
     d->version = version;
@@ -145,7 +150,7 @@ FontRecord GlobalsSubStreamHandler::fontRecord(unsigned index) const
     if (index < d->fontTable.size())
         return d->fontTable[index];
     else
-        return FontRecord();
+        return FontRecord(d->workbook);
 }
 
 Color GlobalsSubStreamHandler::customColor(unsigned index) const
@@ -166,7 +171,7 @@ XFRecord GlobalsSubStreamHandler::xformat(unsigned index) const
     if (index < d->xfTable.size())
         return d->xfTable[index];
     else
-        return XFRecord();
+        return XFRecord(d->workbook);
 }
 
 UString GlobalsSubStreamHandler::valueFormat(unsigned index) const
@@ -186,16 +191,16 @@ UString GlobalsSubStreamHandler::nameFromIndex(unsigned index) const
 {
     if (index < d->nameTable.size())
         return d->nameTable[index];
-    else
-        return UString();
+    std::cerr << "Invalid index in GlobalsSubStreamHandler::nameFromIndex index=" << index << " size=" << d->externNameTable.size() << std::endl;
+    return UString();
 }
 
 UString GlobalsSubStreamHandler::externNameFromIndex(unsigned index) const
 {
     if (index < d->externNameTable.size())
         return d->externNameTable[index];
-    else
-        return UString();
+    std::cerr << "Invalid index in GlobalsSubStreamHandler::externNameFromIndex index=" << index << " size=" << d->externNameTable.size() << std::endl;
+    return UString();
 }
 
 FormatFont GlobalsSubStreamHandler::convertedFont(unsigned index) const
@@ -474,6 +479,18 @@ Format GlobalsSubStreamHandler::convertedFormat(unsigned index) const
     pen.color = convertedColor(xf.bottomBorderColor());
     borders.setBottomBorder(pen);
 
+    if(xf.diagonalTopLeft()) {
+        pen = convertBorderStyle(xf.diagonalStyle());
+        pen.color = convertedColor(xf.diagonalColor());
+        borders.setTopLeftBorder(pen);
+    }
+
+    if(xf.diagonalBottomLeft()) {
+        pen = convertBorderStyle(xf.diagonalStyle());
+        pen.color = convertedColor(xf.diagonalColor());
+        borders.setBottomLeftBorder(pen);
+    }
+    
     format.setBorders(borders);
 
     FormatBackground background;
@@ -516,12 +533,18 @@ void GlobalsSubStreamHandler::handleRecord(Record* record)
         handleXF(static_cast<XFRecord*>(record));
     else if (type == ProtectRecord::id)
         handleProtect(static_cast<ProtectRecord*>(record));
+    else if (type == MsoDrawingGroupRecord::id)
+        handleMsoDrawingGroup(static_cast<MsoDrawingGroupRecord*>(record));
+    else if (type == Window1Record::id)
+        handleWindow1(static_cast<Window1Record*>(record));
+    else if (type == PasswordRecord::id)
+        handlePassword(static_cast<PasswordRecord*>(record));
     else if (type == 0x40) {} //BackupRecord
     else if (type == 0x22) {} //Date1904Record
     else if (type == 0xA) {} //EofRecord
     //else if (type == 0xEC) Q_ASSERT(false); // MsoDrawing
     else {
-        std::cout << "Unhandled global record with type=" << type << std::endl;
+        //std::cout << "Unhandled global record with type=" << type << " name=" << record->name() << std::endl;
     }
 
 }
@@ -638,7 +661,7 @@ void GlobalsSubStreamHandler::handleFont(FontRecord* record)
 
     // font #4 is never used, so add a dummy one
     if (d->fontTable.size() == 4)
-        d->fontTable.push_back(FontRecord());
+        d->fontTable.push_back(FontRecord(d->workbook));
 }
 
 void GlobalsSubStreamHandler::handleFormat(FormatRecord* record)
@@ -653,6 +676,16 @@ void GlobalsSubStreamHandler::handleName(NameRecord* record)
     if (!record) return;
 
     d->nameTable.push_back(record->definedName());
+    
+    if(record->m_formula.id() != FormulaToken::Unused) {
+        FormulaTokens tokens;
+        tokens.push_back(record->m_formula);
+        UString f = decodeFormula(0, 0, false, tokens);
+        if(!f.isEmpty()) {
+            UString n = record->definedName();
+            d->workbook->setNamedArea(n, f);
+        }
+    }
 }
 
 void GlobalsSubStreamHandler::handlePalette(PaletteRecord* record)
@@ -696,6 +729,41 @@ void GlobalsSubStreamHandler::handleProtect(ProtectRecord* record)
   if (record->isLocked()) {
       std::cout << "TODO: The workbook is protected but protected workbooks is not supported yet!" << std::endl;
   }
+}
+
+void GlobalsSubStreamHandler::handleWindow1(Window1Record* record)
+{
+    d->workbook->setActiveTab( record->itabCur() );
+}
+
+void GlobalsSubStreamHandler::handlePassword(PasswordRecord* record)
+{
+    if (!record) return;
+    if (!record->wPassword()) return;
+    std::cout << "GlobalsSubStreamHandler::handlePassword passwordHash=" << record->wPassword() << std::endl;
+    d->workbook->setPassword(record->wPassword());
+}
+
+void GlobalsSubStreamHandler::handleMsoDrawingGroup(MsoDrawingGroupRecord* record)
+{
+    if (!record) return;
+    printf("GlobalsSubStreamHandler::handleMsoDrawingGroup\n");
+    Q_ASSERT(d->drawingTable.size() == 0); // if this asserts then multiple MsoDrawingGroupRecord can exist what we need to handle!
+    d->drawingTable = record->m_items; 
+}
+
+MsoDrawingBlibItem* GlobalsSubStreamHandler::drawing(unsigned long pid) const
+{
+    if (pid <= 0 || pid > d->drawingTable.size()) {
+        std::cerr << "GlobalsSubStreamHandler::drawing: Invalid index=" << (pid - 1) << std::endl;
+        return 0;
+    }
+    return d->drawingTable.at(pid - 1);
+}
+
+Store* GlobalsSubStreamHandler::store() const
+{
+    return d->workbook->store();
 }
 
 } // namespace Swinder

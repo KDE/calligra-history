@@ -55,7 +55,6 @@ public:
     qreal tint; //!< tint value applied to the color, default is -1
     int theme; //!< default: -1
 
-private:
     QColor themeColor(const QMap<QString, MSOOXML::DrawingMLTheme*> *themes) const;
 };
 
@@ -156,6 +155,7 @@ class XlsxFillStyle
 {
 public:
     XlsxFillStyle();
+    ~XlsxFillStyle();
 
     //! 18.18.55 ST_PatternType (Pattern Type), p. 2713
     /*! Indicates the style of fill pattern being used for a cell format.
@@ -193,7 +193,10 @@ public:
 
     //! @return color style (bgColor or fgColor) depending on the pattern
     //! Can return 0 if no fill should be painted.
-    const XlsxColorStyle* realBackgroundColor() const;
+    const XlsxColorStyle* realBackgroundColor( const QMap<QString, MSOOXML::DrawingMLTheme*> *themes) const;
+
+private:
+    mutable XlsxColorStyle* cachedRealBackgroundColor;
 };
 
 //! Single XLSX cell format definition as specified in ECMA-376, 18.8.10 (Cell Formats), p. 1956.
@@ -338,7 +341,7 @@ public:
     //! @return number format string for id @a (counted from 0)
     QString numberFormatString( int id ) const 
     {
-        return numberFormatStrings.at(id);
+        return numberFormatStrings[ id ];
     }
 
 protected:
@@ -347,7 +350,7 @@ protected:
     QVector<XlsxFontStyle*> fontStyles;
     QVector<XlsxFillStyle*> fillStyles;
     QVector<XlsxCellFormat*> cellFormats;
-    QVector< QString > numberFormatStrings;
+    QMap< int, QString > numberFormatStrings;
 
     friend class XlsxXmlStylesReader;
 };
@@ -385,6 +388,7 @@ protected:
     KoFilter::ConversionStatus read_i();
     KoFilter::ConversionStatus read_strike();
     KoFilter::ConversionStatus read_u();
+    KoFilter::ConversionStatus read_vertAlign();
     KoFilter::ConversionStatus read_color();
     KoFilter::ConversionStatus read_cellXfs();
     KoFilter::ConversionStatus read_xf();

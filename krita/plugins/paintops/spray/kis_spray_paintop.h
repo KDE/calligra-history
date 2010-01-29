@@ -22,7 +22,6 @@
 
 //#define BENCHMARK
 
-#include <klocale.h>
 #include <kis_paintop.h>
 #include <kis_types.h>
 
@@ -31,6 +30,7 @@
 
 class QPointF;
 class KisPainter;
+//class KisColorProperties;
 
 class KisSprayPaintOp : public KisPaintOp
 {
@@ -48,7 +48,11 @@ public:
     }
 
 private:
-    const KisSprayPaintOpSettings* m_settings;
+    KisSprayProperties m_properties;
+    KisColorProperties m_colorProperties;
+    
+    const KisSprayPaintOpSettings *m_settings;
+
     KisImageWSP m_image;
     KisPaintDeviceSP m_dab;
     SprayBrush m_sprayBrush;
@@ -57,6 +61,7 @@ private:
     KisPressureSizeOption m_sizeOption;
     KisPressureOpacityOption m_opacityOption;
     
+    void loadSettings(const KisSprayPaintOpSettings *settings);
 #ifdef BENCHMARK
     int m_total;
     int m_count;

@@ -26,13 +26,13 @@
 #include <KIconLoader>
 #include <KLocale>
 
-#include <KoDockFactory.h>
+#include <KoDockFactoryBase.h>
 #include <KoDockRegistry.h>
 
-typedef KGenericFactory<PainterlyMixer> PainterlyMixerFactory;
-K_EXPORT_COMPONENT_FACTORY(kritapainterlymixer, PainterlyMixerFactory("krita"))
+K_PLUGIN_FACTORY(PainterlyMixerFactory, registerPlugin<PainterlyMixer>();)
+K_EXPORT_PLUGIN(PainterlyMixerFactory("krita"))
 
-PainterlyMixer::PainterlyMixer(QObject *parent, const QStringList &)
+PainterlyMixer::PainterlyMixer(QObject *parent, const QVariantList &)
         : KParts::Plugin(parent)
 {
     setComponentData(PainterlyMixerFactory::componentData());

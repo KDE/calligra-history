@@ -20,11 +20,14 @@
 #ifndef TRACKEDCHANGEMODEL_H
 #define TRACKEDCHANGEMODEL_H
 
+#include <KoGenChange.h>
+
 #include <QAbstractItemModel>
 #include <QHash>
 #include <QList>
 #include <QMetaType>
 #include <QObject>
+#include <QPair>
 
 class KoChangeTracker;
 class KoTextDocumentLayout;
@@ -34,8 +37,10 @@ class QTextDocument;
 struct ItemData
 {
     int changeId;
-    int changeStart;
-    int changeEnd;
+    QList<QPair<int, int> > changeRanges;
+    KoGenChange::Type changeType;
+    QString title;
+    QString author;
 };
 
 Q_DECLARE_METATYPE(ItemData)
@@ -43,20 +48,27 @@ Q_DECLARE_METATYPE(ItemData)
 class ModelItem
 {
 public:
-    ModelItem(int changeId, ModelItem *parent = 0);
+    ModelItem(ModelItem *parent = 0);
     ~ModelItem();
+
+    void setChangeId(int changeId);
+    void setChangeType(KoGenChange::Type type);
+    void setChangeTitle(QString title);
+    void setChangeAuthor(QString author);
 
     void appendChild(ModelItem *child);
 
     ModelItem *child(int row);
+    QList<ModelItem*> children();
     int childCount() const;
     int row() const;
     ModelItem *parent();
 
     ItemData itemData();
 
-    void setChangeStart(int start);
-    void setChangeEnd(int end);
+    void setChangeRange(int start, int end);
+
+    void removeChildren();
 
 private:
     QList<ModelItem*> m_childItems;
@@ -76,20 +88,26 @@ public:
     Qt::ItemFlags flags(const QModelIndex &index) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const;
+    QModelIndex indexForChangeId(int changeId);
     QModelIndex parent(const QModelIndex &index) const;
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
 
     ItemData changeItemData(const QModelIndex &index, int role = Qt::DisplayRole) const;
 
+public slots:
+    void setupModel();
+
 private:
     void setupModelData(QTextDocument *document, ModelItem *parent);
 
+    QTextDocument *m_document;
     ModelItem *m_rootItem;
     KoChangeTracker *m_changeTracker;
     KoTextDocumentLayout *m_layout;
 
     QHash<int, int> m_changeOccurenceCounter;
+    QHash<int, ModelItem*> m_changeItems;
 };
 
 #endif // TRACKEDCHANGEMODEL_H

@@ -38,6 +38,7 @@
 #include "kis_paint_device.h"
 #include "kis_image.h"
 #include "kis_layer.h"
+#include "kis_node_query_path.h"
 
 struct KisRecordedBezierCurvePaintAction::Private {
     struct BezierCurveSlice {
@@ -56,7 +57,7 @@ KisRecordedBezierCurvePaintAction::KisRecordedBezierCurvePaintAction(const QStri
         KoColor backgroundColor,
         int opacity,
         bool paintIncremental,
-        const KoCompositeOp * compositeOp)
+        const QString& compositeOp)
         : KisRecordedPaintAction("BezierCurvePaintAction", name, path, preset,
                                  foregroundColor, backgroundColor, opacity, paintIncremental, compositeOp)
         , d(new Private)
@@ -88,12 +89,12 @@ void KisRecordedBezierCurvePaintAction::addPoint(const KisPaintInformation& poin
 
 void KisRecordedBezierCurvePaintAction::playPaint(const KisPlayInfo&, KisPainter* painter) const
 {
-    dbgUI << "play bezier curve paint with " << d->infos.size() << " points";
+    dbgImage << "play bezier curve paint with " << d->infos.size() << " points";
     if (d->infos.size() <= 0) return;
     double savedDist = 0.0;
     painter->paintAt(d->infos[0].point1);
     for (int i = 0; i < d->infos.size(); i++) {
-        dbgUI << d->infos[i].point1.pos() << " to " << d->infos[i].point2.pos();
+        dbgImage << d->infos[i].point1.pos() << " to " << d->infos[i].point2.pos();
         savedDist = painter->paintBezierCurve(d->infos[i].point1, d->infos[i].control1, d->infos[i].control2, d->infos[i].point2, savedDist);
     }
 }
@@ -147,59 +148,45 @@ KisRecordedBezierCurvePaintActionFactory::~KisRecordedBezierCurvePaintActionFact
 KisRecordedAction* KisRecordedBezierCurvePaintActionFactory::fromXML(const QDomElement& elt)
 {
     Q_UNUSED(elt);
-#if 0 // XXX
     QString name = elt.attribute("name");
-    KisNodeSP node = KisRecordedActionFactory::indexPathToNode(image, elt.attribute("node"));
+    KisNodeQueryPath pathnode = KisNodeQueryPath::fromString(elt.attribute("path"));
     QString paintOpId = elt.attribute("paintop");
-    int opacity = elt.attribute("opacity", "100").toInt();
+    int opacity = elt.attribute("opacity", "1.0").toDouble() * 255;
     bool paintIncremental = elt.attribute("paintIncremental", "1").toInt();
 
-    const KoCompositeOp * compositeOp = node->paintDevice()->colorSpace()->compositeOp(elt.attribute("compositeOp"));
-    if (!compositeOp) {
-        compositeOp = node->paintDevice()->colorSpace()->compositeOp(COMPOSITE_OVER);
-    }
+    QString compositeOp = elt.attribute("compositeOp", COMPOSITE_OVER);
 
+    // Decode pressets
+    KisPaintOpPresetSP paintOpPreset = 0;
 
-    KisPaintOpSettingsSP settings = 0;
-    QDomElement settingsElt = elt.firstChildElement("PaintOpSettings");
+    QDomElement settingsElt = elt.firstChildElement("PaintopPreset");
     if (!settingsElt.isNull()) {
-        settings = settingsFromXML(paintOpId, settingsElt, image);
+        paintOpPreset = paintOpPresetFromXML(settingsElt);
     } else {
-        dbgUI << "No <PaintOpSettings /> found";
+        dbgImage << "No <PaintOpSettings /> found";
     }
 
-    KisBrush* brush = 0;
-
-    QDomElement brushElt = elt.firstChildElement("Brush");
-    if (!brushElt.isNull()) {
-        brush = brushFromXML(brushElt);
-    } else {
-        dbgUI << "Warning: no <Brush /> found";
-    }
-    Q_ASSERT(brush);
-
-
+    // Decode colors
     QDomElement backgroundColorElt = elt.firstChildElement("BackgroundColor");
     KoColor bC;
 
     if (!backgroundColorElt.isNull()) {
         bC = KoColor::fromXML(backgroundColorElt.firstChildElement(), Integer8BitsColorDepthID.id(), QHash<QString, QString>());
         bC.setOpacity(255);
-        dbgUI << "Background color : " << bC.toQColor();
+        dbgImage << "Background color : " << bC.toQColor();
     } else {
-        dbgUI << "Warning: no <BackgroundColor /> found";
+        dbgImage << "Warning: no <BackgroundColor /> found";
     }
     QDomElement foregroundColorElt = elt.firstChildElement("ForegroundColor");
     KoColor fC;
     if (!foregroundColorElt.isNull()) {
         fC = KoColor::fromXML(foregroundColorElt.firstChildElement(), Integer8BitsColorDepthID.id(), QHash<QString, QString>());
-        dbgUI << "Foreground color : " << fC.toQColor();
+        dbgImage << "Foreground color : " << fC.toQColor();
         fC.setOpacity(255);
     } else {
-        dbgUI << "Warning: no <ForegroundColor /> found";
+        dbgImage << "Warning: no <ForegroundColor /> found";
     }
-
-    KisRecordedBezierCurvePaintAction* rplpa = new KisRecordedBezierCurvePaintAction(name, node, preset, fC, bC, opacity, paintIncremental, compositeOp);
+    KisRecordedBezierCurvePaintAction* rplpa = new KisRecordedBezierCurvePaintAction(name, pathnode, paintOpPreset, fC, bC, opacity, paintIncremental, compositeOp);
 
     QDomElement wpElt = elt.firstChildElement("Waypoints");
     if (!wpElt.isNull()) {
@@ -219,12 +206,9 @@ KisRecordedAction* KisRecordedBezierCurvePaintActionFactory::fromXML(const QDomE
             nWp = nWp.nextSibling();
         }
     } else {
-        dbgUI << "Warning: no <Waypoints /> found";
+        dbgImage << "Warning: no <Waypoints /> found";
     }
     return rplpa;
-#else
-    return 0;
-#endif
 }
 
 

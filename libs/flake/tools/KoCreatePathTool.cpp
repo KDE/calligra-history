@@ -34,7 +34,7 @@
 #include "KoShapeManager.h"
 #include "KoSelection.h"
 #include "KoShapeController.h"
-#include "KoCanvasResourceProvider.h"
+#include "KoResourceManager.h"
 #include "KoParameterShape.h"
 #include "commands/KoPathPointMergeCommand.h"
 
@@ -115,7 +115,7 @@ private:
 };
 
 KoCreatePathTool::KoCreatePathTool(KoCanvasBase * canvas)
-        : KoTool(canvas)
+        : KoToolBase(canvas)
         , m_shape(0)
         , m_activePoint(0)
         , m_firstPoint(0)
@@ -158,7 +158,7 @@ void KoCreatePathTool::paint(QPainter &painter, const KoViewConverter &converter
         const bool firstPoint = (m_firstPoint == m_activePoint);
         if (m_pointIsDragged || firstPoint) {
             const bool onlyPaintActivePoints = false;
-            KoPathPoint::KoPointTypes paintFlags = KoPathPoint::ControlPoint2;
+            KoPathPoint::PointTypes paintFlags = KoPathPoint::ControlPoint2;
             if (m_activePoint->activeControlPoint1())
                 paintFlags |= KoPathPoint::ControlPoint1;
             m_activePoint->paint(painter, m_handleRadius, paintFlags, onlyPaintActivePoints);
@@ -238,8 +238,8 @@ void KoCreatePathTool::mousePressEvent(KoPointerEvent *event)
     } else {
         m_shape = new KoPathShape();
         m_shape->setShapeId(KoPathShapeId);
-        KoLineBorder * border = new KoLineBorder(m_canvas->resourceProvider()->activeBorder());
-        border->setColor(m_canvas->resourceProvider()->foregroundColor().toQColor());
+        KoLineBorder * border = new KoLineBorder(m_canvas->resourceManager()->activeBorder());
+        border->setColor(m_canvas->resourceManager()->foregroundColor().toQColor());
         m_shape->setBorder(border);
         m_canvas->updateCanvas(m_canvas->snapGuide()->boundingRect());
         QPointF point = m_canvas->snapGuide()->snap(event->point, event->modifiers());
@@ -362,7 +362,7 @@ void KoCreatePathTool::activate(bool temporary)
     useCursor(Qt::ArrowCursor);
 
     // retrieve the actual global handle radius
-    m_handleRadius = m_canvas->resourceProvider()->handleRadius();
+    m_handleRadius = m_canvas->resourceManager()->handleRadius();
 
     // reset snap guide
     m_canvas->updateCanvas(m_canvas->snapGuide()->boundingRect());
@@ -510,7 +510,7 @@ KoPathPoint* KoCreatePathTool::endPointAtPosition( const QPointF &position )
 
     KoPathPoint * nearestPoint = 0;
     qreal minDistance = HUGE_VAL;
-    uint grabSensitivity = m_canvas->resourceProvider()->grabSensitivity();
+    uint grabSensitivity = m_canvas->resourceManager()->grabSensitivity();
     qreal maxDistance = m_canvas->viewConverter()->viewToDocumentX(grabSensitivity);
 
     foreach(KoShape *shape, shapes) {

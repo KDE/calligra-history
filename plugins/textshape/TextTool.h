@@ -24,7 +24,7 @@
 
 #include "TextShape.h"
 
-#include <KoTool.h>
+#include <KoToolBase.h>
 
 #include <QClipboard>
 #include <QHash>
@@ -33,6 +33,7 @@
 #include <QTimer>
 #include <QPointer>
 
+class TextEditingPluginContainer;
 class InsertCharacter;
 class KoChangeTracker;
 class KoCharacterStyle;
@@ -55,7 +56,7 @@ class MockCanvas;
 /**
  * This is the tool for the text-shape (which is a flake-based plugin).
  */
-class TextTool : public KoTool
+class TextTool : public KoToolBase
 {
     Q_OBJECT
 public:
@@ -121,7 +122,7 @@ public slots:
     void startTextEditingPlugin(const QString &pluginId);
     /// add a command to the undo stack, executing it as well.
     void addCommand(QUndoCommand *command);
-    /// reimplemented from KoTool
+    /// reimplemented from KoToolBase
     virtual void resourceChanged(int key, const QVariant &res);
 
     /// call this when the 'is-bidi' boolean has been changed.
@@ -279,7 +280,7 @@ private:
     bool m_allowActions;
     bool m_allowAddUndoCommand;
     bool m_trackChanges;
-    bool m_allowResourceProviderUpdates;
+    bool m_allowResourceManagerUpdates;
     int m_prevCursorPosition; /// used by editingPluginEvents
 
     QTimer m_caretTimer;
@@ -304,9 +305,6 @@ private:
     KoColorPopupAction *m_actionFormatTextColor;
     KoColorPopupAction *m_actionFormatBackgroundColor;
 
-    QHash<QString, KoTextEditingPlugin*> m_textEditingPlugins;
-    KoTextEditingPlugin *m_spellcheckPlugin;
-
     QUndoCommand *m_currentCommand; //this command will be the direct parent of undoCommands generated as the result of QTextDocument changes
 
     bool m_currentCommandHasChildren;
@@ -320,6 +318,8 @@ private:
     QList<TextSelection> m_previousSelections;
 
     InsertCharacter *m_specialCharacterDocker;
+
+    TextEditingPluginContainer *m_textEditingPlugins;
 
     bool m_textTyping;
     bool m_textDeleting;

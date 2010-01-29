@@ -28,7 +28,7 @@
 using namespace KSpread;
 
 TableToolFactory::TableToolFactory(QObject* parent)
-        : KoToolFactory(parent, "TableToolFactoryId")
+        : KoToolFactoryBase(parent, "TableToolFactoryId")
 {
     setToolTip(i18n("Table editing tool"));
     setIcon("spreadsheetshape");
@@ -41,7 +41,7 @@ TableToolFactory::~TableToolFactory()
 {
 }
 
-KoTool* TableToolFactory::createTool(KoCanvasBase* canvas)
+KoToolBase* TableToolFactory::createTool(KoCanvasBase* canvas)
 {
     return new TableTool(canvas);
 }

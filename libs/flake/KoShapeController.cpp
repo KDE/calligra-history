@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
  *
- * Copyright (C) 2006-2007 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2006-2007, 2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2006-2008 Thorsten Zachmann <zachmann@kde.org>
  *
  * This library is free software; you can redistribute it and/or
@@ -29,8 +29,8 @@
 #include "commands/KoShapeDeleteCommand.h"
 #include "KoCanvasBase.h"
 #include "KoShapeConfigWidgetBase.h"
-#include "KoShapeConfigFactory.h"
-#include "KoShapeFactory.h"
+#include "KoShapeConfigFactoryBase.h"
+#include "KoShapeFactoryBase.h"
 #include "KoShape.h"
 
 #include <kpagedialog.h>
@@ -39,7 +39,12 @@
 class KoShapeController::Private
 {
 public:
-    Private() : canvas(0), shapeController(0) {}
+    Private()
+        : canvas(0),
+        shapeController(0)
+    {
+    }
+
     KoCanvasBase *canvas;
     KoShapeControllerBase *shapeController;
 
@@ -47,7 +52,7 @@ public:
         Q_ASSERT(canvas->shapeManager());
 
         if (showDialog) {
-            KoShapeFactory *factory = KoShapeRegistry::instance()->value(shape->shapeId());
+            KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value(shape->shapeId());
             Q_ASSERT(factory);
             int z = 0;
             foreach(KoShape *sh, canvas->shapeManager()->shapes())
@@ -59,10 +64,10 @@ public:
             dialog->setCaption(i18n("%1 Options", factory->name()));
 
             int pageCount = 0;
-            QList<KoShapeConfigFactory*> panels = factory->panelFactories();
-            qSort(panels.begin(), panels.end(), KoShapeConfigFactory::compare);
+            QList<KoShapeConfigFactoryBase*> panels = factory->panelFactories();
+            qSort(panels.begin(), panels.end(), KoShapeConfigFactoryBase::compare);
             QList<KoShapeConfigWidgetBase*> widgets;
-            foreach(KoShapeConfigFactory *panelFactory, panels) {
+            foreach(KoShapeConfigFactoryBase *panelFactory, panels) {
                 if (! panelFactory->showForShapeId(shape->shapeId()))
                     continue;
                 KoShapeConfigWidgetBase *widget = panelFactory->createConfigWidget(shape);
@@ -73,7 +78,7 @@ public:
                     continue;
                 }
                 widgets.append(widget);
-                widget->setResourceProvider(canvas->resourceProvider());
+                widget->setResourceManager(canvas->resourceManager());
                 widget->setUnit(canvas->unit());
                 dialog->addPage(widget, panelFactory->name());
                 pageCount ++;
@@ -83,7 +88,7 @@ public:
                     continue;
                 panel->open(shape);
                 widgets.append(panel);
-                panel->setResourceProvider(canvas->resourceProvider());
+                panel->setResourceManager(canvas->resourceManager());
                 panel->setUnit(canvas->unit());
                 QString title = panel->windowTitle().isEmpty() ? panel->objectName() : panel->windowTitle();
                 dialog->addPage(panel, title);
@@ -149,12 +154,7 @@ void KoShapeController::setShapeControllerBase(KoShapeControllerBase* shapeContr
     d->shapeController = shapeControllerBase;
 }
 
-KoDataCenter * KoShapeController::dataCenter(const QString &dataCenterName)
+KoResourceManager *KoShapeController::resourceManager() const
 {
-    return d->shapeController->dataCenterMap().value(dataCenterName, 0);
-}
-
-QMap<QString, KoDataCenter *> KoShapeController::dataCenterMap()
-{
-    return d->shapeController->dataCenterMap();
+    return d->shapeController->resourceManager();
 }

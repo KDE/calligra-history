@@ -26,14 +26,14 @@
 #include <KoShapeManager.h>
 #include <KoShapeContainer.h>
 #include <KoShapeContainerModel.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <commands/KoShapeMoveCommand.h>
 #include <KoSnapGuide.h>
 #include <KoPointerEvent.h>
-#include <KoTool.h>
+#include <KoToolBase.h>
 #include <KLocale>
 
-ShapeMoveStrategy::ShapeMoveStrategy(KoTool *tool, const QPointF &clicked)
+ShapeMoveStrategy::ShapeMoveStrategy(KoToolBase *tool, const QPointF &clicked)
     : KoInteractionStrategy(tool),
     m_start(clicked)
 {
@@ -132,6 +132,6 @@ void ShapeMoveStrategy::paint( QPainter &painter, const KoViewConverter &convert
 {
     SelectionDecorator decorator (KoFlake::NoHandle, false, false);
     decorator.setSelection(tool()->canvas()->shapeManager()->selection());
-    decorator.setHandleRadius( tool()->canvas()->resourceProvider()->handleRadius() );
+    decorator.setHandleRadius( tool()->canvas()->resourceManager()->handleRadius() );
     decorator.paint(painter, converter);
 }

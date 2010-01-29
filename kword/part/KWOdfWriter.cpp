@@ -209,7 +209,7 @@ bool KWOdfWriter::save(KoOdfWriteStore & odfStore, KoEmbeddedDocumentSaver & emb
     KoGenChanges changes;
 
     // Save the named styles
-    KoStyleManager *styleManager = dynamic_cast<KoStyleManager *>(m_document->dataCenterMap()["StyleManager"]);
+    KoStyleManager *styleManager = m_document->resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
     styleManager->saveOdf(mainStyles);
 
     // TODO get the pagestyle for the first page and store that as 'style:default-page-layout'

@@ -1,13 +1,12 @@
 add_subdirectory( tests )
 add_subdirectory( pics )
 
-include_directories(${KOTEXT_INCLUDES} ${PIGMENT_INCLUDES})
+include_directories(${KOTEXT_INCLUDES} ${KOODF_INCLUDES} ${PIGMENT_INCLUDES})
 
 set(kowidgets_LIB_SRCS
     KoAspectButton.cpp
     KoCsvImportDialog.cpp
     KoImageResource.cpp
-    KoPageLayout.cpp
     KoPageLayoutDialog.cpp
     KoPageLayoutWidget.cpp
     KoPagePreviewWidget.cpp
@@ -42,7 +41,11 @@ set(kowidgets_LIB_SRCS
     KoCheckerBoardPainter.cpp
     KoResourceServerAdapter.cpp
     KoResourceServerProvider.cpp
-
+    KoLineStyleSelector.cpp
+    KoLineStyleItemDelegate.cpp
+    KoLineStyleModel.cpp
+    KoDockWidgetTitleBar.cpp
+    KoDockWidgetTitleBarButton.cpp
 )
 
 kde4_add_ui_files( kowidgets_LIB_SRCS
@@ -54,7 +57,7 @@ kde4_add_ui_files( kowidgets_LIB_SRCS
 
 kde4_add_library(kowidgets SHARED ${kowidgets_LIB_SRCS})
 
-target_link_libraries(kowidgets kotext pigmentcms)
+target_link_libraries(kowidgets kotext koodf pigmentcms)
 
 target_link_libraries(kowidgets LINK_INTERFACE_LIBRARIES pigmentcms ${KDE4_KDEUI_LIBS})
 
@@ -67,7 +70,6 @@ install(TARGETS kowidgets  ${INSTALL_TARGETS_DEFAULT_ARGS})
 install( FILES
     KoGenericRegistryModel.h
     KoPageLayoutDialog.h
-    KoPageLayout.h
     KoPageLayoutWidget.h
     KoPagePreviewWidget.h
     KoPositionSelector.h
@@ -92,6 +94,10 @@ install( FILES
     KoXYColorSelector.h
     KoResourceItemChooser.h
     KoResourceSelector.h
+    KoLineStyleSelector.h
+    KoDockWidgetTitleBar.h
+    KoDockWidgetTitleBar.h
+    KoDockWidgetTitleBarButton.h
 
     DESTINATION
     ${INCLUDE_INSTALL_DIR}

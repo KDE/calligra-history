@@ -25,11 +25,9 @@
 #include <kdebug.h>
 
 
-#define DEBUG_WMFPAINT 1
-
-
 KoWmfPaint::KoWmfPaint()
     : KoWmfRead()
+    , mTextPen()
 {
     mTarget = 0;
     mIsInternalPainter = true;
@@ -146,6 +144,15 @@ void KoWmfPaint::setFont(const QFont &font)
 }
 
 
+void KoWmfPaint::setTextPen(const QPen &pen)
+{
+#if DEBUG_WMFPAINT
+    kDebug(31000) << pen;
+#endif
+
+    mTextPen = pen;
+}
+
 void KoWmfPaint::setPen(const QPen &pen)
 {
 #if DEBUG_WMFPAINT
@@ -207,15 +214,20 @@ void KoWmfPaint::setBackgroundColor(const QColor &c)
     // FIXME: This needs more investigation, but it seems that the
     //        concept of "background" in WMF is the same as the
     //        "brush" in QPainter.
-    mPainter->setBrush(QBrush(c));
-    //mPainter->setBackground(QBrush(c));
+    // Update: No, it wasn't.  I changed back now because it didn't work.  I'm leaving
+    //         the fixme and this comment to remind the next fixer that calling
+    //         setBrush() is not the solution.  I hope nothing breaks now.
+    //         The date is now 2010-01-20.  If nothing breaks in a couple of months,
+    //         all this commentry can be removed.
+    //mPainter->setBrush(QBrush(c));
+    mPainter->setBackground(QBrush(c));
 }
 
 
 void KoWmfPaint::setBackgroundMode(Qt::BGMode mode)
 {
 #if DEBUG_WMFPAINT
-    kDebug(31000) << mode;
+    kDebug(31000) << mode << "(ignored)";
 #endif
 
     mPainter->setBackgroundMode(mode);
@@ -408,7 +420,7 @@ void KoWmfPaint::drawPolyline(const QPolygon &pa)
 void KoWmfPaint::drawPolygon(const QPolygon &pa, bool winding)
 {
 #if DEBUG_WMFPAINT
-    kDebug(31000) << pa;
+    kDebug(31000) << pa << winding;
     kDebug(31000) << "Using QPainter: " << mPainter->pen() << mPainter->brush();
 #endif
 
@@ -473,19 +485,44 @@ void KoWmfPaint::drawImage(int x, int y, const QImage &img, int sx, int sy, int 
 void KoWmfPaint::drawText(int x, int y, int w, int h, int flags, const QString& s, double)
 {
 #if DEBUG_WMFPAINT
-    kDebug(31000) << x << " " << y << " " << w << " " << w << " " << h << " " << s;
+    kDebug(31000) << x << " " << y << " " << w << " " << h << " " << flags << " " << s;
 #endif
+
+    // This enum is taken from the karbon WMF import filter.
+    // FIXME: This is just a small subset of the align flags that WMF defines.  
+    //        They should all be handled.
+    enum TextFlags { CurrentPosition = 0x01, AlignHCenter = 0x06, AlignBottom = 0x08 };
+
+    if (flags & CurrentPosition) {
+        // (left, top) position = current logical position
+        x = mLastPos.x();
+        y = mLastPos.y();
+    }
+
+    // If this flag is set, the point to draw the text is the
+    // baseline, otherwise it should be the upper left corner.
+    if (!(flags & AlignBottom)) {
+        QFontMetrics  fontMetrics(mPainter->font(), mTarget);
+        y += fontMetrics.ascent();
+
+#if DEBUG_WMFPAINT
+        kDebug(31000) << "font = " << mPainter->font() << " pointSize = " << mPainter->font().pointSize()
+                      << "ascent = " << fontMetrics.ascent() << " height = " << fontMetrics.height()
+                      << "leading = " << fontMetrics.leading();
+#endif
+    }
+
+    QPen  savePen = mPainter->pen();
+
     // Sometimes it happens that w and/or h == -1, and then the
     // bounding box isn't valid any more.  In that case, no text at
     // all is shown.
-    if (w == -1 || h == -1) {
-        // We want the text to appear with x,y in the upper left corner
-        // so we have to add the ascent of the font to the y value.
-        QFontMetrics  fontMetrics(mPainter->font());
-        y += fontMetrics.ascent();
-
+    mPainter->setPen(mTextPen);
+    if (w == -1 || h == -1)
         mPainter->drawText(x, y, s);
-    }
     else
-        mPainter->drawText(x, y, w, h, flags, s);
+        // FIXME: Find out which Qt flags should be there instead of the 0.
+        mPainter->drawText(x, y, w, h, 0, s);
+
+    mPainter->setPen(savePen);
 }

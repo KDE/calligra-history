@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2006-2007,2009 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2006-2007,2009,2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2007 Jan Hambrecht <jaham@gmx.net>
  * Copyright (C) 2008 Thorsten Zachmann <zachmann@kde.org>
  *
@@ -23,18 +23,20 @@
 
 #include <KoProperties.h>
 #include <KoShape.h>
+#include <KoTextDocument.h>
 #include <KoTextShapeData.h>
 #include <KoXmlNS.h>
 #include <KoStyleManager.h>
+#include <KoResourceManager.h>
 #include <KoInlineTextObjectManager.h>
 #include <changetracker/KoChangeTracker.h>
 
 #include <klocale.h>
+#include <KUndoStack>
 #include <QTextCursor>
 
 TextShapeFactory::TextShapeFactory(QObject *parent)
-        : KoShapeFactory(parent, TextShape_SHAPEID, i18n("Text")),
-        m_inlineTextObjectManager(0)
+        : KoShapeFactoryBase(parent, TextShape_SHAPEID, i18n("Text"))
 {
     setToolTip(i18n("A shape that shows text"));
     setOdfElementNames(KoXmlNS::draw, QStringList("text-box"));
@@ -50,15 +52,38 @@ TextShapeFactory::TextShapeFactory(QObject *parent)
     addTemplate(t);
 }
 
-KoShape *TextShapeFactory::createDefaultShape() const
+KoShape *TextShapeFactory::createDefaultShape(KoResourceManager *documentResources) const
 {
-    TextShape *text = new TextShape(m_inlineTextObjectManager);
+    KoInlineTextObjectManager *manager = 0;
+    if (documentResources && documentResources->hasResource(KoText::InlineTextObjectManager)) {
+        QVariant variant = documentResources->resource(KoText::InlineTextObjectManager);
+        manager = variant.value<KoInlineTextObjectManager*>();
+    }
+    TextShape *text = new TextShape(manager);
+    KoTextDocument document(text->textShapeData()->document());
+    if (documentResources) {
+        document.setUndoStack(documentResources->undoStack());
+
+        if (documentResources->hasResource(KoText::StyleManager)) {
+            KoStyleManager *styleManager = documentResources->resource(KoText::StyleManager).value<KoStyleManager*>();
+            document.setStyleManager(styleManager);
+        }
+        if (documentResources->hasResource(KoText::PageProvider)) {
+            KoPageProvider *pp = static_cast<KoPageProvider *>(documentResources->resource(KoText::PageProvider).value<void*>());
+            text->setPageProvider(pp);
+        }
+        if (documentResources->hasResource(KoText::ChangeTracker)) {
+            KoChangeTracker *changeTracker = documentResources->resource(KoText::ChangeTracker).value<KoChangeTracker*>();
+            document.setChangeTracker(changeTracker);
+        }
+    }
+
     return text;
 }
 
-KoShape *TextShapeFactory::createShape(const KoProperties *params) const
+KoShape *TextShapeFactory::createShape(const KoProperties *params, KoResourceManager *documentResources) const
 {
-    TextShape *shape = new TextShape(m_inlineTextObjectManager);
+    TextShape *shape = static_cast<TextShape*>(createDefaultShape(documentResources));
     shape->setSize(QSizeF(300, 200));
     shape->setDemoText(params->boolProperty("demo"));
     QString text("text");
@@ -75,12 +100,18 @@ bool TextShapeFactory::supports(const KoXmlElement & e) const
     return (e.localName() == "text-box" && e.namespaceURI() == KoXmlNS::draw);
 }
 
-void TextShapeFactory::populateDataCenterMap(QMap<QString, KoDataCenter *>  & dataCenterMap)
+void TextShapeFactory::newDocumentResourceManager(KoResourceManager *manager)
 {
-    dataCenterMap["StyleManager"] = new KoStyleManager();
-    m_inlineTextObjectManager = new KoInlineTextObjectManager(this);
-    dataCenterMap["InlineTextObjectManager"] = m_inlineTextObjectManager;
-    dataCenterMap["ChangeTracker"] = new KoChangeTracker();
+    QVariant variant;
+    variant.setValue<KoInlineTextObjectManager*>(new KoInlineTextObjectManager(manager));
+    manager->setResource(KoText::InlineTextObjectManager, variant);
+
+    if (!manager->hasResource(KoDocumentResource::UndoStack)) {
+        kWarning(32500) << "No KUndoStack found in the document resource manager, creating a new one";
+        manager->setUndoStack(new KUndoStack(manager));
+    }
+    variant.setValue(new KoStyleManager(manager));
+    manager->setResource(KoText::StyleManager, variant);
 }
 
-#include "TextShapeFactory.moc"
+#include <TextShapeFactory.moc>

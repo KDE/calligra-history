@@ -24,16 +24,16 @@
 #include <KoShapeManager.h>
 #include <KoPointerEvent.h>
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <commands/KoShapeSizeCommand.h>
 #include <commands/KoShapeTransformCommand.h>
 #include <KoSnapGuide.h>
-#include <KoTool.h>
+#include <KoToolBase.h>
 
 #include <klocale.h>
 #include <limits>
 
-ShapeResizeStrategy::ShapeResizeStrategy(KoTool *tool,
+ShapeResizeStrategy::ShapeResizeStrategy(KoToolBase *tool,
         const QPointF &clicked, KoFlake::SelectionHandle direction )
     : KoInteractionStrategy(tool), m_lastScale(1.0,1.0)
 {
@@ -247,6 +247,6 @@ void ShapeResizeStrategy::paint( QPainter &painter, const KoViewConverter &conve
 {
     SelectionDecorator decorator (KoFlake::NoHandle, false, false);
     decorator.setSelection(tool()->canvas()->shapeManager()->selection());
-    decorator.setHandleRadius( tool()->canvas()->resourceProvider()->handleRadius() );
+    decorator.setHandleRadius( tool()->canvas()->resourceManager()->handleRadius() );
     decorator.paint(painter, converter);
 }

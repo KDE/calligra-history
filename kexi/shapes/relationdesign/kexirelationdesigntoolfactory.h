@@ -17,15 +17,15 @@
 #ifndef KEXIRELATIONDESIGNTOOLFACTORY_H
 #define KEXIRELATIONDESIGNTOOLFACTORY_H
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 
-class KexiRelationDesignToolFactory : public KoToolFactory {
+class KexiRelationDesignToolFactory : public KoToolFactoryBase {
     public:
         
         KexiRelationDesignToolFactory ( QObject* parent );
         
-        virtual KoTool* createTool ( KoCanvasBase* canvas );
+        virtual KoToolBase* createTool ( KoCanvasBase* canvas );
 };
 
 #endif // KEXIRELATIONDESIGNTOOLFACTORY_H

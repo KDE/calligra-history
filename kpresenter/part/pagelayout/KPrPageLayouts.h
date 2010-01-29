@@ -22,7 +22,8 @@
 
 #include <QMap>
 #include <QString>
-#include <KoDataCenter.h>
+#include <QObject>
+#include <QVariant>
 
 class QRectF;
 class KPrPageLayout;
@@ -30,18 +31,11 @@ class KPrPageLayoutWrapper;
 class KoPALoadingContext;
 class KoPASavingContext;
 
-#define PageLayouts "PageLayouts"
-
-class KPrPageLayouts : public KoDataCenter
+class KPrPageLayouts : public QObject
 {
 public:
-    KPrPageLayouts();
+    KPrPageLayouts(QObject *parent = 0);
     ~KPrPageLayouts();
-
-    /// reimplemented
-    virtual bool completeLoading( KoStore *store );
-    /// reimplemented
-    virtual bool completeSaving( KoStore *store, KoXmlWriter * manifestWriter, KoShapeSavingContext * context );
 
     bool saveOdf( KoPASavingContext & context );
 
@@ -63,4 +57,5 @@ private:
     QMap<KPrPageLayoutWrapper, KPrPageLayout *> m_pageLayouts;
 };
 
+Q_DECLARE_METATYPE(KPrPageLayouts*)
 #endif /* KPRPAGELAYOUTS_H */

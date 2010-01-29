@@ -21,7 +21,7 @@
 
 #include <kis_debug.h>
 #include <kfiledialog.h>
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
 #include <kcomponentdata.h>
 #include <klocale.h>
 #include <kmessagebox.h>
@@ -61,15 +61,16 @@
 #undef powf
 #define powf pow
 #endif
+#include <KoColorModelStandardIds.h>
 
 const double epsilonOptimization = 1e-5;
 const double epsilonGaussian = 1e-6;
 
-typedef KGenericFactory<Bracketing2HDRPlugin> Bracketing2HDRPluginFactory;
-K_EXPORT_COMPONENT_FACTORY(kritabracketing2hdr, Bracketing2HDRPluginFactory("krita"))
+K_PLUGIN_FACTORY(Bracketing2HDRPluginFactory, registerPlugin<Bracketing2HDRPlugin>();)
+K_EXPORT_PLUGIN(Bracketing2HDRPluginFactory("krita"))
 
 
-Bracketing2HDRPlugin::Bracketing2HDRPlugin(QObject *parent, const QStringList &)
+Bracketing2HDRPlugin::Bracketing2HDRPlugin(QObject *parent, const QVariantList &)
         : KParts::Plugin(parent), m_wdgBracketing2HDR(0),
         m_responseType(RESPONSE_LINEAR), m_bitDepth(16), m_numberOfInputLevels(2 << (m_bitDepth - 1)), m_cameraResponseIsComputed(false)
 {
@@ -122,8 +123,15 @@ void Bracketing2HDRPlugin::addImage(const QString& filename)
     dbgPlugins <<" Aperture: " << aperture;
     qint32 iso = 100;
     if (exifInfo->containsEntry(KisMetaData::Schema::EXIFSchemaUri, "ISOSpeedRatings")) {
-        iso = exifInfo->getValue(KisMetaData::Schema::EXIFSchemaUri, "ISOSpeedRatings").asInteger();
-        dbgPlugins << iso;
+        QList<KisMetaData::Value> isoSpeed = exifInfo->getValue(KisMetaData::Schema::EXIFSchemaUri, "ISOSpeedRatings").asArray();
+        dbgPlugins << exifInfo->getValue(KisMetaData::Schema::EXIFSchemaUri, "ISOSpeedRatings");
+        if(isoSpeed.size() >= 1)
+        {
+            iso = isoSpeed[0].asInteger();
+            dbgPlugins << iso;
+        } else {
+            dbgPlugins << "Invalid iso value";
+        }
     }
     dbgPlugins <<" ISO : " << iso;
     int index = m_wdgBracketing2HDR->tableWidgetImages->rowCount();
@@ -166,7 +174,7 @@ void Bracketing2HDRPlugin::slotNewHDRLayerFromBracketing()
             computeCameraResponse();
         }
         KisImageWSP image = m_view->image();
-        const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace("RgbAF32", 0);
+        const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(), Float32BitsColorDepthID.id(), 0);
         if (!cs) {
             KMessageBox::error(m_view, i18n("HDR colorspace RGBAF32 not found, please check your installation."), i18n("Layer Creation Error"));
             return;
@@ -360,7 +368,7 @@ void Bracketing2HDRPlugin::computeCameraResponse(QList<BracketingFrame> frames)
 #if 1
     // Now optimize the camera response
     // Create a temporary paint device and fill it with the current value
-    const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace("RgbAF32", 0);
+    const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(), Float32BitsColorDepthID.id(), 0);
     if (!cs) {
         KMessageBox::error(m_view, i18n("HDR colorspace RGBAF32 not found, please check your installation."), i18n("Compute Camera Response Error"));
         return;

@@ -23,7 +23,7 @@
 
 #include <KoColor.h>
 #include <KoID.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 
 #include "kis_types.h"
 #include "krita_export.h"
@@ -63,7 +63,7 @@ public:
     KisCanvasResourceProvider(KisView2 * view);
     ~KisCanvasResourceProvider();
 
-    void setCanvasResourceProvider(KoCanvasResourceProvider * resourceProvider);
+    void setResourceManager(KoResourceManager *resourceManager);
 
     KoCanvasBase * canvas() const;
 
@@ -91,7 +91,7 @@ public:
 
     KisFilterConfiguration* currentGeneratorConfiguration() const;
 
-    static KoColorProfile* getScreenProfile(int screen = -1);
+    static const KoColorProfile* getScreenProfile(int screen = -1);
 
 
 public slots:
@@ -103,6 +103,7 @@ public slots:
     void slotPaintOpPresetActivated(const KisPaintOpPresetSP preset);
     void slotNodeActivated(const KisNodeSP node);
     void slotGeneratorConfigurationActivated(KisFilterConfiguration * generatorConfiguration);
+    void slotPainting();
 
     /**
      * Set the image size in pixels. The resource provider will store
@@ -125,12 +126,14 @@ signals:
     void sigNodeChanged(const KisNodeSP);
     void sigDisplayProfileChanged(const KoColorProfile *);
     void sigGeneratorConfigurationChanged(KisFilterConfiguration * generatorConfiguration);
+    void sigFGColorUsed(const KoColor&);
 
 private:
 
     KisView2 * m_view;
-    KoCanvasResourceProvider * m_resourceProvider;
+    KoResourceManager * m_resourceManager;
     const KoColorProfile * m_displayProfile;
+    bool m_fGChanged;
 
 };
 

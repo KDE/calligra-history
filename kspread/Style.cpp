@@ -38,6 +38,7 @@
 #include <KoXmlWriter.h>
 
 #include "Condition.h"
+#include "Currency.h"
 #include "Global.h"
 #include "StyleManager.h"
 #include "Util.h"
@@ -262,16 +263,22 @@ void Style::loadOdfDataStyle(KoOdfStylesReader& stylesReader, const KoXmlElement
             // determine data formatting
             switch (dataStyle.type) {
             case KoOdfNumberStyles::Number:
-                setFormatType(Format::Number);
+                setFormatType(numberType(dataStyle.formatStr));
+                kDebug() << "== number:" << numberType(dataStyle.formatStr);
+                if (!dataStyle.currencySymbol.isEmpty())
+                    setCurrency(numberCurrency(dataStyle.currencySymbol));
+                else
+                    setCurrency(numberCurrency(dataStyle.formatStr));
                 break;
             case KoOdfNumberStyles::Scientific:
                 setFormatType(Format::Scientific);
                 break;
             case KoOdfNumberStyles::Currency:
                 kDebug(36003) << " currency-symbol:" << dataStyle.currencySymbol;
-                if (!dataStyle.currencySymbol.isEmpty()) {
-                    setCurrency(Currency(dataStyle.currencySymbol));
-                }
+                if (!dataStyle.currencySymbol.isEmpty())
+                    setCurrency(numberCurrency(dataStyle.currencySymbol));
+                else
+                    setCurrency(numberCurrency(dataStyle.formatStr));
                 break;
             case KoOdfNumberStyles::Percentage:
                 setFormatType(Format::Percentage);
@@ -318,6 +325,8 @@ void Style::loadOdfDataStyle(KoOdfStylesReader& stylesReader, const KoXmlElement
                     precision = -11;
                 setPrecision(precision);
             }
+
+            setCustomFormat(dataStyle.formatStr);
         }
     }
 }
@@ -654,6 +663,40 @@ Format::Type Style::timeType(const QString &_format)
         return Format::Time8;
     else
         return Format::Time;
+}
+
+Format::Type Style::numberType(const QString &_format)
+{
+    // Look up if a prefix or postfix is in the currency table,
+    // use the currency format for proper formatting if it is.
+    QString f = QString(_format.at(0));
+    Currency curr = Currency(f);
+    if (curr.index() > 1)
+        return Format::Money;
+    else {
+        f = QString(_format.at(_format.size()-1));
+        curr = Currency(f);
+        if (curr.index() > 1)
+            return Format::Money;
+    }
+    return Format::Number;
+}
+
+Currency Style::numberCurrency(const QString &_format)
+{
+    // Look up if a prefix or postfix is in the currency table,
+    // return the currency symbol to use for formatting purposes.
+    QString f = QString(_format.at(0));
+    Currency currStart = Currency(f);
+    if (currStart.index() > 1)
+        return currStart;
+    else {
+        f = QString(_format.at(_format.size()-1));
+        Currency currEnd = Currency(f);
+        if (currEnd.index() > 1)
+            return currEnd;
+    }
+    return Currency(QString());
 }
 
 Format::Type Style::fractionType(const QString &_format)

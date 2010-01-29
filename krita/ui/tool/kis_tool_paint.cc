@@ -43,7 +43,7 @@
 
 #include <KoShape.h>
 #include <KoShapeManager.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoColorSpace.h>
 #include <KoPointerEvent.h>
 #include <KoColor.h>
@@ -57,6 +57,7 @@
 #include <kis_layer.h>
 #include <kis_view2.h>
 #include <kis_canvas2.h>
+#include <ko_favorite_resource_manager.h>
 
 #include "kis_config.h"
 #include "kis_config_notifier.h"
@@ -83,7 +84,8 @@ KisToolPaint::KisToolPaint(KoCanvasBase * canvas, const QCursor & cursor)
     m_supportOutline = false;
 
     KisCanvas2* canvas2 = static_cast<KisCanvas2*>(canvas);
-    connect(this, SIGNAL(favoritePaletteCalled(const QPoint&)), canvas2->view(), SIGNAL(favoritePaletteCalled(const QPoint&)) );
+    connect(this, SIGNAL(sigFavoritePaletteCalled(const QPoint&)), canvas2->view(), SIGNAL(favoritePaletteCalled(const QPoint&)) );
+    connect(this, SIGNAL(sigPainting()), canvas2->view()->resourceProvider(), SLOT(slotPainting()));
 }
 
 
@@ -134,11 +136,10 @@ void KisToolPaint::paint(QPainter&, const KoViewConverter &)
 void KisToolPaint::mouseReleaseEvent(KoPointerEvent *e)
 {
     if (e->button() == Qt::MidButton) {
-        //CALLING FOR POP UP PALETTE
-        qDebug() << "[KisToolPaint] MidButton: calling palette";
-        emit favoritePaletteCalled(e->pos());
+        //CALLING POP UP PALETTE
+        emit sigFavoritePaletteCalled(e->pos());
 
-//        KoCanvasResourceProvider * resourceProvider = 0;
+//        KoResourceManager * resourceProvider = 0;
 //        if (canvas() && (resourceProvider = canvas()->resourceProvider())) {
 //            QVariant fg = resourceProvider->resource(KoCanvasResource::ForegroundColor);
 //            if (!fg.isValid()) return;
@@ -147,6 +148,13 @@ void KisToolPaint::mouseReleaseEvent(KoPointerEvent *e)
 //            resourceProvider->setResource(KoCanvasResource::ForegroundColor, bg);
 //            resourceProvider->setResource(KoCanvasResource::BackgroundColor, fg);
 //        }
+    }
+    else if (e->button() == Qt::LeftButton)
+    {
+//        if (canvas2->view()->favoriteResourceManager()->isPopupPaletteVisible()) return;
+        //TODO: There is a bug here. If pop up palette is visible and a new colour is selected,
+        //the new colour will be added when the user clicks on the canvas to hide the palette
+        emit sigPainting();
     }
 }
 

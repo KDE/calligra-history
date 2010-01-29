@@ -1353,9 +1353,16 @@ bool Cell::loadOdf(const KoXmlElement& element, OdfLoadingContext& tableContext)
         // integer and floating-point value
         else if (valuetype == "float") {
             bool ok = false;
-            const Value value(element.attributeNS(KoXmlNS::office, "value", QString()).toDouble(&ok));
-            if (ok)
+            Value value(element.attributeNS(KoXmlNS::office, "value", QString()).toDouble(&ok));
+            if (ok) {
+                value.setFormat(Value::fmt_Number);
                 setValue(value);
+#if 0
+                Style style;
+                style.setFormatType(Format::Number);
+                setStyle(style);
+#endif
+            }
             // always set the userInput to the actual value read from the cell, and not whatever happens to be set as text, as the textual representation of a value may be less accurate than the value itself
             if (!isFormula)
                 setUserInput(sheet()->map()->converter()->asString(value).asString());
@@ -1662,7 +1669,7 @@ void Cell::loadOdfObjects(const KoXmlElement &parent, KoOdfLoadingContext& odfCo
                 KoXmlNS::table, "end-y",
                 "table:end-y"));
 
-    KoShapeLoadingContext shapeContext(odfContext, d->sheet->dataCenterMap());
+    KoShapeLoadingContext shapeContext(odfContext, d->sheet->resourceManager());
     KoXmlElement element;
     forEachElement(element, parent) {
         if (element.namespaceURI() != KoXmlNS::draw)

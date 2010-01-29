@@ -23,6 +23,8 @@
 #ifndef NUMBERFORMATPARSER_H
 #define NUMBERFORMATPARSER_H
 
+class QColor;
+class QLocale;
 class QString;
 class KoGenStyle;
 class KoGenStyles;
@@ -30,8 +32,11 @@ class KoGenStyles;
 class NumberFormatParser
 {
 public:
-    static void setStyles( KoGenStyles* styles );
-    static KoGenStyle parse( const QString& numberFormat );
+    static QColor color(const QString& name);
+    static QLocale locale(int langid);
+
+    static void setStyles(KoGenStyles* styles);
+    static KoGenStyle parse(const QString& numberFormat);
 
 private:
     static KoGenStyles* styles;

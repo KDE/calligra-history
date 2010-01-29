@@ -43,7 +43,7 @@ struct Finalizer {
 #include "Layout.h"
 
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoChangeTracker.h>
 #include <KoInlineTextObjectManager.h>
 #include <KoOdfLoadingContext.h>
@@ -55,7 +55,6 @@ struct Finalizer {
 #include <KoShapeLoadingContext.h>
 #include <KoShapeManager.h>
 #include <KoShapeSavingContext.h>
-#include <KoStyleManager.h>
 #include <KoText.h>
 #include <KoTextDocument.h>
 #include <KoTextDocumentLayout.h>
@@ -63,7 +62,6 @@ struct Finalizer {
 #include <KoTextPage.h>
 #include <KoTextShapeContainerModel.h>
 #include <KoPageProvider.h>
-#include <KoUndoStack.h>
 #include <KoViewConverter.h>
 #include <KoXmlWriter.h>
 #include <KoXmlReader.h>
@@ -208,7 +206,7 @@ void TextShape::shapeChanged(ChangeType type, KoShape *shape)
 
 void TextShape::paintDecorations(QPainter &painter, const KoViewConverter &converter, const KoCanvasBase *canvas)
 {
-    bool showTextFrames = canvas->resourceProvider()->boolResource(KoText::ShowTextFrames);
+    bool showTextFrames = canvas->resourceManager()->boolResource(KoText::ShowTextFrames);
 
     if (showTextFrames) {
         painter.save();
@@ -370,24 +368,6 @@ bool TextShape::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &cont
 bool TextShape::loadOdfFrameElement(const KoXmlElement &element, KoShapeLoadingContext &context)
 {
     return m_textShapeData->loadOdf(element, context);
-}
-
-void TextShape::init(const QMap<QString, KoDataCenter*> &dataCenterMap)
-{
-    KoStyleManager *styleManager = dynamic_cast<KoStyleManager *>(dataCenterMap["StyleManager"]);
-    KoTextDocument document(m_textShapeData->document());
-    document.setStyleManager(styleManager);
-    KoInlineTextObjectManager *tom = dynamic_cast<KoInlineTextObjectManager *>(dataCenterMap["InlineTextObjectManager"]);
-    document.setInlineTextObjectManager(tom);
-    KoUndoStack *undoStack = dynamic_cast<KoUndoStack *>(dataCenterMap["UndoStack"]);
-    if (!undoStack) {
-        kWarning(32500) << "No KoUndoStack found in the dataCenterMap, creating a new one";
-        undoStack = new KoUndoStack();
-    }
-    document.setUndoStack(undoStack);
-//    KoChangeTracker *changeTracker = dynamic_cast<KoChangeTracker *>(dataCenterMap["ChangeTracker"]);
-//    document.setChangeTracker(changeTracker);
-    m_pageProvider = dynamic_cast<KoPageProvider *>(dataCenterMap[KoPageProvider::ID]);
 }
 
 QTextDocument *TextShape::footnoteDocument()

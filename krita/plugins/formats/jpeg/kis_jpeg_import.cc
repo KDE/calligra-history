@@ -19,7 +19,7 @@
 
 #include "kis_jpeg_import.h"
 
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
 
 #include <KoFilterChain.h>
 
@@ -30,10 +30,10 @@
 
 #include "kis_jpeg_converter.h"
 
-typedef KGenericFactory<KisJPEGImport> JPEGImportFactory;
-K_EXPORT_COMPONENT_FACTORY(libkritajpegimport, JPEGImportFactory("kofficefilters"))
+K_PLUGIN_FACTORY(JPEGImportFactory, registerPlugin<KisJPEGImport>();)
+K_EXPORT_PLUGIN(JPEGImportFactory("kofficefilters"))
 
-KisJPEGImport::KisJPEGImport(QObject *parent, const QStringList&) : KoFilter(parent)
+KisJPEGImport::KisJPEGImport(QObject *parent, const QVariantList &) : KoFilter(parent)
 {
 }
 
@@ -65,8 +65,7 @@ KoFilter::ConversionStatus KisJPEGImport::convert(const QByteArray&, const QByte
 
     if (!filename.isEmpty()) {
 
-        KUrl url;
-        url.setPath(filename);
+        KUrl url(filename);
 
         if (url.isEmpty())
             return KoFilter::FileNotFound;

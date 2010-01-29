@@ -1,4 +1,3 @@
-class RulerAssistant;
 /*
  * Copyright (c) 2008 Cyrille Berger <cberger@cberger.net>
  *
@@ -20,8 +19,9 @@ class RulerAssistant;
 #define _KIS_RULER_ASSISTANT_TOOL_H_
 
 #include <kis_tool.h>
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 #include "kis_painting_assistant.h"
+#include "ui_AssistantsToolOptions.h"
 
 class RulerDecoration;
 class KisCanvas2;
@@ -41,27 +41,30 @@ public:
     virtual void mouseMoveEvent(KoPointerEvent *event);
     virtual void mouseReleaseEvent(KoPointerEvent *event);
 
+    virtual QWidget *createOptionWidget();
 public slots:
     virtual void activate(bool temp = false);
     void deactivate();
-
+private slots:
+    void createNewAssistant();
 protected:
 
     virtual void paint(QPainter& gc, const KoViewConverter &converter);
 
 protected:
     KisCanvas2* m_canvas;
-    QWidget* m_widget;
     QList<KisPaintingAssistantHandleSP> m_handles;
     KisPaintingAssistantHandleSP m_handleDrag;
+    Ui::AssistantsToolOptions m_options;
+    QWidget* m_optionsWidget;
 };
 
 
-class KisRulerAssistantToolFactory : public KoToolFactory
+class KisRulerAssistantToolFactory : public KoToolFactoryBase
 {
 public:
     KisRulerAssistantToolFactory(QObject *parent)
-            : KoToolFactory(parent, "KisRulerAssistantTool") {
+            : KoToolFactoryBase(parent, "KisRulerAssistantTool") {
         setToolTip(i18n("Ruler assistant editor tool"));
         setToolType(TOOL_TYPE_VIEW);
         setIcon("krita_tool_ruler_assistant");
@@ -71,7 +74,7 @@ public:
 
     virtual ~KisRulerAssistantToolFactory() {}
 
-    virtual KoTool * createTool(KoCanvasBase * canvas) {
+    virtual KoToolBase * createTool(KoCanvasBase * canvas) {
         return new KisRulerAssistantTool(canvas);
     }
 

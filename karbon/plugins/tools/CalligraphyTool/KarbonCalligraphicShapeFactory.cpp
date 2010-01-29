@@ -23,12 +23,12 @@
 #include <klocale.h>
 
 
-KarbonCalligraphicShapeFactory::KarbonCalligraphicShapeFactory( QObject *parent )
-: KoShapeFactory( parent, KarbonCalligraphicShapeId, i18n( "A calligraphic shape" ) )
+KarbonCalligraphicShapeFactory::KarbonCalligraphicShapeFactory(QObject *parent)
+        : KoShapeFactoryBase(parent, KarbonCalligraphicShapeId, i18n("A calligraphic shape"))
 {
-    setToolTip( i18n( "Calligraphic Shape" ) );
+    setToolTip(i18n("Calligraphic Shape"));
     setIcon("calligraphy");
-    setLoadingPriority( 1 );
+    setLoadingPriority(1);
     setHidden(true);
 }
 
@@ -36,20 +36,14 @@ KarbonCalligraphicShapeFactory::~KarbonCalligraphicShapeFactory()
 {
 }
 
-KoShape * KarbonCalligraphicShapeFactory::createDefaultShape() const
+KoShape *KarbonCalligraphicShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     KarbonCalligraphicShape *path = new KarbonCalligraphicShape();
 
     // FIXME: add points
-    path->setShapeId( KarbonCalligraphicShapeId );
+    path->setShapeId(KarbonCalligraphicShapeId);
 
     return path;
-}
-
-KoShape * KarbonCalligraphicShapeFactory::createShape( const KoProperties * params ) const
-{
-    Q_UNUSED(params);
-    return createDefaultShape();
 }
 
 /*bool KarbonCalligraphicShapeFactory::supports(const KoXmlElement & e) const

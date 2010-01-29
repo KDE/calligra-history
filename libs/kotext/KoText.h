@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C)  2006 Thomas Zander <zander@kde.org>
+ * Copyright (C)  2006, 2010 Thomas Zander <zander@kde.org>
  * Copyright (C)  2008 Girish Ramakrishnan <girish@forwardbias.in>
  *
  * This library is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
 
 #include "kotext_export.h"
 
-
+#include <KoResourceManager.h>
 
 #include <QtCore/QStringList>
 #include <QtCore/QChar>
@@ -42,7 +42,7 @@ KOTEXT_EXPORT QStringList underlineStyleList();
 KOTEXT_EXPORT Qt::Alignment alignmentFromString(const QString &align);
 KOTEXT_EXPORT QString alignmentToString(Qt::Alignment align);
 
-/// This enum contains values to be used as keys in the KoCanvasResourceProvider
+/// This enum contains values to be used as keys in the KoResourceManager
 enum Options {
     ShowTextFrames =  278622039, ///< boolean that enables painting of frame outlines
     ShowSpaces,         ///< boolean that enables painting of spaces
@@ -60,7 +60,7 @@ enum Options {
 /// For paragraphs each tab definition is represented by this struct.
 struct KOTEXT_EXPORT Tab {
     Tab();
-    qreal position;    ///< distance in point from the start of the text-shape
+    qreal position;    ///< distance in ps-points from the edge of the text-shape
     QTextOption::TabType type;       ///< Determine which type is used.
     QChar delimiter;    ///< If type is DelimitorTab; tab until this char was found in the text.
     KoCharacterStyle::LineType leaderType; // none/single/double
@@ -82,6 +82,13 @@ enum Direction {
     PerhapsLeftRightTopBottom, ///< \internal
     PerhapsRightLeftTopBottom, ///< \internal
     InheritDirection    ///< Direction is unspecified and should come from the container
+};
+
+enum DocumentResource {
+    ChangeTracker = KoDocumentResource::KoTextStart + 1, ///< KoChangeTracker
+    InlineTextObjectManager, ///< The KoText inline-text-object manager. KoInlineTextObjectManager
+    StyleManager,           ///< The KoStyleManager
+    PageProvider            ///< The KoPageProvider
 };
 
 /// convert the string version of directions (as specified in XSL and ODF) to the Direction enum

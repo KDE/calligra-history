@@ -22,7 +22,7 @@
 
 #include <QStringList>
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShape;
 #include "KoXmlReaderForward.h"
@@ -36,23 +36,17 @@ public:
     ~TableShapePlugin() {}
 };
 
-class TableShapeFactory : public KoShapeFactory
+class TableShapeFactory : public KoShapeFactoryBase
 {
     Q_OBJECT
 public:
     TableShapeFactory(QObject* parent);
     ~TableShapeFactory();
 
-    virtual void populateDataCenterMap(QMap<QString, KoDataCenter*> &dataCenterMap);
+    virtual void newDocumentResourceManager(KoResourceManager *manager);
     virtual bool supports(const KoXmlElement &element) const;
 
-protected:
-    virtual KoShape* createDefaultShape() const;
-    virtual KoShape* createShape(const KoProperties* params) const;
-
-private:
-    class Private;
-    Private * const d;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
 };
 
 #endif // KSPREAD_TABLE_SHAPE_FACTORY

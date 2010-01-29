@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2008 Lukáš Tvrdý <lukast.dev@gmail.com>
+ *  Copyright (c) 2008,2010 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,36 +19,21 @@
 #ifndef KIS_DEFORM_PAINTOP_SETTINGS_WIDGET_H_
 #define KIS_DEFORM_PAINTOP_SETTINGS_WIDGET_H_
 
-#include <kis_paintop_settings_widget.h>
+#include <kis_paintop_options_widget.h>
+#include <kis_deform_option.h>
 
-#include "ui_wdgdeformoptions.h"
-#include "widgets/kis_popup_button.h"
-
-class KisDeformPaintOpSettingsWidget : public KisPaintOpSettingsWidget
+class KisDeformPaintOpSettingsWidget : public KisPaintOpOptionsWidget
 {
     Q_OBJECT
-
 public:
     KisDeformPaintOpSettingsWidget(QWidget* parent = 0);
     virtual ~KisDeformPaintOpSettingsWidget();
-
-    void setConfiguration(const KisPropertiesConfiguration * config);
-    KisPropertiesConfiguration* configuration() const;
-    void writeConfiguration(KisPropertiesConfiguration *config) const;
-
-    int radius() const;
-    double deformAmount() const;
-    int deformAction() const;
-    bool bilinear() const;
-    bool useMovementPaint() const;
-    bool useCounter() const;
-    bool useOldData() const;
-    qreal spacing() const;
     
-    void setRadius(int radius) const;
-
+    virtual KisPropertiesConfiguration* configuration() const;
+    virtual void changePaintOpSize(qreal x, qreal y);
+    
 private:
-    Ui::WdgDeformOptions* m_options;
+    KisDeformOption * m_deformOption;
 };
 
 #endif

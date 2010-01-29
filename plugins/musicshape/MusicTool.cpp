@@ -30,12 +30,12 @@
 #include "MusicShape.h"
 
 #include "MusicTool.h"
-#include "MusicTool.moc"
+#include <MusicTool.moc>
 
 #include "dialogs/PartsWidget.h"
 
 MusicTool::MusicTool( KoCanvasBase* canvas )
-    : KoTool( canvas ),
+    : KoToolBase( canvas ),
       m_musicshape(0)
 {
 }

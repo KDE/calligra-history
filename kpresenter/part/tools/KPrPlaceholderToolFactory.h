@@ -20,16 +20,16 @@
 #ifndef KPRPLACEHOLDERTOOLFACTORY_H
 #define KPRPLACEHOLDERTOOLFACTORY_H
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
-class KPrPlaceholderToolFactory : public KoToolFactory
+class KPrPlaceholderToolFactory : public KoToolFactoryBase
 {
 public:
     KPrPlaceholderToolFactory(QObject *parent);
     virtual ~KPrPlaceholderToolFactory();
 
     /// reimplemented
-    virtual KoTool * createTool(KoCanvasBase *canvas);
+    virtual KoToolBase * createTool(KoCanvasBase *canvas);
 };
 
 #endif /* KPRPLACEHOLDERTOOLFACTORY_H */

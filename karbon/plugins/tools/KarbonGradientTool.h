@@ -20,7 +20,7 @@
 #ifndef KARBONGRADIENTTOOL_H
 #define KARBONGRADIENTTOOL_H
 
-#include <KoTool.h>
+#include <KoToolBase.h>
 #include <KoSnapGuide.h>
 #include <QtGui/QGradient>
 #include <QtCore/QMultiMap>
@@ -37,39 +37,39 @@ class KoResource;
  * The gradients can be edited by moving gradient
  * handles directly on the canvas.
  */
-class KarbonGradientTool : public KoTool
+class KarbonGradientTool : public KoToolBase
 {
     Q_OBJECT
 public:
     explicit KarbonGradientTool(KoCanvasBase *canvas);
     ~KarbonGradientTool();
 
-    virtual void paint( QPainter &painter, const KoViewConverter &converter );
+    virtual void paint(QPainter &painter, const KoViewConverter &converter);
     virtual void repaintDecorations();
 
-    virtual void mousePressEvent( KoPointerEvent *event ) ;
-    virtual void mouseMoveEvent( KoPointerEvent *event );
-    virtual void mouseReleaseEvent( KoPointerEvent *event );
-    virtual void mouseDoubleClickEvent( KoPointerEvent *event );
+    virtual void mousePressEvent(KoPointerEvent *event) ;
+    virtual void mouseMoveEvent(KoPointerEvent *event);
+    virtual void mouseReleaseEvent(KoPointerEvent *event);
+    virtual void mouseDoubleClickEvent(KoPointerEvent *event);
     virtual void keyPressEvent(QKeyEvent *event);
 
-    virtual void activate (bool temporary=false);
+    virtual void activate(bool temporary = false);
     virtual void deactivate();
 
 protected:
-    /// reimplemented from KoTool
+    /// reimplemented from KoToolBase
     virtual QWidget * createOptionWidget();
-    /// reimplemented from KoTool
+    /// reimplemented from KoToolBase
     virtual QMap<QString, QWidget *> createOptionWidgets();
-    
+
 private Q_SLOTS:
-    virtual void resourceChanged( int key, const QVariant & res );
+    virtual void resourceChanged(int key, const QVariant & res);
     void initialize();
     void gradientChanged();
-    void gradientSelected( KoResource* );
+    void gradientSelected(KoResource*);
 private:
     QGradient * m_gradient;
-    QMultiMap<KoShape*,GradientStrategy*> m_strategies; ///< the list of gradient strategies
+    QMultiMap<KoShape*, GradientStrategy*> m_strategies; ///< the list of gradient strategies
     GradientStrategy * m_currentStrategy;  ///< the current editing strategy
     GradientStrategy * m_hoverStrategy; ///< the strategy the mouse hovers over
     KarbonGradientEditWidget * m_gradientWidget;

@@ -244,7 +244,6 @@ bool Schema::Private::parseEltType(QDomElement& elt, EntryInfo& entryInfo, QStri
 
 const TypeInfo* Schema::Private::parseAttType(QDomElement& elt, bool ignoreStructure)
 {
-    Q_UNUSED(ignoreStructure);
     if (!elt.hasAttribute("type")) {
         return 0;
     }
@@ -259,6 +258,8 @@ const TypeInfo* Schema::Private::parseAttType(QDomElement& elt, bool ignoreStruc
         return TypeInfo::Private::Text;
     } else if (type == "rational") {
         return TypeInfo::Private::Rational;
+    } else if (!ignoreStructure && structures.contains(type)) {
+        return structures[type];
     }
     errImage << "Unsupported type: " << type << " in an attribute";
     return 0;
@@ -266,7 +267,6 @@ const TypeInfo* Schema::Private::parseAttType(QDomElement& elt, bool ignoreStruc
 
 const TypeInfo* Schema::Private::parseEmbType(QDomElement& elt, bool ignoreStructure)
 {
-    Q_UNUSED(ignoreStructure);
     dbgImage << "Parse embbedded type for " << elt.tagName();
     QDomNode n = elt.firstChild();
     while (!n.isNull()) {
@@ -283,6 +283,8 @@ const TypeInfo* Schema::Private::parseEmbType(QDomElement& elt, bool ignoreStruc
                 return TypeInfo::Private::Text;
             } else if (type == "openedchoice" || type == "closedchoice") {
                 return parseChoice(e);
+            } else if (!ignoreStructure && structures.contains(type)) {
+                return structures[type];
             }
         }
         n = n.nextSibling();

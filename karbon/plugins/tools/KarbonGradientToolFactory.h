@@ -20,16 +20,16 @@
 #ifndef _KARBONGRADIENTTOOLFACTORY_H_
 #define _KARBONGRADIENTTOOLFACTORY_H_
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
-class KarbonGradientToolFactory : public KoToolFactory
+class KarbonGradientToolFactory : public KoToolFactoryBase
 {
     Q_OBJECT
 public:
     explicit KarbonGradientToolFactory(QObject *parent);
     ~KarbonGradientToolFactory();
 
-    KoTool * createTool(KoCanvasBase *canvas);
+    KoToolBase * createTool(KoCanvasBase *canvas);
 };
 
 #endif // _KARBONGRADIENTTOOLFACTORY_H_

@@ -24,7 +24,7 @@
 #include <klocale.h>
 
 KoZoomToolFactory::KoZoomToolFactory(QObject *parent)
-        : KoToolFactory(parent, "KoZoomToolId")
+        : KoToolFactoryBase(parent, "KoZoomToolId")
 {
     setToolTip(i18n("Zoom"));
     setToolType(mainToolType());
@@ -33,7 +33,7 @@ KoZoomToolFactory::KoZoomToolFactory(QObject *parent)
     setActivationShapeId("flake/always");
 }
 
-KoTool* KoZoomToolFactory::createTool(KoCanvasBase *canvas)
+KoToolBase* KoZoomToolFactory::createTool(KoCanvasBase *canvas)
 {
     return new KoZoomTool(canvas);
 }

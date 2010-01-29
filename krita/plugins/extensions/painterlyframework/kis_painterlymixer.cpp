@@ -21,37 +21,35 @@
 
 #include <QButtonGroup>
 #include <QGridLayout>
+#include <QSlider>
 
 #include <KoColorSpace.h>
-#include <KoToolProxy.h>
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 
 #include "colorspot.h"
 #include "kis_ksf32_colorspace.h"
 #include "mixercanvas.h"
-#include "mixertool.h"
 
 KisPainterlyMixer::KisPainterlyMixer(QWidget *parent)
         : QWidget(parent)
-        , m_tool(0)
 {
     setupUi(this);
 
-    m_canvas->setToolProxy(new KoToolProxy(m_canvas));
-    m_tool = new MixerTool(m_canvas);
-    m_canvas->toolProxy()->setActiveTool(m_tool);
-    m_tool->activate();
-
     initSpots();
 
+    // XXX: ask Enkithan for a palette-knife icon
+    bnMix->setIcon(KIcon("krita_tool_knife"));
+    bnPick->setIcon(KIcon("krita_tool_color_picker"));
+    bnPan->setIcon(KIcon("krita_tool_move"));
     m_bErase->setIcon(KIcon("edit-delete"));
     connect(m_bErase, SIGNAL(clicked()), m_canvas, SLOT(slotClear()));
+
+    //connect(sliderRadius, SIGNAL(valueChanged(int)), m_canvas->mixerTool(), SLOT(setRadius(qreal)));
 }
 
 KisPainterlyMixer::~KisPainterlyMixer()
 {
-    delete m_tool;
 }
 
 #define ROWS 2
@@ -84,8 +82,8 @@ void KisPainterlyMixer::initSpots()
 
 void KisPainterlyMixer::loadColors()
 {
-    // TODO We need to handle save/load of user-defined colors in the spots.
-
+    // TODO: We need to handle save/load of user-defined colors in the spots.
+    //       This needs to be coordinated with the favourite resources!
     const KoColorSpace *cs = m_canvas->colorSpace();
     m_vColors.append(KoColor(QColor("#FF0000"), cs)); // Red
     m_vColors.append(KoColor(QColor("#00FF00"), cs)); // Green
@@ -104,7 +102,7 @@ void KisPainterlyMixer::slotChangeColor(int index)
 
 void KisPainterlyMixer::setColor(const KoColor& color)
 {
-    m_canvas->resourceProvider()->setForegroundColor(color);
+    m_canvas->resourceManager()->setForegroundColor(color);
 }
 
 #include "kis_painterlymixer.moc"

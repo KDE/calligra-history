@@ -20,6 +20,7 @@
 #include "KoPathShape.h"
 #include "KoLineBorder.h"
 #include "KoImageCollection.h"
+#include "KoResourceManager.h"
 
 #include <klocale.h>
 
@@ -27,7 +28,7 @@
 #include <KoXmlNS.h>
 
 KoPathShapeFactory::KoPathShapeFactory(QObject *parent, const QStringList&)
-        : KoShapeFactory(parent, KoPathShapeId, i18n("Simple path shape"))
+        : KoShapeFactoryBase(parent, KoPathShapeId, i18n("Simple path shape"))
 {
     setToolTip(i18n("A simple path shape"));
     setIcon("pathshape");
@@ -37,7 +38,7 @@ KoPathShapeFactory::KoPathShapeFactory(QObject *parent, const QStringList&)
     setLoadingPriority(0);
 }
 
-KoShape * KoPathShapeFactory::createDefaultShape() const
+KoShape *KoPathShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     KoPathShape* path = new KoPathShape();
     path->moveTo(QPointF(0, 50));
@@ -46,12 +47,6 @@ KoShape * KoPathShapeFactory::createDefaultShape() const
     path->normalize();
     path->setBorder(new KoLineBorder(1.0));
     return path;
-}
-
-KoShape * KoPathShapeFactory::createShape(const KoProperties * params) const
-{
-    Q_UNUSED(params);
-    return createDefaultShape();
 }
 
 bool KoPathShapeFactory::supports(const KoXmlElement & e) const
@@ -68,14 +63,14 @@ bool KoPathShapeFactory::supports(const KoXmlElement & e) const
     return false;
 }
 
-void KoPathShapeFactory::populateDataCenterMap(QMap<QString, KoDataCenter *>   & dataCenterMap)
+void KoPathShapeFactory::newDocumentResourceManager(KoResourceManager *manager)
 {
     // as we need an image collection for the pattern background
     // we want to make sure that there is always an image collection
     // added to the data center map, in case the picture shape plugin
     // is not loaded
-    if (! dataCenterMap.contains("ImageCollection")) {
-        KoImageCollection *imgCol = new KoImageCollection();
-        dataCenterMap["ImageCollection"] = imgCol;
+    if (manager->imageCollection() == 0) {
+        KoImageCollection *imgCol = new KoImageCollection(manager);
+        manager->setImageCollection(imgCol);
     }
 }

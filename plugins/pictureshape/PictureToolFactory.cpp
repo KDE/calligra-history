@@ -26,7 +26,7 @@
 
 
 PictureToolFactory::PictureToolFactory( QObject* parent)
-    : KoToolFactory(parent, "PictureToolFactoryId")
+    : KoToolFactoryBase(parent, "PictureToolFactoryId")
 {
     setToolTip( i18n( "Picture editing tool" ) );
     setIcon( "pictureshape" );
@@ -39,11 +39,11 @@ PictureToolFactory::~PictureToolFactory()
 {
 }
 
-KoTool* PictureToolFactory::createTool( KoCanvasBase* canvas )
+KoToolBase* PictureToolFactory::createTool( KoCanvasBase* canvas )
 {
     return new PictureTool( canvas );
 }
 
-#include "PictureToolFactory.moc"
+#include <PictureToolFactory.moc>
 
 

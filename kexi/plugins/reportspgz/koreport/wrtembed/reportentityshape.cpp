@@ -88,9 +88,7 @@ void ReportEntityShape::paint(QPainter* painter, const QStyleOptionGraphicsItem*
     QList<KoShape*> shapes;
     painter->setRenderHint(QPainter::Antialiasing);
 
-    // TODO check if it is ok to pass an empty map. The image shape might not work
-    QMap<QString, KoDataCenter *> dataCenterMap;
-    m_shape = (KoShape*)(KoShapeRegistry::instance()->value(m_shapeType->value().toString()))->createDefaultShapeAndInit(dataCenterMap);
+    m_shape = (KoShapeRegistry::instance()->value(m_shapeType->value().toString()))->createDefaultShape();
     m_shape->setSize(m_size.toScene());
     shapes << m_shape;
 
@@ -128,11 +126,10 @@ void ReportEntityShape::slotPropertyChanged(KoProperty::Set &s, KoProperty::Prop
 {
     Q_UNUSED(s);
 
-    //TODO KoProperty needs QPointF and QSizeF and need to sync property with actual size/pos
     if (p.name() == "Position") {
-        //_pos.setUnitPos(p.value().value<QPointF>(), false);
+        m_pos.setUnitPos(p.value().toPointF(), false);
     } else if (p.name() == "Size") {
-        //_size.setUnitSize(p.value().value<QSizeF>());
+        m_size.setUnitSize(p.value().toSizeF());
     } else if (p.name() == "Name") {
         //For some reason p.oldValue returns an empty string
         if (!m_reportDesigner->isEntityNameUnique(p.value().toString(), this)) {
@@ -142,8 +139,7 @@ void ReportEntityShape::slotPropertyChanged(KoProperty::Set &s, KoProperty::Prop
         }
     }
 
-    if (m_reportDesigner)
-        m_reportDesigner->setModified(true);
-    if (scene())
-        scene()->update();
+    setSceneRect(m_pos.toScene(), m_size.toScene(), false);
+    if (m_reportDesigner)m_reportDesigner->setModified(true);
+    if (scene())scene()->update();
 }

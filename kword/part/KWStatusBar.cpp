@@ -100,6 +100,8 @@ KWStatusBar::KWStatusBar(KStatusBar* statusBar, KWView* view)
     m_statusLabel = new KSqueezedTextLabel(m_statusbar);
     m_statusbar->addWidget(m_statusLabel, 1);
     connect(m_statusbar, SIGNAL(messageChanged(const QString&)), this, SLOT(setText(const QString&)));
+    connect(KoToolManager::instance(), SIGNAL(changedStatusText(const QString&)),
+            this, SLOT(setText(const QString&)));
 
     m_zoomAction = new KAction(i18n("Zoom Controller"), this);
     m_zoomAction->setObjectName("zoom_controller");
@@ -185,9 +187,9 @@ void KWStatusBar::setCurrentCanvas(KWCanvas *canvas)
     if (m_currentView) {
         KWCanvas *const canvas =  m_currentView->kwcanvas();
         Q_ASSERT(canvas);
-        KoCanvasResourceProvider *resourceprovider = canvas->resourceProvider();
-        Q_ASSERT(resourceprovider);
-        disconnect(resourceprovider, SIGNAL(resourceChanged(int, QVariant)),
+        KoResourceManager *resourceManager = canvas->resourceManager();
+        Q_ASSERT(resourceManager);
+        disconnect(resourceManager, SIGNAL(resourceChanged(int, QVariant)),
             this, SLOT(resourceChanged(int, QVariant)));
         QWidget *zoomWidget = m_zoomWidgets.value(m_currentView);
         if (zoomWidget) {
@@ -210,9 +212,9 @@ void KWStatusBar::setCurrentCanvas(KWCanvas *canvas)
         QTimer::singleShot(0, this, SLOT(createZoomWidget()));
     }
 
-    KoCanvasResourceProvider *resourceprovider = canvas->resourceProvider();
-    Q_ASSERT(resourceprovider);
-    connect(resourceprovider, SIGNAL(resourceChanged(int, QVariant)),
+    KoResourceManager *resourceManager = canvas->resourceManager();
+    Q_ASSERT(resourceManager);
+    connect(resourceManager, SIGNAL(resourceChanged(int, QVariant)),
         this, SLOT(resourceChanged(int, QVariant)));
     updatePageCount();
 }

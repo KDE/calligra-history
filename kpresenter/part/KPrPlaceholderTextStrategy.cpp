@@ -32,7 +32,7 @@
 #include <KoParagraphStyle.h>
 #include <KoShape.h>
 #include <KoShapeLoadingContext.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeRegistry.h>
 #include <KoShapeSavingContext.h>
 #include <KoTextShapeData.h>
@@ -56,9 +56,9 @@ KPrPlaceholderTextStrategy::~KPrPlaceholderTextStrategy()
     delete m_paragraphStyle;
 }
 
-KoShape * KPrPlaceholderTextStrategy::createShape( const QMap<QString, KoDataCenter *> & dataCenterMap )
+KoShape *KPrPlaceholderTextStrategy::createShape(KoResourceManager *documentResources)
 {
-    KoShape * shape = KPrPlaceholderStrategy::createShape( dataCenterMap );
+    KoShape * shape = KPrPlaceholderStrategy::createShape(documentResources);
     if ( m_textShape ) {
         KoTextShapeData * data = qobject_cast<KoTextShapeData*>( m_textShape->userData() );
         KoTextShapeData * newData = qobject_cast<KoTextShapeData*>( shape->userData() );
@@ -139,9 +139,9 @@ bool KPrPlaceholderTextStrategy::loadOdf( const KoXmlElement & element, KoShapeL
         KoParagraphStyle paragraphStyle;
         paragraphStyle.loadOdf( style, context.odfLoadingContext() );
 
-        KoShapeFactory *factory = KoShapeRegistry::instance()->value( "TextShapeID" );
+        KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value( "TextShapeID" );
         Q_ASSERT( factory );
-        m_textShape = factory->createDefaultShapeAndInit( context.dataCenterMap() );
+        m_textShape = factory->createDefaultShape(context.documentResourceManager());
 
         KoTextShapeData * shapeData = qobject_cast<KoTextShapeData*>(  m_textShape->userData() );
         shapeData->document()->setUndoRedoEnabled(false);
@@ -160,13 +160,13 @@ bool KPrPlaceholderTextStrategy::loadOdf( const KoXmlElement & element, KoShapeL
     return true;
 }
 
-void KPrPlaceholderTextStrategy::init( const QMap<QString, KoDataCenter *> & dataCenterMap )
+void KPrPlaceholderTextStrategy::init(KoResourceManager *documentResources)
 {
-    KoShapeFactory *factory = KoShapeRegistry::instance()->value( "TextShapeID" );
+    KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value( "TextShapeID" );
     Q_ASSERT( factory );
     KoProperties props;
     props.setProperty("text", text());
-    m_textShape = factory->createShapeAndInit(&props, dataCenterMap);
+    m_textShape = factory->createShape(&props, documentResources);
 }
 
 KoShapeUserData * KPrPlaceholderTextStrategy::userData() const

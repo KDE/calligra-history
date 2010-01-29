@@ -20,15 +20,15 @@
 #ifndef SHAPEPROPERTIESDOCKER_H
 #define SHAPEPROPERTIESDOCKER_H
 
-#include <KoDockFactory.h>
-#include <KoCanvasObserver.h>
+#include <KoDockFactoryBase.h>
+#include <KoCanvasObserverBase.h>
 #include <QtGui/QDockWidget>
 
 class KoShape;
 
 /// The shape properties docker show the properties
 /// of the currently selected shape
-class ShapePropertiesDocker : public QDockWidget, public KoCanvasObserver
+class ShapePropertiesDocker : public QDockWidget, public KoCanvasObserverBase
 {
     Q_OBJECT
 public:

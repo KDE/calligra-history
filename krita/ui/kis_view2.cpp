@@ -195,7 +195,7 @@ KisView2::KisView2(KisDoc2 * doc, QWidget * parent)
     actionCollection()->addAction("toggledockers", m_d->toggleDockers);
 
 
-    m_d->toggleDockers->setShortcut(QKeySequence(Qt::Key_Control, Qt::Key_H));
+    m_d->toggleDockers->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_H));
     connect(m_d->toggleDockers, SIGNAL(toggled(bool)), this, SLOT(toggleDockers(bool)));
 
     setComponentData(KisFactory2::componentData(), false);
@@ -222,7 +222,7 @@ KisView2::KisView2(KisDoc2 * doc, QWidget * parent)
     m_d->canvasController->setCanvas(m_d->canvas);
 
     m_d->resourceProvider = new KisCanvasResourceProvider(this);
-    m_d->resourceProvider->setCanvasResourceProvider(m_d->canvas->resourceProvider());
+    m_d->resourceProvider->setResourceManager(m_d->canvas->resourceManager());
 
     Q_ASSERT(m_d->canvasController);
     KoToolManager::instance()->addController(m_d->canvasController);
@@ -760,7 +760,8 @@ KisPaintingAssistantsManager* KisView2::paintingAssistantManager()
 
 void KisView2::slotTotalRefresh()
 {
-    m_d->canvas->resetCanvas();
+    KisConfig cfg;
+    m_d->canvas->resetCanvas(cfg.useOpenGL());
 }
 
 KoFavoriteResourceManager* KisView2::favoriteResourceManager()
@@ -772,7 +773,9 @@ void KisView2::setFavoriteResourceManager(KisPaintopBox* paintopBox)
 {
     qDebug() << "KisView2: Setting favoriteResourceManager";
     m_d->favoriteResourceManager = new KoFavoriteResourceManager(paintopBox, m_d->canvas->canvasWidget());
-    connect(this, SIGNAL(favoritePaletteCalled(const QPoint&)), m_d->favoriteResourceManager, SLOT(slotShowPopupPalette(const QPoint&)));
+    connect(this, SIGNAL(favoritePaletteCalled(const QPoint&)), favoriteResourceManager(), SLOT(slotShowPopupPalette(const QPoint&)));
+    connect(resourceProvider(), SIGNAL(sigFGColorUsed(KoColor)), favoriteResourceManager(), SLOT(slotAddRecentColor(KoColor)));
+    connect(favoriteResourceManager(), SIGNAL(sigSetFGColor(KoColor)), resourceProvider(), SLOT(slotSetFGColor(KoColor)));
 
 }
 

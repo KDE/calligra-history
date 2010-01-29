@@ -31,7 +31,7 @@
 #include <kdebug.h>
 
 PictureShapeFactory::PictureShapeFactory(QObject *parent)
-    : KoShapeFactory(parent, PICTURESHAPEID, i18n("Image"))
+    : KoShapeFactoryBase(parent, PICTURESHAPEID, i18n("Image"))
 {
     setToolTip(i18n("Image shape that can display jpg, png etc."));
     setIcon("x-shape-image");
@@ -39,17 +39,14 @@ PictureShapeFactory::PictureShapeFactory(QObject *parent)
     setLoadingPriority(1);
 }
 
-KoShape* PictureShapeFactory::createDefaultShape() const
+KoShape *PictureShapeFactory::createDefaultShape(KoResourceManager *documentResources) const
 {
     PictureShape * defaultShape = new PictureShape();
     defaultShape->setShapeId(PICTURESHAPEID);
+    if (documentResources) {
+        defaultShape->setImageCollection(documentResources->imageCollection());
+    }
     return defaultShape;
-}
-
-KoShape* PictureShapeFactory::createShape(const KoProperties *params) const
-{
-    Q_UNUSED(params);
-    return createDefaultShape();
 }
 
 bool PictureShapeFactory::supports(const KoXmlElement &e) const
@@ -57,19 +54,15 @@ bool PictureShapeFactory::supports(const KoXmlElement &e) const
     return e.localName() == "image" && e.namespaceURI() == KoXmlNS::draw;
 }
 
-void PictureShapeFactory::populateDataCenterMap(QMap<QString, KoDataCenter*> &dataCenterMap)
-{
-    // only add image collection if none exist already
-    if (!dataCenterMap.contains("ImageCollection"))
-    {
-        KoImageCollection *imgCol = new KoImageCollection();
-        dataCenterMap["ImageCollection"] = imgCol;
-    }
-}
-
 QList<KoShapeConfigWidgetBase*> PictureShapeFactory::createShapeOptionPanels()
 {
     QList<KoShapeConfigWidgetBase*> panels;
     panels.append( new PictureShapeConfigWidget() );
     return panels;
+}
+
+void PictureShapeFactory::newDocumentResourceManager(KoResourceManager *manager)
+{
+    if (!manager->imageCollection())
+        manager->setImageCollection(new KoImageCollection(manager));
 }

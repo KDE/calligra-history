@@ -282,6 +282,8 @@ public:
     static Format::Type dateType(const QString&);
     static Format::Type timeType(const QString&);
     static Format::Type fractionType(const QString&);
+    static Format::Type numberType(const QString&);
+    static Currency numberCurrency(const QString&);
 
     /**
      * @return the name of the data style (number, currency, percentage, date,

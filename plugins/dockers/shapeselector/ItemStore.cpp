@@ -275,7 +275,7 @@ QRectF ItemStore::loadShapeTypes()
     }
 
     foreach (const QString &id, KoShapeRegistry::instance()->keys()) {
-        KoShapeFactory *factory = KoShapeRegistry::instance()->value(id);
+        KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value(id);
         if (factory->hidden())
             continue;
         bool oneAdded=false;
@@ -334,7 +334,7 @@ KoShape *ItemStore::createShapeFromPaste(QByteArray &bytes)
         bool process(const KoXmlElement &body, KoOdfReadStore &odfStore)
         {
             KoOdfLoadingContext loadingContext(odfStore.styles(), odfStore.store());
-            KoShapeLoadingContext context(loadingContext, m_shapeController->dataCenterMap());
+            KoShapeLoadingContext context(loadingContext, m_shapeController->resourceManager());
 
             KoXmlElement element;
             forEachElement(element, body) {
@@ -358,4 +358,4 @@ KoShape *ItemStore::createShapeFromPaste(QByteArray &bytes)
     return paster.shape();
 }
 
-#include "ItemStore.moc"
+#include <ItemStore.moc>

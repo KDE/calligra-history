@@ -27,7 +27,7 @@
 // koffice
 #include <KoShapeRegistry.h>
 #include <KoInlineNote.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeContainer.h>
 #include <KoStyleManager.h>
 #include <KoParagraphStyle.h>
@@ -55,7 +55,7 @@ KWDLoader::KWDLoader(KWDocument *parent, KoStore *store)
         m_pageStyle(m_pageManager->defaultPageStyle()),
         m_foundMainFS(false)
 {
-    connect(this, SIGNAL(sigProgress(int)), m_document, SIGNAL(sigProgress(int)));
+    connect(this, SIGNAL(progressUpdate(int)), m_document, SIGNAL(sigProgress(int)));
 }
 
 KWDLoader::~KWDLoader()
@@ -66,7 +66,7 @@ bool KWDLoader::load(KoXmlElement &root)
 {
     QTime dt;
     dt.start();
-    emit sigProgress(0);
+    emit progressUpdate(0);
     kDebug(32001) << "KWDocument::loadXML";
 
     QString mime = root.attribute("mime");
@@ -81,7 +81,7 @@ bool KWDLoader::load(KoXmlElement &root)
     }
     //KWLoadingInfo *loadingInfo = new KWLoadingInfo();
 
-    emit sigProgress(5);
+    emit progressUpdate(5);
 
     KoPageLayout pgLayout = KoPageLayout::standardLayout();
     // <PAPER>
@@ -253,7 +253,7 @@ bool KWDLoader::load(KoXmlElement &root)
     if (!isReadWrite())
         variableCollection()->variableSetting()->setDisplayFieldCode(false);
 
-    emit sigProgress(10);
+    emit progressUpdate(10);
 
     KoXmlElement mailmerge = root.namedItem("MAILMERGE").toElement();
     if (mailmerge != KoXmlElement()) {
@@ -261,14 +261,14 @@ bool KWDLoader::load(KoXmlElement &root)
     }
 #endif
 
-    emit sigProgress(15);
+    emit progressUpdate(15);
 
     // Load all styles before the corresponding paragraphs try to use them!
     KoXmlElement stylesElem = root.namedItem("STYLES").toElement();
     if (!stylesElem.isNull())
         loadStyleTemplates(stylesElem);
 
-    emit sigProgress(17);
+    emit progressUpdate(17);
 #if 0
 
     KoXmlElement frameStylesElem = root.namedItem("FRAMESTYLES").toElement();
@@ -277,7 +277,7 @@ bool KWDLoader::load(KoXmlElement &root)
     else // load default styles
         loadDefaultFrameStyleTemplates();
 
-    emit sigProgress(18);
+    emit progressUpdate(18);
 
     KoXmlElement tableStylesElem = root.namedItem("TABLESTYLES").toElement();
     if (!tableStylesElem.isNull())
@@ -285,11 +285,11 @@ bool KWDLoader::load(KoXmlElement &root)
     else // load default styles
         loadDefaultTableStyleTemplates();
 
-    emit sigProgress(19);
+    emit progressUpdate(19);
 
     loadDefaultTableTemplates();
 
-    emit sigProgress(20);
+    emit progressUpdate(20);
 
     KoXmlElement bookmark = root.namedItem("BOOKMARKS").toElement();
     if (!bookmark.isNull()) {
@@ -340,14 +340,14 @@ bool KWDLoader::load(KoXmlElement &root)
     }
 
 
-    emit sigProgress(25);
+    emit progressUpdate(25);
 
 
     KoXmlElement framesets = root.namedItem("FRAMESETS").toElement();
     if (!framesets.isNull())
         loadFrameSets(framesets);
 
-    emit sigProgress(85);
+    emit progressUpdate(85);
 
     insertAnchors();
     insertNotes();
@@ -356,7 +356,7 @@ bool KWDLoader::load(KoXmlElement &root)
 
     loadPictureMap(root);
 
-    emit sigProgress(90);
+    emit progressUpdate(90);
 
     // <EMBEDDED>
     loadEmbeddedObjects(root);
@@ -366,7 +366,7 @@ bool KWDLoader::load(KoXmlElement &root)
         m_pageManager->appendPage(m_pageStyle);
     }
 
-    emit sigProgress(100); // the rest is only processing, not loading
+    emit progressUpdate(100); // the rest is only processing, not loading
 
     kDebug(32001) << "Loading took" << (float)(dt.elapsed()) / 1000 << " seconds";
 
@@ -487,12 +487,12 @@ void KWDLoader::loadFrameSet(const KoXmlElement &framesetElem, bool loadFrames, 
         fill(fs, framesetElem);
         fs->setName(fsname);
 
-        KoShapeFactory *factory = KoShapeRegistry::instance()->value("PictureShape");
+        KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value("PictureShape");
         Q_ASSERT(factory);
-        KoShape *shape = factory->createDefaultShapeAndInit(m_document->dataCenterMap());
+        KoShape *shape = factory->createDefaultShape(m_document->resourceManager());
         shape->setKeepAspectRatio(image.attribute("keepAspectRatio", "true") == "true");
 
-        KoImageCollection *collection = dynamic_cast<KoImageCollection*>(m_document->dataCenterMap()["ImageCollection"]);
+        KoImageCollection *collection = m_document->resourceManager()->imageCollection();
         Q_ASSERT(collection);
         KoImageData *data = collection->createImageData(imageKey.filename, m_store);
         shape->setUserData(data);
@@ -543,9 +543,9 @@ void KWDLoader::fill(KWTextFrameSet *fs, const KoXmlElement &framesetElem)
     KoXmlElement frameElem;
     forEachElement(frameElem, framesetElem) {
         if (frameElem.tagName() == "FRAME") {
-            KoShapeFactory *factory = KoShapeRegistry::instance()->value(TextShape_SHAPEID);
+            KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value(TextShape_SHAPEID);
             Q_ASSERT(factory);
-            KoShape *shape = factory->createDefaultShapeAndInit(m_document->dataCenterMap());
+            KoShape *shape = factory->createDefaultShape(m_document->resourceManager());
             KWTextFrame *frame = new KWTextFrame(shape, fs);
             fill(frame, frameElem);
 
@@ -576,7 +576,7 @@ void KWDLoader::fill(KWTextFrameSet *fs, const KoXmlElement &framesetElem)
                 cursor.insertBlock(emptyTbf, emptyCf);
             }
 
-            KoStyleManager * styleManager = dynamic_cast<KoStyleManager *>(m_document->dataCenterMap()["StyleManager"]);
+            KoStyleManager *styleManager = m_document->resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
             Q_ASSERT(styleManager);
 
             firstParag = false;
@@ -1114,7 +1114,8 @@ void KWDLoader::fill(ImageKey *key, const KoXmlElement &keyElement)
 
 void KWDLoader::loadStyleTemplates(const KoXmlElement &stylesElem)
 {
-    KoStyleManager *styleManager = dynamic_cast<KoStyleManager *>(m_document->dataCenterMap()["StyleManager"]);
+    KoStyleManager *styleManager = m_document->resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
+
     Q_ASSERT(styleManager);
 
     KoXmlElement style;

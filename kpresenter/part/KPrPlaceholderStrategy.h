@@ -27,13 +27,14 @@ class QRectF;
 class QPainter;
 #include "KoXmlReaderForward.h"
 class KoShape;
-class KoDataCenter;
+class KoDataCenterBase;
 class KoShapeControllerBase;
 class KoShapeLoadingContext;
 class KoShapeSavingContext;
 class KoShapeUserData;
 class KoViewConverter;
 class PlaceholderData;
+class KoResourceManager;
 
 class KPrPlaceholderStrategy
 {
@@ -54,7 +55,7 @@ public:
 
     virtual ~KPrPlaceholderStrategy();
 
-    virtual KoShape * createShape( const QMap<QString, KoDataCenter *> & dataCenterMap );
+    virtual KoShape *createShape(KoResourceManager *documentResources);
 
     virtual void paint( QPainter & painter, const KoViewConverter &converter, const QRectF & rect );
 
@@ -62,7 +63,7 @@ public:
 
     virtual bool loadOdf( const KoXmlElement & element, KoShapeLoadingContext & context );
 
-    virtual void init( const QMap<QString, KoDataCenter *> & dataCenterMap );
+    virtual void init(KoResourceManager *documentResources);
 
     virtual KoShapeUserData * userData() const;
 

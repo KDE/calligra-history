@@ -21,7 +21,7 @@
 #include "star/StarShape.h"
 #include "star/StarShapeConfigWidget.h"
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoLineBorder.h>
 #include <KoProperties.h>
 #include <KoXmlNS.h>
@@ -31,7 +31,7 @@
 #include <klocale.h>
 
 StarShapeFactory::StarShapeFactory(QObject *parent)
-    : KoShapeFactory(parent, StarShapeId, i18n("A star shape"))
+    : KoShapeFactoryBase(parent, StarShapeId, i18n("A star shape"))
 {
     setToolTip(i18n("A star"));
     setIcon("star");
@@ -105,7 +105,7 @@ StarShapeFactory::StarShapeFactory(QObject *parent)
     addTemplate(t);
 }
 
-KoShape *StarShapeFactory::createDefaultShape() const
+KoShape *StarShapeFactory::createDefaultShape(KoResourceManager *) const
 {
     StarShape *star = new StarShape();
 
@@ -115,7 +115,7 @@ KoShape *StarShapeFactory::createDefaultShape() const
     return star;
 }
 
-KoShape *StarShapeFactory::createShape(const KoProperties * params) const
+KoShape *StarShapeFactory::createShape(const KoProperties *params, KoResourceManager *) const
 {
     StarShape *star = new StarShape();
     if (! star)
@@ -153,4 +153,4 @@ QList<KoShapeConfigWidgetBase*> StarShapeFactory::createShapeOptionPanels()
     return panels;
 }
 
-#include "StarShapeFactory.moc"
+#include <StarShapeFactory.moc>

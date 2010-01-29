@@ -27,7 +27,7 @@
 #include <KoCanvasBase.h>
 #include <KoPointerEvent.h>
 #include <KoShapeManager.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <commands/KoShapeShearCommand.h>
 #include <commands/KoShapeMoveCommand.h>
 #include <commands/KoShapeTransformCommand.h>
@@ -38,7 +38,7 @@
 #include <kdebug.h>
 #include <klocale.h>
 
-ShapeShearStrategy::ShapeShearStrategy( KoTool *tool, const QPointF &clicked, KoFlake::SelectionHandle direction )
+ShapeShearStrategy::ShapeShearStrategy( KoToolBase *tool, const QPointF &clicked, KoFlake::SelectionHandle direction )
 : KoInteractionStrategy(tool)
 , m_start(clicked)
 {
@@ -168,7 +168,7 @@ void ShapeShearStrategy::handleMouseMove(const QPointF &point, Qt::KeyboardModif
 void ShapeShearStrategy::paint( QPainter &painter, const KoViewConverter &converter) {
     SelectionDecorator decorator(KoFlake::NoHandle, true, false);
     decorator.setSelection(tool()->canvas()->shapeManager()->selection());
-    decorator.setHandleRadius( tool()->canvas()->resourceProvider()->handleRadius() );
+    decorator.setHandleRadius( tool()->canvas()->resourceManager()->handleRadius() );
     decorator.paint(painter, converter);
 }
 

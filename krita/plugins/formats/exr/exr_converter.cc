@@ -22,6 +22,7 @@
 
 #include <half.h>
 
+#include <ImfAttribute.h>
 #include <ImfChannelList.h>
 #include <ImfInputFile.h>
 
@@ -33,6 +34,7 @@
 #include <KoColorSpaceRegistry.h>
 #include <KoCompositeOp.h>
 #include <KoColorSpaceTraits.h>
+#include <KoColorModelStandardIds.h>
 
 #include <kis_doc2.h>
 #include <kis_group_layer.h>
@@ -41,8 +43,12 @@
 #include <kis_paint_layer.h>
 #include <kis_transaction.h>
 #include <kis_undo_adapter.h>
-#include <boost/concept_check.hpp>
-#include <ImfAttribute.h>
+
+#include <metadata/kis_meta_data_entry.h>
+#include <metadata/kis_meta_data_schema.h>
+#include <metadata/kis_meta_data_schema_registry.h>
+#include <metadata/kis_meta_data_store.h>
+#include <metadata/kis_meta_data_value.h>
 
 exrConverter::exrConverter(KisDoc2 *doc, KisUndoAdapter *adapter)
 {
@@ -76,13 +82,13 @@ ImageType imfTypeToKisType(Imf::PixelType type)
     }
 }
 
-const KoColorSpace* kisTypeToColorSpace(ImageType imageType)
+const KoColorSpace* kisTypeToColorSpace(QString model, ImageType imageType)
 {
     switch (imageType) {
     case IT_FLOAT16:
-        return KoColorSpaceRegistry::instance()->colorSpace(KoID("RgbAF16", ""), "");
+        return KoColorSpaceRegistry::instance()->colorSpace(model, Float16BitsColorDepthID.id(), "");
     case IT_FLOAT32:
-        return KoColorSpaceRegistry::instance()->colorSpace(KoID("RgbAF32", ""), "");
+        return KoColorSpaceRegistry::instance()->colorSpace(model, Float32BitsColorDepthID.id(), "");
     case IT_UNKNOWN:
     case IT_UNSUPPORTED:
         return 0;
@@ -117,6 +123,13 @@ struct ExrPaintLayerInfo : public ExrLayerInfoBase {
     }
     ImageType imageType;
     QMap< QString, QString> channelMap; ///< first is either R, G, B or A second is the EXR channel name
+    struct Remap {
+        Remap(const QString& _original, const QString& _current) : original(_original), current(_current) {
+        }
+        QString original;
+        QString current;
+    };
+    QList< Remap > remappedChannels; ///< this is used to store in the metadata the mapping between exr channel name, and channels used in Krita
     void updateImageType(ImageType channelType);
 };
 
@@ -130,7 +143,44 @@ void ExrPaintLayerInfo::updateImageType(ImageType channelType)
 }
 
 template<typename _T_>
-void decodeData(Imf::InputFile& file, ExrPaintLayerInfo& info, KisPaintLayerSP layer, int width, int xstart, int ystart, int height, Imf::PixelType ptype)
+void decodeData1(Imf::InputFile& file, ExrPaintLayerInfo& info, KisPaintLayerSP layer, int width, int xstart, int ystart, int height, Imf::PixelType ptype)
+{
+    QVector<_T_> pixels(width*height);
+
+    Q_ASSERT(info.channelMap.contains("G"));
+    dbgFile << "G -> " << info.channelMap["G"];
+
+    for (int y = 0; y < height; ++y) {
+        Imf::FrameBuffer frameBuffer;
+        _T_* frameBufferData = (pixels.data()) - xstart - (ystart + y) * width;
+        frameBuffer.insert(info.channelMap["G"].toAscii().data(),
+                           Imf::Slice(ptype, (char *) frameBufferData,
+                                      sizeof(_T_) * 1,
+                                      sizeof(_T_) * width));
+
+        file.setFrameBuffer(frameBuffer);
+        file.readPixels(ystart + y);
+        _T_ *rgba = pixels.data();
+        KisHLineIterator it = layer->paintDevice()->createHLineIterator(0, y, width);
+        while (!it.isDone()) {
+
+            // XXX: For now unmultiply the alpha, though compositing will be faster if we
+            // keep it premultiplied.
+            _T_ unmultipliedRed = *rgba;
+
+            _T_* dst = reinterpret_cast<_T_*>(it.rawData());
+
+            *dst = unmultipliedRed;
+
+            ++it;
+            ++rgba;
+        }
+    }
+
+}
+
+template<typename _T_>
+void decodeData4(Imf::InputFile& file, ExrPaintLayerInfo& info, KisPaintLayerSP layer, int width, int xstart, int ystart, int height, Imf::PixelType ptype)
 {
     typedef Rgba<_T_> Rgba;
 
@@ -172,7 +222,7 @@ void decodeData(Imf::InputFile& file, ExrPaintLayerInfo& info, KisPaintLayerSP l
             _T_ unmultipliedGreen = rgba -> g;
             _T_ unmultipliedBlue = rgba -> b;
 
-            if (rgba -> a >= HALF_EPSILON && hasAlpha) {
+            if (hasAlpha && rgba -> a >= HALF_EPSILON) {
                 unmultipliedRed /= rgba -> a;
                 unmultipliedGreen /= rgba -> a;
                 unmultipliedBlue /= rgba -> a;
@@ -297,12 +347,7 @@ KisImageBuilder_Result exrConverter::decode(const KUrl& uri)
                     info.parent = searchGroup(&groups, list, 0, list.size() - 3);
                 }
 
-                if (layersuffix != "A" && layersuffix != "R" && layersuffix != "G" && layersuffix != "B") {
-                    dbgFile << "Unknow: " << layersuffix;
-                    info.imageType = IT_UNSUPPORTED;
-                } else {
-                    info.channelMap[layersuffix] = qname;
-                }
+                info.channelMap[layersuffix] = qname;
             }
             if (info.imageType != IT_UNKNOWN && info.imageType != IT_UNSUPPORTED) {
                 infos.push_back(info);
@@ -316,11 +361,63 @@ KisImageBuilder_Result exrConverter::decode(const KUrl& uri)
     // Set the colorspaces
     for (int i = 0; i < infos.size(); ++i) {
         ExrPaintLayerInfo& info = infos[i];
-        info.colorSpace = kisTypeToColorSpace(info.imageType);
+        QString modelId;
+        if (info.channelMap.size() == 1) {
+            modelId = GrayColorModelID.id();
+            QString key = info.channelMap.begin().key();
+            if (key != "G") {
+                info.remappedChannels.push_back(ExrPaintLayerInfo::Remap(key, "G"));
+                QString channel =  info.channelMap.begin().value();
+                info.channelMap.clear();
+                info.channelMap["G"] = channel;
+            }
+        } else if (info.channelMap.size() == 3 || info.channelMap.size() == 4) {
+            if (info.channelMap.contains("R") && info.channelMap.contains("G") && info.channelMap.contains("B")) {
+                modelId = RGBAColorModelID.id();
+            } else if (info.channelMap.contains("X") && info.channelMap.contains("Y") && info.channelMap.contains("Z")) {
+                modelId = XYZAColorModelID.id();
+                QMap<QString, QString> newChannelMap;
+                if (info.channelMap.contains("W")) {
+                    newChannelMap["A"] = info.channelMap["W"];
+                    info.remappedChannels.push_back(ExrPaintLayerInfo::Remap("W", "A"));
+                    info.remappedChannels.push_back(ExrPaintLayerInfo::Remap("X", "X"));
+                    info.remappedChannels.push_back(ExrPaintLayerInfo::Remap("Y", "Y"));
+                    info.remappedChannels.push_back(ExrPaintLayerInfo::Remap("Z", "Z"));
+                } else if (info.channelMap.contains("A")) {
+                    newChannelMap["A"] = info.channelMap["A"];
+                }
+                // The decode function expect R, G, B in the channel map
+                newChannelMap["B"] = info.channelMap["X"];
+                newChannelMap["G"] = info.channelMap["Y"];
+                newChannelMap["R"] = info.channelMap["Z"];
+                info.channelMap = newChannelMap;
+            } else {
+                modelId = RGBAColorModelID.id();
+                QMap<QString, QString> newChannelMap;
+                QMap<QString, QString>::iterator it = info.channelMap.begin();
+                newChannelMap["R"] = it.value();
+                info.remappedChannels.push_back(ExrPaintLayerInfo::Remap(it.key(), "R"));
+                ++it;
+                newChannelMap["G"] = it.value();
+                info.remappedChannels.push_back(ExrPaintLayerInfo::Remap(it.key(), "G"));
+                ++it;
+                newChannelMap["B"] = it.value();
+                info.remappedChannels.push_back(ExrPaintLayerInfo::Remap(it.key(), "B"));
+                if (info.channelMap.size() == 4) {
+                    ++it;
+                    newChannelMap["A"] = it.value();
+                    info.remappedChannels.push_back(ExrPaintLayerInfo::Remap(it.key(), "A"));
+                }
+                info.channelMap = newChannelMap;
+            }
+        }
+        if (!modelId.isEmpty()) {
+            info.colorSpace = kisTypeToColorSpace(modelId, info.imageType);
+        }
     }
     // Get colorspace
     dbgFile << "Image type = " << imageType;
-    const KoColorSpace* colorSpace = kisTypeToColorSpace(imageType);
+    const KoColorSpace* colorSpace = kisTypeToColorSpace(RGBAColorModelID.id(), imageType);
 
     if (!colorSpace) return KisImageBuilder_RESULT_UNSUPPORTED_COLORSPACE;
     dbgFile << "Colorspace: " << colorSpace->name();
@@ -351,31 +448,68 @@ KisImageBuilder_Result exrConverter::decode(const KUrl& uri)
     // Load the layers
     for (int i = 0; i < infos.size(); ++i) {
         ExrPaintLayerInfo& info = infos[i];
-        KisPaintLayerSP layer = new KisPaintLayer(m_image, info.name, OPACITY_OPAQUE, info.colorSpace);
-        KisTransaction("", layer->paintDevice());
+        if (info.colorSpace) {
+            dbgFile << "Decoding " << info.name << " with " << info.channelMap.size() << " channels, and color space " << info.colorSpace->id();
+            KisPaintLayerSP layer = new KisPaintLayer(m_image, info.name, OPACITY_OPAQUE, info.colorSpace);
+            KisTransaction("", layer->paintDevice());
 
-        layer->setCompositeOp(COMPOSITE_OVER);
+            layer->setCompositeOp(COMPOSITE_OVER);
 
-        if (!layer) {
-            return KisImageBuilder_RESULT_FAILURE;
+            if (!layer) {
+                return KisImageBuilder_RESULT_FAILURE;
+            }
+
+            switch (info.channelMap.size()) {
+            case 1:
+                // Decode the data
+                switch (imageType) {
+                case IT_FLOAT16:
+                    decodeData1<half>(file, info, layer, width, dx, dy, height, Imf::HALF);
+                    break;
+                case IT_FLOAT32:
+                    decodeData1<float>(file, info, layer, width, dx, dy, height, Imf::FLOAT);
+                    break;
+                case IT_UNKNOWN:
+                case IT_UNSUPPORTED:
+                    qFatal("Impossible error");
+                }
+                break;
+            case 3:
+            case 4:
+                // Decode the data
+                switch (imageType) {
+                case IT_FLOAT16:
+                    decodeData4<half>(file, info, layer, width, dx, dy, height, Imf::HALF);
+                    break;
+                case IT_FLOAT32:
+                    decodeData4<float>(file, info, layer, width, dx, dy, height, Imf::FLOAT);
+                    break;
+                case IT_UNKNOWN:
+                case IT_UNSUPPORTED:
+                    qFatal("Impossible error");
+                }
+                break;
+            default:
+                qFatal("Invalid number of channels: %i", info.channelMap.size());
+            }
+            // Check if should set the channels
+            if (!info.remappedChannels.isEmpty()) {
+                QList<KisMetaData::Value> values;
+                foreach(const ExrPaintLayerInfo::Remap& remap, info.remappedChannels) {
+                    QMap<QString, KisMetaData::Value> map;
+                    map["original"] = KisMetaData::Value(remap.original);
+                    map["current"] = KisMetaData::Value(remap.current);
+                    values.append(map);
+                }
+                layer->metaData()->addEntry(KisMetaData::Entry(KisMetaData::SchemaRegistry::instance()->create("http://krita.org/exrchannels/1.0/" , "exrchannels"), "channelsmap", values));
+            }
+            // Add the layer
+            KisGroupLayerSP groupLayerParent = (info.parent) ? info.parent->groupLayer : m_image->rootLayer();
+            m_image->addNode(layer, groupLayerParent);
+            layer->setDirty();
+        } else {
+            dbgFile << "No decoding " << info.name << " with " << info.channelMap.size() << " channels, and lack of a color space";
         }
-
-        // Decode the data
-        switch (imageType) {
-        case IT_FLOAT16:
-            decodeData<half>(file, info, layer, width, dx, dy, height, Imf::HALF);
-            break;
-        case IT_FLOAT32:
-            decodeData<float>(file, info, layer, width, dx, dy, height, Imf::FLOAT);
-            break;
-        case IT_UNKNOWN:
-        case IT_UNSUPPORTED:
-            qFatal("Impossible error");
-        }
-
-        KisGroupLayerSP groupLayerParent = (info.parent) ? info.parent->groupLayer : m_image->rootLayer();
-        m_image->addNode(layer, groupLayerParent);
-        layer->setDirty();
     }
     m_image->unlock();
     return KisImageBuilder_RESULT_OK;

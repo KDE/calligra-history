@@ -21,19 +21,19 @@
 #define KSPREAD_TABLE_TOOL_FACTORY
 
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 namespace KSpread
 {
 
-class TableToolFactory : public KoToolFactory
+class TableToolFactory : public KoToolFactoryBase
 {
     Q_OBJECT
 public:
     explicit TableToolFactory(QObject* parent);
     ~TableToolFactory();
 
-    KoTool* createTool(KoCanvasBase* canvas);
+    KoToolBase* createTool(KoCanvasBase* canvas);
 };
 
 } // namespace

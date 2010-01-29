@@ -1,4 +1,5 @@
 /* This file is part of the KDE project
+   Copyright 2010 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
    Copyright 2006-2007 Stefan Nikolaus <stefan.nikolaus@kdemail.net>
    Copyright 2005 Raphael Langerhorst <raphael.langerhorst@kdemail.net>
    Copyright 2004-2005 Tomas Mecir <mecirt@gmail.com>
@@ -49,6 +50,7 @@
 #include <QStyleOptionComboBox>
 #include <QTextLayout>
 #include <QTextCursor>
+#include <QAbstractTextDocumentLayout>
 
 // KOffice
 #include <KoPostscriptPaintDevice.h>
@@ -210,7 +212,7 @@ CellView::CellView(SheetView* sheetView, int col, int row)
         value = sheet->map()->formatter()->formatText(cell.value(), d->style.formatType(),
                 d->style.precision(), d->style.floatFormat(),
                 d->style.prefix(), d->style.postfix(),
-                d->style.currency().symbol());
+                d->style.currency().symbol(), d->style.customFormat());
         d->displayText = value.asString();
 
         QSharedPointer<QTextDocument> doc = cell.richText();
@@ -1210,7 +1212,11 @@ void CellView::paintText(QPainter& painter,
         const QPointF position(coordinate.x() + indent,
                                coordinate.y() + d->textY);
         painter.translate(position);
-        doc->drawContents(&painter);
+
+        QAbstractTextDocumentLayout::PaintContext ctx;
+        ctx.palette.setColor(QPalette::Text, textColorPrint);
+        doc->documentLayout()->draw(&painter, ctx);
+
 //        painter.drawRect(QRectF(QPointF(0, 0), QSizeF(d->textWidth, d->textHeight)));
     }
 

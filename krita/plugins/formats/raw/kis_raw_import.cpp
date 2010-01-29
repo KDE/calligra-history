@@ -40,10 +40,10 @@
 
 using namespace KDcrawIface;
 
-typedef KGenericFactory<KisRawImport> KisRawImportFactory;
-K_EXPORT_COMPONENT_FACTORY(libkrita_raw_import, KisRawImportFactory("kofficefilters"))
+K_PLUGIN_FACTORY(KisRawImportFactory, registerPlugin<KisRawImport>();)
+K_EXPORT_PLUGIN(KisRawImportFactory("kofficefilters"))
 
-KisRawImport::KisRawImport(QObject *parent, const QStringList&)
+KisRawImport::KisRawImport(QObject *parent, const QVariantList &)
         : KoFilter(parent)
 {
     m_dialog = new KDialog();
@@ -115,7 +115,7 @@ KoFilter::ConversionStatus KisRawImport::convert(const QByteArray& from, const Q
         QApplication::restoreOverrideCursor();
 
         // Init the image
-        const KoColorSpace* cs = KoColorSpaceRegistry::instance()->colorSpace("RGBA16", "");
+        const KoColorSpace* cs = KoColorSpaceRegistry::instance()->rgb16();
         KisImageWSP image = new KisImage(doc->undoAdapter(), width, height, cs, filename);
         if (image.isNull()) return KoFilter::CreationError;
         image->lock();
@@ -169,12 +169,13 @@ void KisRawImport::slotUpdatePreview()
     dcraw.decodeHalfRAWImage(m_chain->inputFile(), settings, imageData, width, height, rgbmax);
     QImage image(width, height, QImage::Format_RGB32);
     for (int y = 0; y < height; ++y) {
+        QRgb *pixel= reinterpret_cast<QRgb *>(image.scanLine(y));
         for (int x = 0; x < width; ++x) {
             quint16* ptr = ((quint16*)imageData.data()) + (y * width + x) * 3;
 #if KDCRAW_VERSION < 0x000400
-            image.setPixel(x, y, qRgb(ptr[0] & 0xFF, ptr[1] & 0xFF, ptr[2]  & 0xFF));
+            pixel[x] = qRgb(ptr[0] & 0xFF, ptr[1] & 0xFF, ptr[2]  & 0xFF);
 #else
-            image.setPixel(x, y, qRgb(ptr[0] / 0xFF, ptr[1] / 0xFF, ptr[2] / 0xFF));
+            pixel[x] = qRgb(ptr[0] / 0xFF, ptr[1] / 0xFF, ptr[2] / 0xFF);
 #endif
         }
     }

@@ -56,6 +56,7 @@
 #include <kis_group_layer.h>
 #include <kis_meta_data_io_backend.h>
 #include <kis_meta_data_store.h>
+#include <KoColorModelStandardIds.h>
 
 namespace
 {
@@ -81,24 +82,26 @@ int getColorTypeforColorSpace(const KoColorSpace * cs , bool alpha)
 }
 
 
-QString getColorSpaceForColorType(int color_type, int color_nb_bits)
+QPair<QString, QString> getColorSpaceForColorType(int color_type, int color_nb_bits)
 {
-    if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
-        if (color_nb_bits == 16) {
-            return "GRAYA16";
-        } else if (color_nb_bits <= 8) {
-            return "GRAYA";
+    QPair<QString, QString> r;
+
+    if (color_type ==  PNG_COLOR_TYPE_PALETTE) {
+        r.first = RGBAColorModelID.id();
+        r.second = Integer8BitsColorDepthID.id();
+    } else {
+        if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
+            r.first = GrayAColorModelID.id();
+        } else if (color_type == PNG_COLOR_TYPE_RGB_ALPHA || color_type == PNG_COLOR_TYPE_RGB) {
+            r.first = RGBAColorModelID.id();
         }
-    } else if (color_type == PNG_COLOR_TYPE_RGB_ALPHA || color_type == PNG_COLOR_TYPE_RGB) {
         if (color_nb_bits == 16) {
-            return "RGBA16";
+            r.second = Integer16BitsColorDepthID.id();
         } else if (color_nb_bits <= 8) {
-            return "RGBA";
+            r.second = Integer8BitsColorDepthID.id();
         }
-    } else if (color_type ==  PNG_COLOR_TYPE_PALETTE) {
-        return "RGBA"; // <-- we will convert the index image to RGBA
     }
-    return "";
+    return r;
 }
 
 
@@ -192,13 +195,13 @@ QByteArray png_read_raw_profile(png_textp text)
 {
     QByteArray profile;
 
-    unsigned char unhex[103] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0,
-                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 11, 12,
-                                13, 14, 15
-                               };
+    static unsigned char unhex[103] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0,
+                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 11, 12,
+                                       13, 14, 15
+                                      };
 
     png_charp sp = text[0].text + 1;
     /* look for newline */
@@ -405,7 +408,12 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
 
     png_byte signature[8];
     iod->peek((char*)signature, 8);
+
+#if PNG_LIBPNG_VER < 10400
     if (!png_check_sig(signature, 8)) {
+#else
+    if (png_sig_cmp(signature, 0, 8) != 0) {
+#endif
         iod->close();
         return (KisImageBuilder_RESULT_BAD_FETCH);
     }
@@ -472,8 +480,8 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
 #endif
 
     // Determine the colorspace
-    QString csName = getColorSpaceForColorType(color_type, color_nb_bits);
-    if (csName.isEmpty()) {
+    QPair<QString, QString> csName = getColorSpaceForColorType(color_type, color_nb_bits);
+    if (csName.first.isEmpty()) {
         png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
         iod->close();
         return KisImageBuilder_RESULT_UNSUPPORTED_COLORSPACE;
@@ -486,14 +494,14 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
     png_uint_32 proflen;
 
 
-    KoColorProfile* profile = 0;
+    const KoColorProfile* profile = 0;
     if (png_get_iCCP(png_ptr, info_ptr, &profile_name, &compression_type, &profile_data, &proflen)) {
         QByteArray profile_rawdata;
         // XXX: Hardcoded for icc type -- is that correct for us?
         if (QString::compare(profile_name, "icc") == 0) {
             profile_rawdata.resize(proflen);
             memcpy(profile_rawdata.data(), profile_data, proflen);
-            profile = KoColorSpaceRegistry::instance()->createProfile("icc", profile_rawdata);
+            profile = KoColorSpaceRegistry::instance()->createColorProfile(csName.first, csName.second, profile_rawdata);
             Q_CHECK_PTR(profile);
             if (profile) {
 //                 dbgFile << "profile name: " << profile->productName() << " profile description: " << profile->productDescription() << " information sur le produit: " << profile->productInfo();
@@ -512,9 +520,9 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
     const KoColorSpace* cs;
     if (profile && profile->isSuitableForOutput()) {
         dbgFile << "image has embedded profile: " << profile -> name() << "\n";
-        cs = KoColorSpaceRegistry::instance()->colorSpace(csName, profile);
+        cs = KoColorSpaceRegistry::instance()->colorSpace(csName.first, csName.second, profile);
     } else
-        cs = KoColorSpaceRegistry::instance()->colorSpace(KoID(csName, ""), "");
+        cs = KoColorSpaceRegistry::instance()->colorSpace(csName.first, csName.second, 0);
 
     if (cs == 0) {
         png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
@@ -524,7 +532,7 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
     // Create the cmsTransform if needed
     KoColorTransformation* transform = 0;
     if (profile && !profile->isSuitableForOutput()) {
-        transform = KoColorSpaceRegistry::instance()->colorSpace(csName, profile)->createColorConverter(cs);
+        transform = KoColorSpaceRegistry::instance()->colorSpace(csName.first, csName.second, profile)->createColorConverter(cs);
     }
 
     // Creating the KisImageWSP
@@ -539,15 +547,14 @@ KisImageBuilder_Result KisPNGConverter::buildImage(QIODevice* iod)
             m_image -> addAnnotation(annotation);
         }
     }
-    
+
     // Read resolution
     int unit_type;
     png_uint_32 x_resolution, y_resolution;
-    
-    png_get_pHYs(png_ptr, info_ptr,&x_resolution,&y_resolution, &unit_type);
-    if (unit_type == PNG_RESOLUTION_METER)
-    {
-        m_image->setResolution((double) POINT_TO_CM(x_resolution)/100.0, (double) POINT_TO_CM(y_resolution)/100.0 ); // It is the "invert" macro because we convert from pointer-per-inchs to points
+
+    png_get_pHYs(png_ptr, info_ptr, &x_resolution, &y_resolution, &unit_type);
+    if (unit_type == PNG_RESOLUTION_METER) {
+        m_image->setResolution((double) POINT_TO_CM(x_resolution) / 100.0, (double) POINT_TO_CM(y_resolution) / 100.0); // It is the "invert" macro because we convert from pointer-per-inchs to points
     }
 
     double coeff = quint8_MAX / (double)(pow(2, color_nb_bits) - 1);
@@ -728,7 +735,7 @@ KisImageBuilder_Result KisPNGConverter::buildImage(const KUrl& uri)
     if (uri.isEmpty())
         return KisImageBuilder_RESULT_NO_URI;
 
-    if (!KIO::NetAccess::exists(uri, false, qApp -> activeWindow())) {
+    if (!KIO::NetAccess::exists(uri, KIO::NetAccess::SourceSide, qApp -> activeWindow())) {
         return KisImageBuilder_RESULT_NOT_EXIST;
     }
 
@@ -916,7 +923,7 @@ KisImageBuilder_Result KisPNGConverter::buildFile(QIODevice* iodevice, KisImageW
         if ((*it) -> type().startsWith(QString("krita_attribute:"))) { //
             // Attribute
 #ifdef __GNUC__
-    #warning "it should be possible to save krita_attributes in the \"CHUNKs\""
+#warning "it should be possible to save krita_attributes in the \"CHUNKs\""
 #endif
             dbgFile << "cannot save this annotation : " << (*it) -> type();
         } else { // Profile
@@ -1000,7 +1007,7 @@ KisImageBuilder_Result KisPNGConverter::buildFile(QIODevice* iodevice, KisImageW
     png_uint_32 x_resolution, y_resolution;
 #endif
     png_set_pHYs(png_ptr, info_ptr, CM_TO_POINT(image->xRes()) * 100.0, CM_TO_POINT(image->yRes()) * 100.0, PNG_RESOLUTION_METER); // It is the "invert" macro because we convert from pointer-per-inchs to points
-    
+
     // Save the information to the file
     png_write_info(png_ptr, info_ptr);
     png_write_flush(png_ptr);

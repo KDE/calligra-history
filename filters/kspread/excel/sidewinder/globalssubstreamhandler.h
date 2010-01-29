@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -23,9 +24,11 @@
 #include <vector>
 #include <map>
 
+#include "workbook.h"
 #include "substreamhandler.h"
 #include "ustring.h"
 #include "format.h"
+#include "formulas.h"
 
 namespace Swinder
 {
@@ -47,15 +50,18 @@ class PaletteRecord;
 class SSTRecord;
 class XFRecord;
 class ProtectRecord;
+class MsoDrawingBlibItem;
+class MsoDrawingGroupRecord;
+class Window1Record;
+class PasswordRecord;
 
-class GlobalsSubStreamHandler : public SubStreamHandler
+class GlobalsSubStreamHandler : public SubStreamHandler, public FormulaDecoder
 {
 public:
     GlobalsSubStreamHandler(Workbook* workbook, unsigned version);
     virtual ~GlobalsSubStreamHandler();
 
     virtual void handleRecord(Record* record);
-
 
     bool passwordProtected() const;
     unsigned version() const;
@@ -78,10 +84,14 @@ public:
 
     UString valueFormat(unsigned index) const;  //
 
-    const std::vector<UString>& externSheets() const;
+    virtual const std::vector<UString>& externSheets() const;
 
-    UString nameFromIndex(unsigned index) const;
-    UString externNameFromIndex(unsigned index) const;
+    virtual UString nameFromIndex(unsigned index) const;
+    virtual UString externNameFromIndex(unsigned index) const;
+    
+    MsoDrawingBlibItem* drawing(unsigned long pid) const;
+
+    Store* store() const;
 
 private:
     void handleBOF(BOFRecord* record);
@@ -98,6 +108,9 @@ private:
     void handleSST(SSTRecord* record);
     void handleXF(XFRecord* record);
     void handleProtect(ProtectRecord* record);
+    void handleMsoDrawingGroup(MsoDrawingGroupRecord* record);
+    void handleWindow1(Window1Record* record);
+    void handlePassword(PasswordRecord* record);
 
     class Private;
     Private * const d;

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2007 Cyrille Berger <cberger@cberger.net>
+ *  Copyright (c) 2007,2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -33,11 +33,14 @@
 #include <kis_meta_data_schema_registry.h>
 
 #include "kis_entry_editor.h"
+#include <qtableview.h>
+#include "kis_meta_data_model.h"
+#include <QHeaderView>
 
 struct KisMetaDataEditor::Private {
     KisMetaData::Store* originalStore;
     KisMetaData::Store* store;
-    QMultiHash<KisMetaData::Value*, KisEntryEditor*> entryEditors;
+    QMultiHash<QString, KisEntryEditor*> entryEditors;
 };
 
 
@@ -92,6 +95,10 @@ KisMetaDataEditor::KisMetaDataEditor(QWidget* parent, KisMetaData::Store* origin
             const QString editorSignal = '2' + elem.attribute("editorSignal");
             const QString propertyName = elem.attribute("propertyName");
             const QString structureField = elem.attribute("structureField");
+            bool ok;
+            int arrayIndex = elem.attribute("arrayIndex", "-1").toInt(&ok);
+            if (!ok) arrayIndex = -1;
+            dbgPlugins << ppVar(editorName) << ppVar(arrayIndex);
 
             QWidget* obj = widget->findChild<QWidget*>(editorName);
             if (obj) {
@@ -100,21 +107,15 @@ KisMetaDataEditor::KisMetaDataEditor(QWidget* parent, KisMetaData::Store* origin
                     if (!d->store->containsEntry(schema, entryName)) {
                         dbgPlugins << " Store does not have yet entry :" << entryName << " in" << schemaUri  << " ==" << schema->generateQualifiedName(entryName);
                     }
-                    KisMetaData::Value& value = d->store->getEntry(schema, entryName).value();
-                    KisEntryEditor* ee = 0;
-                    if (value.type() == KisMetaData::Value::Structure && !structureField.isEmpty()) {
-                        QMap<QString, KisMetaData::Value>* structure = value.asStructure();
-                        ee = new KisEntryEditor(obj, &(*structure)[ structureField ], propertyName);
-                    } else {
-                        ee = new KisEntryEditor(obj, &value, propertyName);
-                    }
+                    QString key = schema->generateQualifiedName(entryName);
+                    KisEntryEditor* ee = new KisEntryEditor(obj, d->store, key, propertyName, structureField, arrayIndex);
                     connect(obj, editorSignal.toAscii(), ee, SLOT(valueEdited()));
-                    QList<KisEntryEditor*> otherEditors = d->entryEditors.values(&value);
+                    QList<KisEntryEditor*> otherEditors = d->entryEditors.values(key);
                     foreach(KisEntryEditor* oe, otherEditors) {
                         connect(ee, SIGNAL(valueHasBeenEdited()), oe, SLOT(valueChanged()));
                         connect(oe, SIGNAL(valueHasBeenEdited()), ee, SLOT(valueChanged()));
                     }
-                    d->entryEditors.insert(&value, ee);
+                    d->entryEditors.insert(key, ee);
                 } else {
                     dbgPlugins << "Unknown schema :" << schemaUri;
                 }
@@ -130,6 +131,16 @@ KisMetaDataEditor::KisMetaDataEditor(QWidget* parent, KisMetaData::Store* origin
         }
         addPage(page);
     }
+
+    // Add the list page
+    QTableView* tableView = new QTableView;
+    KisMetaDataModel* model = new KisMetaDataModel(d->store);
+    tableView->setModel(model);
+    tableView->verticalHeader()->setVisible(false);
+    tableView->resizeColumnsToContents();
+    KPageWidgetItem *page = new KPageWidgetItem(tableView, i18n("List"));
+    page->setIcon(KIcon("format-list-unordered"));
+    addPage(page);
 }
 
 KisMetaDataEditor::~KisMetaDataEditor()

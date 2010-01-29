@@ -26,7 +26,7 @@
 #include "KoShapeManager.h"
 #include "KoCanvasBase.h"
 #include "KoSelection.h"
-#include "KoShapeFactory.h"
+#include "KoShapeFactoryBase.h"
 #include "KoShapeController.h"
 
 #include <QPainter>
@@ -37,17 +37,14 @@ KoCreateShapeStrategy::KoCreateShapeStrategy(KoCreateShapesTool *tool, const QPo
         : KoShapeRubberSelectStrategy(tool, clicked, tool->canvas()->snapToGrid())
 {
     KoCreateShapesTool *parent = static_cast<KoCreateShapesTool*>(d_ptr->tool);
-    KoShapeFactory *factory = KoShapeRegistry::instance()->value(parent->shapeId());
+    KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value(parent->shapeId());
     if (factory) {
-        QMap<QString, KoDataCenter *> dataCenterMap;
         const KoProperties *props = parent->shapeProperties();
         KoShape *shape;
         if (props) {
-            // it is ok that the data center map is empty as the shape is never added to the document
-            shape = factory->createShapeAndInit(props, dataCenterMap);
+            shape = factory->createShape(props);
         } else {
-            // it is ok that the data center map is empty as the shape is never added to the document
-            shape = factory->createDefaultShapeAndInit(dataCenterMap);
+            shape = factory->createDefaultShape();
         }
 
         m_outline = shape->outline();
@@ -60,7 +57,7 @@ QUndoCommand* KoCreateShapeStrategy::createCommand()
 {
     Q_D(KoShapeRubberSelectStrategy);
     KoCreateShapesTool *parent = static_cast<KoCreateShapesTool*>(d_ptr->tool);
-    KoShapeFactory *factory = KoShapeRegistry::instance()->value(parent->shapeId());
+    KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value(parent->shapeId());
     if (! factory) {
         kWarning(30006) << "Application requested a shape that is not registered" << parent->shapeId();
         return 0;
@@ -69,9 +66,9 @@ QUndoCommand* KoCreateShapeStrategy::createCommand()
     const KoProperties *props = parent->shapeProperties();
     KoShape *shape;
     if (props)
-        shape = factory->createShapeAndInit(props, parent->canvas()->shapeController()->dataCenterMap());
+        shape = factory->createShape(props, parent->canvas()->shapeController()->resourceManager());
     else
-        shape = factory->createDefaultShapeAndInit(parent->canvas()->shapeController()->dataCenterMap());
+        shape = factory->createDefaultShape(parent->canvas()->shapeController()->resourceManager());
     if (shape->shapeId().isEmpty())
         shape->setShapeId(factory->id());
     QRectF rect = d->selectedRect();

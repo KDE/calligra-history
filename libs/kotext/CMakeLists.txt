@@ -16,7 +16,6 @@ set(kotext_LIB_SRCS
     KoTextDocument.cpp
     KoTextEditor.cpp
     KoList.cpp
-    KoPageFormat.cpp
 
     KoTextEditingRegistry.cpp
     KoTextEditingFactory.cpp
@@ -52,7 +51,6 @@ set(kotext_LIB_SRCS
     KoTextPage.cpp
     KoPageProvider.cpp
     KoTableColumnAndRowStyleManager.cpp
-    KoUndoStack.cpp
 
     styles/Styles_p.cpp
     styles/KoCharacterStyle.cpp
@@ -69,6 +67,7 @@ set(kotext_LIB_SRCS
     styles/KoTableFormat_p.cpp
     styles/KoTableColumnFormat.cpp
     styles/KoTableRowFormat.cpp
+    styles/KoSectionStyle.cpp
     opendocument/KoTextSharedLoadingData.cpp
     opendocument/KoTextSharedSavingData.cpp
     opendocument/KoTextLoader.cpp
@@ -102,7 +101,6 @@ install(
     KoTextEditingFactory.h
     KoTextEditingPlugin.h
     KoTextEditingRegistry.h
-    KoPageFormat.h
     KoBookmark.h
     KoBookmarkManager.h
     KoInlineTextObjectManager.h
@@ -120,7 +118,6 @@ install(
     KoVariable.h
     KoVariableManager.h
     KoVariableRegistry.h
-    KoUndoStack.h
 
     DESTINATION
     ${INCLUDE_INSTALL_DIR} COMPONENT Devel
@@ -138,6 +135,7 @@ install(
     styles/KoTableFormat.h
     styles/KoTableColumnFormat.h
     styles/KoTableRowFormat.h
+    styles/KoSectionStyle.h
     styles/KoStyleManager.h
     DESTINATION
     ${INCLUDE_INSTALL_DIR}/styles COMPONENT Devel

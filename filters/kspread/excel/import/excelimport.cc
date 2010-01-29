@@ -26,6 +26,7 @@
 #include <QString>
 #include <QDate>
 #include <QBuffer>
+#include <QFontMetricsF>
 
 #include <kdebug.h>
 #include <KoFilterChain.h>
@@ -39,6 +40,8 @@
 #include <KoGenStyle.h>
 #include <KoOdfNumberStyles.h>
 
+#include <NumberFormatParser.h>
+
 #include "swinder.h"
 #include <iostream>
 
@@ -48,7 +51,9 @@ K_EXPORT_COMPONENT_FACTORY(libexcelimport, ExcelImportFactory("kofficefilters"))
 #define UNICODE_EUR 0x20AC
 #define UNICODE_GBP 0x00A3
 #define UNICODE_JPY 0x00A5
-static const int minimumColumnCount = 256;
+
+static const int minimumColumnCount = 1024;
+static const int minimumRowCount = 32768;
 
 // UString -> QConstString conversion. Use  to get the QString.
 // Always store the QConstString into a variable first, to avoid a deep copy.
@@ -64,6 +69,38 @@ static inline uint qHash(const Swinder::FormatFont& font)
     // TODO: make this a better hash
     return qHash(string(font.fontFamily())) ^ qRound(font.fontSize() * 100);
 }
+
+// calculates the column width in pixels
+int columnWidth(Sheet* sheet, unsigned long col, unsigned long dx = 0) {
+    QFont font("Arial",10);
+    QFontMetricsF fm(font);
+    const qreal characterWidth = fm.width("h");
+    qreal defColWidth = sheet->defaultColWidth();
+    if(defColWidth <= 0) defColWidth = 8.43;
+    defColWidth *= characterWidth;
+    return (defColWidth * col) + (dx / 1024.0 * defColWidth);
+}
+
+// calculates the row height in pixels
+int rowHeight(Sheet* sheet, unsigned long row, unsigned long dy = 0)
+{
+    qreal defRowHeight = sheet->defaultRowHeight();
+    if(defRowHeight <= 0) defRowHeight = 12.75; // 12.75 points (a point is 1/72 of an inch)
+    return defRowHeight * row + dy;
+}
+}
+
+// Returns A for 1, B for 2, C for 3, etc.
+QString columnName(uint column)
+{
+    QString s;
+    unsigned digits = 1;
+    unsigned offset = 0;
+    for (unsigned limit = 26; column >= limit + offset; limit *= 26, digits++)
+        offset += limit;
+    for (unsigned col = column - offset; digits; --digits, col /= 26)
+        s.prepend(QChar('A' + (col % 26)));
+    return s;
 }
 
 using namespace Swinder;
@@ -87,10 +124,11 @@ public:
     QHash<FormatFont, QString> fontStyles;
     QString subScriptStyle, superScriptStyle;
 
-    bool createStyles(KoOdfWriteStore* store);
+    bool createStyles(KoOdfWriteStore* store, KoXmlWriter* manifestWriter);
     bool createContent(KoOdfWriteStore* store);
     bool createMeta(KoOdfWriteStore* store);
-    bool createManifest(KoOdfWriteStore* store);
+    bool createManifest(KoOdfWriteStore* store, KoXmlWriter* manifestWriter);
+    bool createSettings(KoOdfWriteStore* store);
 
     int sheetFormatIndex;
     int columnFormatIndex;
@@ -127,6 +165,17 @@ ExcelImport::~ExcelImport()
     delete d;
 }
 
+class StoreImpl : public Store {
+public:
+    StoreImpl(KoStore* store) : Store(), m_store(store) {}
+    virtual ~StoreImpl() {}
+    virtual bool open(const std::string& filename) { return m_store->open(filename.c_str()); }
+    virtual bool write(const char *data, int size) { return m_store->write(data, size); }
+    virtual bool close() { return m_store->close(); }
+private:
+    KoStore* m_store;
+};
+
 KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QByteArray& to)
 {
     if (from != "application/vnd.ms-excel")
@@ -138,8 +187,22 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     d->inputFile = m_chain->inputFile();
     d->outputFile = m_chain->outputFile();
 
+    // create output store
+    KoStore* storeout;
+    storeout = KoStore::createStore(d->outputFile, KoStore::Write,
+                                    "application/vnd.oasis.opendocument.spreadsheet", KoStore::Zip);
+    if (!storeout) {
+        kWarning() << "Couldn't open the requested file.";
+        delete d->workbook;
+        return KoFilter::FileNotFound;
+    }
+
+    // Tell KoStore not to touch the file names
+    storeout->disallowNameExpansion();
+
     // open inputFile
-    d->workbook = new Swinder::Workbook;
+    StoreImpl *storeimpl = new StoreImpl(storeout);
+    d->workbook = new Swinder::Workbook(storeimpl);
     if (!d->workbook->load(d->inputFile.toLocal8Bit())) {
         delete d->workbook;
         d->workbook = 0;
@@ -155,20 +218,8 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     d->styles = new KoGenStyles();
     d->mainStyles = new KoGenStyles();
 
-    // create output store
-    KoStore* storeout;
-    storeout = KoStore::createStore(d->outputFile, KoStore::Write,
-                                    "application/vnd.oasis.opendocument.spreadsheet", KoStore::Zip);
-
-    if (!storeout) {
-        kWarning() << "Couldn't open the requested file.";
-        delete d->workbook;
-        return KoFilter::FileNotFound;
-    }
-
-    // Tell KoStore not to touch the file names
-    storeout->disallowNameExpansion();
     KoOdfWriteStore oasisStore(storeout);
+    KoXmlWriter* manifestWriter = oasisStore.manifestWriter("application/vnd.oasis.opendocument.spreadsheet");
 
     // header and footer are read from each sheet and saved in styles
     // So creating content before styles
@@ -182,7 +233,7 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     }
 
     // store document styles
-    if ( !d->createStyles( &oasisStore ) )
+    if ( !d->createStyles( &oasisStore, manifestWriter ) )
     {
         kWarning() << "Couldn't open the file 'styles.xml'.";
         delete d->workbook;
@@ -197,9 +248,17 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
         delete storeout;
         return KoFilter::CreationError;
     }
+    
+    // store settings
+    if (!d->createSettings(&oasisStore)) {
+        kWarning() << "Couldn't open the file 'settings.xml'.";
+        delete d->workbook;
+        delete storeout;
+        return KoFilter::CreationError;
+    }
 
     // store document manifest
-    if (!d->createManifest(&oasisStore)) {
+    if (!d->createManifest(&oasisStore, manifestWriter)) {
         kWarning() << "Couldn't open the file 'META-INF/manifest.xml'.";
         delete d->workbook;
         delete storeout;
@@ -231,6 +290,11 @@ bool ExcelImport::Private::createContent(KoOdfWriteStore* store)
     if (!bodyWriter || !contentWriter)
         return false;
 
+    if(workbook->password() != 0) {
+        contentWriter->addAttribute("table:structure-protected-excel", "true");
+        contentWriter->addAttribute("table:protection-key-excel" , uint(workbook->password()));
+    }
+
     // FIXME this is dummy and hardcoded, replace with real font names
     contentWriter->startElement("office:font-face-decls");
     contentWriter->startElement("style:font-face");
@@ -261,7 +325,7 @@ bool ExcelImport::Private::createContent(KoOdfWriteStore* store)
     return store->closeContentWriter();
 }
 
-bool ExcelImport::Private::createStyles(KoOdfWriteStore* store)
+bool ExcelImport::Private::createStyles(KoOdfWriteStore* store, KoXmlWriter* manifestWriter)
 {
     if (!store->store()->open("styles.xml"))
         return false;
@@ -279,6 +343,7 @@ bool ExcelImport::Private::createStyles(KoOdfWriteStore* store)
     stylesWriter->addAttribute("xmlns:fo", "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0");
     stylesWriter->addAttribute("xmlns:svg", "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0");
     stylesWriter->addAttribute("office:version", "1.0");
+#if 0
     stylesWriter->startElement("office:styles");
     stylesWriter->startElement("style:default-style");
     stylesWriter->addAttribute("style:family", "table-cell");
@@ -304,10 +369,11 @@ bool ExcelImport::Private::createStyles(KoOdfWriteStore* store)
     stylesWriter->addAttribute("style:family", "table-cell");
     stylesWriter->endElement(); // style:style
     stylesWriter->endElement(); // office:styles
+#endif
 
-    // office:automatic-styles
-    mainStyles->saveOdfAutomaticStyles(stylesWriter, false);
     mainStyles->saveOdfMasterStyles(stylesWriter);
+    mainStyles->saveOdfDocumentStyles(stylesWriter); // office:style
+    mainStyles->saveOdfAutomaticStyles(stylesWriter, false); // office:automatic-styles
 
     stylesWriter->endElement();  // office:document-styles
     stylesWriter->endDocument();
@@ -390,10 +456,64 @@ bool ExcelImport::Private::createMeta(KoOdfWriteStore* store)
     return store->store()->close();
 }
 
-bool ExcelImport::Private::createManifest(KoOdfWriteStore* store)
+bool ExcelImport::Private::createSettings(KoOdfWriteStore* store)
 {
-    KoXmlWriter* manifestWriter = store->manifestWriter("application/vnd.oasis.opendocument.spreadsheet");
+    if (!store->store()->open("settings.xml"))
+        return false;
+    
+    KoStoreDevice dev(store->store());
+    KoXmlWriter* settingsWriter = KoOdfWriteStore::createOasisXmlWriter(&dev, "office:document-settings");
+    settingsWriter->startElement("office:settings");
+    settingsWriter->startElement("config:config-item-set");
+    settingsWriter->addAttribute("config:name", "view-settings");
 
+    // units...
+    
+    // settings
+    settingsWriter->startElement("config:config-item-map-indexed");
+    settingsWriter->addAttribute("config:name", "Views");
+    settingsWriter->startElement("config:config-item-map-entry");
+    settingsWriter->addConfigItem("ViewId", QString::fromLatin1("View1"));
+    if(Sheet *sheet = workbook->sheet(workbook->activeTab()))
+        settingsWriter->addConfigItem("ActiveTable", string(sheet->name()));
+
+    settingsWriter->startElement("config:config-item-map-named");
+    settingsWriter->addAttribute("config:name", "Tables");
+    for(int i = 0; i < workbook->sheetCount(); ++i) {
+        Sheet* sheet = workbook->sheet(i);
+        settingsWriter->startElement("config:config-item-map-entry");
+        settingsWriter->addAttribute("config:name", string(sheet->name()));
+        QPoint point = sheet->firstVisibleCell();
+        settingsWriter->addConfigItem("CursorPositionX", point.x());
+        settingsWriter->addConfigItem("CursorPositionY", point.y());
+        settingsWriter->addConfigItem("xOffset", columnWidth(sheet,point.x()));
+        settingsWriter->addConfigItem("yOffset", rowHeight(sheet,point.y()));
+        settingsWriter->addConfigItem("ShowZeroValues", sheet->showZeroValues());
+        settingsWriter->addConfigItem("ShowGrid", sheet->showGrid());
+        settingsWriter->addConfigItem("FirstLetterUpper", false);
+        settingsWriter->addConfigItem("ShowFormulaIndicator", false);
+        settingsWriter->addConfigItem("ShowCommentIndicator", true);
+        settingsWriter->addConfigItem("ShowPageBorders", sheet->isPageBreakViewEnabled()); // best match kspread provides
+        settingsWriter->addConfigItem("lcmode", false);
+        settingsWriter->addConfigItem("autoCalc", sheet->autoCalc());
+        settingsWriter->addConfigItem("ShowColumnNumber", false);
+        settingsWriter->endElement();
+    }
+    settingsWriter->endElement(); // config:config-item-map-named
+    
+    settingsWriter->endElement(); // config:config-item-map-entry
+    settingsWriter->endElement(); // config:config-item-map-indexed
+    settingsWriter->endElement(); // config:config-item-set
+
+    settingsWriter->endElement(); // office:settings
+    settingsWriter->endElement(); // Root:element
+    settingsWriter->endDocument();
+    delete settingsWriter;
+    return store->store()->close();
+}
+
+bool ExcelImport::Private::createManifest(KoOdfWriteStore* store, KoXmlWriter* manifestWriter)
+{
     manifestWriter->addManifestEntry("meta.xml", "text/xml");
     manifestWriter->addManifestEntry("styles.xml", "text/xml");
     manifestWriter->addManifestEntry("content.xml", "text/xml");
@@ -411,6 +531,24 @@ void ExcelImport::Private::processWorkbookForBody(Workbook* workbook, KoXmlWrite
     for (unsigned i = 0; i < workbook->sheetCount(); i++) {
         Sheet* sheet = workbook->sheet(i);
         processSheetForBody(sheet, xmlWriter);
+    }
+    
+    std::map<UString, UString> &namedAreas = workbook->namedAreas();
+    if(namedAreas.size() > 0) {
+        xmlWriter->startElement("table:named-expressions");
+        for(std::map<UString, UString>::iterator it = namedAreas.begin(); it != namedAreas.end(); it++) {
+            xmlWriter->startElement("table:named-range");
+            xmlWriter->addAttribute("table:name", string((*it).first) ); // e.g. "My Named Range"
+            
+            QString range = string((*it).second);
+            if(range.startsWith('[') && range.endsWith(']')) {
+                range = range.mid(1,range.length()-2);
+            }
+                
+            xmlWriter->addAttribute("table:cell-range-address", range); // e.g. "$Sheet1.$B$2:.$B$3"
+            xmlWriter->endElement();//[Sheet1.$B$2:$B$3]
+        }
+        xmlWriter->endElement();
     }
 
     xmlWriter->endElement();  // office:spreadsheet
@@ -485,9 +623,13 @@ void ExcelImport::Private::processSheetForBody(Sheet* sheet, KoXmlWriter* xmlWri
 
     xmlWriter->addAttribute("table:name", string(sheet->name()));
     xmlWriter->addAttribute("table:print", "false");
-    xmlWriter->addAttribute("table:protected", "false");
     xmlWriter->addAttribute("table:style-name", sheetStyles[sheetFormatIndex]);
     sheetFormatIndex++;
+    
+    if(sheet->password() != 0) {
+       xmlWriter->addAttribute("table:protected-excel", "true");
+       xmlWriter->addAttribute("table:protection-key-excel", uint(sheet->password()));
+    }
 
     unsigned ci = 0;
     while (ci <= sheet->maxColumn()) {
@@ -514,17 +656,26 @@ void ExcelImport::Private::processSheetForBody(Sheet* sheet, KoXmlWriter* xmlWri
         }
     }
 
-    // in odf default-cell-style's only apply to cells (or at least columns) that are present in the file in xls though
-    // row styles should apply to all cells in that row, so make sure to always write out 256 columns
+    // in odf default-cell-style's only apply to cells/rows/columns that are present in the file while in Excel
+    // row/column styles should apply to all cells in that row/column. So, try to fake that behavior by writting
+    // a number-columns-repeated to apply the styles/formattings to "all" columns.
     if (sheet->maxColumn() < minimumColumnCount-1) {
         xmlWriter->startElement("table:table-column");
         xmlWriter->addAttribute("table:number-columns-repeated", minimumColumnCount - 1 - sheet->maxColumn());
         xmlWriter->endElement();
     }
 
+    // add rows
     for (unsigned i = 0; i <= sheet->maxRow(); i++) {
         // FIXME optimized this when operator== in Swinder::Format is implemented
         processRowForBody(sheet->row(i, false), 1, xmlWriter);
+    }
+
+    // same we did above with columns is also needed for rows.
+    if(sheet->maxRow() < minimumRowCount-1) {
+        xmlWriter->startElement("table:table-row");
+        xmlWriter->addAttribute("table:number-rows-repeated", minimumRowCount - 1 - sheet->maxRow());
+        xmlWriter->endElement();
     }
 
     xmlWriter->endElement();  // table:table
@@ -1057,28 +1208,11 @@ QString cellFormula(Cell* cell)
 {
     QString formula = string(cell->formula());
     if(!formula.isEmpty()) {
-        if(formula.startsWith("ROUND")) {
-            // Special case the ROUNDUP, ROUNDDOWN and ROUND function cause excel uses another
-            // logic then ODF. In Excel the second argument defines the numbers of fractional
-            // digits displayed (Num_digits) while in ODF the second argument defines
-            // the number of places to which a number is to be rounded (count).
-            // So, what we do is the same OO.org does. We prefix the formula with "of:"
-            // to indicate the changed behavior. Both, OO.org and Excel, do support
-            // that "of:" prefix.
-            //
-            // Again in other words; We need to special case that functions cause KSpread
-            // behaves here like OpenOffice.org but the behavior of OpenOffice.org ist wrong
-            // from the perspective of Excel and Excel defines the standard (that is then
-            // written down in the OpenFormula specs).
-            // OpenOffice.org as well as KSpread cannot easily change  there wrong behavior
-            // cause of backward compatibility. So, what OpenOffice.org does it to
-            // indicate that the ROUND* functions should behave like defined in the
-            // OpenFormula specs (as defined by Excel) and not like at OpenOffice.org (and
-            // KSpread) by prefixing the formula with a "of:".
-            formula.prepend("of:=");
+        if(formula.startsWith("ROUNDUP(") || formula.startsWith("ROUNDDOWN(") || formula.startsWith("ROUND(") || formula.startsWith("RAND(")) {
+            // Special case Excel formulas that differ from OpenFormula
+            formula.prepend("msoxl:=");
         } else if(!formula.isEmpty()) {
-            // Normal formulas are only prefixed with a = sign.
-            formula.prepend("=");
+            formula.prepend("of:=");
         }
     }
     return formula;
@@ -1159,10 +1293,10 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
                 xmlWriter->addAttribute("office:value", QString::number(value.asFloat(), 'g', 15));
             }
         }
-    } else if (value.isText()) {
+    } else if (value.isText() || value.isError()) {
         QString str = string(value.asString());
         xmlWriter->addAttribute("office:value-type", "string");
-        if (value.isString())
+        if (value.isString() && !(cell->format().font().subscript() || cell->format().font().superscript()))
             xmlWriter->addAttribute("office:string-value", str);
 
         xmlWriter->startElement("text:p", false);
@@ -1228,11 +1362,37 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
 
     const UString note = cell->note();
     if (! note.isEmpty()) {
+        const QString n = string(note);
+        const QString name = n.section('\n',0,0);
+        const QString text = n.section('\n',1,-1);
         xmlWriter->startElement("office:annotation");
+        xmlWriter->startElement("dc:creator");
+        xmlWriter->addTextNode(name);
+        xmlWriter->endElement(); // dc:creator
         xmlWriter->startElement("text:p");
-        xmlWriter->addTextNode(string(note));
+        xmlWriter->addTextNode(text);
         xmlWriter->endElement(); // text:p
         xmlWriter->endElement(); // office:annotation
+    }
+    
+    foreach(Picture *picture, cell->pictures()) {
+        xmlWriter->startElement("draw:frame");
+        //xmlWriter->addAttribute("draw:name", "Graphics 1");
+        xmlWriter->addAttribute("table:end-cell", columnName(picture->m_colR) + QString::number(picture->m_rwB));
+        xmlWriter->addAttribute("table:table:end-x", QString::number(picture->m_dxR));
+        xmlWriter->addAttribute("table:table:end-y", QString::number(picture->m_dyB));
+        xmlWriter->addAttribute("draw:z-index", "0");
+        xmlWriter->addAttribute("svg:x", QString::number(columnWidth(cell->sheet(),picture->m_colL,picture->m_dxL))+"pt");
+        xmlWriter->addAttribute("svg:y", QString::number(rowHeight(cell->sheet(),picture->m_rwT,picture->m_dyT))+"pt");
+        xmlWriter->addAttribute("svg:width", QString::number(columnWidth(cell->sheet(),picture->m_colR-picture->m_colL,picture->m_dxR))+"pt");
+        xmlWriter->addAttribute("svg:height", QString::number(rowHeight(cell->sheet(),picture->m_rwB-picture->m_rwT,picture->m_dyB))+"pt");
+        xmlWriter->startElement("draw:image");
+        xmlWriter->addAttribute("xlink:href", picture->m_filename.c_str());
+        xmlWriter->addAttribute("xlink:type", "simple");
+        xmlWriter->addAttribute("xlink:show", "embed");
+        xmlWriter->addAttribute("xlink:actuate", "onLoad");
+        xmlWriter->endElement(); // draw:image
+        xmlWriter->endElement(); // draw:frame
     }
 
     xmlWriter->endElement(); //  table:[covered-]table-cell
@@ -1279,8 +1439,8 @@ QString ExcelImport::Private::processCellFormat(Format* format, const QString& f
     if (valueFormat != QString("General")) {
         refName = processValueFormat(valueFormat);
     } else {
-        if(formula.startsWith("of:=")) { // special cases
-            QRegExp roundRegExp( "^of:=ROUND[A-Z]*\\(.*;[\\s]*([0-9]+)[\\s]*\\)$" );
+        if(formula.startsWith("msoxl:=")) { // special cases
+            QRegExp roundRegExp( "^msoxl:=ROUND[A-Z]*\\(.*;[\\s]*([0-9]+)[\\s]*\\)$" );
             if (roundRegExp.indexIn(formula) >= 0) {
                 bool ok = false;
                 int decimals = roundRegExp.cap(1).trimmed().toInt(&ok);
@@ -1296,6 +1456,17 @@ QString ExcelImport::Private::processCellFormat(Format* format, const QString& f
                     style.addChildElement("number", elementContents);
                     refName = styles->lookup(style, "N");
                 }
+            } else if(formula.startsWith("msoxl:=RAND(")) {
+                KoGenStyle style(KoGenStyle::StyleNumericNumber);
+                QBuffer buffer;
+                buffer.open(QIODevice::WriteOnly);
+                KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
+                xmlWriter.startElement("number:number");
+                xmlWriter.addAttribute("number:decimal-places", 9);
+                xmlWriter.endElement(); // number:number
+                QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
+                style.addChildElement("number", elementContents);
+                refName = styles->lookup(style, "N");
             }
         }
     }
@@ -1317,13 +1488,12 @@ QString convertColor(const Color& color)
     return QString(buf);
 }
 
-void convertBorder(const QString& which, const Pen& pen, KoGenStyle& style)
+void convertBorder(const QString& which, const QString& lineWidthProperty, const Pen& pen, KoGenStyle& style)
 {
-    QString result;
     if (pen.style == Pen::NoLine || pen.width == 0) {
-        result = "none";
-        style.addProperty("fo:border-" + which, result);
+        //style.addProperty(which, "none");
     } else {
+        QString result;
         if (pen.style == Pen::DoubleLine) {
             result += QString::number(pen.width * 3);
         } else {
@@ -1342,11 +1512,11 @@ void convertBorder(const QString& which, const Pen& pen, KoGenStyle& style)
 
         result += convertColor(pen.color);
 
-        style.addProperty("fo:border-" + which, result);
+        style.addProperty(which, result);
         if (pen.style == Pen::DoubleLine) {
             result = QString::number(pen.width);
             result = result + "pt " + result + "pt " + result + "pt";
-            style.addProperty("fo:border-line-width-" + which, result);
+            style.addProperty(lineWidthProperty, result);
         }
     }
 }
@@ -1422,21 +1592,100 @@ void ExcelImport::Private::processFormat(Format* format, KoGenStyle& style)
     }
 
     if (!borders.isNull()) {
-        convertBorder("left", borders.leftBorder(), style);
-        convertBorder("right", borders.rightBorder(), style);
-        convertBorder("top", borders.topBorder(), style);
-        convertBorder("bottom", borders.bottomBorder(), style);
-        //TODO diagonal 'borders'
+        convertBorder("fo:border-left", "fo:border-line-width-left", borders.leftBorder(), style);
+        convertBorder("fo:border-right", "fo:border-line-width-right", borders.rightBorder(), style);
+        convertBorder("fo:border-top", "fo:border-line-width-top", borders.topBorder(), style);
+        convertBorder("fo:border-bottom", "fo:border-line-width-bottom", borders.bottomBorder(), style);
+        convertBorder("style:diagonal-tl-br", "style:diagonal-tl-br-widths", borders.topLeftBorder(), style);
+        convertBorder("style:diagonal-tr-bl", "style:diagonal-tr-bl-widths", borders.bottomLeftBorder(), style);
     }
 
     if (!back.isNull() && back.pattern() != FormatBackground::EmptyPattern) {
+        KoGenStyle fillStyle = KoGenStyle(KoGenStyle::StyleGraphicAuto, "graphic");
+
         Color backColor = back.backgroundColor();
         if (back.pattern() == FormatBackground::SolidPattern)
             backColor = back.foregroundColor();
-
-        style.addProperty("fo:background-color", convertColor(backColor));
-
-        //TODO patterns
+        const QString bgColor = convertColor(backColor);
+        style.addProperty("fo:background-color", bgColor);
+        switch(back.pattern()) {
+            case FormatBackground::SolidPattern:
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "0%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense3Pattern: // 75% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "75%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense4Pattern: // 50% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "94%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense5Pattern: // 25% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "25%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense6Pattern: // 12.5% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "12%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense7Pattern: // 6.25% gray
+                fillStyle.addProperty("draw:fill-color", bgColor);
+                fillStyle.addProperty("draw:transparency", "6%");
+                fillStyle.addProperty("draw:fill", "solid");
+                break;
+            case FormatBackground::Dense1Pattern: // diagonal crosshatch
+            case FormatBackground::Dense2Pattern: // thick diagonal crosshatch
+            case FormatBackground::HorPattern: // Horizonatal lines
+            case FormatBackground::VerPattern: // Vertical lines
+            case FormatBackground::BDiagPattern: // Left-bottom to right-top diagonal lines
+            case FormatBackground::FDiagPattern: // Left-top to right-bottom diagonal lines
+            case FormatBackground::CrossPattern: // Horizontal and Vertical lines
+            case FormatBackground::DiagCrossPattern: { // Crossing diagonal lines
+                fillStyle.addProperty("draw:fill", "hatch");
+                KoGenStyle hatchStyle(KoGenStyle::StyleHatch);
+                hatchStyle.addAttribute("draw:color", "#000000");
+                switch (back.pattern()) {
+                case FormatBackground::Dense1Pattern:
+                case FormatBackground::HorPattern:
+                    hatchStyle.addAttribute("draw:style", "single");
+                    hatchStyle.addAttribute("draw:rotation", 0);
+                    break;
+                case FormatBackground::VerPattern:
+                    hatchStyle.addAttribute("draw:style", "single");
+                    hatchStyle.addAttribute("draw:rotation", 900);
+                    break;
+                case FormatBackground::Dense2Pattern:
+                case FormatBackground::BDiagPattern:
+                    hatchStyle.addAttribute("draw:style", "single");
+                    hatchStyle.addAttribute("draw:rotation", 450);
+                    break;
+                case FormatBackground::FDiagPattern:
+                    hatchStyle.addAttribute("draw:style", "single");
+                    hatchStyle.addAttribute("draw:rotation", 1350);
+                    break;
+                case FormatBackground::CrossPattern:
+                    hatchStyle.addAttribute("draw:style", "double");
+                    hatchStyle.addAttribute("draw:rotation", 0);
+                    break;
+                case FormatBackground::DiagCrossPattern:
+                    hatchStyle.addAttribute("draw:style", "double");
+                    hatchStyle.addAttribute("draw:rotation", 450);
+                    break;
+                default:
+                    break;
+                }
+                fillStyle.addProperty("draw:fill-hatch-name", mainStyles->lookup(hatchStyle, "hatch"));
+            } break;
+            default:
+                break;
+        }
+        style.addProperty("draw:style-name", styles->lookup(fillStyle, "gr"));
     }
 
     if (!align.isNull()) {
@@ -1451,694 +1700,14 @@ void ExcelImport::Private::processFormat(Format* format, KoGenStyle& style)
     }
 }
 
-#if 0
-static void processDateFormatComponent(KoXmlWriter* xmlWriter, const QString& component)
-{
-    if (component[0] == 'd') {
-        xmlWriter->startElement("number:day");
-        xmlWriter->addAttribute("number:style", component.length() == 1 ? "short" : "long");
-        xmlWriter->endElement();  // number:day
-    } else if (component[0] == 'm') {
-        xmlWriter->startElement("number:month");
-        xmlWriter->addAttribute("number:textual", component.length() == 3 ? "true" : "false");
-        xmlWriter->addAttribute("number:style", component.length() == 2 ? "long" : "short");
-        xmlWriter->endElement();  // number:month
-    } else if (component[0] == 'y') {
-        xmlWriter->startElement("number:year");
-        xmlWriter->addAttribute("number:style", component.length() == 2 ? "short" : "long");
-        xmlWriter->endElement();  // number:year
-    }
-}
-#endif
-
-static void processNumberText(KoXmlWriter* xmlWriter, QString& text)
-{
-    if (! text.isEmpty()) {
-        xmlWriter->startElement("number:text");
-        xmlWriter->addTextNode(removeEscaped(text, true));
-        xmlWriter->endElement();  // number:text
-        text.clear();
-    }
-}
-
-// 2.18.52 ST_LangCode, see also http://www.w3.org/WAI/ER/IG/ert/iso639.htm
-QString languageName(int languageCode)
-{
-    switch( languageCode ) {
-    case 0x041c: return "ALBANIAN"; break;
-    case 0x0401: return "ARABIC"; break;
-    case 0x0c09: return "AUS_ENGLISH"; break;
-    case 0x0421: return "BAHASA"; break;
-    case 0x0813: return "BELGIAN_DUTCH"; break;
-    case 0x080c: return "BELGIAN_FRENCH"; break;
-    case 0x0416: return "BRAZIL_PORT"; break;
-    case 0x0402: return "BULGARIAN"; break;
-    case 0x0c0c: return "CANADA_FRENCH"; break;
-    case 0x040a: return "CAST_SPANISH"; break;
-    case 0x0403: return "CATALAN"; break;
-    case 0x041a: return "CROATO_SERBIAN"; break;
-    case 0x0405: return "CZECH"; break;
-    case 0x0406: return "DANISH"; break;
-    case 0x0413: return "DUTCH"; break;
-    case 0x040b: return "FINNISH"; break;
-    case 0x040c: return "FRENCH"; break;
-    case 0x0407: return "GERMAN"; break;
-    case 0x0408: return "GREEK"; break;
-    case 0x040d: return "HEBREW"; break;
-    case 0x040e: return "HUNGARIAN"; break;
-    case 0x040f: return "ICELANDIC"; break;
-    case 0x0410: return "ITALIAN"; break;
-    case 0x0411: return "JAPANESE"; break;
-    case 0x0412: return "KOREAN"; break;
-    case 0x080a: return "MEXICAN_SPANISH"; break;
-    case 0x0414: return "NORWEG_BOKMAL"; break;
-    case 0x0814: return "NORWEG_NYNORSK"; break;
-    case 0x0415: return "POLISH"; break;
-    case 0x0816: return "PORTUGUESE"; break;
-    case 0x0417: return "RHAETO_ROMANIC"; break;
-    case 0x0418: return "ROMANIAN"; break;
-    case 0x0419: return "RUSSIAN"; break;
-    case 0x081a: return "SERBO_CROATIAN"; break;
-    case 0x0804: return "SIM_CHINESE"; break;
-    case 0x041b: return "SLOVAKIAN"; break;
-    case 0x041d: return "SWEDISH"; break;
-    case 0x100c: return "SWISS_FRENCH"; break;
-    case 0x0807: return "SWISS_GERMAN"; break;
-    case 0x0810: return "SWISS_ITALIAN"; break;
-    case 0x041e: return "THAI"; break;
-    case 0x0404: return "TRD_CHINESE"; break;
-    case 0x041f: return "TURKISH"; break;
-    case 0x0809: return "UK_ENGLISH"; break;
-    case 0x0420: return "URDU"; break;
-    case 0x0409: return "US_ENGLISH"; break;
-    default:     return QString(); break;
-    }
-}
-
 // 3.8.31 numFmts
 QString ExcelImport::Private::processValueFormat(const QString& valueFormat)
 {
-    // number
-    QRegExp numberRegEx("(0+)(\\.0+)?(E\\+0+)?");
-    if (numberRegEx.exactMatch(valueFormat)) {
-        if (numberRegEx.cap(3).length())
-            return KoOdfNumberStyles::saveOdfScientificStyle(*styles, valueFormat, "", "");
-        else
-            return KoOdfNumberStyles::saveOdfNumberStyle(*styles, valueFormat, "", "");
+    NumberFormatParser::setStyles( styles );
+    const KoGenStyle style = NumberFormatParser::parse( valueFormat );
+    if( style.type() == KoGenStyle::StyleAuto ) {
+        return QString();
     }
 
-    // percent
-    QRegExp percentageRegEx("(0+)(\\.0+)?%");
-    if (percentageRegEx.exactMatch(valueFormat)) {
-        return KoOdfNumberStyles::saveOdfPercentageStyle(*styles, valueFormat, "", "");
-    }
-
-    // text
-    if (valueFormat.startsWith("@")) {
-        KoGenStyle style(KoGenStyle::StyleNumericText);
-        QBuffer buffer;
-        buffer.open(QIODevice::WriteOnly);
-        KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-        xmlWriter.startElement("number:text-content");
-        xmlWriter.endElement(); // text-content
-
-        QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-        style.addChildElement("number", elementContents);
-        return styles->lookup(style, "N");
-    }
-
-    // fraction
-    const QString escapedValueFormat = removeEscaped(valueFormat);
-    QRegExp fractionRegEx("^#([?]+)/([0-9?]+)$");
-    if (fractionRegEx.indexIn(escapedValueFormat) >= 0) {
-        const int minlength = fractionRegEx.cap(1).length(); // numerator
-        const QString denominator = fractionRegEx.cap(2); // denominator
-        bool hasDenominatorValue = false;
-        const int denominatorValue = denominator.toInt(&hasDenominatorValue);
-
-        KoGenStyle style(KoGenStyle::StyleNumericFraction);
-        QBuffer buffer;
-        buffer.open(QIODevice::WriteOnly);
-        KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-        xmlWriter.startElement("number:fraction");
-        xmlWriter.addAttribute("number:min-numerator-digits", minlength);
-        if (hasDenominatorValue) {
-            QRegExp rx("/[?]*([0-9]*)[?]*$");
-            if (rx.indexIn(escapedValueFormat) >= 0)
-                xmlWriter.addAttribute("number:min-integer-digits", rx.cap(1).length());
-            xmlWriter.addAttribute("number:number:denominator-value", denominatorValue);
-        } else {
-            xmlWriter.addAttribute("number:min-denominator-digits", denominator.length());
-        }
-        xmlWriter.endElement(); // number:fraction
-
-        QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-        style.addChildElement("number", elementContents);
-        return styles->lookup(style, "N");
-    }
-
-    // currency
-    QString currencyVal, formatVal;
-    if (currencyFormat(valueFormat, &currencyVal, &formatVal)) {
-        KoGenStyle style(KoGenStyle::StyleNumericCurrency);
-        QBuffer buffer;
-        buffer.open(QIODevice::WriteOnly);
-        KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-        QRegExp symbolRegEx("^([^a-zA-Z0-9\\-_\\s]+)");
-        if(symbolRegEx.indexIn(currencyVal) >= 0) {
-            xmlWriter.startElement("number:currency-symbol");
-
-            QString language, country;
-            QRegExp countryRegExp("^[^a-zA-Z0-9\\s]+\\-[\\s]*([0-9]+)[\\s]*$");
-            if(countryRegExp.indexIn(currencyVal) >= 0) {
-                //TODO
-                //bool ok = false;
-                //int languageCode = countryRegExp.cap(1).toInt(&ok);
-                //if(ok) language = languageName(languageCode);
-            } else if(currencyVal[0] == '$') {
-                language = "en";
-                country = "US";
-            } else if(currencyVal[0] == QChar(UNICODE_EUR)) {
-                // should not be possible cause there is no single "euro-land"
-            } else if(currencyVal[0] == QChar(UNICODE_GBP)) {
-                language = "en";
-                country = "GB";
-            } else if(currencyVal[0] == QChar(UNICODE_JPY)) {
-                language = "ja";
-                country = "JP";
-            } else {
-                // nothing we can do here...
-            }
-
-            if(!language.isEmpty())
-                xmlWriter.addAttribute("number:language", language);
-            if(!country.isEmpty())
-                xmlWriter.addAttribute("number:country", country);
-
-            xmlWriter.addTextNode(symbolRegEx.cap(1));
-            xmlWriter.endElement();
-        }
-
-        QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-        style.addChildElement("number", elementContents);
-        return styles->lookup(style, "N");
-    }
-
-    QString vf = valueFormat;
-    QString locale = extractLocale(vf);
-    Q_UNUSED(locale);
-    const QString _vf = removeEscaped(vf);
-
-    // dates
-    QRegExp dateRegEx("(d|M|y)");   // we don't check for 'm' cause this can be 'month' or 'minute' and if nothing else is defined we assume 'minute'...
-    if (dateRegEx.indexIn(_vf) >= 0) {
-        KoGenStyle style(KoGenStyle::StyleNumericDate);
-        QBuffer buffer;
-        buffer.open(QIODevice::WriteOnly);
-        KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-        QString numberText;
-        int lastPos = -1;
-        while (++lastPos < vf.count()) {
-            if (vf[lastPos] == 'd' || vf[lastPos] == 'm' || vf[lastPos] == 'M' || vf[lastPos] == 'y') break;
-            numberText += vf[lastPos];
-        }
-        processNumberText(&xmlWriter, numberText);
-
-        while (++lastPos < vf.count()) {
-            if (vf[lastPos] == 'd') { // day
-                processNumberText(&xmlWriter, numberText);
-                const bool isLong = lastPos + 1 < vf.count() && vf[lastPos + 1] == 'd';
-                if (isLong) ++lastPos;
-                xmlWriter.startElement("number:day");
-                xmlWriter.addAttribute("number:style", isLong ? "long" : "short");
-                xmlWriter.endElement();  // number:day
-            } else if (vf[lastPos] == 'm' || vf[lastPos] == 'M') { // month
-                processNumberText(&xmlWriter, numberText);
-                const int length = (lastPos + 2 < vf.count() && (vf[lastPos + 2] == 'm' || vf[lastPos + 2] == 'M')) ? 2
-                                   : (lastPos + 1 < vf.count() && (vf[lastPos + 1] == 'm' || vf[lastPos + 1] == 'M')) ? 1
-                                   : 0;
-                xmlWriter.startElement("number:month");
-                xmlWriter.addAttribute("number:textual", length == 2 ? "true" : "false");
-                xmlWriter.addAttribute("number:style", length == 1 ? "long" : "short");
-                xmlWriter.endElement();  // number:month
-                lastPos += length;
-            } else if (vf[lastPos] == 'y') { // year
-                processNumberText(&xmlWriter, numberText);
-                const int length = (lastPos + 3 < vf.count() && vf[lastPos + 3] == 'y') ? 3
-                                   : (lastPos + 2 < vf.count() && vf[lastPos + 2] == 'y') ? 2
-                                   : (lastPos + 1 < vf.count() && vf[lastPos + 1] == 'y') ? 1 : 0;
-                xmlWriter.startElement("number:year");
-                xmlWriter.addAttribute("number:style", length >= 3 ? "long" : "short");
-                xmlWriter.endElement();  // number:year
-                lastPos += length;
-            } else {
-                numberText += vf[lastPos];
-            }
-        }
-        processNumberText(&xmlWriter, numberText);
-
-        QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-        style.addChildElement("number", elementContents);
-
-        qDebug() << elementContents;
-        return styles->lookup(style, "N");
-    }
-
-    /*
-    QRegExp dateRegEx("(m{1,3}|d{1,2}|yy|yyyy)(/|-|\\\\-)(m{1,3}|d{1,2}|yy|yyyy)(?:(/|-|\\\\-)(m{1,3}|d{1,2}|yy|yyyy))?");
-    if( dateRegEx.exactMatch(valueFormat) )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericDate);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter elementWriter(&buffer);    // TODO pass indentation level
-
-      processDateFormatComponent( &elementWriter, dateRegEx.cap(1) );
-      processDateFormatSeparator( &elementWriter, dateRegEx.cap(2) );
-      processDateFormatComponent( &elementWriter, dateRegEx.cap(3) );
-      if( dateRegEx.cap(4).length() )
-      {
-        processDateFormatSeparator( &elementWriter, dateRegEx.cap(4) );
-        processDateFormatComponent( &elementWriter, dateRegEx.cap(5) );
-      }
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    */
-
-    // times
-    QRegExp timeRegEx("(h|hh|H|HH|m|s)");
-    if (timeRegEx.indexIn(_vf) >= 0) {
-        KoGenStyle style(KoGenStyle::StyleNumericTime);
-        QBuffer buffer;
-        buffer.open(QIODevice::WriteOnly);
-        KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-        // look for hours, minutes or seconds. Not for AM/PM cause we need at least one value before.
-        QString numberText;
-        int lastPos = -1;
-        while (++lastPos < vf.count()) {
-            if (vf[lastPos] == 'h' || vf[lastPos] == 'H' || vf[lastPos] == 'm' || vf[lastPos] == 's') break;
-            numberText += vf[lastPos];
-        }
-        if (! numberText.isEmpty()) {
-            xmlWriter.startElement("number:text");
-            xmlWriter.addTextNode(numberText);
-            xmlWriter.endElement();  // number:text
-            numberText.clear();
-        }
-        if (lastPos < vf.count()) {
-            // take over hours if defined
-            if (vf[lastPos] == 'h' || vf[lastPos] == 'H') {
-                const bool isLong = ++lastPos < vf.count() && (vf[lastPos] == 'h' || vf[lastPos] == 'H');
-                if (! isLong) --lastPos;
-                xmlWriter.startElement("number:hours");
-                xmlWriter.addAttribute("number:style", isLong ? "long" : "short");
-                xmlWriter.endElement();  // number:hours
-
-                // look for minutes, seconds or AM/PM definition
-                while (++lastPos < vf.count()) {
-                    if (vf[lastPos] == 'm' || vf[lastPos] == 's') break;
-                    const QString s = vf.mid(lastPos);
-                    if (s.startsWith("AM/PM") || s.startsWith("am/pm")) break;
-                    numberText += vf[lastPos];
-                }
-                if (! numberText.isEmpty()) {
-                    xmlWriter.startElement("number:text");
-                    xmlWriter.addTextNode(numberText);
-                    xmlWriter.endElement();  // number:text
-
-                    numberText.clear();
-                }
-            }
-        }
-
-        if (lastPos < vf.count()) {
-
-            // taker over minutes if defined
-            if (vf[lastPos] == 'm') {
-                const bool isLong = ++lastPos < vf.count() && vf[lastPos] == 'm';
-                if (! isLong) --lastPos;
-                xmlWriter.startElement("number:minutes");
-                xmlWriter.addAttribute("number:style", isLong ? "long" : "short");
-                xmlWriter.endElement();  // number:hours
-
-                // look for seconds or AM/PM definition
-                while (++lastPos < vf.count()) {
-                    if (vf[lastPos] == 's') break;
-                    const QString s = vf.mid(lastPos);
-                    if (s.startsWith("AM/PM") || s.startsWith("am/pm")) break;
-                    numberText += vf[lastPos];
-                }
-                if (! numberText.isEmpty()) {
-                    xmlWriter.startElement("number:text");
-                    xmlWriter.addTextNode(numberText);
-                    xmlWriter.endElement();  // number:text
-                    numberText.clear();
-                }
-            }
-        }
-
-        if (lastPos < vf.count()) {
-            // taker over seconds if defined
-            if (vf[lastPos] == 's') {
-                const bool isLong = ++lastPos < vf.count() && vf[lastPos] == 's';
-                if (! isLong) --lastPos;
-                xmlWriter.startElement("number:seconds");
-                xmlWriter.addAttribute("number:style", isLong ? "long" : "short");
-                xmlWriter.endElement();  // number:hours
-
-                // look for AM/PM definition
-                while (++lastPos < vf.count()) {
-                    const QString s = vf.mid(lastPos);
-                    if (s.startsWith("AM/PM") || s.startsWith("am/pm")) break;
-                    numberText += vf[lastPos];
-                }
-                if (! numberText.isEmpty()) {
-                    xmlWriter.startElement("number:text");
-                    xmlWriter.addTextNode(numberText);
-                    xmlWriter.endElement();  // number:text
-                    numberText.clear();
-                }
-            }
-
-            // take over AM/PM definition if defined
-            const QString s = vf.mid(lastPos);
-            if (s.startsWith("AM/PM") || s.startsWith("am/pm")) {
-                xmlWriter.startElement("number:am-pm");
-                xmlWriter.endElement();  // number:am-pm
-                lastPos += 4;
-            }
-        }
-
-        // and take over remaining text
-        if (++lastPos < vf.count()) {
-            xmlWriter.startElement("number:text");
-            xmlWriter.addTextNode(vf.mid(lastPos));
-            xmlWriter.endElement();  // number:text
-        }
-
-        QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-        style.addChildElement("number", elementContents);
-        return styles->lookup(style, "N");
-    }
-
-
-    /*
-    else if( valueFormat == "h:mm AM/PM" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      xmlWriter.startElement( "number:hours" );
-      xmlWriter.addAttribute( "number:style", "short" );
-      xmlWriter.endElement();  // number:hour
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( " " );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:am-pm" );
-      xmlWriter.endElement();  // number:am-pm
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "h:mm:ss AM/PM" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      xmlWriter.startElement( "number:hours" );
-      xmlWriter.addAttribute( "number:style", "short" );
-      xmlWriter.endElement();  // number:hour
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:seconds" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( " " );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:am-pm" );
-      xmlWriter.endElement();  // number:am-pm
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "h:mm" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      xmlWriter.startElement( "number:hours" );
-      xmlWriter.addAttribute( "number:style", "short" );
-      xmlWriter.endElement();  // number:hour
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "h:mm:ss" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      xmlWriter.startElement( "number:hours" );
-      xmlWriter.addAttribute( "number:style", "short" );
-      xmlWriter.endElement();  // number:hour
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:seconds" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "[h]:mm" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      style.addAttribute( "number:truncate-on-overflow", "false" );
-
-      xmlWriter.startElement( "number:hours" );
-      xmlWriter.addAttribute( "number:style", "short" );
-      xmlWriter.endElement();  // number:hour
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "[h]:mm:ss" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      style.addAttribute( "number:truncate-on-overflow", "false" );
-
-      xmlWriter.startElement( "number:hours" );
-      xmlWriter.addAttribute( "number:style", "short" );
-      xmlWriter.endElement();  // number:hour
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:seconds" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "mm:ss" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:seconds" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "mm:ss.0" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:text
-
-      xmlWriter.startElement( "number:seconds" );
-      xmlWriter.addAttribute( "number:style", "long" );
-
-      xmlWriter.endElement();  // number:minutes
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ".0" );
-      xmlWriter.endElement();  // number:text
-
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "[mm]:ss" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      style.addAttribute( "number:truncate-on-overflow", "false" );
-
-      xmlWriter.startElement( "number:minutes" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      xmlWriter.startElement( "number:text");
-      xmlWriter.addTextNode( ":" );
-      xmlWriter.endElement();  // number:textexactMatch
-
-      xmlWriter.startElement( "number:seconds" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else if( valueFormat == "[ss]" )
-    {
-      KoGenStyle style(KoGenStyle::StyleNumericTime);
-      QBuffer buffer;
-      buffer.open(QIODevice::WriteOnly);
-      KoXmlWriter xmlWriter(&buffer);    // TODO pass indentation level
-
-      style.addAttribute( "number:truncate-on-overflow", "false" );
-
-      xmlWriter.startElement( "number:seconds" );
-      xmlWriter.addAttribute( "number:style", "long" );
-      xmlWriter.endElement();  // number:minutes
-
-      QString elementContents = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
-      style.addChildElement("number", elementContents);
-
-      return styles->lookup(style, "N");
-    }
-    else
-    {
-    }
-    */
-
-    return ""; // generic
+    return styles->lookup( style, "N" );
 }

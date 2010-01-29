@@ -20,24 +20,20 @@
 #ifndef ARTISTICTEXTSHAPEFACTORY_H
 #define ARTISTICTEXTSHAPEFACTORY_H
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShape;
 
-class ArtisticTextShapeFactory : public KoShapeFactory
+class ArtisticTextShapeFactory : public KoShapeFactoryBase
 {
-    using KoShapeFactory::createDefaultShape;
-    using KoShapeFactory::createShape;
-
     Q_OBJECT
 
 public:
     explicit ArtisticTextShapeFactory(QObject *parent);
     ~ArtisticTextShapeFactory() {}
 
-    KoShape *createDefaultShape() const;
-    KoShape *createShape(const KoProperties * params) const;
-    // reimplemented from KoShapeFactory
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
+    // reimplemented from KoShapeFactoryBase
     virtual bool supports(const KoXmlElement & e) const;
 };
 

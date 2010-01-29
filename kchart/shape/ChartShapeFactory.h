@@ -28,7 +28,7 @@
 #include <QStringList>
 
 // KOffice
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 
 class KoShape;
@@ -45,7 +45,7 @@ public:
 };
 
 
-class ChartShapeFactory : public KoShapeFactory
+class ChartShapeFactory : public KoShapeFactoryBase
 {
     Q_OBJECT
 public:
@@ -54,8 +54,8 @@ public:
 
     bool supports( const KoXmlElement &element ) const;
 
-    KoShape* createDefaultShape() const;
-    KoShape* createShape( const KoProperties* params ) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
+    virtual void newDocumentResourceManager(KoResourceManager *manager);
 
     QList<KoShapeConfigWidgetBase*> createShapeOptionPanels();
 };

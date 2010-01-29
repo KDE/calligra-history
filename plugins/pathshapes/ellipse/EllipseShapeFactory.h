@@ -20,19 +20,18 @@
 #ifndef KOELLIPSESHAPEFACTORY_H
 #define KOELLIPSESHAPEFACTORY_H
 
-#include "KoShapeFactory.h"
+#include "KoShapeFactoryBase.h"
 
 class KoShape;
 
 /// Factory for ellipse shapes
-class EllipseShapeFactory : public KoShapeFactory
+class EllipseShapeFactory : public KoShapeFactoryBase
 {
 public:
     /// constructor
     explicit EllipseShapeFactory( QObject *parent );
     ~EllipseShapeFactory() {}
-    KoShape *createDefaultShape() const;
-    KoShape *createShape( const KoProperties *params ) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports(const KoXmlElement &e) const;
     virtual QList<KoShapeConfigWidgetBase*> createShapeOptionPanels();
 };

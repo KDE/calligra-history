@@ -34,7 +34,7 @@
 #include <kmessagebox.h>
 #include <kstandarddirs.h>
 #include <kis_debug.h>
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
 #include <kactioncollection.h>
 
 #include <KoColorSpace.h>
@@ -60,11 +60,11 @@
 
 #include "dlg_colorspaceconversion.h"
 
-typedef KGenericFactory<ColorSpaceConversion> ColorSpaceConversionFactory;
-K_EXPORT_COMPONENT_FACTORY(kritacolorspaceconversion, ColorSpaceConversionFactory("krita"))
+K_PLUGIN_FACTORY(ColorSpaceConversionFactory, registerPlugin<ColorSpaceConversion>();)
+K_EXPORT_PLUGIN(ColorSpaceConversionFactory("krita"))
 
 
-ColorSpaceConversion::ColorSpaceConversion(QObject *parent, const QStringList &)
+ColorSpaceConversion::ColorSpaceConversion(QObject *parent, const QVariantList &)
         : KParts::Plugin(parent)
 {
     if (parent->inherits("KisView2")) {
@@ -103,8 +103,7 @@ void ColorSpaceConversion::slotImageColorSpaceConversion()
 
     if (dlgColorSpaceConversion->exec() == QDialog::Accepted) {
 
-        KoID cspace = dlgColorSpaceConversion->m_page->cmbColorSpaces->currentItem();
-        const KoColorSpace * cs = KoColorSpaceRegistry::instance()->colorSpace(cspace, dlgColorSpaceConversion->m_page->cmbDestProfile->currentText());
+        const KoColorSpace * cs = dlgColorSpaceConversion->m_page->colorSpaceSelector->currentColorSpace();
 
         QApplication::setOverrideCursor(KisCursor::waitCursor());
         image->convertTo(cs, (KoColorConversionTransformation::Intent)dlgColorSpaceConversion->m_intentButtonGroup.checkedId());
@@ -132,9 +131,7 @@ void ColorSpaceConversion::slotLayerColorSpaceConversion()
 
         QApplication::setOverrideCursor(KisCursor::waitCursor());
 
-        KoID cspace = dlgColorSpaceConversion->m_page->cmbColorSpaces->currentItem();
-        const KoColorSpace * cs = KoColorSpaceRegistry::instance() ->
-                                  colorSpace(cspace, dlgColorSpaceConversion->m_page->cmbDestProfile->currentText());
+        const KoColorSpace * cs = dlgColorSpaceConversion->m_page->colorSpaceSelector->currentColorSpace();
 
         if (image->undo()) {
             image->undoAdapter()->beginMacro(i18n("Convert Layer Type"));

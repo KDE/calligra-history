@@ -21,7 +21,6 @@
 #ifndef KOSHAPELOADINGCONTEXT_H
 #define KOSHAPELOADINGCONTEXT_H
 
-#include <QMap>
 #include <QSet>
 #include <QString>
 
@@ -34,7 +33,7 @@ class KoShapeControllerBase;
 class KoLoadingShapeUpdater;
 class KoImageCollection;
 class KoSharedLoadingData;
-class KoDataCenter;
+class KoResourceManager;
 
 /**
  * Context passed to shapes during loading.
@@ -71,10 +70,9 @@ public:
     /**
      * constructor
      * @param context the context created for generic ODF loading.
-     * @param dataCenterMap the data center map of the shape controller. This is used in calling KoShape::init
-     *        during loading.
+     * @param documentResources the data of the shape controller.
      */
-    KoShapeLoadingContext(KoOdfLoadingContext &context, const QMap<QString, KoDataCenter *> &dataCenterMap);
+    KoShapeLoadingContext(KoOdfLoadingContext &context, KoResourceManager *documentResources);
 
     /// destructor
     ~KoShapeLoadingContext();
@@ -169,17 +167,7 @@ public:
      */
     static QSet<AdditionalAttributeData> additionalAttributeData();
 
-    /**
-     * Get a data center
-     *
-     * If the data center is not found 0 is returned
-     */
-    KoDataCenter * dataCenter(const QString &dataCenterName);
-
-    /**
-     * Get a data center map
-     */
-    QMap<QString, KoDataCenter *> dataCenterMap() const;
+    KoResourceManager *documentResourceManager() const;
 
 private:
     // to allow only the KoShapeRegistry access to the KoShapeControllerBase

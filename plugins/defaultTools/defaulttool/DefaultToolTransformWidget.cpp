@@ -24,7 +24,7 @@
 
 #include <KoInteractionTool.h>
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoShapeManager.h>
 #include <KoSelection.h>
 #include <commands/KoShapeMoveCommand.h>
@@ -50,7 +50,7 @@ DefaultToolTransformWidget::DefaultToolTransformWidget( KoInteractionTool* tool,
 
     setUnit( m_tool->canvas()->unit() );
 
-    connect( m_tool->canvas()->resourceProvider(), SIGNAL( resourceChanged( int, const QVariant& ) ),
+    connect( m_tool->canvas()->resourceManager(), SIGNAL( resourceChanged( int, const QVariant& ) ),
         this, SLOT( resourceChanged( int, const QVariant& ) ) );
 
     connect( rotateButton, SIGNAL( clicked() ), this, SLOT( rotationChanged() ) );
@@ -72,9 +72,8 @@ void DefaultToolTransformWidget::setUnit( const KoUnit &unit )
 
 void DefaultToolTransformWidget::resourceChanged( int key, const QVariant & res )
 {
-    Q_UNUSED(res)
-    if( key == KoCanvasResource::Unit )
-        setUnit( m_tool->canvas()->unit() );
+    if (key == KoCanvasResource::Unit)
+        setUnit(res.value<KoUnit>());
 }
 
 void DefaultToolTransformWidget::rotationChanged()

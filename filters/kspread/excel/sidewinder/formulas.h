@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -134,8 +135,10 @@ public:
     // only when id is Attr
     unsigned attr() const;
 
+    // only when id is Name
+    unsigned long nameIndex() const;
     // only when id is NameX
-    unsigned nameIndex() const;
+    unsigned long nameXIndex() const;
 
     // only when id is Matrix (tExp)
     std::pair<unsigned, unsigned> baseFormulaRecord() const;
@@ -150,6 +153,28 @@ private:
 typedef std::vector<FormulaToken> FormulaTokens;
 
 std::ostream& operator<<(std::ostream& s, FormulaToken token);
+
+class DataTableRecord;
+class FormulaToken;
+typedef std::vector<FormulaToken> FormulaTokens;
+
+class FormulaDecoder
+{
+public:
+    FormulaDecoder() {}
+    virtual ~FormulaDecoder() {}
+
+    UString decodeFormula(unsigned row, unsigned col, bool isShared, const FormulaTokens& tokens);
+    UString dataTableFormula(unsigned row, unsigned col, const DataTableRecord* record);    
+
+    virtual const std::vector<UString>& externSheets() const { return m_externSheets; }
+    virtual UString nameFromIndex(unsigned /*index*/) const { return UString(); }
+    virtual UString externNameFromIndex(unsigned /*index*/) const { return UString(); }
+    virtual FormulaTokens sharedFormulas(const std::pair<unsigned, unsigned>& /*formulaCellPos*/) const { return FormulaTokens(); }
+    virtual DataTableRecord* tableRecord(const std::pair<unsigned, unsigned>& /*formulaCellPos*/) const { return 0; }
+protected:
+    std::vector<UString> m_externSheets;
+};
 
 } // namespace Swinder
 

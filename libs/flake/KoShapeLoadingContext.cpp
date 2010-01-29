@@ -23,8 +23,9 @@
 #include "KoShapeContainer.h"
 #include "KoSharedLoadingData.h"
 #include "KoShapeControllerBase.h"
-#include "KoDataCenter.h"
+#include "KoDataCenterBase.h"
 #include "KoImageCollection.h"
+#include "KoResourceManager.h"
 #include "KoLoadingShapeUpdater.h"
 
 #include <kdebug.h>
@@ -39,10 +40,12 @@ static QSet<KoShapeLoadingContext::AdditionalAttributeData> s_additionlAttribute
 class KoShapeLoadingContext::Private
 {
 public:
-    Private(KoOdfLoadingContext &c, const QMap<QString, KoDataCenter *> & dataCenterMap)
-            : context(c)
-            , zIndex(0)
-            , dataCenterMap(dataCenterMap) {}
+    Private(KoOdfLoadingContext &c, KoResourceManager *resourceManager)
+            : context(c),
+            zIndex(0),
+            documentResources(resourceManager)
+    {
+    }
     ~Private() {
         foreach(KoSharedLoadingData * data, sharedData) {
             delete data;
@@ -53,13 +56,13 @@ public:
     QMap<QString, KoShape*> drawIds;
     QMap<QString, KoSharedLoadingData*> sharedData;
     int zIndex;
-    QMap<QString, KoDataCenter *> dataCenterMap;
     QMap<QString, KoLoadingShapeUpdater*> updaterById;
     QMap<KoShape *, KoLoadingShapeUpdater*> updaterByShape;
+    KoResourceManager *documentResources;
 };
 
-KoShapeLoadingContext::KoShapeLoadingContext(KoOdfLoadingContext & context, const QMap<QString, KoDataCenter *> & dataCenterMap)
-        : d(new Private(context, dataCenterMap))
+KoShapeLoadingContext::KoShapeLoadingContext(KoOdfLoadingContext & context, KoResourceManager *documentResources)
+        : d(new Private(context, documentResources))
 {
 }
 
@@ -121,7 +124,7 @@ void KoShapeLoadingContext::shapeLoaded(KoShape * shape)
 
 KoImageCollection * KoShapeLoadingContext::imageCollection()
 {
-    return dynamic_cast<KoImageCollection*>(d->dataCenterMap.value("ImageCollection", 0));
+    return d->documentResources ? d->documentResources->imageCollection() : 0;
 }
 
 int KoShapeLoadingContext::zIndex()
@@ -166,12 +169,7 @@ QSet<KoShapeLoadingContext::AdditionalAttributeData> KoShapeLoadingContext::addi
     return s_additionlAttributes;
 }
 
-KoDataCenter * KoShapeLoadingContext::dataCenter(const QString & dataCenterName)
+KoResourceManager *KoShapeLoadingContext::documentResourceManager() const
 {
-    return d->dataCenterMap.value(dataCenterName, 0);
-}
-
-QMap<QString, KoDataCenter *> KoShapeLoadingContext::dataCenterMap() const
-{
-    return d->dataCenterMap;
+    return d->documentResources;
 }

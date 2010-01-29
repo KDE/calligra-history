@@ -22,7 +22,7 @@
 #include <QFile>
 #include <QVector>
 
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
 #include <KoDocument.h>
 #include <KoFilterChain.h>
 
@@ -46,15 +46,16 @@
 #include <KoColorSpaceRegistry.h>
 #include <kis_iterators_pixel.h>
 #include <kis_undo_adapter.h>
+#include <KoColorModelStandardIds.h>
 
 using namespace std;
 using namespace Imf;
 using namespace Imath;
 
-typedef KGenericFactory<KisOpenEXRImport> KisOpenEXRImportFactory;
-K_EXPORT_COMPONENT_FACTORY(libkrita_openexr_import, KisOpenEXRImportFactory("kofficefilters"))
+K_PLUGIN_FACTORY(KisOpenEXRImportFactory, registerPlugin<KisOpenEXRImport>();)
+K_EXPORT_PLUGIN(KisOpenEXRImportFactory("krita"))
 
-KisOpenEXRImport::KisOpenEXRImport(QObject *parent, const QStringList&) : KoFilter(parent)
+KisOpenEXRImport::KisOpenEXRImport(QObject *parent, const QVariantList &) : KoFilter(parent)
 {
 }
 
@@ -98,7 +99,7 @@ KoFilter::ConversionStatus KisOpenEXRImport::convert(const QByteArray& from, con
     int dataWidth  = dataWindow.max.x - dataWindow.min.x + 1;
     int dataHeight = dataWindow.max.y - dataWindow.min.y + 1;
 
-    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->colorSpace(KoID("RgbAF16", ""), "");
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(), Float16BitsColorDepthID.id(), "");
 
     if (cs == 0) {
         return KoFilter::InternalError;

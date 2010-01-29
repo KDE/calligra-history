@@ -25,15 +25,17 @@
 #include <kgenericfactory.h>
 #include <klocale.h>
 
-#include <KoProperties.h>
+#include <KoResourceManager.h>
 #include <KoToolRegistry.h>
 #include <KoShapeRegistry.h>
 #include <KoXmlNS.h>
 
-#include "Map.h"
+#include <Map.h>
 
 #include "TableShape.h"
 #include "TableToolFactory.h"
+
+#define MapResourceId 65227211
 
 using namespace KSpread;
 
@@ -46,16 +48,8 @@ TableShapePlugin::TableShapePlugin(QObject * parent,  const QStringList&)
 }
 
 
-class TableShapeFactory::Private
-{
-public:
-    Map* map;
-};
-
-
 TableShapeFactory::TableShapeFactory(QObject* parent)
-        : KoShapeFactory(parent, TableShapeId, i18n("Table"))
-        , d(new Private)
+        : KoShapeFactoryBase(parent, TableShapeId, i18n("Table"))
 {
     setToolTip(i18n("Table Shape"));
     setIcon("spreadsheetshape");
@@ -64,13 +58,6 @@ TableShapeFactory::TableShapeFactory(QObject* parent)
 
 TableShapeFactory::~TableShapeFactory()
 {
-    delete d;
-}
-
-void TableShapeFactory::populateDataCenterMap(QMap<QString, KoDataCenter*> &dataCenterMap)
-{
-    // One spreadsheet map for all inserted tables to allow referencing cells among them.
-    dataCenterMap["TableMap"] = new Map(0, "TableMap");
 }
 
 bool TableShapeFactory::supports(const KoXmlElement &element) const
@@ -78,17 +65,24 @@ bool TableShapeFactory::supports(const KoXmlElement &element) const
     return (element.namespaceURI() == KoXmlNS::table && element.localName() == "table");
 }
 
-KoShape* TableShapeFactory::createDefaultShape() const
+KoShape *TableShapeFactory::createDefaultShape(KoResourceManager *documentResources) const
 {
-    TableShape* shape = new TableShape();
+    TableShape *shape = new TableShape();
+    shape->setShapeId(TableShapeId);
+    if (documentResources) {
+        Q_ASSERT(documentResources->hasResource(MapResourceId));
+        Map *map = static_cast<Map*>(documentResources->resource(MapResourceId).value<void*>());
+        shape->setMap(map);
+    }
     return shape;
 }
 
-KoShape* TableShapeFactory::createShape(const KoProperties* params) const
+void TableShapeFactory::newDocumentResourceManager(KoResourceManager *manager)
 {
-    Q_UNUSED(params);
-    TableShape* shape = new TableShape();
-    return shape;
+    // One spreadsheet map for all inserted tables to allow referencing cells among them.
+    QVariant variant;
+    variant.setValue<void*>(new Map(0, "TableMap"));
+    manager->setResource(MapResourceId, variant);
 }
 
 #include "TableShapeFactory.moc"

@@ -22,22 +22,21 @@
 #define KOPATHSHAPEFACTORY_H
 
 #include "KoShape.h"
-#include "KoShapeFactory.h"
+#include "KoShapeFactoryBase.h"
 
 #include "KoXmlReader.h"
 
 /// Factory for path shapes.
-class FLAKE_TEST_EXPORT KoPathShapeFactory : public KoShapeFactory
+class FLAKE_TEST_EXPORT KoPathShapeFactory : public KoShapeFactoryBase
 {
 public:
     /// constructor
     KoPathShapeFactory(QObject *parent, const QStringList&);
     ~KoPathShapeFactory() {}
-    KoShape *createDefaultShape() const;
-    KoShape *createShape(const KoProperties *params) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     bool supports(const KoXmlElement &element) const;
     /// reimplemented
-    virtual void populateDataCenterMap(QMap<QString, KoDataCenter *>   &dataCenterMap);
+    virtual void newDocumentResourceManager(KoResourceManager *manager);
 };
 
 #endif

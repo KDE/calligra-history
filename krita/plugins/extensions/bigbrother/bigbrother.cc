@@ -22,7 +22,7 @@
 #include <kactioncollection.h>
 #include <kcomponentdata.h>
 #include <kfiledialog.h>
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
 #include <klocale.h>
 #include <kstandarddirs.h>
 
@@ -41,11 +41,11 @@
 #include "actionseditor/kis_actions_editor.h"
 #include "actionseditor/kis_actions_editor_dialog.h"
 
-typedef KGenericFactory<BigBrotherPlugin> BigBrotherPluginFactory;
-K_EXPORT_COMPONENT_FACTORY(kritabigbrother, BigBrotherPluginFactory("krita"))
+K_PLUGIN_FACTORY(BigBrotherPluginFactory, registerPlugin<BigBrotherPlugin>();)
+K_EXPORT_PLUGIN(BigBrotherPluginFactory("krita"))
 
 
-BigBrotherPlugin::BigBrotherPlugin(QObject *parent, const QStringList &)
+BigBrotherPlugin::BigBrotherPlugin(QObject *parent, const QVariantList &)
         : KParts::Plugin(parent), m_recorder(0)
 {
     if (parent->inherits("KisView2")) {
@@ -129,7 +129,7 @@ void BigBrotherPlugin::slotStartRecordingMacro()
     // Create recorder
     m_recorder = new KisMacro();
     connect(m_view->image()->actionRecorder(), SIGNAL(addedAction(const KisRecordedAction&)),
-            m_recorder, SLOT(addRecordedAction(const KisRecordedAction&)));
+            m_recorder, SLOT(addAction(const KisRecordedAction&)));
 }
 
 void BigBrotherPlugin::slotStopRecordingMacro()

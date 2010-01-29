@@ -28,8 +28,8 @@
 #include <QPaintEvent>
 #include <QVariant>
 
-#include <KoCanvasResourceProvider.h>
-#include <KoTool.h>
+#include <KoResourceManager.h>
+#include <KoToolBase.h>
 #include <KoAbstractGradient.h>
 
 #include <krita_export.h>
@@ -57,9 +57,6 @@ class KoSliderCombo;
 
 enum enumBrushMode {
     PAINT,
-    PAINT_STYLUS,
-    ERASE,
-    ERASE_STYLUS,
     HOVER,
     EDIT_BRUSH,
     PAN
@@ -103,7 +100,7 @@ protected:
     virtual QWidget * createOptionWidget();
 
     /** Quick help is a short help text about the way the tool functions.
-    * Deprecated: this method may move to KoToolFactory.
+    * Deprecated: this method may move to KoToolFactoryBase.
     */
     virtual KDE_DEPRECATED QString quickHelp() const {
         return QString();
@@ -143,7 +140,8 @@ private:
     bool m_supportOutline;
 
 signals:
-    void favoritePaletteCalled(const QPoint&);
+    void sigFavoritePaletteCalled(const QPoint&);
+    void sigPainting();
 };
 
 #endif // KIS_TOOL_PAINT_H_

@@ -62,7 +62,7 @@
 // KOffice
 #include <KoCanvasBase.h>
 #include <KoCanvasController.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoViewConverter.h>
 
 // KDE
@@ -836,10 +836,10 @@ bool CellToolBase::Private::formatKeyPress(QKeyEvent * _ev)
 
     case Qt::Key_Ampersand:
         command->setText(i18n("Change Border"));
-        command->setTopBorderPen(QPen(q->canvas()->resourceProvider()->foregroundColor().toQColor(), 1, Qt::SolidLine));
-        command->setBottomBorderPen(QPen(q->canvas()->resourceProvider()->foregroundColor().toQColor(), 1, Qt::SolidLine));
-        command->setLeftBorderPen(QPen(q->canvas()->resourceProvider()->foregroundColor().toQColor(), 1, Qt::SolidLine));
-        command->setRightBorderPen(QPen(q->canvas()->resourceProvider()->foregroundColor().toQColor(), 1, Qt::SolidLine));
+        command->setTopBorderPen(QPen(q->canvas()->resourceManager()->foregroundColor().toQColor(), 1, Qt::SolidLine));
+        command->setBottomBorderPen(QPen(q->canvas()->resourceManager()->foregroundColor().toQColor(), 1, Qt::SolidLine));
+        command->setLeftBorderPen(QPen(q->canvas()->resourceManager()->foregroundColor().toQColor(), 1, Qt::SolidLine));
+        command->setRightBorderPen(QPen(q->canvas()->resourceManager()->foregroundColor().toQColor(), 1, Qt::SolidLine));
         break;
 
     default:
@@ -1179,7 +1179,7 @@ QList<QAction*> CellToolBase::Private::popupActionList() const
             actions.append(popupMenuActions["separator3"]);
             actions.append(popupMenuActions["insertCell"]);
             actions.append(popupMenuActions["deleteCell"]);
-        } else if (q->selection()->isColumnSelected() && q->selection()->isSingular()) {
+        } else if (q->selection()->isColumnSelected()) {
             actions.append(q->action("resizeCol"));
             actions.append(popupMenuActions["adjustColumn"]);
             actions.append(popupMenuActions["separator4"]);
@@ -1216,7 +1216,7 @@ QList<QAction*> CellToolBase::Private::popupActionList() const
                     break;
                 }
             }
-        } else if (q->selection()->isRowSelected() && q->selection()->isSingular()) {
+        } else if (q->selection()->isRowSelected()) {
             actions.append(q->action("resizeRow"));
             actions.append(popupMenuActions["adjustRow"]);
             actions.append(popupMenuActions["separator5"]);

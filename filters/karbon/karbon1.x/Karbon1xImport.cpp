@@ -33,6 +33,7 @@
 #include <KoShapeContainer.h>
 #include <KoShapeLayer.h>
 #include <KoPathShape.h>
+#include <KoResourceManager.h>
 #include <KoPathShapeLoader.h>
 #include <KoShapeGroup.h>
 #include <commands/KoShapeGroupCommand.h>
@@ -242,7 +243,7 @@ bool KarbonImport::loadXML(const KoXmlElement& doc)
     double height = doc.attribute("height", "550.0").toDouble();
 
     m_document.setPageSize(QSizeF(width, height));
-    m_document.setUnit(KoUnit::unit(doc.attribute("unit", KoUnit::unitName(m_document.unit()))));
+    //m_document.setUnit(KoUnit::unit(doc.attribute("unit", KoUnit::unitName(m_document.unit()))));
 
     m_mirrorMatrix.scale(1.0, -1.0);
     m_mirrorMatrix.translate(0, -m_document.pageSize().height());
@@ -514,8 +515,7 @@ void KarbonImport::loadPattern(KoShape * shape, const KoXmlElement &element)
         return;
     }
 
-    KoDataCenter * dataCenter = m_document.dataCenterMap().value("ImageCollection", 0);
-    KoImageCollection * imageCollection = dynamic_cast<KoImageCollection*>(dataCenter);
+    KoImageCollection *imageCollection = m_document.resourceManager()->imageCollection();
     if (imageCollection) {
         KoPatternBackground * newFill = new KoPatternBackground(imageCollection);
         newFill->setPattern(img.mirrored(false, true));

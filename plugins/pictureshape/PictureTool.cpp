@@ -36,7 +36,7 @@
 #include <KoPointerEvent.h>
 
 PictureTool::PictureTool( KoCanvasBase* canvas )
-    : KoTool( canvas ),
+    : KoToolBase( canvas ),
       m_pictureshape(0)
 {
 }
@@ -120,4 +120,4 @@ void PictureTool::mouseDoubleClickEvent( KoPointerEvent *event )
 */
 }
 
-#include "PictureTool.moc"
+#include <PictureTool.moc>

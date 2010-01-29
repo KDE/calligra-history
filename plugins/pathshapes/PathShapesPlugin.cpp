@@ -18,7 +18,7 @@
  * Boston, MA 02110-1301, USA.
  */
 #include <KoShapeRegistry.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 #include "PathShapesPlugin.h"
 #include "star/StarShapeFactory.h"
@@ -41,4 +41,4 @@ PathShapesPlugin::PathShapesPlugin(QObject *parent, const QStringList&)
     KoShapeRegistry::instance()->add(new EnhancedPathShapeFactory(parent));
 }
 
-#include "PathShapesPlugin.moc"
+#include <PathShapesPlugin.moc>

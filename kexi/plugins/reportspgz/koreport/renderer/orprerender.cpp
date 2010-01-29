@@ -70,7 +70,6 @@ public:
     virtual ~ORPreRenderPrivate();
 
     bool m_valid;
-    QDomDocument m_docReport;
 
     KexiDB::Connection *m_conn;
 
@@ -513,7 +512,7 @@ qreal ORPreRenderPrivate::renderSection(const KRSectionData & sectionData)
 #if KDE_IS_VERSION(4,2,88)
                     QVariant v = m_scriptHandler->evaluate(cs.mid(1));
 #else
-                    QVariant v = _handler->evaluate(f->entityName());
+                    QVariant v = m_scriptHandler->evaluate(f->entityName());
 #endif
 
                     str = v.toString();
@@ -784,7 +783,7 @@ qreal ORPreRenderPrivate::renderSection(const KRSectionData & sectionData)
 #if KDE_IS_VERSION(4,2,88)
                 str = m_scriptHandler->evaluate(cs.mid(1)).toString();
 #else
-                str = _handler->evaluate(cd->entityName()).toString();
+                str = m_scriptHandler->evaluate(cd->entityName()).toString();
 #endif
             } else {
                 QString clm = cd->m_controlSource->value().toString();
@@ -831,7 +830,7 @@ void ORPreRenderPrivate::initEngine()
 // ORPreRender
 //
 
-ORPreRender::ORPreRender(const QString & pDocument)
+ORPreRender::ORPreRender(const QDomElement & pDocument)
 {
     d = new ORPreRenderPrivate();
     setDom(pDocument);
@@ -967,7 +966,7 @@ ORODocument* ORPreRender::generate()
         if (detailData->m_detailSection) {
             KoReportData *mydata = d->m_kodata;
 
-            if (mydata) { /* && !((query = orqThis->getQuery())->eof()))*/
+            if (mydata && mydata->recordCount() > 0) { /* && !((query = orqThis->getQuery())->eof()))*/
                 mydata->moveFirst();
                 do {
                     tmp = d->m_yOffset; // store the value as renderSection changes it
@@ -1043,16 +1042,19 @@ void ORPreRender::setSourceData(KoReportData *data)
     }
 }
 
-bool ORPreRender::setDom(const QString & docReport)
+bool ORPreRender::setDom(const QDomElement &docReport)
 {
-    kDebug() << docReport;
     if (d) {
         if (d->m_reportData)
             delete d->m_reportData;
         d->m_valid = false;
 
-        d->m_docReport.setContent(docReport);
-        d->m_reportData = new KRReportData(d->m_docReport.documentElement().firstChildElement("report:content"));
+	if (docReport.tagName() != "report:content") {
+		kDebug() << "report schema is invalid";
+		return false;
+	}
+	
+        d->m_reportData = new KRReportData(docReport);
         d->m_valid = d->m_reportData->isValid();
     }
     return isValid();

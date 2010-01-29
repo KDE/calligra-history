@@ -35,7 +35,6 @@
 #include <QRectF>
 
 #include <karboncommon_export.h>
-#include <KoUnit.h>
 #include <KoShapeLoadingContext.h>
 #include <KoGenStyle.h>
 #include <KoXmlReader.h>
@@ -46,7 +45,8 @@ class KoShapeSavingContext;
 class KoShapeLayer;
 class KoImageCollection;
 class KoStore;
-class KoDataCenter;
+class KoDataCenterBase;
+class KoResourceManager;
 
 /**
  * All non-visual, static doc info is in here.
@@ -68,29 +68,15 @@ public:
      *
      * @param document the document to copy properties from
      */
-    KarbonDocument( const KarbonDocument& document );
+    KarbonDocument(const KarbonDocument& document);
 
-    /** 
+    /**
      * Destroys the document and all of the layers.
      */
     virtual ~KarbonDocument();
 
     /**
-     * Returns document unit.
-     *
-     * @return the document's unit
-     */
-    KoUnit unit() const;
-
-    /**
-     * Sets document unit.
-     *
-     * @param unit the new document unit
-     */
-    void setUnit( KoUnit unit );
-
-    /**
-     * Checks if specified layer can be raised. 
+     * Checks if specified layer can be raised.
      *
      * A layer can be raised if there is more than one layer and the specified layer
      * is not already at the top.
@@ -98,10 +84,10 @@ public:
      * @param layer the layer to check
      * @return true if layer can be raised, else false
      */
-    bool canRaiseLayer( KoShapeLayer* layer );
+    bool canRaiseLayer(KoShapeLayer* layer);
 
     /**
-     * Checks if specified layer can be lowered. 
+     * Checks if specified layer can be lowered.
      *
      * A layer can be lowered if there is more than one layer and the specified layer
      * is not already at the bottom.
@@ -109,21 +95,21 @@ public:
      * @param layer the layer to check
      * @return true if layer can be lowered, else false
      */
-    bool canLowerLayer( KoShapeLayer* layer );
+    bool canLowerLayer(KoShapeLayer* layer);
 
     /**
      * Raises the layer.
-     * 
+     *
      * @param layer the layer to raise
      */
-    void raiseLayer( KoShapeLayer* layer );
+    void raiseLayer(KoShapeLayer* layer);
 
     /**
      * Lowers the layer.
-     * 
+     *
      * @param layer the layer to lower
      */
-    void lowerLayer( KoShapeLayer* layer );
+    void lowerLayer(KoShapeLayer* layer);
 
     /**
      * Returns the position of the specified layer.
@@ -131,16 +117,16 @@ public:
      * @param layer the layer to retrieve the position for
      * @return the layer position
      */
-    int layerPos( KoShapeLayer* layer );
+    int layerPos(KoShapeLayer* layer);
 
     /**
      * Inserts a new layer.
-     * 
+     *
      * The layer is appended at the end, on top of all other layers, and is activated.
      *
      * @param layer the layer to insert
      */
-    void insertLayer( KoShapeLayer* layer );
+    void insertLayer(KoShapeLayer* layer);
 
     /**
      * Removes the layer.
@@ -149,7 +135,7 @@ public:
      *
      * @param layer the layer to remove
      */
-    void removeLayer( KoShapeLayer* layer );
+    void removeLayer(KoShapeLayer* layer);
 
     /**
      * Returns the list of layers.
@@ -168,25 +154,35 @@ public:
      */
     const QList<KoShape*> shapes() const;
 
-    void saveOasis( KoShapeSavingContext & context ) const;
-    bool saveOdf( KoDocument::SavingContext & documentContext );
-    bool loadOasis( const KoXmlElement &element, KoShapeLoadingContext &context );
-    void loadOdfStyles( KoShapeLoadingContext & context );
-    void saveOdfStyles( KoShapeSavingContext & context );
-    
+    void saveOasis(KoShapeSavingContext & context) const;
+    bool saveOdf(KoDocument::SavingContext & documentContext);
+    bool loadOasis(const KoXmlElement &element, KoShapeLoadingContext &context);
+    void loadOdfStyles(KoShapeLoadingContext & context);
+    void saveOdfStyles(KoShapeSavingContext & context);
+
     /**
     * Adds an object to the document.
     *
     * @param shape the object to append
     */
-    void add( KoShape* shape );
+    void add(KoShape* shape);
 
     /**
     * Removes an object from the document.
     *
     * @param shape the object to append
     */
-    void remove( KoShape* shape );
+    void remove(KoShape* shape);
+
+    /**
+     * Fetch the current resourceManager.
+     * See KoShapeController::resourceManager() for more details.
+     */
+    KoResourceManager *resourceManager() const;
+    /**
+     * Set a new resource manager.
+     */
+    void setResourceManager(KoResourceManager *rm);
 
     /// Returns the united bounding rectangle of the documents content and the document page
     QRectF boundingRect() const;
@@ -198,18 +194,19 @@ public:
     QSizeF pageSize() const;
 
     /// Sets the documents page size
-    void setPageSize( QSizeF pageSize );
+    void setPageSize(QSizeF pageSize);
 
     /// Returns the documents image collection
     KoImageCollection * imageCollection();
 
     /// Returns the documents data centers
-    QMap<QString, KoDataCenter*> dataCenterMap() const;
+    QMap<QString, KoDataCenterBase*> dataCenterMap() const;
 
     /// Sets the data centers to be used by this document
-    void useExternalDataCenterMap( QMap<QString, KoDataCenter*> dataCenters );
+    void useExternalDataCenterMap(QMap<QString, KoDataCenterBase*> dataCenters);
 
-    void addToDataCenterMap(const QString &key, KoDataCenter* dataCenter);
+    void addToDataCenterMap(const QString &key, KoDataCenterBase* dataCenter);
+
 private:
 
     class Private;

@@ -61,7 +61,7 @@ ChartShapePlugin::ChartShapePlugin( QObject * parent,  const QStringList& )
 
 
 ChartShapeFactory::ChartShapeFactory( QObject* parent )
-    : KoShapeFactory( parent, ChartShapeId, i18n( "Chart" ) )
+    : KoShapeFactoryBase( parent, ChartShapeId, i18n( "Chart" ) )
 {
     setOdfElementNames( "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0", QStringList( "object" ) );
     setToolTip( i18n( "Business charts" ) );
@@ -71,7 +71,7 @@ ChartShapeFactory::ChartShapeFactory( QObject* parent )
 
     // Default 'app specific' config pages i.e. unless an app defines
     // other config pages, these are used.
-    QList<KoShapeConfigFactory*> panelFactories;
+    QList<KoShapeConfigFactoryBase*> panelFactories;
     // panelFactories.append( new ChartDataConfigFactory() );
     setOptionPanels( panelFactories );
 }
@@ -83,9 +83,9 @@ bool ChartShapeFactory::supports( const KoXmlElement &element ) const
         && element.tagName() == "object";
 }
 
-KoShape* ChartShapeFactory::createDefaultShape() const
+KoShape *ChartShapeFactory::createDefaultShape(KoResourceManager *documentResources) const
 {
-    ChartShape* shape = new ChartShape();
+    ChartShape* shape = new ChartShape(documentResources);
 
     // Fill cells with data.
     QStandardItemModel  *m_chartData = new QStandardItemModel();
@@ -172,18 +172,14 @@ KoShape* ChartShapeFactory::createDefaultShape() const
     return shape;
 }
 
-KoShape* ChartShapeFactory::createShape( const KoProperties* params ) const
-{
-    Q_UNUSED( params );
-    
-    // TODO Use KoProperties to create a custom shape
-    return createDefaultShape();
-}
-
-
 QList<KoShapeConfigWidgetBase*> ChartShapeFactory::createShapeOptionPanels()
 {
     return QList<KoShapeConfigWidgetBase*>();
+}
+
+void ChartShapeFactory::newDocumentResourceManager(KoResourceManager *manager)
+{
+    
 }
 
 #include "ChartShapeFactory.moc"

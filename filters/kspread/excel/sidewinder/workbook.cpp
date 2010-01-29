@@ -1,5 +1,6 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003 Ariya Hidayat <ariya@kde.org>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -29,21 +30,34 @@ using namespace Swinder;
 class Workbook::Private
 {
 public:
+    Store* store;
     std::vector<Sheet*> sheets;
-    bool passwordProtected;
     QHash<PropertyType, QVariant> properties;
+    std::map<UString, UString> namedAreas;
+    int activeTab;
+    bool passwordProtected;
+    unsigned long passwd;
 };
 
-Workbook::Workbook()
+Workbook::Workbook(Store* store)
 {
     d = new Workbook::Private();
+    d->store = store;
     d->passwordProtected = false;
+    d->activeTab = -1;
+    d->passwd = 0; // password protection disabled
 }
 
 Workbook::~Workbook()
 {
     clear();
+    delete d->store;
     delete d;
+}
+
+Store* Workbook::store() const
+{
+    return d->store;
 }
 
 void Workbook::clear()
@@ -58,7 +72,7 @@ void Workbook::clear()
 
 bool Workbook::load(const char* filename)
 {
-    ExcelReader* reader = new ExcelReader;
+    ExcelReader* reader = new ExcelReader();
     bool result = reader->load(this, filename);
     delete reader;
     return result;
@@ -95,6 +109,26 @@ void Workbook::setProperty(PropertyType type, const QVariant &value)
     d->properties[ type ] = value;
 }
 
+std::map<UString, UString>& Workbook::namedAreas()
+{
+    return d->namedAreas;
+}
+
+void Workbook::setNamedArea(UString name, UString formula)
+{
+    d->namedAreas[name] = formula;
+}
+
+int Workbook::activeTab() const
+{
+    return d->activeTab;
+}
+
+void Workbook::setActiveTab(int tab)
+{
+    d->activeTab = tab;
+}
+
 bool Workbook::isPasswordProtected() const
 {
     return d->passwordProtected;
@@ -105,6 +139,12 @@ void Workbook::setPasswordProtected(bool p)
     d->passwordProtected = p;
 }
 
+unsigned long Workbook::password() const
+{
+    return d->passwd;
+}
 
-
-
+void Workbook::setPassword(unsigned long hash)
+{
+    d->passwd = hash;
+}

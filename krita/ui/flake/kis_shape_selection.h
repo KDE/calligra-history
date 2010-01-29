@@ -19,7 +19,7 @@
 #define KIS_SHAPE_SELECTION_H
 
 #include <KoShapeLayer.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 #include <kis_selection_component.h>
 #include <kis_types.h>
@@ -82,19 +82,18 @@ private:
 };
 
 
-class KRITAUI_EXPORT KisShapeSelectionFactory : public KoShapeFactory
+class KRITAUI_EXPORT KisShapeSelectionFactory : public KoShapeFactoryBase
 {
     Q_OBJECT
 public:
 
-    using KoShapeFactory::createDefaultShape;
-    using KoShapeFactory::createShape;
-
     KisShapeSelectionFactory(QObject* parent);
     ~KisShapeSelectionFactory() {}
 
-    KoShape* createDefaultShape() const;
-    KoShape* createShape(const KoProperties* params) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const {
+        Q_UNUSED(documentResources);
+        return 0;
+    }
 };
 
 #endif

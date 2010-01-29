@@ -23,7 +23,7 @@
 #include "shadowdocker/ShadowDockerFactory.h"
 #include "shapeselector/ShapeSelectorFactory.h"
 #include "colordocker/ColorDockerFactory.h"
-#include "shapecollection/KoShapeCollectionDocker.h"
+#include "shapecollection/ShapeCollectionDocker.h"
 #include "superdocker/KoSuperDockerFactory.h"
 
 #include <KoDockRegistry.h>
@@ -42,9 +42,9 @@ Plugin::Plugin(QObject *parent, const QStringList&)
     KoDockRegistry::instance()->add(new ShadowDockerFactory());
     KoDockRegistry::instance()->add(new ShapeSelectorFactory());
     KoDockRegistry::instance()->add(new ColorDockerFactory());
-    KoDockRegistry::instance()->add(new KoShapeCollectionDockerFactory());
+    KoDockRegistry::instance()->add(new ShapeCollectionDockerFactory());
     KoDockRegistry::instance()->add(new KoSuperDockerFactory());
 }
 
-#include "Plugin.moc"
+#include <Plugin.moc>
 

@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -25,6 +26,7 @@
 #include "excel.h"
 #include "cell.h"
 #include "sheet.h"
+#include <QPoint>
 
 //#define SWINDER_XLS2RAW
 
@@ -50,10 +52,10 @@ public:
         return "HLink";
     }
     virtual void dump(std::ostream&) const {}
-    static Record *createRecord() {
-        return new HLinkRecord;
+    static Record *createRecord(Workbook *book) {
+        return new HLinkRecord(book);
     }
-    HLinkRecord() : Record(), m_firstRow(0), m_firstColumn(0), m_lastRow(0), m_lastColumn(0) {}
+    HLinkRecord(Workbook *book) : Record(book), m_firstRow(0), m_firstColumn(0), m_lastRow(0), m_lastColumn(0) {}
     virtual ~HLinkRecord() {}
     virtual void setData(unsigned size, const unsigned char* data, const unsigned* /* continuePositions */) {
         if (size < 8) {
@@ -160,84 +162,6 @@ public:
 
 const unsigned HLinkRecord::id = 0x01B8;
 
-class MsoDrawingRecord : public Record
-{
-public:
-    static const unsigned id;
-    virtual unsigned rtti() const {
-        return this->id;
-    }
-    virtual const char* name() const {
-        return "MsoDrawing";
-    }
-    virtual void dump(std::ostream&) const {}
-    static Record *createRecord() {
-        return new MsoDrawingRecord;
-    }
-    MsoDrawingRecord() : Record() {}
-    virtual ~MsoDrawingRecord() {}
-
-    // read a OfficeArtRecordHeader struct
-    void readHeader(const unsigned char* data, unsigned *recVer = 0, unsigned *recInstance = 0, unsigned *recType = 0, unsigned long *recLen = 0) {
-        const unsigned recVerAndInstance = readU16(data); //4 bits version and 12 bits number of differentiate atoms in this record
-        if(recVer) {
-            unsigned rv = recVerAndInstance;
-            rv = (rv >> 12);
-            *recVer = rv;
-        }
-        if(recInstance) {
-            unsigned ri = recVerAndInstance;
-            ri = (ri << 4);
-            ri = (ri >> 4);
-            *recInstance = ri;
-        }
-        if(recType) {
-            *recType = readU16(data + 2);
-        }
-        if(recLen) {
-            *recLen = readU32(data + 4);
-        }
-    }
-        
-    virtual void setData(unsigned size, const unsigned char* data, const unsigned* /* continuePositions */) {
-        if(size < 24) {
-            setIsValid(false);
-            return;
-        }
-        
-        // rh
-        unsigned recVer = 0;
-        unsigned recInstance = 0;
-        unsigned recType = 0;
-        unsigned long recLen = 0;
-        readHeader(data, 0, 0, &recType, &recLen);
-        if(recType < 0xF000 || recType > 0xFFFF) {
-            std::cerr << "Invalid MsoDrawing record" << std::endl;
-            setIsValid(false);
-            return;
-        }
-        
-        // drawingData
-        readHeader(data + 8, &recVer, &recInstance, &recType, &recLen);
-        if(recVer != 0x0 || recInstance > 0xFFE || recType != 0xF008 || recLen != 0x00000008) {
-            std::cerr << "Invalid MsoDrawing record" << std::endl;
-            setIsValid(false);
-            return;
-        }
-        unsigned long csp = readU32(data + 16);
-        printf("Number of shapes=%i\n",csp);
-        unsigned long spidCur = readU32(data + 20); // MSOSPID, shape-identifier of the last shape in the drawing
-
-        // regroupItems
-        // groupShape
-        // shape
-        // deletedShapes
-        // solvers
-    }
-};
-
-const unsigned MsoDrawingRecord::id = 0xEC;
-
 class WorksheetSubStreamHandler::Private
 {
 public:
@@ -251,32 +175,71 @@ public:
     Cell* formulaStringCell;
 
     // mapping from cell position to data tables
-    std::map<std::pair<unsigned, unsigned>, DataTableRecord> dataTables;
+    std::map<std::pair<unsigned, unsigned>, DataTableRecord*> dataTables;
 
     // mapping from cell position to shared formulas
     std::map<std::pair<unsigned, unsigned>, FormulaTokens> sharedFormulas;
 
     // mapping from object id's to object instances
     std::map<unsigned long, Object*> sharedObjects;
+    
+    // maps object id's of NoteObject's to there continuous number
+    std::map<unsigned long, int> noteMap;
+    // the number of NoteObject's in this worksheet
+    int noteCount;
+    
+    // list of textobjects as received via TxO records
+    std::vector<UString> textObjects;
 };
 
 WorksheetSubStreamHandler::WorksheetSubStreamHandler(Sheet* sheet, const GlobalsSubStreamHandler* globals)
-        : d(new Private)
+        : SubStreamHandler(), FormulaDecoder(), d(new Private)
 {
     d->sheet = sheet;
     d->globals = globals;
     d->lastFormulaCell = 0;
     d->formulaStringCell = 0;
+    d->noteCount = 0;
 
     RecordRegistry::registerRecordClass(HLinkRecord::id, HLinkRecord::createRecord);
-    RecordRegistry::registerRecordClass(MsoDrawingRecord::id, MsoDrawingRecord::createRecord);
 }
 
 WorksheetSubStreamHandler::~WorksheetSubStreamHandler()
 {
+    for(std::map<std::pair<unsigned, unsigned>, DataTableRecord*>::iterator it = d->dataTables.begin(); it != d->dataTables.end(); ++it)
+        delete (*it).second;
+    //for(std::map<std::pair<unsigned, unsigned>, FormulaTokens*>::iterator it = d->sharedFormulas.begin(); it != d->sharedFormulas.end(); ++it)
+    //    delete it.second.second;
     delete d;
 }
 
+const std::vector<UString>& WorksheetSubStreamHandler::externSheets() const
+{
+    return d->globals->externSheets();
+}
+
+UString WorksheetSubStreamHandler::nameFromIndex(unsigned index) const
+{
+    return d->globals->nameFromIndex(index);
+}
+
+UString WorksheetSubStreamHandler::externNameFromIndex(unsigned index) const
+{
+    return d->globals->externNameFromIndex(index);
+}
+
+FormulaTokens WorksheetSubStreamHandler::sharedFormulas(const std::pair<unsigned, unsigned>& formulaCellPos) const
+{
+    std::map<std::pair<unsigned, unsigned>, FormulaTokens>::iterator sharedFormula = d->sharedFormulas.find(formulaCellPos);
+    return sharedFormula != d->sharedFormulas.end() ? sharedFormula->second : FormulaTokens();
+}
+
+DataTableRecord* WorksheetSubStreamHandler::tableRecord(const std::pair<unsigned, unsigned>& formulaCellPos) const
+{
+    std::map<std::pair<unsigned, unsigned>, DataTableRecord*>::iterator datatable = d->dataTables.find(formulaCellPos);
+    return datatable != d->dataTables.end() ? datatable->second : 0;
+}
+    
 void WorksheetSubStreamHandler::handleRecord(Record* record)
 {
     if (!record) return;
@@ -335,6 +298,8 @@ void WorksheetSubStreamHandler::handleRecord(Record* record)
         handleNote(static_cast<NoteRecord*>(record));
     else if (type == ObjRecord::id)
         handleObj(static_cast<ObjRecord*>(record));
+    else if (type == TxORecord::id)
+        handleTxO(static_cast<TxORecord*>(record));
     else if (type == BOFRecord::id)
         handleBOF(static_cast<BOFRecord*>(record));
     else if (type == DefaultRowHeightRecord::id)
@@ -352,9 +317,14 @@ void WorksheetSubStreamHandler::handleRecord(Record* record)
     else if (type == 0xA) {} //EofRecord
     else if (type == DimensionRecord::id)
         handleDimension(static_cast<DimensionRecord*>(record));
-    //else if (type == 0xEC) Q_ASSERT(false); // MsoDrawing
+    else if (type == MsoDrawingRecord::id)
+        handleMsoDrawing(static_cast<MsoDrawingRecord*>(record));
+    else if (type == Window2Record::id)
+        handleWindow2(static_cast<Window2Record*>(record));
+    else if (type == PasswordRecord::id)
+        handlePassword(static_cast<PasswordRecord*>(record));
     else {
-        std::cout << "Unhandled worksheet record with type=" << type << std::endl;
+        //std::cout << "Unhandled worksheet record with type=" << type << " name=" << record->name() << std::endl;
     }
 }
 
@@ -447,7 +417,7 @@ void WorksheetSubStreamHandler::handleDataTable(DataTableRecord* record)
     unsigned row = d->lastFormulaCell->row();
     unsigned column = d->lastFormulaCell->column();
 
-    d->dataTables[std::make_pair(row, column)] = *record;
+    d->dataTables[std::make_pair(row, column)] = new DataTableRecord(*record);
 
     UString formula = dataTableFormula(row, column, record);
     d->lastFormulaCell->setFormula(formula);
@@ -825,15 +795,27 @@ void WorksheetSubStreamHandler::handleLink(HLinkRecord* record)
     }
 }
 
+void WorksheetSubStreamHandler::handleTxO(TxORecord* record)
+{
+    if (!record) return;
+
+    std::cout << "WorksheetSubStreamHandler::handleTxO size=" << d->textObjects.size()+1 << " text=" << record->m_text << std::endl;
+    d->textObjects.push_back(record->m_text);
+}
+
 void WorksheetSubStreamHandler::handleNote(NoteRecord* record)
 {
     if (!record) return;
     if (!d->sheet) return;
     Cell *cell = d->sheet->cell(record->column(), record->row());
     if (cell) {
-        NoteObject *obj = static_cast<NoteObject*>(d->sharedObjects[ record->idObj()]);
+        const unsigned long id = record->idObj();
+        NoteObject *obj = static_cast<NoteObject*>(d->sharedObjects[id]);
         if (obj) {
-            cell->setNote(obj->note());
+            int offset = d->noteMap[id] - 1;
+            Q_ASSERT(offset>=0 && offset<d->textObjects.size());
+            cell->setNote(d->textObjects[offset]);
+            //cell->setNote(obj->note());
         }
     }
 }
@@ -843,21 +825,22 @@ void WorksheetSubStreamHandler::handleObj(ObjRecord* record)
     if (!record) return;
     if (!record->m_object) return;
 
-    /*
-    std::cout << "WorksheetSubStreamHandler::handleObj id=" << record->m_object->id() << " type=" << record->m_object->type() << std::endl;
+    const unsigned long id = record->m_object->id();
+
+    std::cout << "WorksheetSubStreamHandler::handleObj id=" << id << " type=" << record->m_object->type() << std::endl;
     switch(record->m_object->type()) {
-        case Object::Picture: {
-            PictureObject *r = static_cast<PictureObject*>(record->m_object);
-            if( ! r) return;
-            std::cout << "PICTURE embeddedStorage=" << r->embeddedStorage().c_str() << std::endl;
-        }
-        break;
+        //case Object::Picture:
+        //    PictureObject *r = static_cast<PictureObject*>(record->m_object);
+        //    std::cout << "PICTURE embeddedStorage=" << r->embeddedStorage().c_str() << std::endl;
+        //    break;
+        case Object::Note:
+            d->noteMap[id] = ++d->noteCount;
+            break;
         default:
             break;
     }
-    */
 
-    d->sharedObjects[ record->m_object->id()] = record->m_object;
+    d->sharedObjects[id] = record->m_object;
 }
 
 void WorksheetSubStreamHandler::handleDefaultRowHeight(DefaultRowHeightRecord* record)
@@ -897,413 +880,107 @@ void WorksheetSubStreamHandler::handleZoomLevel(ZoomLevelRecord *record)
     d->sheet->setZoomLevel( record->numerator() / double(record->denominator()) );
 }
 
-typedef std::vector<UString> UStringStack;
-
-static void mergeTokens(UStringStack* stack, unsigned count, UString mergeString)
+void WorksheetSubStreamHandler::handleMsoDrawing(MsoDrawingRecord* record)
 {
-    if (!stack) return;
-    if (stack->size() < count) return;
-
-    UString s1, s2;
-
-    while (count) {
-        count--;
-
-        UString last = (*stack)[stack->size()-1];
-        UString tmp = last;
-        tmp.append(s1);
-        s1 = tmp;
-
-        if (count) {
-            tmp = mergeString;
-            tmp.append(s1);
-            s1 = tmp;
-        }
-
-        stack->resize(stack->size() - 1);
+    if (!record) return;
+    if (!d->sheet) return;
+    
+    // picture?
+    std::map<unsigned long,unsigned long>::iterator pit = record->m_properties.find(DrawingObject::pid);
+    if(pit != record->m_properties.end()) {
+        const unsigned long id = (*pit).second;
+        std::cout << "WorksheetSubStreamHandler::handleMsoDrawing pid=" << id << std::endl;
+        MsoDrawingBlibItem *drawing = d->globals->drawing(id);
+        if(!drawing) return;
+        Cell *cell = d->sheet->cell(record->m_colL, record->m_rwT);
+        Q_ASSERT(cell);
+        cell->addPicture(new Picture(record,drawing));
+        return;
     }
 
-    stack->push_back(s1);
+    // text?
+    std::map<unsigned long,unsigned long>::iterator txit = record->m_properties.find(DrawingObject::itxid);
+    if(txit != record->m_properties.end()) {
+        const unsigned long id = (*txit).second;
+        std::cout << "TODO WorksheetSubStreamHandler::handleMsoDrawing itxid=" << id << std::endl;
+
+        //TODO
+        //Q_ASSERT(d->globals->drawing(id));
+        //Q_ASSERT(false);
+        
+        return;
+    }
+
+    std::cerr << "WorksheetSubStreamHandler::handleMsoDrawing No pid" << std::endl;
 }
 
-#ifdef SWINDER_XLS2RAW
-static void dumpStack(std::vector<UString> stack)
+void WorksheetSubStreamHandler::handleWindow2(Window2Record* record)
 {
-    std::cout << std::endl;
-    std::cout << "Stack now is: " ;
-    if (!stack.size())
-        std::cout << "(empty)" ;
-
-    for (unsigned i = 0; i < stack.size(); i++)
-        std::cout << "  " << i << ": " << stack[i].ascii() << std::endl;
-    std::cout << std::endl;
-}
-#endif
-
-UString WorksheetSubStreamHandler::decodeFormula(unsigned row, unsigned col, bool isShared, const FormulaTokens& tokens)
-{
-    UStringStack stack;
-
-    for (unsigned c = 0; c < tokens.size(); c++) {
-        FormulaToken token = tokens[c];
-
-#ifdef SWINDER_XLS2RAW
-        std::cout << "Formula Token " << c << ": ";
-        std::cout <<  token.id() << "  ";
-        std::cout << token.idAsString() << std::endl;
-#endif
-
-        switch (token.id()) {
-        case FormulaToken::Add:
-            mergeTokens(&stack, 2, UString("+"));
-            break;
-
-        case FormulaToken::Sub:
-            mergeTokens(&stack, 2, UString("-"));
-            break;
-
-        case FormulaToken::Mul:
-            mergeTokens(&stack, 2, UString("*"));
-            break;
-
-        case FormulaToken::Div:
-            mergeTokens(&stack, 2, UString("/"));
-            break;
-
-        case FormulaToken::Power:
-            mergeTokens(&stack, 2, UString("^"));
-            break;
-
-        case FormulaToken::Concat:
-            mergeTokens(&stack, 2, UString("&"));
-            break;
-
-        case FormulaToken::LT:
-            mergeTokens(&stack, 2, UString("<"));
-            break;
-
-        case FormulaToken::LE:
-            mergeTokens(&stack, 2, UString("<="));
-            break;
-
-        case FormulaToken::EQ:
-            mergeTokens(&stack, 2, UString("="));
-            break;
-
-        case FormulaToken::GE:
-            mergeTokens(&stack, 2, UString(">="));
-            break;
-
-        case FormulaToken::GT:
-            mergeTokens(&stack, 2, UString(">"));
-            break;
-
-        case FormulaToken::NE:
-            mergeTokens(&stack, 2, UString("<>"));
-            break;
-
-        case FormulaToken::Intersect:
-            mergeTokens(&stack, 2, UString(" "));
-            break;
-
-        case FormulaToken::List:
-            mergeTokens(&stack, 2, UString(";"));
-            break;
-
-        case FormulaToken::Range:
-            mergeTokens(&stack, 2, UString(";"));
-            break;
-
-        case FormulaToken::UPlus: {
-            UString str("+");
-            str.append(stack[stack.size()-1]);
-            stack[stack.size()-1] = str;
-            break;
-        }
-
-        case FormulaToken::UMinus: {
-            UString str("-");
-            str.append(stack[ stack.size()-1 ]);
-            stack[stack.size()-1] = str;
-            break;
-        }
-
-        case FormulaToken::Percent:
-            stack[stack.size()-1].append(UString("%"));
-            break;
-
-        case FormulaToken::Paren: {
-            UString str("(");
-            str.append(stack[ stack.size()-1 ]);
-            str.append(UString(")"));
-            stack[stack.size()-1] = str;
-            break;
-        }
-
-        case FormulaToken::MissArg:
-            // just ignore
-            stack.push_back(UString(" "));
-            break;
-
-        case FormulaToken::String: {
-            UString str('\"');
-            str.append(token.value().asString());
-            str.append(UString('\"'));
-            stack.push_back(str);
-            break;
-        }
-
-        case FormulaToken::Bool:
-            if (token.value().asBoolean())
-                stack.push_back(UString("TRUE"));
-            else
-                stack.push_back(UString("FALSE"));
-            break;
-
-        case FormulaToken::Integer:
-            stack.push_back(UString::from(token.value().asInteger()));
-            break;
-
-        case FormulaToken::Float:
-            stack.push_back(UString::from(token.value().asFloat()));
-            break;
-
-        case FormulaToken::Array:
-            stack.push_back(token.array(row, col));
-            break;
-
-        case FormulaToken::Ref:
-            stack.push_back(token.ref(row, col));
-            break;
-
-        case FormulaToken::RefN:
-            stack.push_back(token.refn(row, col));
-            break;
-
-        case FormulaToken::Ref3d:
-            stack.push_back(token.ref3d(d->globals->externSheets(), row, col));
-            break;
-
-        case FormulaToken::Area:
-            stack.push_back(token.area(row, col));
-            break;
-
-        case FormulaToken::AreaN:
-            stack.push_back(token.area(row, col, true));
-            break;
-
-        case FormulaToken::Area3d:
-            stack.push_back(token.area3d(d->globals->externSheets(), row, col));
-            break;
-
-        case FormulaToken::Function: {
-            mergeTokens(&stack, token.functionParams(), UString(";"));
-            if (stack.size()) {
-                UString str(token.functionName() ? token.functionName() : "??");
-                str.append(UString("("));
-                str.append(stack[stack.size()-1]);
-                str.append(UString(")"));
-                stack[stack.size()-1] = str;
-            }
-            break;
-        }
-
-        case FormulaToken::FunctionVar:
-            if (token.functionIndex() != 255) {
-                mergeTokens(&stack, token.functionParams(), UString(";"));
-                if (stack.size()) {
-                    UString str;
-                    if (token.functionIndex() != 255)
-                        str = token.functionName() ? token.functionName() : "??";
-                    str.append(UString("("));
-                    str.append(stack[stack.size()-1]);
-                    str.append(UString(")"));
-                    stack[stack.size()-1] = str;
-                }
-            } else {
-                unsigned count = token.functionParams() - 1;
-                mergeTokens(&stack, count, UString(";"));
-                if (stack.size()) {
-                    UString str;
-                    str.append(UString("("));
-                    str.append(stack[ stack.size()-1 ]);
-                    str.append(UString(")"));
-                    stack[stack.size()-1] = str;
-                }
-            }
-            break;
-
-        case FormulaToken::Attr:
-            if (token.attr() & 0x10) { // SUM
-                mergeTokens(&stack, 1, UString(";"));
-                if (stack.size()) {
-                    UString str("SUM");
-                    str.append(UString("("));
-                    str.append(stack[ stack.size()-1 ]);
-                    str.append(UString(")"));
-                    stack[stack.size()-1] = str;
-                }
-            }
-            break;
-
-        case FormulaToken::Name:
-            stack.push_back(d->globals->nameFromIndex(token.nameIndex()));
-            break;
-
-        case FormulaToken::NameX:
-            stack.push_back(d->globals->externNameFromIndex(token.nameIndex()));
-            break;
-
-        case FormulaToken::Matrix: {
-            std::pair<unsigned, unsigned> formulaCellPos = token.baseFormulaRecord();
-            if( isShared ) {
-              std::map<std::pair<unsigned, unsigned>, FormulaTokens>::iterator sharedFormula = d->sharedFormulas.find(formulaCellPos);
-              if (sharedFormula != d->sharedFormulas.end()) {
-                  stack.push_back(decodeFormula(row, col, isShared, sharedFormula->second));
-              } else {
-                  stack.push_back(UString("Error"));
-              }
-            } else {
-              // "2.5.198.58 PtgExp" says that if its not a sharedFormula then it's an indication that the
-              // result is an reference to cells. So, we can savly ignore that case...
-              std::cout << "MATRIX first=%i second=" << formulaCellPos.first << " " << formulaCellPos.second << std::endl;
-            }
-            break;
-        }
-
-        case FormulaToken::Table: {
-            std::pair<unsigned, unsigned> formulaCellPos = token.baseFormulaRecord();
-            if( isShared ) {
-              std::map<std::pair<unsigned, unsigned>, DataTableRecord>::iterator datatable = d->dataTables.find(formulaCellPos);
-              if (datatable != d->dataTables.end()) {
-                  stack.push_back(dataTableFormula(row, col, &datatable->second));
-              } else {
-                  stack.push_back(UString("Error"));
-              }
-            } else {
-              std::cout << "TABLE first=%i second=" << formulaCellPos.first << " " << formulaCellPos.second << std::endl;
-            }
-            break;
-        }
-
-        case FormulaToken::MemArea: {
-            UString s = token.areaMap(row, col);
-            stack.push_back(s);
-            break;
-        }
-
-        case FormulaToken::RefErr:
-        case FormulaToken::AreaErr:
-        case FormulaToken::MemErr:
-        case FormulaToken::RefErr3d:
-        case FormulaToken::AreaErr3d:
-            stack.push_back(UString("#REF!"));
-            break;
-
-        case FormulaToken::ErrorCode:
-            stack.push_back(token.value().asString());
-            break;
-            
-        case 0: break; // NOPE
-
-        case FormulaToken::NatFormula:
-        case FormulaToken::Sheet:
-        case FormulaToken::EndSheet:
-        case FormulaToken::MemNoMem:
-        case FormulaToken::MemFunc:
-        case FormulaToken::MemAreaN:
-        case FormulaToken::MemNoMemN:
-        default:
-            // FIXME handle this !
-            std::cout << "Unhandled token=" << token.idAsString() << std::endl;
-            stack.push_back(UString("Unknown"));
-            break;
-        };
-
-#ifdef SWINDER_XLS2RAW
-        dumpStack(stack);
-#endif
-    }
-
-    UString result;
-    for (unsigned i = 0; i < stack.size(); i++)
-        result.append(stack[i]);
-
-#ifdef SWINDER_XLS2RAW
-    std::cout << "FORMULA Result: " << result << std::endl;
-#endif
-    return result;
+    if (!record) return;
+    if (!d->sheet) return;
+    d->sheet->setShowGrid(record->isFDspGridRt());
+    d->sheet->setShowZeroValues(record->isFDspZerosRt());
+    d->sheet->setFirstVisibleCell(QPoint(record->colLeft(),record->rwTop()));
+    d->sheet->setPageBreakViewEnabled(record->isFSLV());
 }
 
-UString WorksheetSubStreamHandler::dataTableFormula(unsigned row, unsigned col, const DataTableRecord* record)
+void WorksheetSubStreamHandler::handlePassword(PasswordRecord* record)
 {
-    UString result("MULTIPLE.OPERATIONS(");
+    if (!record) return;
+    if (!d->sheet) return;
+    if (!record->wPassword()) return;
+    std::cout << "WorksheetSubStreamHandler::handlePassword passwordHash=" << record->wPassword() << std::endl;
+    d->sheet->setPassword(record->wPassword());
 
-    unsigned formulaRow = 0, formulaCol = 0;
-    switch (record->direction()) {
-    case DataTableRecord::InputRow:
-        formulaRow = row;
-        formulaCol = record->firstColumn() - 1;
-        break;
-    case DataTableRecord::InputColumn:
-        formulaRow = record->firstRow() - 1;
-        formulaCol = col;
-        break;
-    case DataTableRecord::Input2D:
-        formulaRow = record->firstRow() - 1;
-        formulaCol = record->firstColumn() - 1;
-        break;
+#if 0
+    quint16 nHash = record->wPassword() ^ 0xCE4B;
+    quint16 nDummy = nHash;
+    quint16 nLen = 9;
+    while( !(nDummy & 0x8000) && nLen ) { --nLen; nDummy <<= 1; }
+    if( !nLen ) nLen = 2;
+    if( (nLen ^ nHash) & 0x0001 ) nLen++;
+    if( nLen == 9 ) { nLen = 10; nHash ^= 0x8001; }
+    nHash ^= nLen;
+    if( nLen < 9 ) nHash <<= (8 - nLen);
+    quint16 nNewChar = 0;
+    QByteArray sPasswd;
+    for( quint16 iChar = nLen; iChar > 0; iChar-- ) {
+        switch( iChar ) {
+            case 10:
+                nNewChar = (nHash & 0xC000) | 0x0400;
+                nHash ^= nNewChar;
+                nNewChar >>= 2;
+                break;
+            case 9:
+                nNewChar = 0x4200;
+                nHash ^= nNewChar;
+                nNewChar >>= 1;
+                break;
+            case 1:
+                nNewChar = nHash & 0xFF00;
+                break;
+            default:
+                nNewChar = (nHash & 0xE000) ^ 0x2000;
+                if( !nNewChar ) nNewChar = (nHash & 0xF000) ^ 0x1800;
+                if( nNewChar == 0x6000 ) nNewChar = 0x6100;
+                nHash ^= nNewChar;
+                nHash <<= 1;
+                break;
+        }
+        nNewChar >>= 8;
+        nNewChar &= 0x00FF;
+
+        //QByteArray sDummy = sPasswd;
+        //typedef sal_Char STRING16[ 16 ];
+        //sPasswd = (sal_Char) nNewChar;
+        //sPasswd += sDummy;        
+
+        sPasswd.prepend(QChar(nNewChar));
     }
-
-    result.append(UString("[.$"));
-    result.append(Cell::columnLabel(formulaCol));
-    result.append(UString("$"));
-    result.append(UString::from(formulaRow + 1));
-    result.append(UString("]"));
-
-    if (record->direction() == DataTableRecord::Input2D) {
-        result.append(UString(";[.$"));
-        result.append(Cell::columnLabel(record->inputColumn2()));
-        result.append(UString("$"));
-        result.append(UString::from(record->inputRow2() + 1));
-        result.append(UString("]"));
-    } else {
-        result.append(UString(";[.$"));
-        result.append(Cell::columnLabel(record->inputColumn1()));
-        result.append(UString("$"));
-        result.append(UString::from(record->inputRow1() + 1));
-        result.append(UString("]"));
-    }
-
-    if (record->direction() == DataTableRecord::Input2D || record->direction() == DataTableRecord::InputColumn) {
-        result.append(UString(";[.$"));
-        result.append(Cell::columnLabel(record->firstColumn() - 1));
-        result.append(UString::from(row + 1));
-        result.append(UString("]"));
-    }
-
-    if (record->direction() == DataTableRecord::Input2D) {
-        result.append(UString(";[.$"));
-        result.append(Cell::columnLabel(record->inputColumn1()));
-        result.append(UString("$"));
-        result.append(UString::from(record->inputRow1() + 1));
-        result.append(UString("]"));
-    }
-
-    if (record->direction() == DataTableRecord::Input2D || record->direction() == DataTableRecord::InputRow) {
-        result.append(UString(";[."));
-        result.append(Cell::columnLabel(col));
-        result.append(UString("$"));
-        result.append(UString::from(record->firstRow() - 1 + 1));
-        result.append(UString("]"));
-    }
-
-    result.append(UString(")"));
-
-#ifdef SWINDER_XLS2RAW
-    std::cout << "DATATABLE Result: " << result << std::endl;
+        
+    std::cout << ">>>> " << sPasswd.data() << std::endl; //0x218490a
 #endif
-    return result;
+
 }
 
 } // namespace Swinder

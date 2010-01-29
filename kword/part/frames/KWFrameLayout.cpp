@@ -28,7 +28,7 @@
 #include "KWDocument.h"
 
 #include <KoShapeRegistry.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 #include <klocale.h>
 #include <kdebug.h>
@@ -517,12 +517,12 @@ void KWFrameLayout::setup()
 KoShape *KWFrameLayout::createTextShape(const KWPage &page)
 {
     Q_ASSERT(page.isValid());
-    KoShapeFactory *factory = KoShapeRegistry::instance()->value(TextShape_SHAPEID);
+    KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value(TextShape_SHAPEID);
     Q_ASSERT(factory);
-    QMap<QString, KoDataCenter *> dataCenterMap;
+    KoResourceManager *rm = 0;
     if (m_document)
-        dataCenterMap = m_document->dataCenterMap();
-    KoShape *shape = factory->createDefaultShapeAndInit(dataCenterMap);
+        rm = m_document->resourceManager();
+    KoShape *shape = factory->createDefaultShape(rm);
     shape->setPosition(QPointF(0, page.offsetInDocument()));
     return shape;
 }

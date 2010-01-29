@@ -56,13 +56,13 @@ const int HLSMAX = 255; //!< Used for computing tint
 */
 static QColor tintedColor(const QColor& color, qreal tint)
 {
-kDebug() << "rgb:" << color.name() << "tint:" << tint;
+//kDebug() << "rgb:" << color.name() << "tint:" << tint;
     if (tint == 0.0 || !color.isValid()) {
         return color;
     }
     int h, l, s;
     rgb_to_hls(color.red(), color.green(), color.blue(), &h, &l, &s);
-//    rgb_to_hls(0xc6, 0xd9, 0xf1, &h, &l, &s);
+//    rgb_to_hls(0xec, 0xec, 0xec, &h, &l, &s);
 //kDebug() << "hls before:" << h << l << s;
     if (tint < 0.0) {
         l = floor( l * (1.0 + tint) );
@@ -70,10 +70,10 @@ kDebug() << "rgb:" << color.name() << "tint:" << tint;
     else {
         l = floor( l * (1.0 - tint) + (HLSMAX - HLSMAX * (1.0 - tint)) );
     }
-kDebug() << "hls after:" << h << l << s;
+//kDebug() << "hls after:" << h << l << s;
     quint8 r, g, b;
     hls_to_rgb(h, l, s, &r, &g, &b);
-kDebug() << "rgb:" << r << g << b << QColor(r, g, b, color.alpha()).name();
+//kDebug() << "rgb:" << r << g << b << QColor(r, g, b, color.alpha()).name();
     return QColor(r, g, b, color.alpha());
 }
 
@@ -186,20 +186,93 @@ XlsxFontStyle::XlsxFontStyle()
 }
 
 XlsxFillStyle::XlsxFillStyle()
-        : patternType(NonePatternType)
+        : patternType(NonePatternType),
+          cachedRealBackgroundColor( 0 )
 {
 }
 
-const XlsxColorStyle* XlsxFillStyle::realBackgroundColor() const
+XlsxFillStyle::~XlsxFillStyle()
 {
+    delete cachedRealBackgroundColor;
+}
+
+static QColor applyPatternDensity( const XlsxColorStyle& bg, const XlsxColorStyle& fg, qreal percent, const QMap<QString, MSOOXML::DrawingMLTheme*> *themes )
+{
+    const QColor bgColor = bg.theme >= 0 ? bg.themeColor( themes ) : bg.rgb.isValid() ? bg.rgb : QColor( Qt::white );
+    const QColor fgColor = fg.theme >= 0 ? fg.themeColor( themes ) : fg.rgb;//.isValid() ? fg.rgb : QColor( Qt::black );
+    
+    QColor result( Qt::white );
+    if( bgColor.isValid() ) {
+        result = QColor( bgColor.red() * percent, 
+                         bgColor.green() * percent, 
+                         bgColor.blue() * percent, 
+                         bgColor.alpha() );
+    }
+    if( fgColor.isValid() ) {
+        result = QColor( result.red()   + fgColor.red() * ( 1.0 - percent ), 
+                         result.green() + fgColor.green() * ( 1.0 - percent ), 
+                         result.blue()  + fgColor.blue() * ( 1.0 - percent ),
+                         bgColor.isValid() ? bgColor.alpha() : fgColor.alpha() );
+    }
+    return result;
+}
+
+const XlsxColorStyle* XlsxFillStyle::realBackgroundColor( const QMap<QString, MSOOXML::DrawingMLTheme*> *themes) const
+{
+    delete cachedRealBackgroundColor;
+    cachedRealBackgroundColor = new XlsxColorStyle;
+
 kDebug() << "patternType:" << patternType;
     switch (patternType) {
     case NonePatternType:
         return 0;
     case SolidPatternType:
         return &fgColor;
-    default:;
-//! @todo support other patterns
+    case DarkDownPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.5, themes );
+        return cachedRealBackgroundColor;
+    case DarkGrayPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.25, themes );
+        return cachedRealBackgroundColor;
+    case DarkGridPatternType: // fall through
+    case DarkHorizontalPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.5, themes );
+        return cachedRealBackgroundColor;
+    case DarkTrellisPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.25, themes );
+        return cachedRealBackgroundColor;
+    case DarkUpPatternType:  // fall through
+    case DarkVerticalPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.50, themes );
+        return cachedRealBackgroundColor;
+    case LightPatternType:
+        break; //??
+    case LightDownPatternType:  // fall through
+    case LightGrayPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.75, themes );
+        return cachedRealBackgroundColor;
+    case LightGridPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.5625, themes );
+        return cachedRealBackgroundColor;
+    case LightHorizontalPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.75, themes );
+        return cachedRealBackgroundColor;
+    case LightTrellisPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.625, themes );
+        return cachedRealBackgroundColor;
+    case LightUpPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.75, themes );
+        return cachedRealBackgroundColor;
+    case LightVerticalPatternType: // fall through
+    case MediumGrayPatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.50, themes );
+        return cachedRealBackgroundColor;
+    case Gray0625PatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.9375, themes );
+        return cachedRealBackgroundColor;
+    case Gray125PatternType:
+        cachedRealBackgroundColor->rgb = applyPatternDensity( bgColor, fgColor, 0.875, themes );
+        return cachedRealBackgroundColor;
     }
     return &bgColor;
 }
@@ -208,7 +281,7 @@ void XlsxFillStyle::setupCellStyle(KoGenStyle* cellStyle, const QMap<QString, MS
 {
 //! @todo implement more styling;
 //!       use XlsxColorStyle::automatic, XlsxColorStyle::indexed, XlsxColorStyle::theme...
-    const XlsxColorStyle* realBackgroundColor = this->realBackgroundColor();
+    const XlsxColorStyle* realBackgroundColor = this->realBackgroundColor( themes );
     if (realBackgroundColor) {
 kDebug() << patternType << realBackgroundColor->value(themes).name()
          << realBackgroundColor->tint << realBackgroundColor->isValid(themes);
@@ -350,28 +423,16 @@ void XlsxFontStyle::setupCellTextStyle(
         cellStyle->addProperty("fo:font-family", name, KoGenStyle::TextType);
     }
     if (color.isValid(themes)) {
-//<workaround>
-//! @todo remove this ugly fix when we find a better way to work with themes
-        QColor c(color.value(themes));
-if (c.name() == "#ffffff") {
-        cellStyle->addProperty("fo:color", "#000000", KoGenStyle::TextType);
-}
-else {
+        const QColor c(color.value(themes));
         cellStyle->addProperty("fo:color", c.name(), KoGenStyle::TextType);
-}
-//<workaround>
     }
     //! @todo implement more styling
 }
-
-#define NUMBERFORMATSTRINGS_CAPACITY 512
 
 XlsxStyles::XlsxStyles()
 {
     // fill the default number formats
     // from Office Open XML Part 4 - Markup Language Reference, p. 1974
-    numberFormatStrings.reserve(NUMBERFORMATSTRINGS_CAPACITY);
-    numberFormatStrings.resize(49 + 1);
     numberFormatStrings[ 1 ] = QLatin1String( "0" );
     numberFormatStrings[ 2 ] = QLatin1String( "0.00" );
     numberFormatStrings[ 3 ] = QLatin1String( "#,##0" );
@@ -749,11 +810,6 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_numFmts()
     TRY_READ_ATTR_WITHOUT_NS( count )
     int countNumber;
     STRING_TO_INT( count, countNumber, "styleSheet/numFmts@count" );
-    if (countNumber < 0 || countNumber >= NUMBERFORMATSTRINGS_CAPACITY) {
-        raiseError(i18n("Declared number of formats too small (%1)", NUMBERFORMATSTRINGS_CAPACITY));
-        return KoFilter::WrongFormat;
-    }
-    m_context->styles->numberFormatStrings.resize(countNumber+1);
 
     while( !atEnd() )
     {
@@ -792,10 +848,6 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_numFmt()
     TRY_READ_ATTR_WITHOUT_NS( numFmtId )
     int id;
     STRING_TO_INT(numFmtId, id, "numFmt@numFmtId")
-    if (id < 0 || id >= NUMBERFORMATSTRINGS_CAPACITY) {
-        raiseError(i18n("Declared number of formats too small (%1)", NUMBERFORMATSTRINGS_CAPACITY));
-        return KoFilter::WrongFormat;
-    }
 
     TRY_READ_ATTR_WITHOUT_NS( formatCode );
 
@@ -865,6 +917,7 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_font()
             ELSE_TRY_READ_IF(strike)
             ELSE_TRY_READ_IF(u)
             ELSE_TRY_READ_IF(color)
+            ELSE_TRY_READ_IF(vertAlign)
 //! @todo add ELSE_WRONG_FORMAT
         }
         BREAK_IF_END_OF(CURRENT_EL);
@@ -915,6 +968,31 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_sz()
     READ_EPILOGUE
 }
 
+#undef CURRENT_EL
+#define CURRENT_EL vertAlign
+//! vertAlign handler (Vertical Alignment)
+/*! ECMA-376, ???
+
+ No child elements.
+ Parent elements:
+ - [done] font (§18.8.22)
+*/
+KoFilter::ConversionStatus XlsxXmlStylesReader::read_vertAlign()
+{
+    Q_ASSERT(m_currentFontStyle);
+
+    READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
+    TRY_READ_ATTR_WITHOUT_NS(val)
+    m_currentFontStyle->vertAlign = ST_VerticalAlignRun( val );
+
+    while (true) {
+        BREAK_IF_END_OF(CURRENT_EL);
+        readNext();
+        break;
+    }
+    READ_EPILOGUE
+}
 #undef CURRENT_EL
 #define CURRENT_EL name
 //! name handler (Font Name)
@@ -1101,6 +1179,11 @@ KoFilter::ConversionStatus XlsxXmlStylesReader::read_color()
  - [done] xf (Format) §18.8.45
  Parent elements:
  - [done] styleSheet (§18.8.39)
+
+ @note cellStyleXfs: the standard states that both the cell style xf records and cell xf records
+       must be read to understand the full set of formatting applied to a cell.
+       In MSO, only the cell xf record defines the formatting applied to a cell.
+       See <a href="http://www.documentinteropinitiative.org/implnotes/implementationnotelist.aspx?id=dd2615fe-aa8d-4a06-a415-13389919cf36&specname=ecma-376">here</a>.
 */
 KoFilter::ConversionStatus XlsxXmlStylesReader::read_cellXfs()
 {
@@ -1350,41 +1433,58 @@ void XlsxXmlStylesReader::handlePatternType(const QString& patternType)
     }
     else if (p.startsWith("dark")) {
         if (p == "darkDown") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkDownPatternType;
         }
         else if (p == "darkGray") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkGrayPatternType;
         }
         else if (p == "darkGrid") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkGridPatternType;
         }
         else if (p == "darkHorizontal") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkGridPatternType;
         }
         else if (p == "darkTrellis") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkTrellisPatternType;
         }
         else if (p == "darkUp") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkUpPatternType;
         }
         else if (p == "darkVertical") {
+            m_currentFillStyle->patternType = XlsxFillStyle::DarkVerticalPatternType;
         }
     }
     else if (p.startsWith("light")) {
         if (p == "lightDown") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightDownPatternType;
         }
         else if (p == "lightGray") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightGrayPatternType;
         }
         else if (p == "lightGrid") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightGridPatternType;
         }
         else if (p == "lightHorizontal") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightHorizontalPatternType;
         }
         else if (p == "lightTrellis") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightTrellisPatternType;
         }
         else if (p == "lightUp") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightUpPatternType;
         }
         else if (p == "lightVertical") {
+            m_currentFillStyle->patternType = XlsxFillStyle::LightVerticalPatternType;
         }
     }
     else if (p == "mediumGray") {
+        m_currentFillStyle->patternType = XlsxFillStyle::MediumGrayPatternType;
     }
     else if (p == "gray0625") {
+        m_currentFillStyle->patternType = XlsxFillStyle::Gray0625PatternType;
     }
     else if (p == "gray125") {
+        m_currentFillStyle->patternType = XlsxFillStyle::Gray125PatternType;
     }
     else {
         kWarning() << "unknown value" << p

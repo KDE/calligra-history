@@ -28,6 +28,32 @@ void MSOOXML_CURRENT_CLASS::initInternal()
 {
     m_insideHdr = false;
     m_insideFtr = false;
+    m_hasPosOffsetH = false;
+    m_hasPosOffsetV = false;
+    m_posOffsetH = 0;
+    m_posOffsetV = 0;
+    m_currentTextStyleProperties = 0;
+}
+
+void MSOOXML_CURRENT_CLASS::doneInternal()
+{
+    delete m_currentTextStyleProperties;
+}
+
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::copyFile(const QString& sourceName, const QString& destinationDir,
+    QString& destinationName)
+{
+    destinationName =  destinationDir + sourceName.mid(sourceName.lastIndexOf('/') + 1);
+    if (m_copiedFiles.contains(sourceName)) {
+        kDebug() << sourceName << "already copied - skipping";
+    }
+    else {
+//! @todo should we check name uniqueness here in case the sourceName can be located in various directories?
+        RETURN_IF_ERROR( m_context->import->copyFile(sourceName, destinationName) )
+        addManifestEntryForFile(destinationName);
+        m_copiedFiles.insert(sourceName);
+    }
+    return KoFilter::OK;
 }
 
 #undef CURRENT_EL
@@ -67,6 +93,46 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_hyperlink()
 
     READ_EPILOGUE
 }
+
+#undef CURRENT_EL
+#define CURRENT_EL commentRangeStart
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_commentRangeStart()
+{
+    QString link_target;
+    MSOOXML::Utils::XmlWriteBuffer linkBuf;
+
+    if (isStartElement()) {
+        if (attributes().hasAttribute("w:id")) {
+                        
+            QString id, author, date, text;
+            id = attributes().value("w:id").toString();
+            kDebug() << "Comment: id = " << id;
+            m_context->relationships->get_comment(id, author, date, text);
+            
+            body->startElement("office:annotation");
+            
+            body->startElement("dc:creator");
+            body->addTextSpan(author);
+            body->endElement(); // dc:creator
+                
+            body->startElement("dc:date");
+            body->addTextSpan(date);
+            body->endElement(); // dc:date
+                
+            body->startElement("text:p");
+            body->addAttribute("text:style-name", "P1");
+            body->startElement("text:span");
+            body->addTextSpan(text);
+            body->endElement(); // text:span
+            body->endElement(); // text:p
+                
+            body->endElement(); // office:annotation
+        }
+    }
+
+    return KoFilter::OK;
+}
+
 
 #undef CURRENT_EL
 #define CURRENT_EL t
@@ -136,7 +202,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_t()
  - monthLong (Date Block - Long Month Format) §17.3.3.15
  - monthShort (Date Block - Short Month Format) §17.3.3.16
  - noBreakHyphen (Non Breaking Hyphen Character) §17.3.3.18
- - object (Embedded Object) §17.3.3.19
+ - [done] object (Embedded Object) §17.3.3.19
  - pgNum (Page Number Block) §17.3.3.22
  - ptab (Absolute Position Tab Character) §17.3.3.23
  - [done] rPr (Run Properties) §17.3.2.28
@@ -162,6 +228,9 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_r()
             TRY_READ_IF(rPr)
             ELSE_TRY_READ_IF(t)
             ELSE_TRY_READ_IF(drawing)
+#ifdef DOCXXMLDOCREADER_CPP
+            ELSE_TRY_READ_IF(object)
+#endif
 //            else { SKIP_EVERYTHING }
 //! @todo add ELSE_WRONG_FORMAT
 //kDebug() <<"[1.5]";
@@ -255,7 +324,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_lang()
  - szCs (Complex Script Font Size) §17.3.2.39
  - [done] u (Underline) §17.3.2.40
  - vanish (Hidden Text) §17.3.2.41
- - vertAlign (Subscript/Superscript Text) §17.3.2.42
+ - [done] vertAlign (Subscript/Superscript Text) §17.3.2.42
  - w (Expanded/Compressed Text) §17.3.2.43
  - webHidden (Web Hidden Text) §17.3.2.44
 */
@@ -289,6 +358,8 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_rPr()
             ELSE_TRY_READ_IF(color)
             ELSE_TRY_READ_IF(highlight)
             ELSE_TRY_READ_IF(lang)
+            ELSE_TRY_READ_IF(shd)
+            ELSE_TRY_READ_IF(vertAlign)
 //! @todo add ELSE_WRONG_FORMAT
         }
         BREAK_IF_END_OF(CURRENT_EL);
@@ -442,6 +513,30 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_sz()
     READ_EPILOGUE
 }
 
+#undef CURRENT_EL
+#define CURRENT_EL vertAlign
+//! vertAlign handler (Subscript/Superscript Text) ECMA-376, 17.3.2.42, p.349
+/*!    This element specifies the alignment which shall be applied to
+       the contents of this run when displayed.
+*/
+/*!
+ Parent elements:
+ - [done] rPr
+ No child elements.
+*/
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_vertAlign()
+{
+    READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
+    TRY_READ_ATTR(val)
+    if (QString::compare(val, "superscript", Qt::CaseInsensitive) == 0)
+        m_currentTextStyleProperties->setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+    else if (QString::compare(val, "subscript", Qt::CaseInsensitive) == 0)
+        m_currentTextStyleProperties->setVerticalAlignment(QTextCharFormat::AlignSubScript);
+    readNext();
+    READ_EPILOGUE
+}
+
 void MSOOXML_CURRENT_CLASS::readStrikeValue(KoCharacterStyle::LineType type)
 {
     const QXmlStreamAttributes attrs(attributes());
@@ -517,6 +612,25 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_highlight()
     const QXmlStreamAttributes attrs(attributes());
     READ_ATTR(val)
     m_currentTextStyleProperties->setBackground(MSOOXML::Utils::ST_HighlightColor_to_QColor(val));
+    readNext();
+    READ_EPILOGUE
+}
+#undef CURRENT_EL
+#define CURRENT_EL jc
+//! Paragraph Alignment
+/*! ECMA-376, 17.3.1.13, p.239
+*/
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_jc()
+{
+    READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
+    READ_ATTR(val)
+    // Does ODF support high/low/medium kashida ?
+    val = val.toLower();
+    if ((val == "both") || (val == "distribute"))
+        m_currentParagraphStyle.addProperty("fo:text-align", "justify");
+    else if ((val == "start") || (val == "left") || (val == "right") || (val == "center"))
+        m_currentParagraphStyle.addProperty("fo:text-align", val);
     readNext();
     READ_EPILOGUE
 }
@@ -604,6 +718,8 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_pPr()
         kDebug() << *this;
         if (isStartElement()) {
             TRY_READ_IF(rPr)
+            ELSE_TRY_READ_IF(shd)
+            ELSE_TRY_READ_IF(jc)
 //! @todo add ELSE_WRONG_FORMAT
         }
         BREAK_IF_END_OF(CURRENT_EL);
@@ -614,6 +730,50 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_pPr()
         setupParagraphStyle();
     #endif
     */
+    READ_EPILOGUE
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL shd
+//! Shading handler (object's shading attributes)
+/*! ECMA-376, 17.3.5, p.399
+ Parent Elements:
+ - [done] pPr (Paragraph Properties) §17.3.1.26
+ Attributes:
+ - color (Shading Pattern Color)
+ - fill (Shading Background Color)
+ - themeColor (Shading Pattern Theme Color)
+ - themeFill (Shading Background Theme Color)
+ - themeFillShade (Shading Background Theme Color Shade)
+ - themeFillTint (Shading Background Theme Color Tint)
+ - themeShade (Shading Pattern Theme Color Shade)
+ - themeTint (Shading Pattern Theme Color Tint)
+ - [done] val (Shading Pattern)
+*/
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_shd()
+{
+    ReadMethod caller = m_calls.top();
+    READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
+    READ_ATTR(val)
+    TRY_READ_ATTR(color)
+//kDebug() << m_callsNames;
+    if (!color.isEmpty() && color != MsooXmlReader::constAuto) {
+        QColor clr(MSOOXML::Utils::ST_HexColorRGB_to_QColor(color));
+        if (CALLER_IS(rPr) && clr.isValid() && (val.compare("solid", Qt::CaseInsensitive) == 0)) {
+            m_currentTextStyleProperties->setBackground(clr);
+        }
+    }
+
+    TRY_READ_ATTR(fill)
+    QString fillColor = fill.toLower();
+    if (!fillColor.isEmpty() && fillColor != MsooXmlReader::constAuto) {
+        fillColor.prepend("#");
+        if (CALLER_IS(pPr)) {
+            m_currentParagraphStyle.addProperty("fo:background-color", fillColor);
+        }
+    }
+    readNext();
     READ_EPILOGUE
 }
 
@@ -707,6 +867,8 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_p()
                 TRY_READ_WITH_ARGS(p, read_p_Skip;)
             }
             ELSE_TRY_READ_IF(hyperlink)
+            //ELSE_TRY_READ_IF(commentRangeEnd)
+            ELSE_TRY_READ_IF(commentRangeStart)
 // CASE #400.1
             ELSE_TRY_READ_IF(pPr)
 // CASE #400.2
@@ -813,6 +975,8 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_drawing()
     m_currentDrawStyle.addAttribute("style:parent-style-name", QLatin1String("Graphics"));
 #endif
 
+    m_drawing_anchor = false;
+    m_drawing_inline = false;
     while (!atEnd()) {
         readNext();
         if (isStartElement()) {
@@ -822,6 +986,8 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_drawing()
         }
         BREAK_IF_END_OF(CURRENT_EL);
     }
+    m_drawing_anchor = false;
+    m_drawing_inline = false;
     READ_EPILOGUE
 }
 
@@ -902,6 +1068,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_anchor()
     m_hasPosOffsetV = false;
     m_docPrName.clear();
     m_docPrDescr.clear();
+    m_drawing_anchor = true; // for pic:pic
 
     const QXmlStreamAttributes attrs(attributes());
 //! @todo parse 20.4.3.4 ST_RelFromH (Horizontal Relative Positioning), p. 3511
@@ -1300,7 +1467,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_inline()
     READ_PROLOGUE
     m_docPrName.clear();
     m_docPrDescr.clear();
-
+    m_drawing_inline = true; // for pic
     while (!atEnd()) {
         readNext();
         if (isStartElement()) {
@@ -1590,15 +1757,9 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_blip()
         if (sourceName.isEmpty()) {
             return KoFilter::FileNotFound;
         }
-        const QString destinationName(
-            QLatin1String("Pictures/") + sourceName.mid(sourceName.lastIndexOf('/') + 1));
-        if (m_copiedFiles.contains(sourceName)) {
-            kDebug() << sourceName << "already copied - skipping";
-        } else {
-//! @todo should we check name uniqueness here in case the sourceName can be located in various directories?
-            RETURN_IF_ERROR( m_context->import->copyFile(sourceName, destinationName) )
-            m_copiedFiles.insert(sourceName);
-        }
+        QString destinationName;
+        RETURN_IF_ERROR( copyFile(sourceName, QLatin1String("Pictures/"), destinationName) )
+        addManifestEntryForPicturesDir();
         m_xlinkHref = destinationName;
     }
 

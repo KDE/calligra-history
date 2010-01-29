@@ -35,23 +35,25 @@ class VideoCollection::Private
 public:
     ~Private()
     {
-        foreach(VideoData *id, videos)
-            id->collection = 0;
-    }
+   }
 
     QMap<qint64, VideoData*> videos;
     // an extra map to find all dataObjects based on the key of a store.
     QMap<QByteArray, VideoData*> storeVideos;
 };
 
-VideoCollection::VideoCollection()
-    : d(new Private())
+VideoCollection::VideoCollection(QObject *parent)
+    : QObject(parent),
+    d(new Private())
     , saveCounter(0)
 {
 }
 
 VideoCollection::~VideoCollection()
 {
+    foreach(VideoData *id, d->videos) {
+        id->collection = 0;
+    }
     delete d;
 }
 

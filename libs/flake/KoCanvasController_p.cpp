@@ -23,7 +23,7 @@
 #include "KoCanvasController_p.h"
 #include "KoShape.h"
 #include "KoShape_p.h"
-#include "KoShapeFactory.h" // for the SHAPE mimetypes
+#include "KoShapeFactoryBase.h" // for the SHAPE mimetypes
 #include "KoShapeRegistry.h"
 #include "KoShapeController.h"
 #include "KoShapeManager.h"
@@ -132,7 +132,7 @@ void Viewport::handleDragEnterEvent(QDragEnterEvent *event)
 
         // The rest of this method is mostly a copy paste from the KoCreateShapeStrategy
         // So, lets remove this again when Zagge adds his new class that does this kind of thing. (KoLoadSave)
-        KoShapeFactory *factory = KoShapeRegistry::instance()->value(id);
+        KoShapeFactoryBase *factory = KoShapeRegistry::instance()->value(id);
         if (! factory) {
             kWarning(30006) << "Application requested a shape that is not registered '" <<
             id << "', Ignoring";
@@ -145,9 +145,9 @@ void Viewport::handleDragEnterEvent(QDragEnterEvent *event)
         if (isTemplate) {
             KoProperties props;
             props.load(properties);
-            m_draggedShape = factory->createShapeAndInit(&props, m_parent->canvas()->shapeController()->dataCenterMap());
+            m_draggedShape = factory->createShape(&props, m_parent->canvas()->shapeController()->resourceManager());
         } else
-            m_draggedShape = factory->createDefaultShapeAndInit(m_parent->canvas()->shapeController()->dataCenterMap());
+            m_draggedShape = factory->createDefaultShape(m_parent->canvas()->shapeController()->resourceManager());
 
         Q_ASSERT(m_draggedShape);
         if (!m_draggedShape) return;

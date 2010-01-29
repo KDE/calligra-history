@@ -21,6 +21,7 @@
 #include "ustring.h"
 
 #include <iostream>
+#include <sstream>
 
 namespace Swinder
 {
@@ -263,9 +264,31 @@ UString Value::asString() const
 {
     UString result;
 
-    if (type() == Value::String || type() == Value::RichText)
-        result = d->s;
-
+    switch(type()) {
+        case Value::Error:
+        case Value::String:
+        case Value::RichText:
+            result = d->s;
+            break;
+        case Value::Boolean:
+            result = (asBoolean() ? "True" : "False");
+            break;
+        case Value::Integer: {
+            std::stringstream out;
+            out << asInteger();
+            result = out.str().c_str();
+        } break;
+        case Value::Float: {
+            std::stringstream out;
+            out << asFloat();
+            result = out.str().c_str();
+        } break;
+        case Value::CellRange: // not used yet
+        case Value::Array: // not used yet
+        case Value::Empty:
+            break;
+    }
+    
     return result;
 }
 

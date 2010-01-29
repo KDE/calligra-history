@@ -30,7 +30,7 @@
 
 
 VectorToolFactory::VectorToolFactory(QObject *parent)
-  : KoToolFactory(parent, "VectorToolFactory_ID", i18n("Vector tool"))
+  : KoToolFactoryBase(parent, "VectorToolFactory_ID", i18n("Vector tool"))
 {
     setToolTip (i18n("EMF editing tool"));
     setToolType (dynamicToolType());
@@ -44,10 +44,10 @@ VectorToolFactory::~VectorToolFactory()
 {
 }
 
-KoTool * VectorToolFactory::createTool(KoCanvasBase *canvas)
+KoToolBase * VectorToolFactory::createTool(KoCanvasBase *canvas)
 {
     return new VectorTool(canvas);
 }
 
 
-#include "VectorToolFactory.moc"
+#include <VectorToolFactory.moc>

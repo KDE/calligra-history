@@ -40,7 +40,7 @@
 
 #include <KoPointerEvent.h>
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoCanvasController.h>
 #include <KoViewConverter.h>
 
@@ -112,6 +112,7 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
     //    return;
     if (m_mode == PAN) {
         initPan(e);
+        e->accept();
         return;
     }
 
@@ -124,11 +125,11 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
     // control-click gets the color at the current point. For now, only with a ratio of 1
     if (e->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier)) {
         if (e->button() == Qt::LeftButton)
-            canvas()->resourceProvider()->setResource(KoCanvasResource::ForegroundColor,
+            canvas()->resourceManager()->setResource(KoCanvasResource::ForegroundColor,
                                                       KisToolUtils::pick(currentNode()->paintDevice(),
                                                                          convertToIntPixelCoord(e)));
         else
-            canvas()->resourceProvider()->setResource(KoCanvasResource::BackgroundColor,
+            canvas()->resourceManager()->setResource(KoCanvasResource::BackgroundColor,
                                                       KisToolUtils::pick(currentNode()->paintDevice(),
                                                                          convertToIntPixelCoord(e)));
 
@@ -136,18 +137,19 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
     else if (e->modifiers() == Qt::ControlModifier ) {
 
         if (e->button() == Qt::LeftButton)
-            canvas()->resourceProvider()->setResource(KoCanvasResource::ForegroundColor,
+            canvas()->resourceManager()->setResource(KoCanvasResource::ForegroundColor,
                                                       KisToolUtils::pick(currentImage()->mergedImage(),
                                                                          convertToIntPixelCoord(e)));
         else
-            canvas()->resourceProvider()->setResource(KoCanvasResource::BackgroundColor,
+            canvas()->resourceManager()->setResource(KoCanvasResource::BackgroundColor,
                                                       KisToolUtils::pick(currentImage()->mergedImage(),
                                                                          convertToIntPixelCoord(e)));
     }
-    else if (e->modifiers() == Qt::ShiftModifier){
+    else if (e->modifiers() == Qt::ShiftModifier) {
         m_mode = EDIT_BRUSH;
         m_prevMousePos = e->point;
         m_originalPos = e->globalPos();
+        e->accept();
         return;
     }
     else { // No modifiers
@@ -173,7 +175,12 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
 #endif
             }
         }
+        else if (m_mode == PAINT && (e->button() == Qt::RightButton || e->button() == Qt::MidButton)) {
+            // end painting, if calling the menu or the pop up palette. otherwise there is weird behaviour
+            endPaint();
+        }
     }
+    e->accept();
 }
 
 inline double norm(const QPointF& p)
@@ -264,7 +271,7 @@ void KisToolFreehand::mouseMoveEvent(KoPointerEvent *e)
         }
     default:
         ;
-    };
+    }
 
     KisConfig cfg;
     KisPaintOpSettings::OutlineMode outlineMode;
@@ -278,7 +285,7 @@ void KisToolFreehand::mouseMoveEvent(KoPointerEvent *e)
         canvas()->updateCanvas(oldOutlineRect); // erase the old guy
     }
 
-    mousePos = e->point;
+    m_mousePos = e->point;
 
 #if defined(HAVE_OPENGL)
     if (cfg.cursorStyle() == CURSOR_STYLE_3D_MODEL) {
@@ -291,7 +298,7 @@ void KisToolFreehand::mouseMoveEvent(KoPointerEvent *e)
     }
 #endif
 
-    oldOutlineRect = currentPaintOpPreset()->settings()->paintOutlineRect(mousePos, currentImage(), outlineMode);
+    oldOutlineRect = currentPaintOpPreset()->settings()->paintOutlineRect(m_mousePos, currentImage(), outlineMode);
     if (!oldOutlineRect.isEmpty()) {
         canvas()->updateCanvas(oldOutlineRect); // erase the old guy
     }
@@ -413,7 +420,7 @@ void KisToolFreehand::initPaint(KoPointerEvent *)
                                                                          m_painter->backgroundColor(),
                                                                          m_painter->opacity(),
                                                                          m_paintIncremental,
-                                                                         m_compositeOp);
+                                                                         m_compositeOp->id());
     } else {
         m_polyLinePaintAction = new KisRecordedPolyLinePaintAction(i18n("Freehand tool"),
                                                                    KisNodeQueryPath::absolutePath(currentNode()),
@@ -422,7 +429,7 @@ void KisToolFreehand::initPaint(KoPointerEvent *)
                                                                    m_painter->backgroundColor(),
                                                                    m_painter->opacity(),
                                                                    m_paintIncremental,
-                                                                   m_compositeOp);
+                                                                   m_compositeOp->id());
     }
 #endif
 }
@@ -585,7 +592,7 @@ void KisToolFreehand::paint(QPainter& gc, const KoViewConverter &converter)
             }
 
             if (glIsList(m_displayList)) {
-                QPointF pos = converter.documentToView(mousePos);
+                QPointF pos = converter.documentToView(m_mousePos);
 
                 glColor3f(0.0, 1.0, 0.0);
                 glShadeModel(GL_SMOOTH);
@@ -645,7 +652,7 @@ void KisToolFreehand::paint(QPainter& gc, const KoViewConverter &converter)
         } else {
             outlineMode = KisPaintOpSettings::CURSOR_ISNT_OUTLINE;
         }
-        currentPaintOpPreset()->settings()->paintOutline(mousePos, currentImage(), gc, converter, outlineMode);
+        currentPaintOpPreset()->settings()->paintOutline(m_mousePos, currentImage(), gc, converter, outlineMode);
 
     }
 }

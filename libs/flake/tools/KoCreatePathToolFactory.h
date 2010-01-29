@@ -21,10 +21,10 @@
 #ifndef KOCREATEPATHTOOLFACTORY_H
 #define KOCREATEPATHTOOLFACTORY_H
 
-#include "KoToolFactory.h"
+#include "KoToolFactoryBase.h"
 
 /// The factory for the KoCreatePathTool
-class KoCreatePathToolFactory : public KoToolFactory
+class KoCreatePathToolFactory : public KoToolFactoryBase
 {
 public:
     /// Constructor
@@ -32,6 +32,6 @@ public:
     /// Destructor
     ~KoCreatePathToolFactory();
 
-    KoTool* createTool(KoCanvasBase *canvas);
+    KoToolBase* createTool(KoCanvasBase *canvas);
 };
 #endif

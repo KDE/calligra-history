@@ -1,6 +1,7 @@
 /* Swinder - Portable library for spreadsheet
    Copyright (C) 2003-2005 Ariya Hidayat <ariya@kde.org>
    Copyright (C) 2006,2009 Marijn Kruisselbrink <m.kruisselbrink@student.tue.nl>
+   Copyright (C) 2009,2010 Sebastian Sauer <sebsauer@kdab.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -181,8 +182,9 @@ Value errorAsValue(int errorCode)
 
 const unsigned int Record::id = 0; // invalid of-course
 
-Record::Record()
+Record::Record(Workbook *book)
 {
+    m_workbook = book;
     stream_position = 0;
     ver = Excel97;
     valid = true;
@@ -192,9 +194,9 @@ Record::~Record()
 {
 }
 
-Record* Record::create(unsigned type)
+Record* Record::create(unsigned type, Workbook *book)
 {
-    return RecordRegistry::createRecord(type);
+    return RecordRegistry::createRecord(type, book);
 }
 
 void Record::setPosition(unsigned pos)
@@ -231,12 +233,12 @@ void RecordRegistry::registerRecordClass(unsigned id, RecordFactory factory)
     instance()->records[id] = factory;
 }
 
-Record* RecordRegistry::createRecord(unsigned id)
+Record* RecordRegistry::createRecord(unsigned id, Workbook *book)
 {
     RecordRegistry* q = instance();
     std::map<unsigned, RecordFactory>::iterator it = q->records.find(id);
     if (it != q->records.end()) {
-        return it->second();
+        return it->second(book);
     } else {
         return 0;
     }

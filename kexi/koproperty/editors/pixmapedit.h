@@ -40,14 +40,19 @@ class KOPROPERTY_EXPORT PixmapEdit : public QWidget
 
 public:
     explicit PixmapEdit(Property *prop, QWidget *parent = 0);
-    virtual ~PixmapEdit();
+    ~PixmapEdit();
 
-    virtual QVariant value() const;
-    virtual void setValue(const QVariant &value);
+    QVariant value() const;
+
+public slots:
+    void setValue(const QVariant &value);
 //moved    virtual void drawViewer(QPainter *p, const QColorGroup &cg, const QRect &r, const QVariant &value);
 
 //    void resizeEvent(QResizeEvent *ev);
     bool eventFilter(QObject *o, QEvent *ev);
+
+signals:
+    void commitData( QWidget * editor );
 
 protected:
 //    virtual void setReadOnlyInternal(bool readOnly);

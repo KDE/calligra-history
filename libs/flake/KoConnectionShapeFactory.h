@@ -22,18 +22,17 @@
 #ifndef CONNECTIONSHAPEFACTORY_H
 #define CONNECTIONSHAPEFACTORY_H
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShape;
 
-class KoConnectionShapeFactory : public KoShapeFactory
+class KoConnectionShapeFactory : public KoShapeFactoryBase
 {
 public:
     KoConnectionShapeFactory(QObject *parent);
     ~KoConnectionShapeFactory() {}
 
-    virtual KoShape* createDefaultShape() const;
-    virtual KoShape* createShape(const KoProperties *params) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports(const KoXmlElement &e) const;
     virtual QList<KoShapeConfigWidgetBase*> createShapeOptionPanels();
 };

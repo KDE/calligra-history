@@ -22,6 +22,7 @@
 #include <QWidget>
 
 class QString;
+class KoResource;
 class KisPaintOpPreset;
 class KisPropertiesConfiguration;
 class KisPresetWidget;
@@ -47,9 +48,14 @@ public:
      * @return the preset preview
      */
     KisPresetWidget* presetPreview();
-
+    
+    /**
+     * @return the name entered in the preset name lineedit
+     */
+    QString getPresetName() const;    
 signals:
     void savePresetClicked();
+    void resourceSelected( KoResource * resource );
 
 private:
 

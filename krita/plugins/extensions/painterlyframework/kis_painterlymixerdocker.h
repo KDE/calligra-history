@@ -22,14 +22,14 @@
 #define KIS_PAINTERLY_MIXER_DOCKER_H_
 
 #include <QDockWidget>
-#include <KoDockFactory.h>
-#include <KoCanvasObserver.h>
+#include <KoDockFactoryBase.h>
+#include <KoCanvasObserverBase.h>
 
 class KoCanvasBase;
 class KoColor;
 class KisPainterlyMixer;
 
-class KisPainterlyMixerDocker : public QDockWidget, public KoCanvasObserver
+class KisPainterlyMixerDocker : public QDockWidget, public KoCanvasObserverBase
 {
     Q_OBJECT
 
@@ -37,7 +37,7 @@ public:
     KisPainterlyMixerDocker();
     virtual ~KisPainterlyMixerDocker();
 
-    /// reimplemented from KoCanvasObserver
+    /// reimplemented from KoCanvasObserverBase
     virtual void setCanvas(KoCanvasBase *canvas);
 
 private slots:
@@ -51,7 +51,7 @@ private:
 };
 
 
-class KisPainterlyMixerDockerFactory : public KoDockFactory
+class KisPainterlyMixerDockerFactory : public KoDockFactoryBase
 {
 public:
     KisPainterlyMixerDockerFactory() {}

@@ -20,7 +20,7 @@
 */
 
 #include "KoShapeSavingContext.h"
-#include "KoDataCenter.h"
+#include "KoDataCenterBase.h"
 
 #include "KoShapeLayer.h"
 #include "KoImageData.h"
@@ -38,10 +38,10 @@ public:
     KoShapeSavingContextPrivate(KoXmlWriter&, KoGenStyles&, KoEmbeddedDocumentSaver&);
 
     KoXmlWriter *xmlWriter;
-    KoShapeSavingContext::KoShapeSavingOptions savingOptions;
+    KoShapeSavingContext::ShapeSavingOptions savingOptions;
     QMap<const KoShape *, QString> drawIds;
     QList<const KoShapeLayer*> layers;
-    QSet<KoDataCenter *> dataCenter;
+    QSet<KoDataCenterBase *> dataCenter;
     int drawId;
     QMap<QString, KoSharedSavingData*> sharedData;
     QMap<qint64, QString> imageNames;
@@ -101,12 +101,12 @@ bool KoShapeSavingContext::isSet(ShapeSavingOption option) const
     return d->savingOptions & option;
 }
 
-void KoShapeSavingContext::setOptions(KoShapeSavingOptions options)
+void KoShapeSavingContext::setOptions(ShapeSavingOptions options)
 {
     d->savingOptions = options;
 }
 
-KoShapeSavingContext::KoShapeSavingOptions KoShapeSavingContext::options() const
+KoShapeSavingContext::ShapeSavingOptions KoShapeSavingContext::options() const
 {
     return d->savingOptions;
 }
@@ -197,7 +197,7 @@ QMap<qint64, QString> KoShapeSavingContext::imagesToSave()
     return d->imageNames;
 }
 
-void KoShapeSavingContext::addDataCenter(KoDataCenter * dataCenter)
+void KoShapeSavingContext::addDataCenter(KoDataCenterBase * dataCenter)
 {
     d->dataCenter.insert(dataCenter);
 }
@@ -205,7 +205,7 @@ void KoShapeSavingContext::addDataCenter(KoDataCenter * dataCenter)
 bool KoShapeSavingContext::saveDataCenter(KoStore *store, KoXmlWriter* manifestWriter)
 {
     bool ok = true;
-    foreach(KoDataCenter *dataCenter, d->dataCenter) {
+    foreach(KoDataCenterBase *dataCenter, d->dataCenter) {
         ok = ok && dataCenter->completeSaving(store, manifestWriter, this);
         //kDebug() << "ok" << ok;
     }

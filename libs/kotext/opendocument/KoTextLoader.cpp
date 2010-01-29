@@ -36,7 +36,7 @@
 #include <KoOdfStylesReader.h>
 #include <KoProperties.h>
 #include <KoShapeContainer.h>
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 #include <KoShapeLoadingContext.h>
 #include <KoShapeRegistry.h>
 #include <KoTableColumnAndRowStyleManager.h>
@@ -65,6 +65,7 @@
 #include "styles/KoTableStyle.h"
 #include "styles/KoTableColumnStyle.h"
 #include "styles/KoTableCellStyle.h"
+#include "styles/KoSectionStyle.h"
 
 #include <klocale.h>
 
@@ -443,6 +444,9 @@ void KoTextLoader::loadParagraph(const KoXmlElement &element, QTextCursor &curso
         QTextBlock block = cursor.block();
         // Apply list style when loading a list but we don't have a list style
         paragraphStyle->applyStyle(block, d->currentList && !d->currentListStyle);
+        // Clear the outline level property. If a default-outline-level was set, it should not
+        // be applied when loading a document, only on user action.
+        block.blockFormat().clearProperty(KoParagraphStyle::OutlineLevel);
     } else {
         kWarning(32500) << "paragraph style " << styleName << " not found";
     }
@@ -457,8 +461,8 @@ void KoTextLoader::loadParagraph(const KoXmlElement &element, QTextCursor &curso
 void KoTextLoader::loadHeading(const KoXmlElement &element, QTextCursor &cursor)
 {
     Q_ASSERT(d->styleManager);
-    int level = qMax(1, element.attributeNS(KoXmlNS::text, "outline-level", "1").toInt());
-    // TODO: fallback to default-outline-level from the style, if specified?
+    int level = qMax(-1, element.attributeNS(KoXmlNS::text, "outline-level", "-1").toInt());
+    // This will fallback to the default-outline-level applied by KoParagraphStyle
 
     QString styleName = element.attributeNS(KoXmlNS::text, "style-name", QString());
 
@@ -476,9 +480,15 @@ void KoTextLoader::loadHeading(const KoXmlElement &element, QTextCursor &cursor)
         kWarning(32500) << "paragraph style " << styleName << " not found";
     }
 
-    QTextBlockFormat blockFormat;
-    blockFormat.setProperty(KoParagraphStyle::OutlineLevel, level);
-    cursor.mergeBlockFormat(blockFormat);
+    if ((block.blockFormat().hasProperty(KoParagraphStyle::OutlineLevel)) && (level == -1)) {
+        level = block.blockFormat().property(KoParagraphStyle::OutlineLevel).toInt();
+    } else {
+        if (level == -1)
+            level = 1;
+        QTextBlockFormat blockFormat;
+        blockFormat.setProperty(KoParagraphStyle::OutlineLevel, level);
+        cursor.mergeBlockFormat(blockFormat);
+    }
 
     if (!d->currentList) { // apply <text:outline-style> (if present) only if heading is not within a <text:list>
         KoListStyle *outlineStyle = d->styleManager->outlineStyle();
@@ -500,6 +510,8 @@ void KoTextLoader::loadHeading(const KoXmlElement &element, QTextCursor &cursor)
 void KoTextLoader::loadList(const KoXmlElement &element, QTextCursor &cursor)
 {
     const bool numberedParagraph = element.localName() == "numbered-paragraph";
+    const QTextBlockFormat defaultBlockFormat = cursor.blockFormat();
+    const QTextCharFormat defaultCharFormat = cursor.charFormat();
 
     QString styleName = element.attributeNS(KoXmlNS::text, "style-name", QString());
     KoListStyle *listStyle = d->textSharedData->listStyle(styleName, d->stylesDotXml);
@@ -548,12 +560,8 @@ void KoTextLoader::loadList(const KoXmlElement &element, QTextCursor &cursor)
         if (!numberedParagraph && e.tagName() != "list-item" && !listHeader)
             continue;
 
-        if (!firstTime && !numberedParagraph) {
-            // use empty formats to not inherit from the prev parag
-            QTextBlockFormat bf;
-            QTextCharFormat cf;
-            cursor.insertBlock(bf, cf);
-        }
+        if (!firstTime && !numberedParagraph)
+            cursor.insertBlock(defaultBlockFormat, defaultCharFormat);
         firstTime = false;
 
         QTextBlock current = cursor.block();
@@ -605,9 +613,23 @@ void KoTextLoader::loadList(const KoXmlElement &element, QTextCursor &cursor)
 
 void KoTextLoader::loadSection(const KoXmlElement &sectionElem, QTextCursor &cursor)
 {
-    Q_UNUSED(sectionElem);
-    Q_UNUSED(cursor);
-    loadBody(sectionElem,cursor);
+    qDebug() << "loading a section" << endl;
+    // Add a frame to the current layout
+    QTextFrameFormat sectionFormat;
+    QString sectionStyleName = sectionElem.attributeNS(KoXmlNS::text, "style-name", "");
+    if (!sectionStyleName.isEmpty()) {
+        KoSectionStyle *secStyle = d->textSharedData->sectionStyle(sectionStyleName, d->stylesDotXml);
+        if(secStyle)
+            secStyle->applyStyle(sectionFormat);
+    }
+    cursor.insertFrame(sectionFormat);
+    // Get the cursor of the frame
+    QTextCursor cursorFrame = cursor.currentFrame()->lastCursorPosition();
+
+    loadBody(sectionElem, cursorFrame);
+    
+    // Get out of the frame
+    cursor.movePosition(QTextCursor::End);
 }
 
 void KoTextLoader::loadNote(const KoXmlElement &noteElem, QTextCursor &cursor)
@@ -913,8 +935,9 @@ void KoTextLoader::loadTableOfContents(const KoXmlElement &element, QTextCursor 
     forEachElement(e, element) {
         if (e.isNull() || e.namespaceURI() != KoXmlNS::text)
             continue;
-        //TODO look at table-of-content-source : to get new styles,
-        // to manage the right alignment for instance.
+
+        //TODO look at table-of-content-source
+
         // We look at the index body now :
         if (e.localName() == "index-body") {
             KoXmlElement p;
@@ -938,7 +961,9 @@ void KoTextLoader::loadTableOfContents(const KoXmlElement &element, QTextCursor 
 
                 // p
                 if (p.localName() == "p") {
+
                     loadParagraph(p, cursorFrame);
+
                 // index title
                 } else if (p.localName() == "index-title") {
                     loadBody(p, cursorFrame);

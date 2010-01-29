@@ -35,14 +35,10 @@ ChangeListCommand::ChangeListCommand( const QTextCursor &cursor, KoListStyle::St
         m_flags(flags),
         m_first(true)
 {
-    bool styleCompletelySetAlready = extractTextBlocks(cursor, level, style);
+    extractTextBlocks(cursor, level);
     QSet<int> levels = m_levels.values().toSet();
     KoListStyle listStyle;
 
-    // If the style is already completely set, we unset it instead
-   if(styleCompletelySetAlready)
-       style = KoListStyle::None;
-   
     foreach (int lev, levels) {
         KoListLevelProperties llp;
         llp.setLevel(lev);
@@ -69,7 +65,7 @@ ChangeListCommand::ChangeListCommand( const QTextCursor &cursor, KoListStyle *st
           m_first(true)
 {
     Q_ASSERT(style);
-    extractTextBlocks(cursor, level); // don't care about return value
+    extractTextBlocks(cursor, level);
     initList(style);
     setText(i18n("Change List"));
 }
@@ -78,12 +74,11 @@ ChangeListCommand::~ChangeListCommand()
 {
 }
 
-bool ChangeListCommand::extractTextBlocks(const QTextCursor &cursor, int level, KoListStyle::Style newStyle)
+void ChangeListCommand::extractTextBlocks(const QTextCursor &cursor, int level)
 {
     int selectionStart = qMin(cursor.anchor(), cursor.position());
     int selectionEnd = qMax(cursor.anchor(), cursor.position());
-    bool styleCompletelySetAlready = true;
-    
+
     QTextBlock block = cursor.block().document()->findBlock(selectionStart);
 
     bool oneOf = (selectionStart == selectionEnd); //ensures the block containing the cursor is selected in that case
@@ -91,24 +86,18 @@ bool ChangeListCommand::extractTextBlocks(const QTextCursor &cursor, int level, 
     while (block.isValid() && ((block.position() < selectionEnd) || oneOf)) {
         m_blocks.append(block);
         if (block.textList()) {
-            KoListLevelProperties prop = KoListLevelProperties::fromTextList(block.textList());
-            m_formerProperties.insert((m_blocks.size() - 1), prop);
+            m_formerProperties.insert((m_blocks.size() - 1), KoListLevelProperties::fromTextList(block.textList()));
             m_levels.insert((m_blocks.size() - 1), detectLevel(block, level));
-            if (prop.style() != newStyle)
-                styleCompletelySetAlready = false;
         }
         else {
             KoListLevelProperties prop;
             prop.setStyle(KoListStyle::None);
             m_formerProperties.insert((m_blocks.size() - 1), prop);
             m_levels.insert((m_blocks.size() - 1), 1);
-            styleCompletelySetAlready = false;
         }
         oneOf = false;
         block = block.next();
     }
-
-    return styleCompletelySetAlready;
 }
 
 int ChangeListCommand::detectLevel(const QTextBlock &block, int givenLevel)
@@ -217,7 +206,8 @@ void ChangeListCommand::redo()
         TextCommandBase::redo();
         UndoRedoFinalizer finalizer(this);
         for (int i = 0; i < m_blocks.size(); ++i) {
-            if ((m_actions.value(i) == ChangeListCommand::modifyExisting) || (m_actions.value(i) == ChangeListCommand::createNew) || (m_actions.value(i) == ChangeListCommand::mergeList)) {
+            if ((m_actions.value(i) == ChangeListCommand::modifyExisting) || (m_actions.value(i) == ChangeListCommand::createNew)
+                    || (m_actions.value(i) == ChangeListCommand::mergeList)) {
                 m_list.value(i)->updateStoredList(m_blocks.at(i));
                 KoListStyle *listStyle = m_list.value(i)->style();
                 listStyle->refreshLevelProperties(m_newProperties.value(i));

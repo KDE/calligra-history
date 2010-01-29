@@ -29,8 +29,8 @@
 #include "KoShape.h"
 #include "KoViewConverter.h"
 #include "KoCanvasBase.h"
-#include "KoCanvasObserver.h"
-#include "KoCanvasObserverProvider.h"
+#include "KoCanvasObserverBase.h"
+#include "KoCanvasSupervisor.h"
 #include "KoToolManager_p.h"
 
 #include <ksharedconfig.h>
@@ -156,12 +156,12 @@ void KoCanvasController::Private::activate()
     while (parent->parentWidget())
         parent = parent->parentWidget();
 
-    KoCanvasObserverProvider *observerProvider = dynamic_cast<KoCanvasObserverProvider*>(parent);
+    KoCanvasSupervisor *observerProvider = dynamic_cast<KoCanvasSupervisor*>(parent);
     if (!observerProvider)
         return;
 
-    foreach(KoCanvasObserver *docker, observerProvider->canvasObservers()) {
-        KoCanvasObserver *observer = dynamic_cast<KoCanvasObserver*>(docker);
+    foreach(KoCanvasObserverBase *docker, observerProvider->canvasObservers()) {
+        KoCanvasObserverBase *observer = dynamic_cast<KoCanvasObserverBase*>(docker);
         if (observer) {
             observer->setCanvas(q->canvas());
         }

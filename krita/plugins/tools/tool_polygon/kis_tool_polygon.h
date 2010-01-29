@@ -23,11 +23,11 @@
 
 #include "kis_tool_shape.h"
 #include "flake/kis_node_shape.h"
-#include <kis_tool_polygon_base.h>
+#include <kis_tool_polyline_base.h>
 
 class KoCanvasBase;
 
-class KisToolPolygon : public KisToolPolygonBase
+class KisToolPolygon : public KisToolPolylineBase
 {
     Q_OBJECT
 
@@ -35,18 +35,18 @@ public:
     KisToolPolygon(KoCanvasBase *canvas);
     virtual ~KisToolPolygon();
 protected:
-    virtual void finishPolygon(const QVector<QPointF>& points);
+    virtual void finishPolyline(const QVector<QPointF>& points);
 };
 
 
-#include "KoToolFactory.h"
+#include "KoToolFactoryBase.h"
 
-class KisToolPolygonFactory : public KoToolFactory
+class KisToolPolygonFactory : public KoToolFactoryBase
 {
 
 public:
     KisToolPolygonFactory(QObject *parent, const QStringList&)
-            : KoToolFactory(parent, "KisToolPolygon") {
+            : KoToolFactoryBase(parent, "KisToolPolygon") {
         setToolTip(i18n("Draw a polygon. Shift-mouseclick ends the polygon."));
         setToolType(TOOL_TYPE_SHAPE);
         //setActivationShapeId( KIS_NODE_SHAPE_ID );
@@ -57,7 +57,7 @@ public:
 
     virtual ~KisToolPolygonFactory() {}
 
-    virtual KoTool * createTool(KoCanvasBase *canvas) {
+    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
         return new KisToolPolygon(canvas);
     }
 };

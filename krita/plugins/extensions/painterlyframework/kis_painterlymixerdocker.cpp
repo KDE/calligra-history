@@ -23,14 +23,14 @@
 #include <KLocale>
 
 #include <KoCanvasBase.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <KoColor.h>
 
 #include "kis_painterlymixer.h"
 
 KisPainterlyMixerDocker::KisPainterlyMixerDocker()
         : QDockWidget()
-        , KoCanvasObserver()
+        , KoCanvasObserverBase()
         , m_currentCanvas(0)
 {
     setWindowTitle(i18n("Painterly Color Mixer"));
@@ -53,12 +53,12 @@ QString KisPainterlyMixerDockerFactory::id() const
 void KisPainterlyMixerDocker::setCanvas(KoCanvasBase* canvas)
 {
     m_currentCanvas = canvas;
-    connect(m_currentCanvas->resourceProvider(), SIGNAL(resourceChanged(int,QVariant)), this, SLOT(resourceChanged(int,QVariant)));
+    connect(m_currentCanvas->resourceManager(), SIGNAL(resourceChanged(int,QVariant)), this, SLOT(resourceChanged(int,QVariant)));
 }
 
 void KisPainterlyMixerDocker::colorChanged(const KoColor& color)
 {
-    m_currentCanvas->resourceProvider()->setForegroundColor(color);
+    m_currentCanvas->resourceManager()->setForegroundColor(color);
 }
 
 void KisPainterlyMixerDocker::resourceChanged(int key, const QVariant& value)

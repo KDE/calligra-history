@@ -32,6 +32,8 @@
 #include <KoPASavingContext.h>
 
 #include "KPrDocument.h"
+#include "KPrDeclarations.h"
+#include "KPresenter.h"
 #include "KPrPageApplicationData.h"
 #include "KPrMasterPage.h"
 #include "KPrNotes.h"
@@ -51,14 +53,17 @@ class KPrPage::Private
 public:
     Private( KPrPage * page, KPrDocument * document )
     : pageNotes( new KPrNotes( page, document ) )
+    , declarations( document->declarations() )
     {}
 
     ~Private()
     {
         delete pageNotes;
     }
-
     KPrNotes * pageNotes;
+    QHash<KPrDeclarations::Type, QString> usedDeclaration;
+    KPrDeclarations *declarations;
+
 };
 
 KPrPage::KPrPage( KoPAMasterPage * masterPage, KPrDocument * document )
@@ -188,7 +193,8 @@ void KPrPage::loadOdfPageExtra( const KoXmlElement &element, KoPALoadingContext 
     // the layout needs to be loaded after the shapes are already loaded so the initialization of the data works
     KPrPageLayout * layout = 0;
     if ( element.hasAttributeNS( KoXmlNS::presentation, "presentation-page-layout-name" ) ) {
-        KPrPageLayouts * layouts = dynamic_cast<KPrPageLayouts *>( loadingContext.dataCenter( PageLayouts ) );
+        KPrPageLayouts *layouts = loadingContext.documentResourceManager()->resource(KPresenter::PageLayouts).value<KPrPageLayouts*>();
+
         Q_ASSERT( layouts );
         if ( layouts ) {
             QString layoutName = element.attributeNS( KoXmlNS::presentation, "presentation-page-layout-name" );
@@ -198,6 +204,19 @@ void KPrPage::loadOdfPageExtra( const KoXmlElement &element, KoPALoadingContext 
         }
     }
     placeholders().init( layout, childShapes() );
+
+    if (element.hasAttributeNS(KoXmlNS::presentation, "use-footer-name")) {
+        QString name = element.attributeNS (KoXmlNS::presentation, "use-footer-name");
+        d->usedDeclaration.insert(KPrDeclarations::Footer, name);
+    }
+    if (element.hasAttributeNS( KoXmlNS::presentation, "use-header-name")) {
+        QString name = element.attributeNS (KoXmlNS::presentation, "use-header-name");
+        d->usedDeclaration.insert(KPrDeclarations::Header, name);
+    }
+    if (element.hasAttributeNS( KoXmlNS::presentation, "use-date-time-name")) {
+        QString name = element.attributeNS (KoXmlNS::presentation, "use-date-time-name");
+        d->usedDeclaration.insert(KPrDeclarations::DateTime, name);
+    }
 }
 
 bool KPrPage::saveOdfPresentationNotes(KoPASavingContext &paContext) const
@@ -209,6 +228,11 @@ bool KPrPage::saveOdfPresentationNotes(KoPASavingContext &paContext) const
 KoPageApp::PageType KPrPage::pageType() const
 {
     return KoPageApp::Slide;
+}
+
+QString KPrPage::declaration(KPrDeclarations::Type type) const
+{
+    return d->declarations->declaration(type, d->usedDeclaration.value(type));
 }
 
 KoShapeManagerPaintingStrategy * KPrPage::getPaintingStrategy() const

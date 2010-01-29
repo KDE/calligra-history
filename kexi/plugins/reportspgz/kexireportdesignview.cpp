@@ -35,16 +35,20 @@ KexiReportDesignView::KexiReportDesignView(QWidget *parent, KexiSourceSelector *
 
     m_reportDesigner = 0;
 
-    m_editCutAction = new KAction(KIcon("edit-cut"), i18n("Cut"), this);
-    m_editCutAction->setObjectName("editcut");
-    m_editCopyAction = new KAction(KIcon("edit-copy"), i18n("Copy"), this);
-    m_editCopyAction->setObjectName("editcopy");
-    m_editPasteAction = new KAction(KIcon("edit-paste"), i18n("Paste"), this);
-    m_editPasteAction->setObjectName("editpaste");
-    m_editDeleteAction = new KAction(KIcon("edit-delete"), i18n("Delete"), this);
+    m_editCutAction = KStandardAction::cut(this, 0, 0);
+    m_editCutAction->setProperty("iconOnly", true);
+    m_editCopyAction = KStandardAction::copy(this, 0, 0);
+    m_editCopyAction->setProperty("iconOnly", true);
+    m_editPasteAction = KStandardAction::paste(this, 0, 0);
+    m_editPasteAction->setProperty("iconOnly", true);
+    const KGuiItem del = KStandardGuiItem::del();
+    m_editDeleteAction = new KAction(del.icon(), del.text(), this);
     m_editDeleteAction->setObjectName("editdelete");
+    m_editDeleteAction->setToolTip(del.toolTip());
+    m_editDeleteAction->setWhatsThis(del.whatsThis());
+    m_editDeleteAction->setProperty("iconOnly", true);
 
-    m_sectionEdit = new KAction(i18n("Section Editor"), this);
+    m_sectionEdit = new KAction(i18n("Edit Sections"), this);
     m_sectionEdit->setObjectName("sectionedit");
 
     m_itemRaiseAction = new KAction(KIcon("arrow-up"), i18n("Raise"), this);
@@ -131,7 +135,12 @@ tristate KexiReportDesignView::beforeSwitchTo(Kexi::ViewMode mode, bool &dontSto
     kDebug() << mode;
     dontStore = true;
     if (m_reportDesigner && mode == Kexi::DataViewMode) {
+	kDebug() << "Saving temp data";
+	
         tempData()->reportDefinition = m_reportDesigner->document();
+	
+	kDebug() << m_reportDesigner->document().toDocument().toString();
+	
         tempData()->reportSchemaChangedInPreviousView = true;
     }
     return true;
@@ -141,8 +150,7 @@ tristate KexiReportDesignView::afterSwitchFrom(Kexi::ViewMode mode)
 {
     Q_UNUSED(mode);
 
-    kDebug() << tempData()->document;
-    if (tempData()->document.isEmpty()) {
+    if (tempData()->reportDefinition.isNull()) {
         m_reportDesigner = new ReportDesigner(this);
     } else {
         if (m_reportDesigner) {
@@ -151,32 +159,11 @@ tristate KexiReportDesignView::afterSwitchFrom(Kexi::ViewMode mode)
             m_reportDesigner = 0;
         }
 
-        QDomDocument doc;
-        doc.setContent(tempData()->document);
-        QDomElement root = doc.documentElement();
-        QDomElement korep = root.firstChildElement("report:content");
-        QDomElement conn = root.firstChildElement("connection");
-        if (!korep.isNull()) {
-            m_reportDesigner = new ReportDesigner(this, korep);
-            if (!conn.isNull()) {
-                m_sourceSelector->setConnectionData(conn);
-            }
-        } else {
-            kDebug() << "no koreport section";
-
-            //TODO remove...just create a blank document
-            //Temp - allow load old style report definitions (no data)
-            root.setTagName("koreport");
-            m_reportDesigner = new ReportDesigner(this, root);
-        }
-    }
+        m_reportDesigner = new ReportDesigner(this, tempData()->reportDefinition);
+        m_sourceSelector->setConnectionData(tempData()->connectionDefinition);
+    } 
 
     m_scrollArea->setWidget(m_reportDesigner);
-
-    //plugSharedAction ( "edit_copy", _rd, SLOT ( slotEditCopy() ) );
-    //plugSharedAction ( "edit_cut", _rd, SLOT ( slotEditCut() ) );
-    //plugSharedAction ( "edit_paste", _rd, SLOT ( slotEditPaste() ) );
-    //plugSharedAction ( "edit_delete", _rd, SLOT ( slotEditDelete() ) );
 
     connect(m_reportDesigner, SIGNAL(propertySetChanged()), this, SLOT(slotDesignerPropertySetChanged()));
     connect(m_reportDesigner, SIGNAL(dirty()), this, SLOT(setDirty()));

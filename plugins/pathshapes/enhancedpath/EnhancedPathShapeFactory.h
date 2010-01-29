@@ -20,12 +20,12 @@
 #ifndef KOENHANCEDPATHSHAPEFACTORY_H
 #define KOENHANCEDPATHSHAPEFACTORY_H
 
-#include <KoShapeFactory.h>
+#include <KoShapeFactoryBase.h>
 
 class KoShape;
 
 /// Factory for path shapes
-class EnhancedPathShapeFactory : public KoShapeFactory
+class EnhancedPathShapeFactory : public KoShapeFactoryBase
 {
     Q_OBJECT
 
@@ -33,8 +33,8 @@ public:
     /// constructor
     explicit EnhancedPathShapeFactory(QObject *parent);
     ~EnhancedPathShapeFactory() {}
-    KoShape *createDefaultShape() const;
-    KoShape *createShape(const KoProperties *params) const;
+    virtual KoShape *createShape(const KoProperties *params, KoResourceManager *documentResources = 0) const;
+    virtual KoShape *createDefaultShape(KoResourceManager *documentResources = 0) const;
     virtual bool supports(const KoXmlElement &e) const;
 private:
     void addCross();

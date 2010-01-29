@@ -23,11 +23,11 @@
 #include <kactioncollection.h>
 #include <kcomponentdata.h>
 #include <kis_debug.h>
-#include <kgenericfactory.h>
+#include <kpluginfactory.h>
 #include <klocale.h>
 #include <kstandarddirs.h>
 
-#include <KoDockFactory.h>
+#include <KoDockFactoryBase.h>
 #include <KoDockRegistry.h>
 
 #include "kis_config.h"
@@ -38,10 +38,10 @@
 
 #include "specificcolorselector_dock.h"
 
-typedef KGenericFactory<SpecificColorSelectorPlugin> SpecificColorSelectorPluginFactory;
-K_EXPORT_COMPONENT_FACTORY(kritaspecificcolorselector, SpecificColorSelectorPluginFactory("krita"))
+K_PLUGIN_FACTORY(SpecificColorSelectorPluginFactory, registerPlugin<SpecificColorSelectorPlugin>();)
+K_EXPORT_PLUGIN(SpecificColorSelectorPluginFactory("krita"))
 
-class SpecificColorSelectorDockFactory : public KoDockFactory
+class SpecificColorSelectorDockFactory : public KoDockFactoryBase
 {
 public:
     SpecificColorSelectorDockFactory() {
@@ -63,13 +63,13 @@ public:
         return dockWidget;
     }
 
-    KoDockFactory::DockPosition defaultDockPosition() const {
+    KoDockFactoryBase::DockPosition defaultDockPosition() const {
         return DockMinimized;
     }
 };
 
 
-SpecificColorSelectorPlugin::SpecificColorSelectorPlugin(QObject *parent, const QStringList &)
+SpecificColorSelectorPlugin::SpecificColorSelectorPlugin(QObject *parent, const QVariantList &)
         : QObject(parent)
 {
     dbgPlugins << "SpecificColorSelectorPlugin";

@@ -27,14 +27,14 @@
 #include <KoSelection.h>
 #include <KoPointerEvent.h>
 #include <KoShapeManager.h>
-#include <KoCanvasResourceProvider.h>
+#include <KoResourceManager.h>
 #include <commands/KoShapeTransformCommand.h>
 
 #include <QPointF>
 #include <math.h>
 #include <klocale.h>
 
-ShapeRotateStrategy::ShapeRotateStrategy(KoTool *tool, const QPointF &clicked, Qt::MouseButtons buttons)
+ShapeRotateStrategy::ShapeRotateStrategy(KoToolBase *tool, const QPointF &clicked, Qt::MouseButtons buttons)
 : KoInteractionStrategy(tool)
 , m_initialBoundingRect()
 , m_start(clicked)
@@ -126,7 +126,7 @@ void ShapeRotateStrategy::rotateBy( qreal angle )
 void ShapeRotateStrategy::paint( QPainter &painter, const KoViewConverter &converter) {
     SelectionDecorator decorator(KoFlake::NoHandle, true, false);
     decorator.setSelection(tool()->canvas()->shapeManager()->selection());
-    decorator.setHandleRadius( tool()->canvas()->resourceProvider()->handleRadius() );
+    decorator.setHandleRadius( tool()->canvas()->resourceManager()->handleRadius() );
     decorator.paint(painter, converter);
 
     // paint the rotation center

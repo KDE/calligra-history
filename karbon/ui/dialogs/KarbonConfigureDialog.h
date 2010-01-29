@@ -43,7 +43,7 @@ class KarbonConfigureDialog : public KPageDialog
     Q_OBJECT
 
 public:
-    KarbonConfigureDialog( KarbonView* parent );
+    KarbonConfigureDialog(KarbonView* parent);
 
 public slots:
     void slotApply();
@@ -61,7 +61,7 @@ class ConfigInterfacePage : public KVBox
     Q_OBJECT
 
 public:
-    explicit ConfigInterfacePage( KarbonView* view, char* name = 0L );
+    explicit ConfigInterfacePage(KarbonView* view, char* name = 0L);
 
     void apply();
 
@@ -82,7 +82,7 @@ private:
 
     KIntNumInput* m_dockerFontSize;
     int m_oldDockerFontSize;
-    
+
     KColorButton* m_canvasColor;
     QColor m_oldCanvasColor;
 };

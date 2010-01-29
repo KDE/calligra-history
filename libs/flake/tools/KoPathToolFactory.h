@@ -20,17 +20,17 @@
 #ifndef KOPATHTOOLFACTORY_H
 #define KOPATHTOOLFACTORY_H
 
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 
 /// Factory for the KoPathTool
-class KoPathToolFactory : public KoToolFactory
+class KoPathToolFactory : public KoToolFactoryBase
 {
     Q_OBJECT
 public:
     KoPathToolFactory(QObject *parent);
     ~KoPathToolFactory();
 
-    KoTool *createTool(KoCanvasBase *canvas);
+    KoToolBase *createTool(KoCanvasBase *canvas);
 };
 
 #endif

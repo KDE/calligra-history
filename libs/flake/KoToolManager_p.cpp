@@ -21,14 +21,14 @@
 
 #include <KoShapeManager.h>
 #include <KoSelection.h>
-#include <KoToolFactory.h>
+#include <KoToolFactoryBase.h>
 #include <QToolButton>
 #include <kicon.h>
 
 #include <stdlib.h> // for random()
 
 //   ************ ToolHelper **********
-ToolHelper::ToolHelper(KoToolFactory *tool)
+ToolHelper::ToolHelper(KoToolFactoryBase *tool)
 {
     m_toolFactory = tool;
     m_uniqueId = (int) random();
@@ -63,11 +63,11 @@ QString ToolHelper::toolTip() const
     return m_toolFactory->toolTip();
 }
 
-KoTool *ToolHelper::createTool(KoCanvasBase *canvas) const
+KoToolBase *ToolHelper::createTool(KoCanvasBase *canvas) const
 {
     if (! canCreateTool(canvas))
         return 0;
-    KoTool *tool = m_toolFactory->createTool(canvas);
+    KoToolBase *tool = m_toolFactory->createTool(canvas);
     tool->setToolId(id());
     return tool;
 }

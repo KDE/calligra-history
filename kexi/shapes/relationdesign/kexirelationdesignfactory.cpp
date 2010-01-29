@@ -20,7 +20,7 @@
 #include <kdebug.h>
 
 KexiRelationDesignFactory::KexiRelationDesignFactory ( QObject* parent )
-        : KoShapeFactory ( parent, "KexiRelationDesignShape",
+        : KoShapeFactoryBase ( parent, "KexiRelationDesignShape",
                            i18n ( "Kexi Relation Design" ) ) {
     setToolTip ( i18n ( "A kexi relation design shape" ) );
     setIcon( "kexi" );
@@ -28,18 +28,11 @@ KexiRelationDesignFactory::KexiRelationDesignFactory ( QObject* parent )
     setLoadingPriority( 1 );
 }
 
-KoShape* KexiRelationDesignFactory::createDefaultShape() const {
+KoShape *KexiRelationDesignFactory::createDefaultShape(KoResourceManager *) const
+{
     kDebug();
     KexiRelationDesignShape* fooShape = new KexiRelationDesignShape();
     // set defaults
-    return fooShape;
-}
-
-KoShape* KexiRelationDesignFactory::createShape (
-    const KoProperties* params ) const {
-        kDebug();
-        KexiRelationDesignShape* fooShape = new KexiRelationDesignShape();
-    // use the params
     return fooShape;
 }
 
