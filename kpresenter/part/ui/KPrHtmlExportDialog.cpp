@@ -208,49 +208,15 @@ void KPrHtmlExportDialog::addFavoriteCSS(){
     QStringList list = cssPath.split("/");
     QString shortName = list[list.count()-1];
     shortName.remove(QString(".css"),Qt::CaseInsensitive);
-
     QDir* newdir = new QDir(basePath);
     basePath.append("/" + shortName);
     basePath.append("/style.css");
     QFile* newfile = new QFile(basePath);
-    qDebug()<< basePath;
-    qDebug()<< cssPath;
-    
-    if (newfile->exists()){
-        // need specification
-    }
-    else{
-        if(fileCss->open(QIODevice::ReadOnly)){
-            
-            if(newdir->mkdir(shortName)){
-                if(newfile->open(QIODevice::WriteOnly)){
-                    newfile->write("youpi", qstrlen("youpi"));
-
-
-                    newfile->close();            
-                }
-                else{
-                // error open newfile
-                qDebug()<< "Erreur ouverture de newfile";
-                }
-            }
-            else{
-            // error mkdir
-            }
-
-
-            fileCss->close();
-        }
-        else{
-        // error open fileCSS
+    if(newdir->mkdir(shortName)){
+        if(! (QFile::copy(fileCss->fileName(),newfile->fileName()))){
+        // error copy
         }
     }
-        
-   /* QFile* fic = new QFile(basePath);
-    if (fic->open(QIODevice::WriteOnly)){
-          fic->write("youpi", qstrlen("youpi")); 
-     } 
-*/
 }
 
 void KPrHtmlExportDialog::renderPreview()
