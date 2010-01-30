@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>562</width>
-    <height>310</height>
+    <height>329</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -44,7 +44,7 @@
      </property>
     </widget>
    </item>
-   <item row="7" column="0" colspan="5">
+   <item row="7" column="0" colspan="3">
     <widget class="QLabel" name="textLabel_css">
      <property name="text">
       <string>Select template (.css) :</string>
@@ -78,7 +78,7 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="4" rowspan="3">
+   <item row="4" column="5" rowspan="3">
     <widget class="QGroupBox" name="groupBox_preview">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -166,7 +166,7 @@
      </layout>
     </widget>
    </item>
-   <item row="9" column="0" colspan="5">
+   <item row="8" column="0" colspan="6">
     <widget class="QWidget" name="widget" native="true">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -207,7 +207,7 @@
      </layout>
     </widget>
    </item>
-   <item row="1" column="0" colspan="5">
+   <item row="1" column="0" colspan="6">
     <widget class="KLineEdit" name="klineedit_title"/>
    </item>
    <item row="2" column="0">
@@ -220,12 +220,29 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="0" colspan="5">
+   <item row="3" column="0" colspan="6">
     <widget class="KLineEdit" name="klineedit_author"/>
+   </item>
+   <item row="7" column="4">
+    <widget class="KPushButton" name="buttonAddFavorite">
+     <property name="text">
+      <string>Add Favorite</string>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>KComboBox</class>
+   <extends>QComboBox</extends>
+   <header>kcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>KLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>klineedit.h</header>
+  </customwidget>
   <customwidget>
    <class>KListWidget</class>
    <extends>QListWidget</extends>
@@ -235,16 +252,6 @@
    <class>KPushButton</class>
    <extends>QPushButton</extends>
    <header>kpushbutton.h</header>
-  </customwidget>
-  <customwidget>
-   <class>KLineEdit</class>
-   <extends>QLineEdit</extends>
-   <header>klineedit.h</header>
-  </customwidget>
-  <customwidget>
-   <class>KComboBox</class>
-   <extends>QComboBox</extends>
-   <header>kcombobox.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

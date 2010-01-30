@@ -56,6 +56,7 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
     connect( ui.kPushButton_deselectAll, SIGNAL(clicked()), this, SLOT(uncheckAllItems()));
     connect( ui.toolButton_previous, SIGNAL(clicked()), this, SLOT(generatePrevious()));
     connect( ui.toolButton_next, SIGNAL(clicked()), this, SLOT(generateNext()));
+    connect( ui.buttonAddFavorite, SIGNAL(clicked()), this, SLOT(addFavoriteCSS()));
 
     this->frameToRender = 0;
     this->generateSlidesNames(slides);
@@ -141,18 +142,21 @@ void KPrHtmlExportDialog::loadCssList()
         }
     }
     ui.kcombobox->insertSeparator(ui.kcombobox->count());
+    
 }
 
 void KPrHtmlExportDialog::browserAction(){
     KFileDialog dialog(KUrl("/"),QString("*.css"),this);
     if (dialog.exec() == QDialog::Accepted) {
         QString name=dialog.selectedFile();
-        QStringList list = name.split("/");
-        name = list[list.count()-1];
-        if (! ui.kcombobox->contains(name)) {
-            ui.kcombobox->addItem(name,QVariant(name));
-            ui.kcombobox->setCurrentIndex(ui.kcombobox->count()-1);
+        int index = ui.kcombobox->findData(name);
+        if (index==-1) {
+            QStringList list = name.split("/");
+            QString shortName = list[list.count()-1];
+            ui.kcombobox->addItem(shortName,QVariant(name));
+            index=ui.kcombobox->count()-1;
         }
+            ui.kcombobox->setCurrentIndex(index);
    }
 }
 
@@ -197,9 +201,56 @@ void KPrHtmlExportDialog::generatePreview(int item) {
     preview.mainFrame()->load(url);
 }
 
-void KPrHtmlExportDialog::addFavoriteCSS( QString path){
+void KPrHtmlExportDialog::addFavoriteCSS(){
     QString basePath = KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML");
+    QString cssPath = QString(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
+    QFile* fileCss = new QFile(cssPath);
+    QStringList list = cssPath.split("/");
+    QString shortName = list[list.count()-1];
+    shortName.remove(QString(".css"),Qt::CaseInsensitive);
 
+    QDir* newdir = new QDir(basePath);
+    basePath.append("/" + shortName);
+    basePath.append("/style.css");
+    QFile* newfile = new QFile(basePath);
+    qDebug()<< basePath;
+    qDebug()<< cssPath;
+    
+    if (newfile->exists()){
+        // need specification
+    }
+    else{
+        if(fileCss->open(QIODevice::ReadOnly)){
+            
+            if(newdir->mkdir(shortName)){
+                if(newfile->open(QIODevice::WriteOnly)){
+                    newfile->write("youpi", qstrlen("youpi"));
+
+
+                    newfile->close();            
+                }
+                else{
+                // error open newfile
+                qDebug()<< "Erreur ouverture de newfile";
+                }
+            }
+            else{
+            // error mkdir
+            }
+
+
+            fileCss->close();
+        }
+        else{
+        // error open fileCSS
+        }
+    }
+        
+   /* QFile* fic = new QFile(basePath);
+    if (fic->open(QIODevice::WriteOnly)){
+          fic->write("youpi", qstrlen("youpi")); 
+     } 
+*/
 }
 
 void KPrHtmlExportDialog::renderPreview()
