@@ -203,17 +203,17 @@ void KPrHtmlExportDialog::generatePreview(int item) {
 
 void KPrHtmlExportDialog::addFavoriteCSS(){
     QString basePath = KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML");
-    QString cssPath = QString(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
-    QFile* fileCss = new QFile(cssPath);
+    QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
+    QFile fileCss(cssPath);
     QStringList list = cssPath.split("/");
     QString shortName = list[list.count()-1];
     shortName.remove(QString(".css"),Qt::CaseInsensitive);
-    QDir* newdir = new QDir(basePath);
+    QDir newdir(basePath);
     basePath.append("/" + shortName);
     basePath.append("/style.css");
-    QFile* newfile = new QFile(basePath);
-    if(newdir->mkdir(shortName)){
-        if(! (QFile::copy(fileCss->fileName(),newfile->fileName()))){
+    QFile newfile(basePath);
+    if(newdir.mkdir(shortName)){
+        if(! (QFile::copy(fileCss.fileName(),newfile.fileName()))){
         // error copy
         }
     }
