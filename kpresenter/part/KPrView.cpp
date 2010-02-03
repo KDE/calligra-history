@@ -162,9 +162,16 @@ void KPrView::initActions()
     actionCollection()->addAction("view_notes", m_actionViewModeNotes);
     connect(m_actionViewModeNotes, SIGNAL(triggered()), this, SLOT(showNotes()));
 
+    // Action : outline mode
+    m_actionViewModeOutline = new KAction(i18n("Outline"), this);
+    m_actionViewModeOutline->setCheckable(true);
+    actionCollection()->addAction("view_outline", m_actionViewModeOutline);
+    connect(m_actionViewModeOutline, SIGNAL(triggered()), this, SLOT(showOutline()));
+
     QActionGroup *viewModesGroup = new QActionGroup(this);
     viewModesGroup->addAction(m_actionViewModeNormal);
     viewModesGroup->addAction(m_actionViewModeNotes);
+    viewModesGroup->addAction(m_actionViewModeOutline);
 
     m_actionCreateAnimation = new KAction( i18n( "Create Appear Animation" ), this );
     actionCollection()->addAction( "edit_createanimation", m_actionCreateAnimation );
@@ -245,6 +252,10 @@ void KPrView::showNotes()
         setMasterMode( false );
     }
     setViewMode(m_notesMode);
+}
+
+void KPrView::showOutline() {
+    qDebug() << "Outline mode";
 }
 
 void KPrView::dialogCustomSlideShows()

@@ -89,6 +89,7 @@ protected slots:
     void createAnimation();
     void showNormal();
     void showNotes();
+    void showOutline();
     void dialogCustomSlideShows();
     void configureSlideShow();
     void configurePresenterView();
@@ -99,6 +100,7 @@ private:
     KAction *m_actionCreateAnimation;
     KAction *m_actionViewModeNormal;
     KAction *m_actionViewModeNotes;
+    KAction *m_actionViewModeOutline;
     KAction *m_actionCreateCustomSlideShowsDialog;
     KAction *m_actionExportHtml;
 
