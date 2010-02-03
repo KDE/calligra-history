@@ -46,6 +46,8 @@ private slots:
     void generatePreview(int item=-1);
     void browserAction();
     void addFavoriteCSS();
+    void delFavoriteCSS();
+    void updateCssList();
 
 private:
     QList<KoPAPageBase*> m_allSlides;

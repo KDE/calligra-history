@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>562</width>
-    <height>329</height>
+    <width>646</width>
+    <height>341</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>HTML Export</string>
@@ -223,12 +229,42 @@
    <item row="3" column="0" colspan="6">
     <widget class="KLineEdit" name="klineedit_author"/>
    </item>
-   <item row="7" column="4">
-    <widget class="KPushButton" name="buttonAddFavorite">
-     <property name="text">
-      <string>Add Favorite</string>
-     </property>
-    </widget>
+   <item row="7" column="5">
+    <layout class="QGridLayout" name="gridLayout_3">
+     <item row="0" column="1">
+      <widget class="KPushButton" name="buttonAddFavorite">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Add Favorite</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="3">
+      <widget class="KPushButton" name="buttonDelFavorite">
+       <property name="text">
+        <string>Delete Favorite</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <spacer name="horizontalSpacer_3">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>

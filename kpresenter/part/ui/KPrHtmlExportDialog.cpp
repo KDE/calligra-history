@@ -57,6 +57,7 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
     connect( ui.toolButton_previous, SIGNAL(clicked()), this, SLOT(generatePrevious()));
     connect( ui.toolButton_next, SIGNAL(clicked()), this, SLOT(generateNext()));
     connect( ui.buttonAddFavorite, SIGNAL(clicked()), this, SLOT(addFavoriteCSS()));
+    connect ( ui.buttonDelFavorite, SIGNAL(clicked()), this, SLOT(delFavoriteCSS()));
 
     this->frameToRender = 0;
     this->generateSlidesNames(slides);
@@ -124,6 +125,18 @@ void KPrHtmlExportDialog::generateSlidesNames(QList<KoPAPageBase*> slides)
         ui.kListBox_slides->addItem(listItem);
     }
 }
+
+void KPrHtmlExportDialog::updateCssList()
+{
+    int nb = ui.kcombobox->count();
+    for(int i=0; i<nb ; i++){
+        ui.kcombobox->removeItem(0);
+    }
+    loadCssList();
+}
+
+
+
 
 void KPrHtmlExportDialog::loadCssList()
 {
@@ -204,18 +217,32 @@ void KPrHtmlExportDialog::generatePreview(int item) {
 void KPrHtmlExportDialog::addFavoriteCSS(){
     QString basePath = KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML");
     QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
-    QFile fileCss(cssPath);
-    QStringList list = cssPath.split("/");
-    QString shortName = list[list.count()-1];
-    shortName.remove(QString(".css"),Qt::CaseInsensitive);
-    QDir newdir(basePath);
-    basePath.append("/" + shortName);
-    basePath.append("/style.css");
-    QFile newfile(basePath);
-    if(newdir.mkdir(shortName)){
-        if(! (QFile::copy(fileCss.fileName(),newfile.fileName()))){
-        // error copy
+        QFile fileCss(cssPath);
+        QStringList list = cssPath.split("/");
+        QString shortName = list[list.count()-1];
+        shortName.remove(QString(".css"),Qt::CaseInsensitive);
+        QDir newdir(basePath);
+        basePath.append("/" + shortName);
+        basePath.append("/style.css");
+        QFile newfile(basePath);
+        if(newdir.mkpath(shortName)){
+            if(! (QFile::copy(fileCss.fileName(),newfile.fileName()))){
+            // error copy
+            }
         }
+        updateCssList();
+}
+
+void KPrHtmlExportDialog::delFavoriteCSS(){
+    QString basePath = KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML");
+    QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
+    if (cssPath.contains(basePath)){
+        QStringList list = cssPath.split("/");
+        QString shortName = list[list.count()-1];
+        cssPath = cssPath.remove(cssPath.size()-shortName.size()-1,shortName.size()+1);
+        QDir dir = QDir(cssPath);
+            // need recursive rmdir
+        updateCssList();
     }
 }
 
