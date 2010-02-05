@@ -25,6 +25,7 @@
 #include <KoPAPageBase.h>
 #include <QWebPage>
 #include "ui_KPrHtmlExport.h"
+#include <QDir>
 
 class KPrHtmlExportDialog  : public KDialog
 {
@@ -47,7 +48,9 @@ private slots:
     void browserAction();
     void addFavoriteCSS();
     void delFavoriteCSS();
-    void updateCssList();
+    void updateCssListOnAdd(QString basePath);
+    void updateCssListOnDelete();
+	void delDirectory(QDir dir);
 
 private:
     QList<KoPAPageBase*> m_allSlides;
