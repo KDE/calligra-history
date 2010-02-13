@@ -30,6 +30,7 @@
 class KPrDocument;
 class KPrViewAdaptor;
 class KPrViewModeNotes;
+class KPrViewModeOutline;
 class KPrViewModePresentation;
 class KPrViewModePresenterView;
 class KActionMenu;
@@ -89,6 +90,9 @@ protected slots:
     void createAnimation();
     void showNormal();
     void showNotes();
+    /**
+     * @brief Show the outline mode.
+     */
     void showOutline();
     void dialogCustomSlideShows();
     void configureSlideShow();
@@ -107,6 +111,7 @@ private:
     KPrViewModePresentation *m_presentationMode;
     KoPAViewMode *m_normalMode;
     KPrViewModeNotes *m_notesMode;
+    KPrViewModeOutline *m_outlineMode;
 
     KPrViewAdaptor *m_dbus;
 };

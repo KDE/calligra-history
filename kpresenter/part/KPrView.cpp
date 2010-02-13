@@ -42,6 +42,7 @@
 #include "KPrViewAdaptor.h"
 #include "KPrViewModePresentation.h"
 #include "KPrViewModeNotes.h"
+#include "KPrViewModeOutline.h"
 #include "KPrShapeManagerDisplayMasterStrategy.h"
 #include "commands/KPrAnimationCreateCommand.h"
 #include "commands/KPrSetCustomSlideShowsCommand.h"
@@ -64,6 +65,7 @@ KPrView::KPrView( KPrDocument *document, QWidget *parent )
   , m_presentationMode( new KPrViewModePresentation( this, kopaCanvas() ))
   , m_normalMode( viewMode() )
   , m_notesMode( new KPrViewModeNotes( this, kopaCanvas() ))
+  , m_outlineMode( new KPrViewModeOutline( this, kopaCanvas() ))
   , m_dbus( new KPrViewAdaptor( this ) )
 {
     initGUI();
@@ -95,6 +97,7 @@ KPrView::~KPrView()
 {
     delete m_presentationMode;
     delete m_notesMode;
+    delete m_outlineMode;
 }
 
 KoViewConverter * KPrView::viewConverter( KoPACanvas * canvas )
@@ -254,8 +257,9 @@ void KPrView::showNotes()
     setViewMode(m_notesMode);
 }
 
-void KPrView::showOutline() {
-    qDebug() << "Outline mode";
+void KPrView::showOutline()
+{
+    setViewMode(m_outlineMode);
 }
 
 void KPrView::dialogCustomSlideShows()
