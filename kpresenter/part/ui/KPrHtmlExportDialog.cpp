@@ -56,9 +56,10 @@ KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString ti
     connect( ui.kPushButton_deselectAll, SIGNAL(clicked()), this, SLOT(uncheckAllItems()));
     connect( ui.toolButton_previous, SIGNAL(clicked()), this, SLOT(generatePrevious()));
     connect( ui.toolButton_next, SIGNAL(clicked()), this, SLOT(generateNext()));
-    connect( ui.buttonAddFavorite, SIGNAL(clicked()), this, SLOT(addFavoriteCSS()));
-    connect ( ui.buttonDelFavorite, SIGNAL(clicked()), this, SLOT(delFavoriteCSS()));
+    connect( ui.kPushButton_Favorite, SIGNAL(clicked()), this, SLOT(favoriteAction()));
+    connect( ui.kcombobox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateFavoriteButton()));
 
+    this->updateFavoriteButton();
     this->frameToRender = 0;
     this->generateSlidesNames(slides);
     this->loadCssList();
@@ -151,7 +152,7 @@ void KPrHtmlExportDialog::updateCssListOnAdd(QString basePath)
 	QString name = ui.kcombobox->itemText(ui.kcombobox->currentIndex());
 	QVariant qVariant = basePath;
 	ui.kcombobox->removeItem(ui.kcombobox->currentIndex());
-    ui.kcombobox->insertItem(0, name, qVariant);
+        ui.kcombobox->insertItem(0, name, qVariant);
 	ui.kcombobox->setCurrentIndex(0);
 }
 
@@ -182,9 +183,9 @@ void KPrHtmlExportDialog::addFavoriteCSS(){
 }
 
 void KPrHtmlExportDialog::delFavoriteCSS(){
-    QString basePath = KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML");
-    QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
-    if (cssPath.contains(basePath)){
+
+    if (this->cssIsFavorite()){
+        QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
         QStringList list = cssPath.split("/");
         QString shortName = list[list.count()-1];
         cssPath = cssPath.remove(cssPath.size()-shortName.size()-1,shortName.size()+1);
@@ -283,4 +284,39 @@ void KPrHtmlExportDialog::renderPreview()
 
     QImage thumbnail = image.scaled(ui.qLabel_preview->size(), Qt::KeepAspectRatio);
     ui.qLabel_preview->setPixmap(QPixmap::fromImage(thumbnail));
+}
+
+bool KPrHtmlExportDialog::cssIsFavorite() {
+    QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
+    return cssPath.contains(KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML"));
+}
+
+bool KPrHtmlExportDialog::cssIsSystemFavorite() {
+    return false;
+    //TODO : manage case of favorite css is system favorite css
+}
+
+void KPrHtmlExportDialog::updateFavoriteButton(){
+    if (this->cssIsFavorite() || this->cssIsSystemFavorite()){
+        ui.kPushButton_Favorite->setText(i18n("Delete from Favorite"));
+        if (this->cssIsSystemFavorite()){
+            ui.kPushButton_Favorite->setEnabled(false);
+        }
+        else {
+            ui.kPushButton_Favorite->setEnabled(true);
+        }
+    }
+    else {
+        ui.kPushButton_Favorite->setText(i18n("Add as Favorite"));
+        ui.kPushButton_Favorite->setEnabled(true);
+    }
+}
+
+void KPrHtmlExportDialog::favoriteAction(){
+   if (this->cssIsFavorite()){
+        this->delFavoriteCSS();
+    }
+    else {
+        this->addFavoriteCSS();
+    }
 }

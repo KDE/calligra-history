@@ -42,6 +42,8 @@ private slots:
     void checkAllItems();
     void uncheckAllItems();
     void renderPreview();
+    void favoriteAction();
+    void updateFavoriteButton();
     void generateNext();
     void generatePrevious();
     void generatePreview(int item=-1);
@@ -50,7 +52,8 @@ private slots:
     void delFavoriteCSS();
     void updateCssListOnAdd(QString basePath);
     void updateCssListOnDelete();
-	void delDirectory(QDir dir);
+    void delDirectory(QDir dir);
+
 
 private:
     QList<KoPAPageBase*> m_allSlides;
@@ -60,6 +63,9 @@ private:
     void loadCssList();
     QWebPage preview;
     int frameToRender;
+    bool cssIsFavorite();
+    bool cssIsSystemFavorite();
+
 };
 
 
