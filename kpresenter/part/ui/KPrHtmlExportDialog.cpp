@@ -292,8 +292,16 @@ bool KPrHtmlExportDialog::cssIsFavorite() {
 }
 
 bool KPrHtmlExportDialog::cssIsSystemFavorite() {
-    return false;
-    //TODO : manage case of favorite css is system favorite css
+    QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
+    QString dir;
+
+    QStringList dirs(KStandardDirs().findDirs("data", "kpresenter/templates/exportHTML"));
+    for (QStringList::ConstIterator path=dirs.begin(); path!=dirs.end(); ++path) {
+        if (!path->contains(KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML"))){
+            dir = *path;
+        }
+    }
+    return (!dir.isNull()) && cssPath.contains(dir);
 }
 
 void KPrHtmlExportDialog::updateFavoriteButton(){
@@ -301,14 +309,17 @@ void KPrHtmlExportDialog::updateFavoriteButton(){
         ui.kPushButton_Favorite->setText(i18n("Delete from Favorite"));
         if (this->cssIsSystemFavorite()){
             ui.kPushButton_Favorite->setEnabled(false);
+            ui.kPushButton_Favorite->setToolTip(i18n("You may not remove the templates provided with the application"));
         }
         else {
             ui.kPushButton_Favorite->setEnabled(true);
+            ui.kPushButton_Favorite->setToolTip("");
         }
     }
     else {
         ui.kPushButton_Favorite->setText(i18n("Add as Favorite"));
         ui.kPushButton_Favorite->setEnabled(true);
+        ui.kPushButton_Favorite->setToolTip("");
     }
 }
 
