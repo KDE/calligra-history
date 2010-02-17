@@ -31,6 +31,7 @@
 #include <QWebFrame>
 #include <QPainter>
 #include <KPrView.h>
+#include <QMessageBox>
 
 KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QString author, QWidget *parent)
     : KDialog(parent)
@@ -325,7 +326,14 @@ void KPrHtmlExportDialog::updateFavoriteButton(){
 
 void KPrHtmlExportDialog::favoriteAction(){
    if (this->cssIsFavorite()){
-        this->delFavoriteCSS();
+        int button = QMessageBox::question(this,
+             i18n("Confirm Remove"),
+             i18n("Are you sure you want to remove \"%1\"?", ui.kcombobox->currentText()),
+             QMessageBox::Yes | QMessageBox::No);
+
+        if (button == QMessageBox::Yes){
+            this->delFavoriteCSS();
+        }
     }
     else {
         this->addFavoriteCSS();
