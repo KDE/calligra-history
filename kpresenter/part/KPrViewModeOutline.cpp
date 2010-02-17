@@ -20,56 +20,84 @@
 
 #include "KPrViewModeOutline.h"
 
+#include <KoPAView.h>
+#include <QTextEdit>
 
-
-KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas ) : KoPAViewMode(view, canvas) {
-
+KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas )
+    : KoPAViewMode(view, canvas)
+    , m_editor(new QTextEdit(m_view->parentWidget()))
+{
+    m_editor->hide();
 }
 
-KPrViewModeOutline::~KPrViewModeOutline() {
+KPrViewModeOutline::~KPrViewModeOutline()
+{
 
 }
 
 void KPrViewModeOutline::paintEvent( KoPACanvas * canvas, QPaintEvent* event )
 {
-
+    Q_ASSERT( m_canvas == canvas );
+    Q_UNUSED(event);
+    Q_UNUSED(canvas);
 }
 
 void KPrViewModeOutline::tabletEvent( QTabletEvent *event, const QPointF &point )
 {
-
+    Q_UNUSED(event);
+    Q_UNUSED(point);
 }
 
 void KPrViewModeOutline::mousePressEvent( QMouseEvent *event, const QPointF &point )
 {
-
+    Q_UNUSED(event);
+    Q_UNUSED(point);
 }
 
 void KPrViewModeOutline::mouseDoubleClickEvent( QMouseEvent *event, const QPointF &point )
 {
-
+    Q_UNUSED(event);
+    Q_UNUSED(point);
 }
 
 void KPrViewModeOutline::mouseMoveEvent( QMouseEvent *event, const QPointF &point )
 {
-
+    Q_UNUSED(event);
+    Q_UNUSED(point);
 }
 
 void KPrViewModeOutline::mouseReleaseEvent( QMouseEvent *event, const QPointF &point )
 {
-
+    Q_UNUSED(event);
+    Q_UNUSED(point);
 }
 
 void KPrViewModeOutline::keyPressEvent( QKeyEvent *event )
 {
-
+    Q_UNUSED(event);
 }
 
 void KPrViewModeOutline::keyReleaseEvent( QKeyEvent *event )
 {
-
+    Q_UNUSED(event);
 }
 
-void KPrViewModeOutline::wheelEvent( QWheelEvent * event, const QPointF &point ){
+void KPrViewModeOutline::wheelEvent( QWheelEvent * event, const QPointF &point )
+{
+    Q_UNUSED(event);
+    Q_UNUSED(point);
+}
 
+void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
+{
+    Q_UNUSED(previousViewMode);
+    m_view->hide();
+    m_editor->show();
+    m_editor->setFocus(Qt::ActiveWindowFocusReason);
+}
+
+void KPrViewModeOutline::deactivate()
+{
+    m_editor->hide();
+    m_view->show();
 }

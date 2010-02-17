@@ -23,6 +23,8 @@
 
 #include <KoPAViewMode.h>
 
+class QTextEdit;
+
 /**
  * @brief View for outline mode.
  */
@@ -44,6 +46,16 @@ public:
     virtual void keyPressEvent( QKeyEvent *event );
     virtual void keyReleaseEvent( QKeyEvent *event );
     virtual void wheelEvent( QWheelEvent * event, const QPointF &point );
+
+    void activate(KoPAViewMode *previousViewMode);
+    void deactivate();
+
+private:
+
+    /**
+     * @brief The outline editor.
+     */
+    QTextEdit * m_editor;
 
 };
 
