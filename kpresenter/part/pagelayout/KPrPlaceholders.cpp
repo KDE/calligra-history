@@ -150,6 +150,14 @@ KPrPageLayout * KPrPlaceholders::layout() const
     return m_layout;
 }
 
+KoShape * KPrPlaceholders::getFirstPlaceholderByClass( QString shapeClass )
+{
+    boost::multi_index::nth_index<Placeholders,1>::type &byClass = m_placeholders.get<1>();
+    boost::multi_index::nth_index<Placeholders,1>::type::iterator it = byClass.find(shapeClass);
+
+    return (it == byClass.end()) ? NULL : (it->shape);
+}
+
 void KPrPlaceholders::shapeAdded( KoShape * shape )
 {
     Q_ASSERT( m_initialized );

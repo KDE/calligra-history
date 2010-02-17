@@ -95,6 +95,8 @@ public:
 
     KPrPageLayout * layout() const;
 
+    KoShape * getFirstPlaceholderByClass( QString shapeClass );
+
     void shapeAdded( KoShape * shape );
 
     void shapeRemoved( KoShape * shape );
