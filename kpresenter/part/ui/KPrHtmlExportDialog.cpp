@@ -29,9 +29,12 @@
 #include <KFileDialog>
 #include "KPrHtmlExport.h"
 #include <QWebFrame>
+#include <KArchiveDirectory>
+#include <KZip>
 #include <QPainter>
 #include <KPrView.h>
 #include <QMessageBox>
+
 
 KPrHtmlExportDialog::KPrHtmlExportDialog(QList<KoPAPageBase*> slides, QString title, QString author, QWidget *parent)
     : KDialog(parent)
@@ -217,7 +220,7 @@ void KPrHtmlExportDialog::delDirectory(QDir dir){
 }
 
 void KPrHtmlExportDialog::browserAction(){
-    KFileDialog dialog(KUrl("/"),QString("*.css"),this);
+    KFileDialog dialog(KUrl("/home/"),QString("*.css *.zip"),this);
     if (dialog.exec() == QDialog::Accepted) {
         QString name=dialog.selectedFile();
         int index = ui.kcombobox->findData(name);
@@ -227,8 +230,74 @@ void KPrHtmlExportDialog::browserAction(){
             ui.kcombobox->addItem(shortName,QVariant(name));
             index=ui.kcombobox->count()-1;
         }
-            ui.kcombobox->setCurrentIndex(index);
+        ui.kcombobox->setCurrentIndex(index);
+        if(name.endsWith(QString(".zip"),Qt::CaseInsensitive)){
+            addZipFavorite(name);
+        }
    }
+}
+
+void KPrHtmlExportDialog::addZipFavorite(QString zipFile){
+    KZip zip(zipFile);
+
+    //Check
+    zip.open(QIODevice::ReadOnly);
+    QStringList liste = zip.directory()->entries(); 
+    int nbCss = 0;
+    int firstCssIndex = -1;
+    int styleCssIndex = -1;
+    QString element;
+    for(int i=0;i<liste.count();i++){
+        element=liste[i];
+        if(element.endsWith(QString(".css"),Qt::CaseInsensitive)){
+            nbCss++;
+            if(firstCssIndex == -1) firstCssIndex=i;
+            if(element==QString("style.css")) styleCssIndex = i;
+        }           
+    }
+    bool add;
+    QString renameCss = QString("");
+    switch(nbCss){
+        case 0:
+            // Error to define
+            add=false;
+            break;
+        case 1:
+            if(firstCssIndex!=styleCssIndex){
+                renameCss=liste[firstCssIndex];
+            }
+            add=true;
+            break;
+        default:
+            if(styleCssIndex==-1){
+                //Error to define
+                add=false;
+            }
+            else{
+                add=true;
+            }
+    }
+    //Add
+    if(add){
+        QStringList list = zipFile.split("/");
+        QString shortName = list[list.count()-1];
+        QString favoritePath = KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML");
+        favoritePath.append("/");
+        favoritePath.append(shortName);
+        favoritePath.remove(".zip");
+        zip.directory()->copyTo(favoritePath,true);
+        if(renameCss!=QString("")){
+            QString fileCss = QString("");
+            fileCss.append(favoritePath);
+            fileCss.append("/");
+            fileCss.append(renameCss);
+            QFile fileCssToRename(fileCss);
+            favoritePath.append("/style.css");
+            fileCssToRename.rename(favoritePath);                   
+        }
+    }
+  
+
 }
 
 QString KPrHtmlExportDialog::title()
