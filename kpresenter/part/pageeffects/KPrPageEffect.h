@@ -1,5 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2007-2008 Thorsten Zachmann <zachmann@kde.org>
+   Copyright (C) 2010 Benjamin Port <port.benjamin@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -22,7 +23,9 @@
 
 #include <QPixmap>
 #include <QTimeLine>
-
+#include <QGraphicsScene>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsView>
 #include "kpresenter_export.h"
 
 class QPainter;
@@ -61,6 +64,10 @@ public:
         QPixmap m_newPage;
         QWidget * m_widget;
         QTimeLine m_timeLine;
+        QGraphicsScene *m_scene;
+        QGraphicsView *m_graphicsView;
+        QGraphicsPixmapItem *m_oldPageItem;
+        QGraphicsPixmapItem *m_newPageItem;
         bool m_finished;
         int m_currentTime;
         int m_lastTime;

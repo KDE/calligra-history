@@ -27,7 +27,7 @@
 #include <QtGui/QDesktopWidget>
 
 #include <kdebug.h>
-
+#include <QDebug>
 #include <KoPointerEvent.h>
 #include <KoPageApp.h>
 #include <KoPACanvas.h>
@@ -138,6 +138,7 @@ void KPrViewModePreviewPageEffect::activate( KoPAViewMode * previousViewMode )
 
 void KPrViewModePreviewPageEffect::deactivate()
 {
+    m_pageEffectRunner->finish();
     m_savedViewMode = 0;               // store the previous view mode
 }
 

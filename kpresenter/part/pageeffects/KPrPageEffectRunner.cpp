@@ -1,5 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2007 Thorsten Zachmann <zachmann@kde.org>
+   Copyright (C) 2010 Benjamin Port <port.benjamin@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -20,16 +21,31 @@
 #include "KPrPageEffectRunner.h"
 
 #include "KPrPageEffect.h"
-
+#include <QDebug>
 KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap &newPage, QWidget *w, KPrPageEffect *effect )
 : m_effect( effect )
 , m_data( oldPage, newPage, w )
 {
+    m_data.m_scene = new QGraphicsScene();
+    m_data.m_graphicsView = new QGraphicsView(m_data.m_scene, w);
+    m_data.m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_data.m_graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_data.m_graphicsView->resize(w->size());
+    m_data.m_graphicsView->setFrameShape(QFrame::Panel);
+    m_data.m_graphicsView->setLineWidth(0);
+    m_data.m_oldPageItem = new QGraphicsPixmapItem(oldPage, 0, m_data.m_scene);
+    m_data.m_newPageItem = new QGraphicsPixmapItem(newPage, 0, m_data.m_scene);
+    m_data.m_oldPageItem->hide();
+    m_data.m_newPageItem->hide();
+    m_data.m_graphicsView->hide();
     m_effect->setup( m_data, m_data.m_timeLine );
 }
 
 KPrPageEffectRunner::~KPrPageEffectRunner()
 {
+    qDebug() << "finish RUNNER";
+    delete m_data.m_graphicsView;
+    delete m_data.m_scene;
 }
 
 bool KPrPageEffectRunner::paint( QPainter &painter )
@@ -46,6 +62,7 @@ void KPrPageEffectRunner::next( int currentTime )
 
 void KPrPageEffectRunner::finish()
 {
+    qDebug() << "finish KPrPageEffectRunner";
     m_data.m_finished = true;
     m_effect->finish( m_data );
 }
