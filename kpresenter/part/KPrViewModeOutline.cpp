@@ -20,8 +20,14 @@
 
 #include "KPrViewModeOutline.h"
 
+#include <KoPADocument.h>
 #include <KoPAView.h>
+#include <KoTextShapeData.h>
+#include <KPrPage.h>
+#include <QTextDocumentFragment>
 #include <QTextEdit>
+#include <QTextFrame>
+#include <QTextFrameFormat>
 
 KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas )
     : KoPAViewMode(view, canvas)
@@ -91,6 +97,28 @@ void KPrViewModeOutline::wheelEvent( QWheelEvent * event, const QPointF &point )
 void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
 {
     Q_UNUSED(previousViewMode);
+    // Create cursor for editing documents
+    QTextCursor cursor = m_editor->document()->rootFrame()->lastCursorPosition();
+    // Custom frame format
+    QTextFrameFormat frameFormat;
+    frameFormat.setBorderStyle(QTextFrameFormat::BorderStyle_Solid);
+    frameFormat.setBorder(1.0);
+    // Create frame for each page
+    foreach (KoPAPageBase * pageBase, m_view->kopaDocument()->pages()) {
+        KPrPage * page = dynamic_cast<KPrPage *>(pageBase);
+        if (page == NULL) continue;
+        QTextFrame * slideFrame = cursor.insertFrame(frameFormat);
+        // Copy relevant content of the page in the frame
+        foreach (OutlinePair pair, page->placeholders().outlineData()) {
+            if (pair.second == NULL) continue;
+            if (pair.first == "title" || pair.first == "subtitle" || pair.first == "outline") {
+                cursor.insertFrame(frameFormat);
+                cursor.insertFragment(QTextDocumentFragment(pair.second->document()));
+                cursor = slideFrame->lastCursorPosition();
+            }
+        }
+        cursor = m_editor->document()->rootFrame()->lastCursorPosition();
+    }
     m_view->hide();
     m_editor->show();
     m_editor->setFocus(Qt::ActiveWindowFocusReason);
@@ -99,5 +127,6 @@ void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
 void KPrViewModeOutline::deactivate()
 {
     m_editor->hide();
+    m_editor->clear(); // Content will be regenerated when outline mode is activate
     m_view->show();
 }
