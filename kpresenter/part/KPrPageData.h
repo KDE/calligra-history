@@ -33,14 +33,6 @@ public:
     KPrPlaceholders & placeholders();
     const KPrPlaceholders & placeholders() const;
 
-    // getters for template palceholders, all of them returns the first
-    // shape of a partiicular class or 0 if shape doesn't exists
-    KoTextShapeData* pageTitle();
-    KoTextShapeData* pageOutline();
-    KoTextShapeData* pageSubtitle();
-
-protected:
-    KoTextShapeData* getFirstTextShapeByClass(QString shapeClass);
 private:
     KPrShapeAnimations m_animations;
     KPrPlaceholders m_placeholders;

@@ -150,14 +150,6 @@ KPrPageLayout * KPrPlaceholders::layout() const
     return m_layout;
 }
 
-KoShape * KPrPlaceholders::getFirstPlaceholderByClass( QString shapeClass )
-{
-    boost::multi_index::nth_index<Placeholders,1>::type &byClass = m_placeholders.get<1>();
-    boost::multi_index::nth_index<Placeholders,1>::type::iterator it = byClass.find(shapeClass);
-
-    return (it == byClass.end()) ? NULL : (it->shape);
-}
-
 void KPrPlaceholders::shapeAdded( KoShape * shape )
 {
     Q_ASSERT( m_initialized );
@@ -228,6 +220,18 @@ QMap<QString, KoTextShapeData *> KPrPlaceholders::styles() const
     }
     return styles;
 }
+
+
+OutlineData KPrPlaceholders::outlineData() const {
+    OutlineData outline;
+    for (Placeholders::iterator it( m_placeholders.begin() ) ; it != m_placeholders.end(); ++it ) {
+        KoTextShapeData * data = ( dynamic_cast<KPrPlaceholderShape *>( it->shape ) ) ?
+                                 NULL : qobject_cast<KoTextShapeData*>( it->shape->userData() );
+        outline.append(QPair<QString, KoTextShapeData*>(it->presentationClass, data));
+    }
+    return outline;
+}
+
 
 void KPrPlaceholders::applyStyle( KPrPlaceholderShape * shape, const QString & presentationClass, const QMap<QString, KoTextShapeData*> & styles )
 {

@@ -28,6 +28,8 @@
 #include <boost/multi_index/sequenced_index.hpp>
 
 #include <QString>
+#include <QList>
+#include <QPair>
 #include <QMap>
 
 class QSizeF;
@@ -67,6 +69,7 @@ typedef boost::multi_index_container<
 > Placeholders;
 
 typedef boost::multi_index::nth_index<Placeholders,2>::type PlaceholdersByShape;
+typedef QList<QPair<QString, KoTextShapeData*> > OutlineData;
 
 class KPrPlaceholders
 {
@@ -95,8 +98,6 @@ public:
 
     KPrPageLayout * layout() const;
 
-    KoShape * getFirstPlaceholderByClass( QString shapeClass );
-
     void shapeAdded( KoShape * shape );
 
     void shapeRemoved( KoShape * shape );
@@ -104,6 +105,13 @@ public:
     void debug() const;
 
     QMap<QString, KoTextShapeData *> styles() const;
+
+    /**
+     * Returns all TextShapes which should be displayed into outline mode
+     * If shapes are still placeholders, a pair is inserted with placeholder
+     * class and a NULL value.
+     */
+    OutlineData outlineData() const;
 
 private:
     void add( const QList<KoShape *> & shapes );

@@ -44,23 +44,3 @@ const KPrPlaceholders & KPrPageData::placeholders() const
     return m_placeholders;
 }
 
-KoTextShapeData* KPrPageData::pageTitle()
-{
-    return getFirstTextShapeByClass("title");
-}
-
-KoTextShapeData* KPrPageData::pageOutline()
-{
-    return getFirstTextShapeByClass("outline");
-}
-
-KoTextShapeData* KPrPageData::pageSubtitle()
-{
-    return getFirstTextShapeByClass("subtitle");
-}
-
-KoTextShapeData* KPrPageData::getFirstTextShapeByClass(QString shapeClass)
-{
-    KoShape *shape = m_placeholders.getFirstPlaceholderByClass(shapeClass);
-    return (shape == NULL) ? NULL : (qobject_cast<KoTextShapeData*>( shape->userData() ));
-}
