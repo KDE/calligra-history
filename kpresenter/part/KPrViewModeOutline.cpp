@@ -108,12 +108,10 @@ void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
     frameFormat.setBorder(1.0);
     // Create frame for each page
     foreach (KoPAPageBase * pageBase, m_view->kopaDocument()->pages()) {
-        KPrPage * page = dynamic_cast<KPrPage *>(pageBase);
-        if (page == NULL) continue;
+        KPrPage * page = static_cast<KPrPage *>(pageBase);
         QTextFrame * slideFrame = cursor.insertFrame(frameFormat);
         // Copy relevant content of the page in the frame
         foreach (OutlinePair pair, page->placeholders().outlineData()) {
-            if (pair.second == NULL) continue;
             if (pair.first == "title" || pair.first == "subtitle" || pair.first == "outline") {
                 cursor.insertFrame(frameFormat);
                 cursor.insertFragment(QTextDocumentFragment(pair.second->document()));
