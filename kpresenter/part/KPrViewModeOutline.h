@@ -53,8 +53,11 @@ public:
     void deactivate();
 
 protected:
-    void unindent();
-    void indent();
+    /**
+     * (Un)indents current line or selection.
+     * @param  indent  true to indent, false to unindent
+     */
+    void indent(bool indent=true);
     void placeholderSwitch();
 
 protected:

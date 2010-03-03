@@ -134,14 +134,9 @@ void KPrViewModeOutline::deactivate()
     m_view->show();
 }
 
-void KPrViewModeOutline::unindent()
-{
-    qDebug() << "Unindented !";
-}
-
 #include <QTextList>
 #include <QTextListFormat>
-void KPrViewModeOutline::indent()
+void KPrViewModeOutline::indent(bool indent)
 {
     QTextCursor cursor = m_editor->textCursor();
     qDebug() << "Indented !";    
@@ -152,26 +147,22 @@ void KPrViewModeOutline::indent()
     QTextBlock block = cursor.block().document()->findBlock(selectionStart);
 
     bool oneOf = (selectionStart == selectionEnd); //ensures the block containing the cursor is selected in that case
+    cursor.movePosition(QTextCursor::EndOfLine);
     QTextList *list = cursor.currentList();
     QTextListFormat format = list->format();
-    format.setIndent(format.indent() + 1);
+
+    qDebug() << "Current level: " << format.indent();
+    format.setIndent(indent?1:-1);
+    qDebug() << "Current level: " << format.indent();
     QTextList *newList = cursor.insertList(format);
 
     while (block.isValid() && ((block.position() < selectionEnd) || oneOf)) {
-        /*m_blocks.append(block);
-        if (block.textList()) {
-            m_lists.insert(m_blocks.size() - 1, KoTextDocument(block.document()).list(block.textList()));
-            Q_ASSERT(m_lists.value(m_blocks.size() - 1));
-            m_levels.insert(m_blocks.size() - 1, effectiveLevel(m_lists.value(m_blocks.size() - 1)->level(block)));
-        }*/
-
         list->remove(block);
         newList->add(block);
-
         oneOf = false;
         block = block.next();
-        qDebug() << "Indented";
     }
+    cursor.deletePreviousChar();
 }
 
 void KPrViewModeOutline::placeholderSwitch()
@@ -188,7 +179,7 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
             outline->placeholderSwitch();
         }
         else if (int(event->modifiers()) == 0) {
-            outline->indent();
+            outline->indent(true);
         }
         else {
             QTextEdit::keyPressEvent(event);
@@ -196,7 +187,7 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
         break;
     case Qt::Key_Backtab:
         if (int(event->modifiers()) == Qt::ShiftModifier) {
-            outline->unindent();
+            outline->indent(false);
         } else {
             QTextEdit::keyPressEvent(event);
         }
