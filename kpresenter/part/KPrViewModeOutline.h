@@ -83,6 +83,11 @@ private:
      */
     KPrOutlineEditor * m_editor;
 
+    /**
+     * @brief Link between frame in the editor and document in the shape.
+     */
+    QMap<QTextFrame *, QTextDocument *> m_link;
+
 };
 
 #endif // KPRVIEWMODEOUTLINE_H

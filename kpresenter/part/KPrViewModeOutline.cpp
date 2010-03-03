@@ -33,6 +33,7 @@
 KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas )
     : KoPAViewMode(view, canvas)
     , m_editor(new KPrOutlineEditor(this, m_view->parentWidget()))
+    , m_link()
 {
     //m_editor->setFocusPolicy(Qt::ClickFocus);
     m_editor->hide();
@@ -113,7 +114,7 @@ void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
         // Copy relevant content of the page in the frame
         foreach (OutlinePair pair, page->placeholders().outlineData()) {
             if (pair.first == "title" || pair.first == "subtitle" || pair.first == "outline") {
-                cursor.insertFrame(frameFormat);
+                m_link.insert(cursor.insertFrame(frameFormat), pair.second->document()); // Create frame and save the link
                 cursor.insertFragment(QTextDocumentFragment(pair.second->document()));
                 cursor = slideFrame->lastCursorPosition();
             }
@@ -129,6 +130,7 @@ void KPrViewModeOutline::deactivate()
 {
     m_editor->hide();
     m_editor->clear(); // Content will be regenerated when outline mode is activate
+    m_link.clear();    // ditto
     m_view->show();
 }
 
