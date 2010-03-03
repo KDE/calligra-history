@@ -56,8 +56,9 @@ protected:
     /**
      * (Un)indents current line or selection.
      * @param  indent  true to indent, false to unindent
+     * @return true if items has been (un)indented, false otherwise
      */
-    void indent(bool indent=true);
+    bool indent(bool indent=true);
     void placeholderSwitch();
 
 protected:
