@@ -83,6 +83,11 @@ protected:
 private:
 
     /**
+     * @brief Synchronize the editor with shapes.
+     */
+    void synchronize();
+
+    /**
      * @brief The outline editor.
      */
     KPrOutlineEditor * m_editor;

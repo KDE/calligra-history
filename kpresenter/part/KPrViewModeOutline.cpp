@@ -129,6 +129,7 @@ void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
 void KPrViewModeOutline::deactivate()
 {
     m_editor->hide();
+    synchronize();     // Save change
     m_editor->clear(); // Content will be regenerated when outline mode is activate
     m_link.clear();    // ditto
     m_view->show();
@@ -177,6 +178,20 @@ bool KPrViewModeOutline::indent(bool indent)
 void KPrViewModeOutline::placeholderSwitch()
 {
     qDebug() << "Placeholder switched !";
+}
+
+void KPrViewModeOutline::synchronize()
+{
+    QMap<QTextFrame *, QTextDocument *>::const_iterator i = m_link.constBegin();
+     while (i != m_link.constEnd()) {
+         QTextCursor cursorFrame = i.key()->firstCursorPosition();
+         cursorFrame.setPosition(cursorFrame.currentFrame()->lastPosition(), QTextCursor::KeepAnchor);
+         QTextCursor cursorDocument(i.value());
+         cursorDocument.select(QTextCursor::Document);
+         cursorDocument.removeSelectedText();
+         cursorDocument.insertFragment(cursorFrame.selection());
+         ++i;
+     }
 }
 
 void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
