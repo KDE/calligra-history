@@ -22,8 +22,10 @@
 #define KPRVIEWMODEOUTLINE_H
 
 #include <KoPAViewMode.h>
+#include <QTextEdit>
 
 class QTextEdit;
+class QKeyEvent;
 
 /**
  * @brief View for outline mode.
@@ -50,12 +52,36 @@ public:
     void activate(KoPAViewMode *previousViewMode);
     void deactivate();
 
+protected:
+    void unindent();
+    void indent();
+    void placeholderSwitch();
+
+protected:
+    class KPrOutlineEditor : public QTextEdit {
+    public:
+        KPrOutlineEditor ( KPrViewModeOutline* out, QWidget * parent = 0 ) : QTextEdit(parent), outline(out) {};
+        KPrOutlineEditor ( KPrViewModeOutline* out, const QString & text, QWidget * parent = 0 ) : QTextEdit(text, parent), outline(out) {};
+        virtual ~KPrOutlineEditor();
+    protected:
+        virtual void keyPressEvent(QKeyEvent *event);
+
+        /**
+         * Since we want to catch ALL tab key events, we completely disable
+         * keyboard focus switching.
+         */
+        virtual bool focusNextPrevChild(bool next) { return false; }
+    private:
+        KPrViewModeOutline *outline;
+    };
+
+
 private:
 
     /**
      * @brief The outline editor.
      */
-    QTextEdit * m_editor;
+    KPrOutlineEditor * m_editor;
 
 };
 

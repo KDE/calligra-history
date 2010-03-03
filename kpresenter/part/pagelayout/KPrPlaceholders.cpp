@@ -224,10 +224,11 @@ QMap<QString, KoTextShapeData *> KPrPlaceholders::styles() const
 
 OutlineData KPrPlaceholders::outlineData() const {
     OutlineData outline;
-    for (Placeholders::iterator it( m_placeholders.begin() ) ; it != m_placeholders.end(); ++it ) {
-        KoTextShapeData * data = ( dynamic_cast<KPrPlaceholderShape *>( it->shape ) ) ?
-                                 NULL : qobject_cast<KoTextShapeData*>( it->shape->userData() );
-        outline.append(QPair<QString, KoTextShapeData*>(it->presentationClass, data));
+    for ( Placeholders::iterator it( m_placeholders.begin() ) ; it != m_placeholders.end(); ++it ) {
+        KoTextShapeData * data = qobject_cast<KoTextShapeData*>( it->shape->userData() );
+        if ( data ) {
+            outline.append(QPair<QString, KoTextShapeData*>(it->presentationClass, data));
+        }
     }
     return outline;
 }
