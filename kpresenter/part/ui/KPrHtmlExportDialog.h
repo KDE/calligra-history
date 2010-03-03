@@ -53,7 +53,7 @@ private slots:
     void updateCssListOnAdd(QString basePath);
     void updateCssListOnDelete();
     void delDirectory(QDir dir);
-    void addZipFavorite(QString zipFile);
+    bool addZipFavorite(QString & zipFile);
 
 
 private:

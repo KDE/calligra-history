@@ -156,7 +156,7 @@ void KPrHtmlExportDialog::updateCssListOnAdd(QString basePath)
 	QString name = ui.kcombobox->itemText(ui.kcombobox->currentIndex());
 	QVariant qVariant = basePath;
 	ui.kcombobox->removeItem(ui.kcombobox->currentIndex());
-        ui.kcombobox->insertItem(0, name, qVariant);
+	ui.kcombobox->insertItem(0, name, qVariant);
 	ui.kcombobox->setCurrentIndex(0);
 }
 
@@ -222,22 +222,31 @@ void KPrHtmlExportDialog::delDirectory(QDir dir){
 void KPrHtmlExportDialog::browserAction(){
     KFileDialog dialog(KUrl("/home/"),QString("*.css *.zip"),this);
     if (dialog.exec() == QDialog::Accepted) {
-        QString name=dialog.selectedFile();
+    	bool fileOk = true;
+        QString name=dialog.selectedFile(); 
         int index = ui.kcombobox->findData(name);
-        if (index==-1) {
-            QStringList list = name.split("/");
-            QString shortName = list[list.count()-1];
-            ui.kcombobox->addItem(shortName,QVariant(name));
-            index=ui.kcombobox->count()-1;
-        }
-        ui.kcombobox->setCurrentIndex(index);
-        if(name.endsWith(QString(".zip"),Qt::CaseInsensitive)){
-            addZipFavorite(name);
-        }
-   }
+		if (index==-1) {
+			bool isZip = false;
+			if(name.endsWith(QString(".zip"),Qt::CaseInsensitive)){
+				isZip = true;
+				fileOk = addZipFavorite(name);
+			}
+			QStringList list = name.split("/");
+			QString shortName = list[list.count()-1];
+			if(!isZip){
+				ui.kcombobox->addItem(shortName,QVariant(name));
+				ui.kcombobox->setCurrentIndex(ui.kcombobox->count()-1);
+			}
+			if(fileOk && isZip){
+				ui.kcombobox->insertItem(0, shortName,QVariant(name));
+				ui.kcombobox->setCurrentIndex(0);			
+			}
+		}
+		this->updateFavoriteButton();
+	}
 }
 
-void KPrHtmlExportDialog::addZipFavorite(QString zipFile){
+bool KPrHtmlExportDialog::addZipFavorite(QString & zipFile){
     KZip zip(zipFile);
 
     //Check
@@ -253,14 +262,16 @@ void KPrHtmlExportDialog::addZipFavorite(QString zipFile){
             nbCss++;
             if(firstCssIndex == -1) firstCssIndex=i;
             if(element==QString("style.css")) styleCssIndex = i;
-        }           
+        }
     }
     bool add;
     QString renameCss = QString("");
     switch(nbCss){
         case 0:
-            // Error to define
-            add=false;
+		    QMessageBox::information(this,
+		         i18n("Bad zip"),
+		         i18n("At least one css is needed"));
+			add=false;
             break;
         case 1:
             if(firstCssIndex!=styleCssIndex){
@@ -270,8 +281,10 @@ void KPrHtmlExportDialog::addZipFavorite(QString zipFile){
             break;
         default:
             if(styleCssIndex==-1){
-                //Error to define
-                add=false;
+				QMessageBox::information(this,
+				     i18n("Bad zip"),
+					 i18n("In case of multiple css, the main css must be named style.css"));   
+				add=false;
             }
             else{
                 add=true;
@@ -285,6 +298,10 @@ void KPrHtmlExportDialog::addZipFavorite(QString zipFile){
         favoritePath.append("/");
         favoritePath.append(shortName);
         favoritePath.remove(".zip");
+        //rename parameter zipFile to update the kcombobox
+        zipFile.clear();
+        zipFile.append(favoritePath);
+            
         zip.directory()->copyTo(favoritePath,true);
         if(renameCss!=QString("")){
             QString fileCss = QString("");
@@ -293,11 +310,10 @@ void KPrHtmlExportDialog::addZipFavorite(QString zipFile){
             fileCss.append(renameCss);
             QFile fileCssToRename(fileCss);
             favoritePath.append("/style.css");
-            fileCssToRename.rename(favoritePath);                   
+            fileCssToRename.rename(favoritePath);               
         }
     }
-  
-
+	return(add);
 }
 
 QString KPrHtmlExportDialog::title()
@@ -364,6 +380,7 @@ bool KPrHtmlExportDialog::cssIsFavorite() {
 bool KPrHtmlExportDialog::cssIsSystemFavorite() {
     QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
     QString dir;
+    qDebug() << cssPath;
 
     QStringList dirs(KStandardDirs().findDirs("data", "kpresenter/templates/exportHTML"));
     for (QStringList::ConstIterator path=dirs.begin(); path!=dirs.end(); ++path) {
@@ -371,6 +388,8 @@ bool KPrHtmlExportDialog::cssIsSystemFavorite() {
             dir = *path;
         }
     }
+    qDebug() << dir;
+
     return (!dir.isNull()) && cssPath.contains(dir);
 }
 
