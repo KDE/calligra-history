@@ -100,6 +100,7 @@ public:
 
     virtual ~KoResourceServer()
         {
+            qDeleteAll(m_resources);
         }
 
    /**
@@ -126,22 +127,24 @@ public:
             if (uniqueFiles.empty() || uniqueFiles.indexOf(fname) == -1) {
                 m_loadLock.lock();
                 uniqueFiles.append(fname);
-                T* resource = createResource(front);
-                if (resource->load() && resource->valid())
-                {
-                    m_resourcesByFilename[front] = resource;
+                QList<T*> resources = createResources(front);
+                foreach(T* resource, resources) {
+                    if (resource->load() && resource->valid())
+                    {
+                        m_resourcesByFilename[front] = resource;
 
-                    if ( resource->name().isNull() ) {
-                        resource->setName( fname );
+                        if ( resource->name().isNull() ) {
+                            resource->setName( fname );
+                        }
+                        m_resourcesByName[resource->name()] = resource;
+                        m_resources.append(resource);
+
+                        notifyResourceAdded(resource);
+                        Q_CHECK_PTR(resource);
                     }
-                    m_resourcesByName[resource->name()] = resource;
-                    m_resources.append(resource);
-
-                    notifyResourceAdded(resource);
-                    Q_CHECK_PTR(resource);
-                }
-                else {
-                    delete resource;
+                    else {
+                        delete resource;
+                    }
                 }
                 m_loadLock.unlock();
             }
@@ -199,12 +202,11 @@ public:
             kWarning(30009) << "Could not remove resource!";
         }
 
-        notifyRemovingResource(resource);
-
         if (removedFromDisk) {
             m_resourcesByName.remove(resource->name());
             m_resourcesByFilename.remove(resource->filename());
             m_resources.removeAt(m_resources.indexOf(resource));
+            notifyRemovingResource(resource);
             delete resource;
         } else {
             // TODO: save blacklist to config file and load it again on next start
@@ -230,21 +232,21 @@ public:
     }
 
     /**
-     * Creates a new resource from a given file and adds it to the resource server
-     * @param filename file name of the resource to be imported
-     * @return the imported resource, 0 if the import failed
+     * Creates a new resourcea from a given file and adds them to the resource server
+     * The base implementation does only load one resource per file, override to implement collections
+     * @param filename file name of the resource file to be imported
      */
-    T* importResource( const QString & filename ) {
+    virtual void importResourceFile( const QString & filename ) {
         QFileInfo fi( filename );
         if( fi.exists() == false )
-            return 0;
+            return;
 
         T* resource = createResource( filename );
         resource->load();
         if(!resource->valid()){
             kWarning(30009) << "Import failed! Resource is not valid";
             delete resource;
-            return 0;
+            return;
          }
 
          Q_ASSERT(!resource->defaultFileExtension().isEmpty());
@@ -254,10 +256,7 @@ public:
         resource->setFilename(newFilename);
         if(!addResource(resource)) {
             delete resource;
-            return 0;
         }
-
-        return resource;
     }
 
     /**
@@ -314,6 +313,18 @@ public:
 
 protected:
 
+    /**
+     * Create one or more resources from a single file. By default one resource is created.
+     * Overide to create more resources from the file.
+     * @param filename the filename of the resource or resource collection
+     */
+    virtual QList<T*> createResources( const QString & filename )
+    {
+        QList<T*> createdResources;
+        createdResources.append(createResource(filename));
+        return createdResources;
+    }
+    
     virtual T* createResource( const QString & filename ) { return new T(filename); }
 
     void notifyResourceAdded(T* resource)

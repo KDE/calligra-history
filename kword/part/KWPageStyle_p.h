@@ -21,12 +21,13 @@
 
 #include <QSharedData>
 #include <KoText.h>
+#include <KoShapeBackground.h>
 
 class KWPageStylePrivate : public QSharedData
 {
 public:
-    KWPageStylePrivate() { clear(); }
-
+    KWPageStylePrivate() : background(0) { clear(); }
+    ~KWPageStylePrivate();
     void clear();
 
     KoColumns columns;
@@ -43,6 +44,7 @@ public:
 
     // See parag 16.2 for all the ODF features.
     KoText::Direction direction;
+    KoShapeBackground *background;
 };
 
 #endif

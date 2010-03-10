@@ -24,6 +24,7 @@
 
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QFontMetrics>
 
 #include <KoOdfLoadingContext.h>
 #include <KoOdfStylesReader.h>
@@ -286,8 +287,10 @@ static void importOdfLine(const QString &type, const QString &style, const QStri
         fixedType.clear();
     else if (fixedType.isEmpty() && !fixedStyle.isEmpty())
         fixedType = "single";
-    else if (!fixedType.isEmpty() && fixedStyle.isEmpty())
+    else if (!fixedType.isEmpty() && fixedType != "none" && fixedStyle.isEmpty()) {
+        // don't set a style when the type is none
         fixedStyle = "solid";
+    }
 
     if (fixedType == "single")
         lineType = KoCharacterStyle::SingleLine;
@@ -1040,6 +1043,12 @@ void KoCharacterStyle::loadOdfProperties(KoStyleStack &styleStack)
         } else {
             setFontKerning(false);
         }
+    }
+
+    if (styleStack.hasProperty(KoXmlNS::fo, "letter-spacing")) {
+        qreal space = KoUnit::parseValue(styleStack.property(KoXmlNS::fo, "letter-spacing"));
+        QFontMetrics fm(font());
+        setFontLetterSpacing(100+100*space/fm.averageCharWidth());
     }
 
     if (styleStack.hasProperty(KoXmlNS::style, "text-outline")) {

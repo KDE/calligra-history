@@ -3,7 +3,7 @@
  *  Copyright (c) 2004 Boudewijn Rempt <boud@valdyas.org>
  *  Copyright (c) 2004 Clarence Dang <dang@kde.org>
  *  Copyright (c) 2004 Adrian Page <adrian@pagenet.plus.com>
- *  Copyright (c) 2004 Cyrille Berger <cberger@cberger.net>
+ *  Copyright (c) 2004,2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #ifndef KIS_PAINTOP_H_
 #define KIS_PAINTOP_H_
 
+#include "kis_distance_information.h"
 #include "kis_shared.h"
 #include "kis_types.h"
 #include "kis_paintop_settings.h"
@@ -56,7 +57,7 @@ public:
      * The distance between two calls of the paintAt is always specified by spacing;
      * xSpacing and ySpacing is 1.0 by default, negative values causes infinite loops (it is checked by Q_ASSERT)
      */
-    virtual void paintAt(const KisPaintInformation& info) = 0;
+    virtual double paintAt(const KisPaintInformation& info) = 0;
 
     /**
      * A painterly paintop must have a PainterlyInformation structure,
@@ -78,9 +79,9 @@ public:
      * between p1 and p2 not covered because the currenlty set brush
      * has a spacing greater than that distance.
      */
-    virtual double paintLine(const KisPaintInformation &pi1,
+    virtual KisDistanceInformation paintLine(const KisPaintInformation &pi1,
                              const KisPaintInformation &pi2,
-                             double savedDist = -1);
+                             const KisDistanceInformation& savedDist = KisDistanceInformation());
 
     /**
      * Draw a Bezier curve between pos1 and pos2 using control points 1 and 2.
@@ -89,11 +90,11 @@ public:
      * @return the drag distance, that is the remains of the distance between p1 and p2 not covered
      * because the currenlty set brush has a spacing greater than that distance.
      */
-    virtual double paintBezierCurve(const KisPaintInformation &pi1,
+    virtual KisDistanceInformation paintBezierCurve(const KisPaintInformation &pi1,
                                     const QPointF &control1,
                                     const QPointF &control2,
                                     const KisPaintInformation &pi2,
-                                    const double savedDist = -1);
+                                    const KisDistanceInformation& savedDist = KisDistanceInformation());
 
     /**
      * Whether this paintop wants to deposit paint even when not moving, i.e. the
@@ -122,12 +123,6 @@ protected:
      * Split the coordinate into whole + fraction, where fraction is always >= 0.
      */
     virtual void splitCoordinate(double coordinate, qint32 *whole, double *fraction)const ;
-
-    /**
-     * Determine the x and y spacing between two calls to paintAt.
-     * @return the spacing
-     */
-    virtual double spacing(double & xSpacing, double & ySpacing, double pressure1, double pressure2) const = 0;
 
     /**
      * Return the painter this paintop is owned by

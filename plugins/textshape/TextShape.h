@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2006-2009 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2006-2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2008 Thorsten Zachmann <zachmann@kde.org>
  * Copyright (C) 2008 Pierre Stirnweiss \pierre.stirnweiss_koffice@gadz.org>
  *
@@ -35,6 +35,7 @@
 
 class KoInlineTextObjectManager;
 class KoPageProvider;
+class KoImageCollection;
 
 /**
  * A text shape.
@@ -56,6 +57,9 @@ public:
 
     /// helper method.
     QPointF convertScreenPos(const QPointF &point);
+
+    /// set the image collection which is needed to draw bullet from images
+    void setImageCollection(KoImageCollection *collection) { m_imageCollection = collection; }
 
     /**
      * Set the shape's text to be demo text or not.
@@ -94,7 +98,7 @@ public:
     }
 
     bool hasFootnoteDocument() {
-        return m_footnotes != 0;
+        return m_footnotes != 0 && !m_footnotes->isEmpty();
     }
     QTextDocument *footnoteDocument();
 
@@ -120,6 +124,7 @@ private:
     mutable QMutex m_mutex;
     mutable QWaitCondition m_waiter;
     KoPageProvider *m_pageProvider;
+    KoImageCollection *m_imageCollection;
 
     QRegion m_paintRegion;
 };

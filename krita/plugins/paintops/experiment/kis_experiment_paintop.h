@@ -22,6 +22,9 @@
 #include <klocale.h>
 #include <kis_paintop.h>
 #include <kis_types.h>
+#include <kis_pressure_rotation_option.h>
+#include <kis_pressure_opacity_option.h>
+#include <kis_pressure_size_option.h>
 
 #include "kis_experiment_paintop_settings.h"
 
@@ -37,7 +40,7 @@ public:
     virtual ~KisExperimentPaintOp();
 
     double spacing(double & xSpacing, double & ySpacing, double pressure1, double pressure2) const;
-    void paintAt(const KisPaintInformation& info);
+    double paintAt(const KisPaintInformation& info);
 
     virtual bool incremental() const {
         return false;

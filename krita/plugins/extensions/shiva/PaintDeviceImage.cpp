@@ -25,7 +25,8 @@
 
 #include <GTLCore/PixelDescription.h>
 #include <GTLCore/Type.h>
-#include <OpenShiva/Version.h>
+#include <GTLCore/Region.h>
+#include "Version.h"
 #include <KoColorSpaceTraits.h>
 
 GTLCore::PixelDescription csToPD(const KoColorSpace* cs)
@@ -55,7 +56,7 @@ GTLCore::PixelDescription csToPD(const KoColorSpace* cs)
             types.push_back(GTLCore::Type::Float32);
             break;
         case KoChannelInfo::FLOAT64:
-#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION < 13
+#if OPENSHIVA_12
             types.push_back(GTLCore::Type::Double);
 #else
             types.push_back(GTLCore::Type::Float64);
@@ -88,16 +89,14 @@ ConstPaintDeviceImage::~ConstPaintDeviceImage()
 
 char* ConstPaintDeviceImage::data(int _x, int _y)
 {
-    // TODO should return 0, when http://bugs.opengtl.org/index.php?do=details&task_id=24 is fixed
-    m_accessor->moveTo(_x, _y);
-    return const_cast<char*>((const char*)(m_accessor->oldRawData()));
+    qFatal("Accessing non const data in a ConstPaintDevice");
+    return 0;
 }
 
 char* ConstPaintDeviceImage::rawData( int _x, int _y )
 {
-    // TODO should return 0, when http://bugs.opengtl.org/index.php?do=details&task_id=24 is fixed
-    m_accessor->moveTo(_x, _y);
-    return const_cast<char*>((const char*)(m_accessor->oldRawData()));
+    qFatal("Accessing non const data in a ConstPaintDevice");
+    return 0;
 }
 
 const char* ConstPaintDeviceImage::data(int _x, int _y) const
@@ -111,6 +110,13 @@ const char* ConstPaintDeviceImage::rawData(int _x, int _y) const
     m_accessor->moveTo(_x, _y);
     return (const char*)(m_accessor->oldRawData());
 }
+
+#if OPENSHIVA_13_OR_MORE
+GTLCore::RegionI ConstPaintDeviceImage::boundingBox() const
+{
+  return GTLCore::RegionI(0,0,-1,-1);
+}
+#endif
 
 GTLCore::AbstractImage::ConstIterator* ConstPaintDeviceImage::createIterator() const
 {
@@ -155,6 +161,13 @@ const char* PaintDeviceImage::rawData(int _x, int _y) const
     m_accessor->moveTo(_x, _y);
     return (const char*)(m_accessor->oldRawData());
 }
+
+#if OPENSHIVA_13_OR_MORE
+GTLCore::RegionI PaintDeviceImage::boundingBox() const
+{
+  return GTLCore::RegionI(0,0,-1,-1);
+}
+#endif
 
 GTLCore::AbstractImage::ConstIterator* PaintDeviceImage::createIterator() const
 {

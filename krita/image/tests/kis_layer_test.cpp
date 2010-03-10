@@ -39,13 +39,13 @@ void KisLayerTest::testCreation()
 {
 
     const KoColorSpace * colorSpace = KoColorSpaceRegistry::instance()->rgb8();
-    KisImageWSP image = new KisImage(0, 512, 512, colorSpace, "layer test");
+    KisImageSP image = new KisImage(0, 512, 512, colorSpace, "layer test");
     image->lock();
 
-    KisLayerSP layer = new TestLayer(image, "test", OPACITY_OPAQUE);
+    KisLayerSP layer = new TestLayer(image, "test", OPACITY_OPAQUE_U8);
     QCOMPARE(layer->name(), QString("test"));
-    QCOMPARE(layer->opacity(), OPACITY_OPAQUE);
-    QCOMPARE(layer->image(), image);
+    QCOMPARE(layer->opacity(), OPACITY_OPAQUE_U8);
+    QCOMPARE(layer->image().data(), image.data());
     QCOMPARE(layer->colorSpace(), image->colorSpace());
     QCOMPARE(layer->visible(), true);
     QCOMPARE(layer->userLocked(), false);
@@ -63,12 +63,12 @@ void KisLayerTest::testCreation()
     QCOMPARE(layer->channelFlags().at(3), true);
 
 
-    layer->setOpacity(OPACITY_TRANSPARENT);
-    QCOMPARE(layer->opacity(), OPACITY_TRANSPARENT);
+    layer->setOpacity(OPACITY_TRANSPARENT_U8);
+    QCOMPARE(layer->opacity(), OPACITY_TRANSPARENT_U8);
     layer->setPercentOpacity(100);
-    QCOMPARE(layer->opacity(), OPACITY_OPAQUE);
+    QCOMPARE(layer->opacity(), OPACITY_OPAQUE_U8);
     layer->setPercentOpacity(0);
-    QCOMPARE(layer->opacity(), OPACITY_TRANSPARENT);
+    QCOMPARE(layer->opacity(), OPACITY_TRANSPARENT_U8);
 
 
 }
@@ -76,12 +76,12 @@ void KisLayerTest::testCreation()
 void KisLayerTest::testOrdering()
 {
     const KoColorSpace * colorSpace = KoColorSpaceRegistry::instance()->rgb8();
-    KisImageWSP image = new KisImage(0, 512, 512, colorSpace, "layer test");
+    KisImageSP image = new KisImage(0, 512, 512, colorSpace, "layer test");
     image->lock();
 
-    KisLayerSP layer1 = new TestLayer(image, "layer1", OPACITY_OPAQUE);
-    KisLayerSP layer2 = new TestLayer(image, "layer2", OPACITY_OPAQUE);
-    KisLayerSP layer3 = new TestLayer(image, "layer3", OPACITY_OPAQUE);
+    KisLayerSP layer1 = new TestLayer(image, "layer1", OPACITY_OPAQUE_U8);
+    KisLayerSP layer2 = new TestLayer(image, "layer2", OPACITY_OPAQUE_U8);
+    KisLayerSP layer3 = new TestLayer(image, "layer3", OPACITY_OPAQUE_U8);
 
     QVERIFY(layer1->name() == "layer1");
     QVERIFY(layer2->name() == "layer2");
@@ -161,12 +161,12 @@ void KisLayerTest::testOrdering()
 void KisLayerTest::testMoveNode()
 {
     const KoColorSpace * colorSpace = KoColorSpaceRegistry::instance()->rgb8();
-    KisImageWSP image = new KisImage(0, 512, 512, colorSpace, "layer test");
+    KisImageSP image = new KisImage(0, 512, 512, colorSpace, "layer test");
     image->lock();
 
-    KisLayerSP node1 = new TestLayer(image, "layer1", OPACITY_OPAQUE);
-    KisLayerSP node2 = new TestLayer(image, "layer2", OPACITY_OPAQUE);
-    KisLayerSP node3 = new TestLayer(image, "layer3", OPACITY_OPAQUE);
+    KisLayerSP node1 = new TestLayer(image, "layer1", OPACITY_OPAQUE_U8);
+    KisLayerSP node2 = new TestLayer(image, "layer2", OPACITY_OPAQUE_U8);
+    KisLayerSP node3 = new TestLayer(image, "layer3", OPACITY_OPAQUE_U8);
 
     node1->setName("node1");
     node2->setName("node2");
@@ -192,12 +192,12 @@ void KisLayerTest::testMoveNode()
 void KisLayerTest::testMoveLayer()
 {
     const KoColorSpace * colorSpace = KoColorSpaceRegistry::instance()->rgb8();
-    KisImageWSP image = new KisImage(0, 512, 512, colorSpace, "layer test");
+    KisImageSP image = new KisImage(0, 512, 512, colorSpace, "layer test");
     image->lock();
 
-    KisLayerSP node1 = new TestLayer(image, "layer1", OPACITY_OPAQUE);
-    KisLayerSP node2 = new TestLayer(image, "layer2", OPACITY_OPAQUE);
-    KisLayerSP node3 = new TestLayer(image, "layer3", OPACITY_OPAQUE);
+    KisLayerSP node1 = new TestLayer(image, "layer1", OPACITY_OPAQUE_U8);
+    KisLayerSP node2 = new TestLayer(image, "layer2", OPACITY_OPAQUE_U8);
+    KisLayerSP node3 = new TestLayer(image, "layer3", OPACITY_OPAQUE_U8);
     node1->setName("node1");
     node2->setName("node2");
     node3->setName("node3");
@@ -220,7 +220,7 @@ void KisLayerTest::testMoveLayer()
 
 void KisLayerTest::testHasEffectMasks()
 {
-    KisLayerSP layer = new TestLayer(0, "layer1", OPACITY_OPAQUE) ;
+    KisLayerSP layer = new TestLayer(0, "layer1", OPACITY_OPAQUE_U8);
     QVERIFY(layer->hasEffectMasks() == false);
     KisFilterMaskSP mask = new KisFilterMask();
     layer->setPreviewMask(mask);

@@ -52,7 +52,6 @@ QRect KisTransparencyMask::decorateRect(KisPaintDeviceSP &src,
                                         const QRect & rc) const
 {
     if (src != dst) {
-        //dst = new KisPaintDevice(*src);
         KisPainter gc(dst);
         gc.setCompositeOp(src->colorSpace()->compositeOp(COMPOSITE_COPY));
         gc.bitBlt(rc.topLeft(), src, rc);
@@ -60,6 +59,16 @@ QRect KisTransparencyMask::decorateRect(KisPaintDeviceSP &src,
     }
 
     return rc;
+}
+
+QRect KisTransparencyMask::extent() const
+{
+    return parent() ? parent()->extent() : QRect();
+}
+
+QRect KisTransparencyMask::exactBounds() const
+{
+    return parent() ? parent()->exactBounds() : QRect();
 }
 
 QRect KisTransparencyMask::changeRect(const QRect &rect) const
@@ -72,8 +81,9 @@ QRect KisTransparencyMask::changeRect(const QRect &rect) const
     return rect;
 }
 
-QRect KisTransparencyMask::needRect(const QRect &rect) const
+QRect KisTransparencyMask::needRect(const QRect &rect, PositionToFilthy pos) const
 {
+    Q_UNUSED(pos);
     /**
      * Selection on transparency masks have special meaning:
      * They do not crop change area, they crop need area.

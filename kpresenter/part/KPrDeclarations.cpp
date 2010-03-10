@@ -22,11 +22,16 @@
 *  Boston, MA 02110-1301, USA.
 */
 #include "KPrDeclarations.h"
-
+#include <QDateTime>
+#include <QVariant>
 #include <KoXmlNS.h>
 #include <KoXmlWriter.h>
 #include <KoXmlReader.h>
 #include <KoPALoadingContext.h>
+#include <KoPASavingContext.h>
+#include <KoOdfStylesReader.h>
+#include <KoOdfLoadingContext.h>
+#include <KoOdfNumberStyles.h>
 
 KPrDeclarations::KPrDeclarations()
 {
@@ -52,8 +57,25 @@ bool KPrDeclarations::loadOdf(const KoXmlElement &body, KoPALoadingContext &cont
                 m_declarations[Footer].insert(name, element.text());
             }
             else if(element.tagName() == "date-time-decl") {
+                QMap<QString, QVariant> data;
                 const QString name = element.attributeNS(KoXmlNS::presentation, "name", QString());
-                m_declarations[DateTime].insert(name, element.text());
+                data["fixed"] = element.attributeNS(KoXmlNS::presentation, "source", "fixed") == "fixed";
+
+                QString styleName = element.attributeNS(KoXmlNS::style, "data-style-name", "");
+                if (!styleName.isEmpty()) {
+                    KoOdfStylesReader::DataFormatsMap::const_iterator it = context.odfLoadingContext().stylesReader().dataFormats().constFind(styleName);
+                    if (it != context.odfLoadingContext().stylesReader().dataFormats().constEnd()) {
+
+                        QString formatString = (*it).prefix + (*it).formatStr + (*it).suffix;
+                        data["format"] = formatString;
+                    }
+                }
+                else {
+                    data["format"] = QString("");
+                    data["fixed value"] = element.text();
+                }
+
+                m_declarations[DateTime].insert(name, data);
             }
         }
         else if (element.tagName() == "page" && element.namespaceURI() == KoXmlNS::draw) {
@@ -63,7 +85,71 @@ bool KPrDeclarations::loadOdf(const KoXmlElement &body, KoPALoadingContext &cont
     return true;
 }
 
+
+bool KPrDeclarations::saveOdf(KoPASavingContext &paContext) const
+{
+    /*
+       <presentation:header-decl presentation:name="hdr1">header</presentation:header-decl>
+       <presentation:footer-decl presentation:name="ftr1">Footer for the slide</presentation:footer-decl>
+       <presentation:footer-decl presentation:name="ftr2">footer</presentation:footer-decl>
+       <presentation:date-time-decl presentation:name="dtd1" presentation:source="current-date" style:data-style-name="D3"/>
+    */
+    KoXmlWriter &writer(paContext.xmlWriter());
+
+    QHash<Type, QHash<QString, QVariant> >::const_iterator typeIt(m_declarations.constBegin());
+    for (; typeIt != m_declarations.constEnd(); ++typeIt) {
+        QHash<QString, QVariant>::const_iterator keyIt(typeIt.value().begin());
+        for (; keyIt != typeIt.value().constEnd(); ++keyIt) {
+            switch (typeIt.key()) {
+            case Footer:
+                writer.startElement("presentation:footer-decl");
+                break;
+            case Header:
+                writer.startElement("presentation:header-decl");
+                break;
+            case DateTime:
+                writer.startElement("presentation:date-time-decl");
+                break;
+            }
+
+            writer.addAttribute("presentation:name", keyIt.key());
+            if (typeIt.key() == DateTime) {
+                //TODO
+            }
+            else {
+                writer.addTextNode(keyIt.value().value<QString>());
+            }
+            writer.endElement();
+        }
+    }
+    return true;
+}
+
 const QString KPrDeclarations::declaration(Type type, const QString &key)
 {
-    return m_declarations.value(type).value(key);
+    QString retVal;
+    if (type == DateTime) {
+        QMap<QString, QVariant> dateTimeDefinition =
+                m_declarations.value(type).value(key).value<QMap<QString, QVariant> >();
+
+        if (dateTimeDefinition["fixed"].toBool()) {
+            retVal = dateTimeDefinition["fixed value"].toString();
+        }
+        else  {
+            QDateTime target = QDateTime::currentDateTime();
+
+            QString formatString = dateTimeDefinition["format"].toString();
+            if (!formatString.isEmpty()) {
+                retVal = target.toString(formatString);
+            }
+            else {
+                // XXX: What do we do here?
+                retVal = target.date().toString(Qt::ISODate);
+            }
+        }
+    }
+    else {
+        retVal = m_declarations.value(type).value(key).toString();
+    }
+    return retVal;
 }

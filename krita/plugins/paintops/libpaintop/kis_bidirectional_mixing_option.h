@@ -37,7 +37,7 @@ class QRect;
  *
  * Taken from the complex paintop
  */
-class PAINTOP_EXPORT KisBidirectionalMixingOption : public KisPaintOpOption
+class PAINTOP_EXPORT KisBidirectionalMixingOption
 {
 public:
     KisBidirectionalMixingOption();
@@ -47,15 +47,10 @@ public:
     void apply(KisPaintDeviceSP dab, KisPaintDeviceSP device, KisPainter* painter, qint32 sx, qint32 sy, qint32 sw, qint32 sh, quint8 pressure, const QRect& dstRect);
     void applyFixed(KisFixedPaintDeviceSP dab, KisPaintDeviceSP device, KisPainter* painter, qint32 sx, qint32 sy, qint32 sw, qint32 sh, quint8 pressure, const QRect& dstRect);
 
-    void writeOptionSetting(KisPropertiesConfiguration* setting) const;
-
     void readOptionSetting(const KisPropertiesConfiguration* setting);
-
-
+    
 private:
-
-    QLabel * m_optionWidget;
-
+    bool m_mixingEnabled;
 };
 
 #endif

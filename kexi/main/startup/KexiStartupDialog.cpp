@@ -83,7 +83,7 @@ public:
         KMimeType::Ptr mime(KMimeType::mimeType(shortcutMimeTypeName));
         if (mime.isNull()) {
             KexiDBWarn << QString("'%1' mimetype not installed!").arg(shortcutMimeTypeName);
-            iconname = QString();
+            iconname.clear();
         } else
             iconname = mime->iconName();
         kexi_shortcut_icon = KIconLoader::global()->loadMimeTypeIcon(
@@ -139,7 +139,7 @@ public:
     KexiProjectSelectorWidget* prj_selector;
 
     //! true if the dialog contain single page, not tabs
-    bool singlePage : 1;
+    bool singlePage;
 };
 
 static QString captionForDialogType(int type)

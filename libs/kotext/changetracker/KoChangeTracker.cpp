@@ -33,6 +33,7 @@
 #include <KUser>
 
 //Qt includes
+#include <QColor>
 #include <QList>
 #include <QString>
 #include <QHash>
@@ -41,7 +42,6 @@
 #include <QTextFormat>
 #include <QTextCharFormat>
 #include <QTextDocumentFragment>
-#include <QColor>
 
 class KoChangeTracker::Private
 {
@@ -168,8 +168,7 @@ int KoChangeTracker::getDeleteChangeId(QString title, QTextDocumentFragment sele
     changeElement->setDate(KDateTime::currentLocalDateTime().toString(KDateTime::ISODate).replace(KGlobal::locale()->decimalSymbol(), QString(".")));
     KUser user(KUser::UseRealUserID);
     changeElement->setCreator(user.property(KUser::FullName).toString());
-    //TODO preserve formating info there. this will do for now
-    changeElement->setDeleteData(selection.toPlainText());
+    changeElement->setDeleteData(selection);
 
     changeElement->setEnabled(d->recordChanges);
 
@@ -275,9 +274,6 @@ bool KoChangeTracker::saveInlineChange(int changeId, KoGenChange &change)
     if (d->changes.value(changeId)->hasExtraMetaData())
         change.addChildElement("changeMetaData", d->changes.value(changeId)->getExtraMetaData());
 
-    if (d->changes.value(changeId)->hasDeleteData())
-        change.addChildElement("deletedData", d->changes.value(changeId)->getDeleteData());
-
     return true;
 }
 
@@ -298,9 +294,6 @@ void KoChangeTracker::loadOdfChanges(const KoXmlElement& element)
                             changeElement = new KoChangeTrackerElement(tag.attributeNS(KoXmlNS::text,"id"),KoGenChange::formatChange);
                         } else if (region.localName() == "deletion") {
                             changeElement = new KoChangeTrackerElement(tag.attributeNS(KoXmlNS::text,"id"),KoGenChange::deleteChange);
-                            KoXmlElement deletedData = region.namedItemNS(KoXmlNS::text, "p").toElement();
-                            if(!deletedData.isNull())
-                              changeElement->setDeleteData(deletedData.text());
                         }
                         KoXmlElement metadata = region.namedItemNS(KoXmlNS::office,"change-info").toElement();
                         if (!metadata.isNull()) {

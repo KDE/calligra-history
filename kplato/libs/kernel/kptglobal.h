@@ -71,7 +71,10 @@ namespace Role
         ReadWrite,
         ObjectType,
         InternalAppointments,
-        ExternalAppointments
+        ExternalAppointments,
+        ColumnTag,
+        Planned,
+        Actual
     };
 } //namespace Role
 

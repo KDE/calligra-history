@@ -27,7 +27,7 @@
 
 #include <KoCanvasBase.h>
 
-#include "canvas/kis_abstract_canvas_widget.h"
+#include "canvas/kis_canvas_widget_base.h"
 #include "opengl/kis_opengl_image_textures.h"
 
 #include "krita_export.h"
@@ -44,7 +44,7 @@ class KisCanvas2;
  * in the qpainter canvas.
  *
  */
-class KRITAUI_EXPORT KisOpenGLCanvas2 : public QGLWidget, public KisAbstractCanvasWidget
+class KRITAUI_EXPORT KisOpenGLCanvas2 : public QGLWidget, public KisCanvasWidgetBase
 {
 
     Q_OBJECT
@@ -136,30 +136,23 @@ protected:
     void initializeGL();
     void resizeGL(int w, int h);
 
-    /// these methods take origin coordinate into account, basically it means (point - origin)
-    QPoint widgetToView(const QPoint& p) const;
-    QRect widgetToView(const QRect& r) const;
-    QPoint viewToWidget(const QPoint& p) const;
-    QRect viewToWidget(const QRect& r) const;
-
 public: // KisAbstractCanvasWidget
 
     QWidget * widget() {
         return this;
     }
 
-    KoToolProxy * toolProxy();
-
     void documentOffsetMoved(const QPoint & pt);
-    virtual QPoint documentOrigin();
-    void adjustOrigin();
 
+protected: // KisCanvasWidgetBase
+
+    virtual void emitDocumentOriginChangedSignal();
+    virtual bool callFocusNextPrevChild(bool next);
 
 private:
     class Private;
     Private * const m_d;
 
-    void draw();
     void drawBorder();
     void drawImage();
     void drawBackground();

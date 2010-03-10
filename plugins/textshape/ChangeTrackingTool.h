@@ -52,7 +52,7 @@ public:
     virtual void mousePressEvent(KoPointerEvent* event);
     virtual void paint(QPainter& painter, const KoViewConverter& converter);
     virtual void keyPressEvent(QKeyEvent* event);
-    virtual void activate(bool temporary = false);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
     virtual void deactivate();
 
 protected:
@@ -73,6 +73,7 @@ private:
     bool m_disableShowChangesOnExit;
     KoTextEditor *m_textEditor;
     KoTextShapeData *m_textShapeData;
+    KoCanvasBase *m_canvas;
     TextShape *m_textShape;
     TrackedChangeModel *m_model;
 

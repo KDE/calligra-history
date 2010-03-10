@@ -51,7 +51,7 @@ class KOTEXT_EXPORT KoCharacterStyle : public QObject
 {
     Q_OBJECT
 public:
-    /// list of character style properties we can store in a QCharFormat
+    /// list of character style properties we can store in a QTextCharFormat
     enum Property {
         StyleId = QTextFormat::UserProperty + 1, ///< The id stored in the charFormat to link the text to this style.
         HasHyphenation,
@@ -74,6 +74,7 @@ public:
         FontCharset,
         DropCapsAdditionalFormatting, // to identify the purpose of the additionalFormatting
         // set on the layout. is not copied during applyStyle().
+        InlineRdf,  ///< KoTextInlineRdf for this block
         InlineInstanceId = 577297549, // Internal: Reserved for KoInlineTextObjectManager
         ChangeTrackerId = 577297550 // Internal: Reserved for ChangeTracker
     };

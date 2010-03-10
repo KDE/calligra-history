@@ -27,6 +27,8 @@
 #include <stack>
 #include "wv2_export.h"
 
+#include "ms_odraw.h"
+
 namespace wvWare
 {
 
@@ -50,41 +52,6 @@ namespace wvWare
     const unsigned char FIELD_ESCAPE_CHAR = '\\';
     const unsigned char FORMULA_MARK = '\\';
 
-    // Special chars (fSpec==1)
-    const unsigned char SPEC_CURRENT_PAGE_NUMBER = 0;
-    const unsigned char SPEC_PICTURE = 1;
-    const unsigned char SPEC_AUTONUM_FOOTNOTE_REF = 2;
-    const unsigned char SPEC_FOOTNOTE_SEPARATOR = 3;
-    const unsigned char SPEC_FOOTNOTE_CONTINUATION = 4;
-    const unsigned char SPEC_ANNOTATION_REF = 5;
-    const unsigned char SPEC_LINE_NUMBER = 6;
-    const unsigned char SPEC_HAND_ANNOTATION_PIC = 7;
-    const unsigned char SPEC_DRAWN_OBJECT = 8;
-    const unsigned char SPEC_ABBREV_DATE = 10;
-    const unsigned char SPEC_TIME_HMS = 11;
-    const unsigned char SPEC_CURRENT_SECTION_NUMBER = 12;
-    const unsigned char SPEC_ABBREV_WEEKDAY = 14;
-    const unsigned char SPEC_WEEKDAY = 15;
-    const unsigned char SPEC_DAY_SHORT = 16;
-    const unsigned char SPEC_CURRENT_HOUR = 22;
-    const unsigned char SPEC_CURRENT_HOUR_TWODIG = 23;
-    const unsigned char SPEC_CURRENT_MINUTE = 24;
-    const unsigned char SPEC_CURRENT_MINUTE_TWODIG = 25;
-    const unsigned char SPEC_CURRENT_SECONDS = 26;
-    const unsigned char SPEC_CURRENT_AMPM = 27;
-    const unsigned char SPEC_CURRENT_TIME_HMS = 28;
-    const unsigned char SPEC_DATE_M = 29;
-    const unsigned char SPEC_DATE_SHORT = 30;
-    const unsigned char SPEC_MONTH_SHORT = 33;
-    const unsigned char SPEC_YEAR_LONG = 34;
-    const unsigned char SPEC_YEAR_SHORT = 35;
-    const unsigned char SPEC_MONTH_ABBREV = 36;
-    const unsigned char SPEC_MONTH_LONG = 37;
-    const unsigned char SPEC_CURRENT_TIME_HM = 38;
-    const unsigned char SPEC_DATE_LONG = 39;
-    const unsigned char SPEC_MERGE_HELPER = 41;
-
-
     class Properties97;
     class ListInfoProvider;
     class FontCollection;
@@ -92,12 +59,14 @@ namespace wvWare
     class Fields;
     class Headers;
     class Footnotes97;
+    class Annotations;
     class Drawings;
     template<class T> class PLCF;
 
     // Helper structures for the Functor-based approach
     struct HeaderData;
     struct FootnoteData;
+    struct AnnotationData;
     struct TableRowData;
     struct PictureData;
 
@@ -143,6 +112,7 @@ namespace wvWare
         //    - Be very careful, these calls can possibly be triggered at any time
         void parseHeaders( const HeaderData& data );
         void parseFootnote( const FootnoteData& data );
+        void parseAnnotation( const AnnotationData& data );
         void parseTableRow( const TableRowData& data );
         void parsePicture( const PictureData& data );
 
@@ -163,6 +133,7 @@ namespace wvWare
         // to make the parsing code reentrant.
 
     private:
+        UString m_customFootnote;
         // Don't copy or assign us
         Parser9x( const Parser9x& rhs );
         Parser9x& operator=( const Parser9x& rhs );
@@ -228,7 +199,8 @@ namespace wvWare
                          U32 length, U32 index, U32 currentStart );
 
         void processSpecialCharacter( UChar character, U32 globalCP, SharedPtr<const Word97::CHP> chp );
-        void processFootnote( UChar character, U32 globalCP, SharedPtr<const Word97::CHP> chp );
+        void processFootnote( UString characters, U32 globalCP, SharedPtr<const Word97::CHP> chp, U32 length=1 );
+        void processAnnotation( UString characters, U32 globalCP, SharedPtr<const Word97::CHP> chp, U32 length=1 );
 
         // Helper methods to gather and emit the information needed for the functors
         void emitHeaderData( SharedPtr<const Word97::SEP> sep );
@@ -242,6 +214,8 @@ namespace wvWare
         void parsePictureExternalHelper( const PictureData& data, OLEStreamReader* stream );
         void parsePictureBitmapHelper( const PictureData& data, OLEStreamReader* stream );
         void parsePictureWmfHelper( const PictureData& data, OLEStreamReader* stream );
+
+        void parseOfficeArtFOPT(OLEStreamReader* stream, int dataSize, OfficeArtProperties *artProperties);
 
         void saveState( U32 newRemainingChars, SubDocument newSubDocument, ParsingMode newParsingMode = Default );
         void restoreState();
@@ -261,6 +235,7 @@ namespace wvWare
         TextConverter* m_textconverter;
         Fields* m_fields;
         Footnotes97* m_footnotes;
+        Annotations* m_annotations;
         FontCollection* m_fonts;
         Drawings* m_drawings;
 
@@ -289,7 +264,7 @@ namespace wvWare
         // Needed to have reentrant parsing methods (to make the functor approach work)
         struct ParsingState
         {
-            ParsingState( Position* tableRowS, U32 tableRowL, bool cMarkFound, 
+            ParsingState( Position* tableRowS, U32 tableRowL, bool cMarkFound,
                           int remCells, Paragraph* parag, U32 remChars, U32 sectionNum,
                           SubDocument subD, ParsingMode mode ) :
                 tableRowStart( tableRowS ), tableRowLength( tableRowL ), cellMarkFound( cMarkFound),

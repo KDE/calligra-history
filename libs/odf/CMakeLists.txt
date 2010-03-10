@@ -4,9 +4,10 @@ include_directories( ${KOODF_INCLUDES} )
 
 ########### libkoodf ###############
 
-#if( QCA2_FOUND )
-#add_definitions( -DQCA2 )
-#endif( QCA2_FOUND )
+if( QCA2_FOUND )
+    include_directories( ${QCA2_INCLUDE_DIR} )
+    add_definitions( -DQCA2 )
+endif( QCA2_FOUND )
 
 set(koodf_LIB_SRCS
     KoOdf.cpp
@@ -31,21 +32,25 @@ set(koodf_LIB_SRCS
     KoBorder.cpp
     KoPageLayout.cpp
     KoPageFormat.cpp
-
-    # depracated classes, have to have a home which for now is here.
-    kopicture/KoPictureKey.cpp
-    kopicture/KoPictureBase.cpp
-    kopicture/KoPicture.cpp
-    kopicture/KoPictureShared.cpp
-    kopicture/KoPictureImage.cpp
-    kopicture/KoPictureClipart.cpp
-    kopicture/KoPictureEps.cpp
+    KoStore.cpp
+    KoTarStore.cpp
+    KoDirectoryStore.cpp
+    KoZipStore.cpp
+    KoXmlReader.cpp
+    KoXmlWriter.cpp
+    KoEncryptedStore.cpp
+    KoEncryptionChecker.cpp
+    KoProperties.cpp
+    KoUnit.cpp
 )
 
 kde4_add_library(koodf SHARED ${koodf_LIB_SRCS})
 
-target_link_libraries(koodf kostore kobase)
-target_link_libraries(koodf LINK_INTERFACE_LIBRARIES kostore kobase)
+target_link_libraries(koodf ${KDE4_KIO_LIBS} ${QT_QTXML_LIBRARY})
+target_link_libraries(koodf LINK_INTERFACE_LIBRARIES ${KDE4_KIO_LIBS})
+if( QCA2_FOUND )
+    target_link_libraries(koodf ${QCA2_LIBRARIES})
+endif( QCA2_FOUND )
 
 set_target_properties(koodf PROPERTIES
     VERSION ${GENERIC_KOFFICE_LIB_VERSION} SOVERSION ${GENERIC_KOFFICE_LIB_SOVERSION}
@@ -78,5 +83,12 @@ install( FILES
     KoPageLayout.h
     KoPageFormat.h
     KoColumns.h
+    KoStore.h
+    KoStoreDevice.h
+    KoXmlReader.h
+    KoXmlWriter.h
+    KoXmlReaderForward.h
+    KoProperties.h
+    KoUnit.h
 DESTINATION ${INCLUDE_INSTALL_DIR} COMPONENT Devel)
 

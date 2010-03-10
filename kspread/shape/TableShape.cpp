@@ -113,6 +113,8 @@ int TableShape::rows() const
 void TableShape::setColumns(int columns)
 {
     Q_ASSERT(columns > 0);
+    if(!sheet())
+        return;
     const double factor = (double) d->columns / columns;
     d->columns = columns;
     d->adjustColumnDimensions(qobject_cast<Sheet*>(KoShape::userData()), factor);
@@ -129,6 +131,8 @@ void TableShape::setColumns(int columns)
 void TableShape::setRows(int rows)
 {
     Q_ASSERT(rows > 0);
+    if(!sheet())
+        return;
     const double factor = (double) d->rows / rows;
     d->rows = rows;
     d->adjustRowDimensions(qobject_cast<Sheet*>(KoShape::userData()), factor);
@@ -163,7 +167,7 @@ void TableShape::paint(QPainter& painter, const KoViewConverter& converter)
 bool TableShape::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &context)
 {
     //kDebug() << "LOADING TABLE SHAPE";
-    if (element.namespaceURI() == KoXmlNS::table && element.localName() == "table") {
+    if (sheet() && element.namespaceURI() == KoXmlNS::table && element.localName() == "table") {
         // pre-load auto styles
         KoOdfLoadingContext& odfContext = context.odfLoadingContext();
         OdfLoadingContext tableContext(odfContext);
@@ -201,6 +205,8 @@ bool TableShape::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &con
 
 void TableShape::saveOdf(KoShapeSavingContext & context) const
 {
+    if (!sheet())
+        return;
     const Map* map = sheet()->map();
     // Saving the custom cell styles including the default cell style.
     map->styleManager()->saveOdf(context.mainStyles());

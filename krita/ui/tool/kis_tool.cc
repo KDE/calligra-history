@@ -20,6 +20,8 @@
 #include <QCursor>
 #include <QLabel>
 #include <QWidget>
+#include <QPolygonF>
+#include <QMatrix>
 
 #include <klocale.h>
 #include <kaction.h>
@@ -65,6 +67,7 @@
 #include "kis_config.h"
 #include "kis_config_notifier.h"
 #include "kis_cursor.h"
+#include <recorder/kis_recorded_paint_action.h>
 
 struct KisTool::Private {
     Private() : currentPattern(0),
@@ -117,9 +120,8 @@ KisTool::~KisTool()
     delete d;
 }
 
-void KisTool::activate(bool)
+void KisTool::activate(ToolActivation, const QSet<KoShape*> &)
 {
-
     resetCursorStyle();
 
     d->currentFgColor = canvas()->resourceManager()->resource(KoCanvasResource::ForegroundColor).value<KoColor>();
@@ -205,7 +207,7 @@ QPoint KisTool::convertToIntPixelCoord(KoPointerEvent *e)
     return image()->documentToIntPixel(e->point);
 }
 
-QPointF KisTool::viewToPixel(const QPointF &viewCoord)
+QPointF KisTool::viewToPixel(const QPointF &viewCoord) const
 {
     if (!image())
         return viewCoord;
@@ -224,7 +226,7 @@ QRectF KisTool::convertToPt(const QRectF &rect)
     return r;
 }
 
-QPointF KisTool::pixelToView(const QPoint &pixelCoord)
+QPointF KisTool::pixelToView(const QPoint &pixelCoord) const
 {
     if (!image())
         return pixelCoord;
@@ -232,7 +234,7 @@ QPointF KisTool::pixelToView(const QPoint &pixelCoord)
     return canvas()->viewConverter()->documentToView(documentCoord);
 }
 
-QPointF KisTool::pixelToView(const QPointF &pixelCoord)
+QPointF KisTool::pixelToView(const QPointF &pixelCoord) const
 {
     if (!image())
         return pixelCoord;
@@ -240,13 +242,31 @@ QPointF KisTool::pixelToView(const QPointF &pixelCoord)
     return canvas()->viewConverter()->documentToView(documentCoord);
 }
 
-QRectF KisTool::pixelToView(const QRectF &pixelRect)
+QRectF KisTool::pixelToView(const QRectF &pixelRect) const
 {
     if (!image())
         return pixelRect;
     QPointF topLeft = pixelToView(pixelRect.topLeft());
     QPointF bottomRight = pixelToView(pixelRect.bottomRight());
     return QRectF(topLeft, bottomRight);
+}
+
+QPainterPath KisTool::pixelToView(const QPainterPath &pixelPolygon) const
+{
+    QMatrix matrix;
+    qreal zoomX, zoomY;
+    canvas()->viewConverter()->zoom(&zoomX, &zoomY);
+    matrix.scale(zoomX/image()->xRes(), zoomY/ image()->yRes());
+    return matrix.map(pixelPolygon);
+}
+
+QPolygonF KisTool::pixelToView(const QPolygonF &pixelPath) const
+{
+    QMatrix matrix;
+    qreal zoomX, zoomY;
+    canvas()->viewConverter()->zoom(&zoomX, &zoomY);
+    matrix.scale(zoomX/image()->xRes(), zoomY/ image()->yRes());
+    return matrix.map(pixelPath);
 }
 
 void KisTool::updateCanvasPixelRect(const QRectF &pixelRect)
@@ -372,6 +392,11 @@ void KisTool::setupPainter(KisPainter* painter)
 
 }
 
+void KisTool::setupPaintAction(KisRecordedPaintAction* action)
+{
+    action->setPaintColor(currentFgColor());
+    action->setBackgroundColor(currentBgColor());
+}
 
 QWidget* KisTool::createOptionWidget()
 {
@@ -386,16 +411,46 @@ QWidget* KisTool::optionWidget()
 }
 
 
-void KisTool::paintToolOutline(QPainter* painter, QPainterPath &path)
+void KisTool::paintToolOutline(QPainter* painter, const QPainterPath &path)
 {
-    switch (m_outlinePaintMode) {
-    case XOR_MODE: {
+    //KisToolSelectMagnetic uses custom painting, so don't forget to update that as well
+#if defined(HAVE_OPENGL)
+    if (m_outlinePaintMode==XOR_MODE && isCanvasOpenGL()) {
+        beginOpenGL();
+
+        glEnable(GL_LINE_SMOOTH);
+        glEnable(GL_COLOR_LOGIC_OP);
+        glLogicOp(GL_XOR);
+        glColor3f(0.501961, 1.0, 0.501961);
+
+        QList<QPolygonF> subPathPolygons = path.toSubpathPolygons();
+        for(int i=0; i<subPathPolygons.size(); i++) {
+            const QPolygonF& polygon = subPathPolygons.at(i);
+
+            glBegin(GL_LINE_STRIP);
+            for(int j=0; j<polygon.count(); j++) {
+                QPointF p = /*pixelToView*/(polygon.at(j));
+                glVertex2f(p.x(), p.y());
+            }
+            glEnd();
+        }
+
+        glDisable(GL_COLOR_LOGIC_OP);
+        glDisable(GL_LINE_SMOOTH);
+
+        endOpenGL();
+    }
+    else
+#endif
+#ifdef INDEPENDENT_CANVAS
+    if (m_outlinePaintMode==XOR_MODE) {
         painter->setCompositionMode(QPainter::RasterOp_SourceXorDestination);
         painter->setPen(QColor(128, 255, 128));
         painter->drawPath(path);
-        break;
     }
-    case BW_MODE: {
+    else/* if (m_outlinePaintMode==BW_MODE)*/
+#endif
+    {
         QPen pen = painter->pen();
         pen.setWidth(3);
         pen.setColor(QColor(0, 0, 0, 100));
@@ -405,13 +460,8 @@ void KisTool::paintToolOutline(QPainter* painter, QPainterPath &path)
         pen.setColor(Qt::white);
         painter->setPen(pen);
         painter->drawPath(path);
-        break;
-    }
-    default:
-        break;
     }
 }
-
 
 void KisTool::resetCursorStyle()
 {

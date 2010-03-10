@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2009 Casper Boemann <cbo@boemann.dk>
+ * Copyright (C) 2009-2010 Casper Boemann <cbo@boemann.dk>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -21,21 +21,17 @@
 
 #include <kdebug.h>
 
-#include <QString>
 #include <QUrl>
-#include <Phonon/VideoWidget>
-#include <Phonon/AudioOutput>
-#include <Phonon/MediaObject>
 
 #include "VideoData.h"
 #include "VideoShape.h"
 
+#include "FullScreenPlayer.h"
+
 VideoEventAction::VideoEventAction(VideoShape *parent)
     : KoEventAction()
     ,m_shape(parent)
-    ,m_mediaObject(0)
-    ,m_videoWidget(0)
-    ,m_audioOutput(0)
+    ,m_player(0)
 {
     setId(QString("videoeventaction"));
 }
@@ -55,20 +51,9 @@ void VideoEventAction::saveOdf(KoShapeSavingContext &context) const
 
 void VideoEventAction::start()
 {
-    qDebug() << "action activated" << endl;
-    m_mediaObject = new Phonon::MediaObject();
-
-    m_videoWidget = new Phonon::VideoWidget();
-    Phonon::createPath(m_mediaObject, m_videoWidget);
-
-    m_audioOutput = new Phonon::AudioOutput(Phonon::VideoCategory);
-    Phonon::createPath(m_mediaObject, m_audioOutput);
-
     VideoData *videoData = qobject_cast<VideoData*>(m_shape->userData());
-m_videoWidget->show();
-m_videoWidget->setFullScreen(true);
-    m_mediaObject->setCurrentSource(QUrl(":/home/cbo/FALL98.MPG"));//videoData->videoLocation);
-    m_mediaObject->play();
+    Q_ASSERT(videoData);
+    m_player = new FullScreenPlayer(videoData->playableUrl());
 }
 
 void VideoEventAction::finish()

@@ -34,11 +34,10 @@
 
 #include <kis_sumi_ink_option.h>
 #include <kis_sumi_shape_option.h>
+#include <kis_sumi_bristle_option.h>
+#include <kis_brush_option.h>
 
-#ifdef BENCHMARK
-    #include <QTime>
-#endif
-
+#include "kis_brush.h"
 
 KisSumiPaintOp::KisSumiPaintOp(const
                                KisSumiPaintOpSettings *settings, KisPainter * painter, KisImageWSP image)
@@ -49,36 +48,48 @@ KisSumiPaintOp::KisSumiPaintOp(const
 
 {
     Q_ASSERT(settings);
+
+    KisBrushOption brushOption;
+    brushOption.readOptionSetting(settings);
+    KisBrushSP kisBrush = brushOption.brush();
+    BrushShape bs; 
+    
+    bs.setColorSpace(painter->device()->colorSpace());
+    bs.setHasColor(kisBrush->brushType() != MASK);
+    bs.fromQImageWithDensity(kisBrush->image(), settings->getDouble(SUMI_BRISTLE_DENSITY) * 0.01);
+    m_brush.setBrushShape(bs);
+    
     loadSettings(settings);
     m_brush.setProperties( &m_properties );
     
-    m_brush.setInkColor(painter->paintColor());    
+    if (!bs.hasColor()){
+        m_brush.setInkColor(painter->paintColor());    
+    }
+    
     if (!settings->node()) {
         m_dev = 0;
     } else {
         m_dev = settings->node()->paintDevice();
     }
-#ifdef BENCHMARK
-    m_count = m_total = 0;
-#endif
 }
 
 void KisSumiPaintOp::loadSettings(const KisSumiPaintOpSettings* settings)
 {
-    m_properties.radius = settings->getInt(SUMI_RADIUS);
-    m_properties.inkAmount = settings->getInt(SUMI_INK_AMOUNT);
+/*    m_properties.radius = settings->getInt(SUMI_RADIUS);
     m_properties.sigma = settings->getDouble(SUMI_SIGMA);
+    m_properties.isbrushDimension1D = settings->getBool(SUMI_IS_DIMENSION_1D);*/
+    
+    m_properties.inkAmount = settings->getInt(SUMI_INK_AMOUNT);
     //TODO: wait for the transfer function with variable size
-
     QList<float> list;
     KisCubicCurve curve = settings->getCubicCurve(SUMI_INK_DEPLETION_CURVE);
     for (int i=0;i < m_properties.inkAmount;i++){
         list << curve.value( i/qreal(m_properties.inkAmount-1) );
     }
+    curve.floatTransfer(m_properties.inkAmount);
 
     m_properties.inkDepletionCurve = list;
-    m_properties.isbrushDimension1D = settings->getBool(SUMI_IS_DIMENSION_1D);
-    m_properties.useMousePressure = settings->getBool(SUMI_USE_MOUSEPRESSURE);
+
     m_properties.useSaturation = settings->getBool(SUMI_INK_USE_SATURATION);
     m_properties.useOpacity = settings->getBool(SUMI_INK_USE_OPACITY);
     m_properties.useWeights = settings->getBool(SUMI_INK_USE_WEIGHTS);
@@ -87,63 +98,54 @@ void KisSumiPaintOp::loadSettings(const KisSumiPaintOpSettings* settings)
     m_properties.bristleLengthWeight = settings->getDouble(SUMI_INK_BRISTLE_LENGTH_WEIGHT) / 100.0;
     m_properties.bristleInkAmountWeight = settings->getDouble(SUMI_INK_BRISTLE_INK_AMOUNT_WEIGHT) / 100.0;
     m_properties.inkDepletionWeight = settings->getDouble(SUMI_INK_DEPLETION_WEIGHT);
+    m_properties.useSoakInk = settings->getBool(SUMI_INK_SOAK);
 
-    m_properties.shearFactor = settings->getDouble(SUMI_SHEAR);
-    m_properties.randomFactor = settings->getDouble(SUMI_RANDOM);
-    m_properties.scaleFactor = settings->getDouble(SUMI_SCALE);
+    m_properties.useMousePressure = settings->getBool(SUMI_BRISTLE_USE_MOUSEPRESSURE);
+    m_properties.shearFactor = settings->getDouble(SUMI_BRISTLE_SHEAR);
+    m_properties.randomFactor = settings->getDouble(SUMI_BRISTLE_RANDOM);
+    m_properties.scaleFactor = settings->getDouble(SUMI_BRISTLE_SCALE);
     
-    BrushShape brushShape;
+/*    BrushShape brushShape;
     if (m_properties.isbrushDimension1D) 
     {
         brushShape.fromLine(m_properties.radius, m_properties.sigma);
-        brushShape.tresholdBristles(0.1);
+        brushShape.thresholdBristles(0.1);
     } else {
         brushShape.fromGaussian(m_properties.radius, m_properties.sigma);
-        brushShape.tresholdBristles(0.1);
+        brushShape.thresholdBristles(0.1);
     }
-    m_brush.setBrushShape(brushShape);
+    m_brush.setBrushShape(brushShape);*/
+    
 }
 
 
-void KisSumiPaintOp::paintAt(const KisPaintInformation& info)
+double KisSumiPaintOp::paintAt(const KisPaintInformation& info)
 {
     Q_UNUSED(info);
+    return 0.5;
 }
 
 
-double KisSumiPaintOp::paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, double savedDist)
+KisDistanceInformation KisSumiPaintOp::paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, const KisDistanceInformation& savedDist)
 {
-#ifdef BENCHMARK
-    QTime time;
-    time.start();
-#endif
-
+    // spacing is ignored in sumi-e, maybe todo
     Q_UNUSED(savedDist);
 
-    if (!painter()) return 0;
+    if (!painter()) return KisDistanceInformation();
 
     if (!m_dab) {
         m_dab = new KisPaintDevice(painter()->device()->colorSpace());
     } else {
         m_dab->clear();
     }
-
     m_brush.paintLine(m_dab, m_dev, pi1, pi2);
 
     //QRect rc = m_dab->exactBounds();
     QRect rc = m_dab->extent();
     painter()->bitBlt(rc.topLeft(), m_dab, rc);
 
-
-#ifdef BENCHMARK
-    int msec = time.elapsed();
-    kDebug() << msec << " ms/dab " << "[average: " << m_total / (qreal)m_count << "]";
-    m_total += msec;
-    m_count++;
-#endif
-
     KisVector2D end = toKisVector2D(pi2.pos());
     KisVector2D start = toKisVector2D(pi1.pos());
     KisVector2D dragVec = end - start;
-    return  dragVec.norm();
+    return KisDistanceInformation(0, dragVec.norm());
 }

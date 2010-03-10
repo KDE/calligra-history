@@ -35,6 +35,7 @@ class BgSpellCheck : public BackgroundChecker
     Q_OBJECT
 public:
     explicit BgSpellCheck(const Speller &speller, QObject *parent = 0);
+    explicit BgSpellCheck(QObject *parent = 0);
     void startRun(QTextDocument *document, int startPosition, int endPosition);
 
 protected:
@@ -52,9 +53,9 @@ signals:
 
 private:
     QTextDocument *m_document;
-    QTextCursor m_cursor;
 
     int m_currentPosition;
+    int m_nextPosition; // the position we expect the next fetchMoreText to start from
     int m_endPosition;
     QString m_currentLanguage;
     QString m_currentCountry;

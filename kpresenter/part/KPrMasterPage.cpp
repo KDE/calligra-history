@@ -24,6 +24,7 @@
 //#include <KoResourceManager.h>
 #include "KPresenter.h"
 #include <KoPALoadingContext.h>
+#include <KoOdfWorkaround.h>
 #include <kdebug.h>
 
 KPrMasterPage::KPrMasterPage()
@@ -37,6 +38,18 @@ KPrMasterPage::~KPrMasterPage()
 KoPageApp::PageType KPrMasterPage::pageType() const
 {
     return KoPageApp::Slide;
+}
+
+bool KPrMasterPage::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &context)
+{
+#ifndef NWORKAROUND_ODF_BUGS
+    KoOdfWorkaround::setFixPresentationPlaceholder(true, context);
+#endif
+    bool retval = KoPAPageBase::loadOdf(element, context);
+#ifndef NWORKAROUND_ODF_BUGS
+    KoOdfWorkaround::setFixPresentationPlaceholder(false, context);
+#endif
+    return retval;
 }
 
 void KPrMasterPage::loadOdfPageExtra( const KoXmlElement &element, KoPALoadingContext & loadingContext )

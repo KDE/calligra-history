@@ -1,7 +1,7 @@
 /* This file is part of the KDE project
    Copyright (C) 2006-2008 Thorsten Zachmann <zachmann@kde.org>
    Copyright (C) 2006, 2008 Casper Boemann <cbr@boemann.dk>
-   Copyright (C) 2006-2009 Thomas Zander <zander@kde.org>
+   Copyright (C) 2006-2010 Thomas Zander <zander@kde.org>
    Copyright (C) 2007-2009 Jan Hambrecht <jaham@gmx.net>
 
    This library is free software; you can redistribute it and/or
@@ -753,16 +753,22 @@ public:
 
     /**
      * Adds a shape which depends on this shape.
+     * Making a shape dependent on this one means it will get shapeChanged() called
+     * on each update of this shape.
      *
      * If this shape already depends on the given shape, establishing the
      * dependency is refused to prevent circular dependencies.
      *
      * @param shape the shape which depends on this shape
-     * @return true if dependency could be established, else false
+     * @return true if dependency could be established, otherwise false
+     * @see removeDependee(), hasDependee()
      */
     bool addDependee(KoShape *shape);
 
-    /// Removes as shape depending on this shape
+    /**
+     * Removes as shape depending on this shape.
+     * @see addDependee(), hasDependee()
+     */
     void removeDependee(KoShape *shape);
 
     /// Returns if the given shape is dependent on this shape
@@ -836,6 +842,24 @@ public:
     bool collisionDetection();
 
     /**
+     * Return the tool delegates for this shape.
+     * In Flake a shape being selected will cause the tool manager to make available all tools that
+     * can edit the selected shapes.  In some cases selecting one shape should allow the tool to
+     * edit a related shape be available too.  The tool delegates allows this to happen by taking
+     * all the shapes in the set into account on tool selection.
+     * Notice that if the set is non-empty 'this' shape is no longer looked at. You can choose
+     * to add itself to the set too.
+     */
+    QSet<KoShape*> toolDelegates() const;
+
+    /**
+     * Set the tool delegates.
+     * @param delegates the new delegates.
+     * @see toolDelegates()
+     */
+    void setToolDelegates(const QSet<KoShape*> &delegates);
+
+    /**
      * \internal
      * Returns the private object for use withing the flake lib
      */
@@ -906,19 +930,13 @@ protected:
     virtual void loadStyle(const KoXmlElement &element, KoShapeLoadingContext &context);
 
     /// Loads the fill style
-    //QBrush loadOdfFill( const KoXmlElement & element, KoShapeLoadingContext & context );
-    KoShapeBackground *loadOdfFill(const KoXmlElement &element, KoShapeLoadingContext &context);
+    KoShapeBackground *loadOdfFill(const KoXmlElement &element, KoShapeLoadingContext &context) const;
 
     /// Loads the stroke style
-    KoShapeBorderModel *loadOdfStroke(const KoXmlElement &element, KoShapeLoadingContext &context);
+    KoShapeBorderModel *loadOdfStroke(const KoXmlElement &element, KoShapeLoadingContext &context) const;
 
     /// Loads the shadow style
-    KoShapeShadow *loadOdfShadow(const KoXmlElement &element, KoShapeLoadingContext &context);
-
-    /**
-     * Fills the style stack and returns the value of the given style property (e.g fill, stroke).
-     */
-    QString getStyleProperty(const char *property, const KoXmlElement &element, KoShapeLoadingContext &context);
+    KoShapeShadow *loadOdfShadow(const KoXmlElement &element, KoShapeLoadingContext &context) const;
 
     /* ** end loading saving */
 

@@ -135,7 +135,7 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
     Q_ASSERT(uri.isLocalFile());
 
     // open the file
-    QFile file(QFile::encodeName(uri.toLocalFile()));
+    QFile file(uri.toLocalFile());
     if (!file.exists()) {
         return (KisImageBuilder_RESULT_NOT_EXIST);
     }
@@ -177,11 +177,20 @@ KisImageBuilder_Result KisJPEGConverter::decode(const KUrl& uri)
         if (hProfile != (cmsHPROFILE) NULL) {
             profile = KoColorSpaceRegistry::instance()->createColorProfile(modelId, Integer8BitsColorDepthID.id(), profile_rawdata);
             Q_CHECK_PTR(profile);
-//             dbgFile <<"profile name:" << profile->productName() <<" profile description:" << profile->productDescription() <<" information sur le produit:" << profile->productInfo();
+            dbgFile <<"profile name:" << profile->name() <<" product information:" << profile->info();
             if (!profile->isSuitableForOutput()) {
                 dbgFile << "the profile is not suitable for output and therefore cannot be used in krita, we need to convert the image to a standard profile"; // TODO: in ko2 popup a selection menu to inform the user
             }
         }
+    }
+
+    // Check that the profile is used by the color space
+    if (profile && !KoColorSpaceRegistry::instance()->colorSpaceFactory(
+        KoColorSpaceRegistry::instance()->colorSpaceId(
+      modelId, Integer8BitsColorDepthID.id()))->profileIsCompatible(profile)) {
+        warnFile << "The profile " << profile->name() << " is not compatible with the color space model " << modelId;
+        delete profile;
+        profile = 0;
     }
 
     // Retrieve a pointer to the colorspace

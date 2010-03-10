@@ -44,11 +44,10 @@ public slots:
     virtual void toXML(QDomDocument&, QDomElement&) const;
     virtual void fromXML(const QDomElement&);
 private:
-    double m_time;
+    int m_time;
     int m_length;
     bool m_periodic;
-    bool m_firstPos;
-    KisVector2D m_previousPos;
+    int m_lastTime;
 };
 
 #endif

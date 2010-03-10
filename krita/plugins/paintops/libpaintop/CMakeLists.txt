@@ -3,10 +3,11 @@
 set(kritalibpaintop_LIB_SRCS
     kis_auto_brush_widget.cpp
     kis_bidirectional_mixing_option.cpp
-    kis_boundary_painter.cc
+    kis_bidirectional_mixing_option_widget.cpp
     kis_brush_based_paintop.cpp
     kis_brush_chooser.cpp
     kis_brush_option_widget.cpp
+    kis_brush_size_option.cpp
     kis_brush_option.cpp
     kis_brush_selection_widget.cpp
     kis_color_option.cpp
@@ -28,18 +29,23 @@ set(kritalibpaintop_LIB_SRCS
     kis_pressure_mix_option.cpp
     kis_sensor_selector.cc
     kis_text_brush_chooser.cpp
+    kis_brush_based_paintop_options_widget.cpp
+    kis_brush_based_paintop_settings.cpp
     sensors/kis_dynamic_sensors.cc
+    sensors/kis_dynamic_sensor_distance.cc
     sensors/kis_dynamic_sensor_time.cc
 )
 
 kde4_add_ui_files(kritalibpaintop_LIB_SRCS
     wdgautobrush.ui
+    wdgBrushSizeOptions.ui
     wdgcurveoption.ui
     wdgcustombrush.ui
     wdgtextbrush.ui
     wdgincremental.ui
     wdgfilteroption.ui
     wdgcoloroptions.ui
+    sensors/SensorDistanceConfiguration.ui
     sensors/SensorTimeConfiguration.ui
     SensorSelector.ui
 )
@@ -55,3 +61,5 @@ set_target_properties(kritalibpaintop PROPERTIES
 
 install(TARGETS kritalibpaintop  ${INSTALL_TARGETS_DEFAULT_ARGS})
 
+
+add_subdirectory(tests)

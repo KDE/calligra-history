@@ -38,7 +38,6 @@
 #include <kis_debug.h>
 #include <kicon.h>
 #include <klocale.h>
-#include <knuminput.h>
 #include <kiconloader.h>
 
 #include <KoShape.h>
@@ -57,7 +56,6 @@
 #include <kis_layer.h>
 #include <kis_view2.h>
 #include <kis_canvas2.h>
-#include <ko_favorite_resource_manager.h>
 
 #include "kis_config.h"
 #include "kis_config_notifier.h"
@@ -66,6 +64,7 @@
 #include "widgets/kis_cmb_composite.h"
 #include "KoSliderCombo.h"
 #include "kis_canvas_resource_provider.h"
+#include <recorder/kis_recorded_paint_action.h>
 
 
 KisToolPaint::KisToolPaint(KoCanvasBase * canvas, const QCursor & cursor)
@@ -78,14 +77,10 @@ KisToolPaint::KisToolPaint(KoCanvasBase * canvas, const QCursor & cursor)
     m_lbComposite = 0;
     m_cmbComposite = 0;
 
-    m_opacity = OPACITY_OPAQUE;
+    m_opacity = OPACITY_OPAQUE_U8;
     m_compositeOp = 0;
 
     m_supportOutline = false;
-
-    KisCanvas2* canvas2 = static_cast<KisCanvas2*>(canvas);
-    connect(this, SIGNAL(sigFavoritePaletteCalled(const QPoint&)), canvas2->view(), SIGNAL(favoritePaletteCalled(const QPoint&)) );
-    connect(this, SIGNAL(sigPainting()), canvas2->view()->resourceProvider(), SLOT(slotPainting()));
 }
 
 
@@ -116,14 +111,14 @@ void KisToolPaint::resourceChanged(int key, const QVariant & v)
         ; // Do nothing
     }
 
-    connect(KisConfigNotifier::instance(), SIGNAL(configChanged()), SLOT(resetCursorStyle()) );
+    connect(KisConfigNotifier::instance(), SIGNAL(configChanged()), SLOT(resetCursorStyle()));
 
 }
 
 
-void KisToolPaint::activate(bool temporary)
+void KisToolPaint::activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes)
 {
-    KisTool::activate(temporary);
+    KisTool::activate(toolActivation, shapes);
     resetCursorStyle();
 }
 
@@ -135,7 +130,7 @@ void KisToolPaint::paint(QPainter&, const KoViewConverter &)
 
 void KisToolPaint::mouseReleaseEvent(KoPointerEvent *e)
 {
-    if (e->button() == Qt::MidButton) {
+    if (e->button() == Qt::RightButton) {
         //CALLING POP UP PALETTE
         emit sigFavoritePaletteCalled(e->pos());
 
@@ -148,13 +143,6 @@ void KisToolPaint::mouseReleaseEvent(KoPointerEvent *e)
 //            resourceProvider->setResource(KoCanvasResource::ForegroundColor, bg);
 //            resourceProvider->setResource(KoCanvasResource::BackgroundColor, fg);
 //        }
-    }
-    else if (e->button() == Qt::LeftButton)
-    {
-//        if (canvas2->view()->favoriteResourceManager()->isPopupPaletteVisible()) return;
-        //TODO: There is a bug here. If pop up palette is visible and a new colour is selected,
-        //the new colour will be added when the user clicks on the canvas to hide the palette
-        emit sigPainting();
     }
 }
 
@@ -170,7 +158,7 @@ QWidget * KisToolPaint::createOptionWidget()
     m_slOpacity->setMinimum(0);
     m_slOpacity->setMaximum(100);
     m_slOpacity->setDecimals(0);
-    m_slOpacity->setValue(m_opacity / OPACITY_OPAQUE * 100);
+    m_slOpacity->setValue(m_opacity / OPACITY_OPAQUE_U8 * 100);
     connect(m_slOpacity, SIGNAL(valueChanged(qreal, bool)), this, SLOT(slotSetOpacity(qreal, bool)));
 
     m_lbComposite = new QLabel(i18n("Mode: "), optionWidget);
@@ -231,7 +219,7 @@ void KisToolPaint::addOptionWidgetOption(QWidget *control, QWidget *label)
 void KisToolPaint::slotSetOpacity(qreal opacityPerCent, bool final)
 {
     Q_UNUSED(final);
-    m_opacity = (int)(opacityPerCent * OPACITY_OPAQUE / 100);
+    m_opacity = (int)(opacityPerCent * OPACITY_OPAQUE_U8 / 100);
 }
 
 
@@ -301,5 +289,13 @@ void KisToolPaint::resetCursorStyle()
 
 }
 
+void KisToolPaint::setupPaintAction(KisRecordedPaintAction* action)
+{
+    KisTool::setupPaintAction(action);
+    action->setOpacity(m_opacity / 255.0);
+    if (m_compositeOp) {
+        action->setCompositeOp(m_compositeOp->id());
+    }
+}
 
 #include "kis_tool_paint.moc"

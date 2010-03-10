@@ -42,9 +42,78 @@ DocxXmlDocumentReaderContext::DocxXmlDocumentReaderContext(
     const QString& _path, const QString& _file,
     MSOOXML::MsooXmlRelationships& _relationships)
         : MSOOXML::MsooXmlReaderContext(&_relationships),
-        import(&_import), path(_path), file(_file)
+        import(&_import), path(_path), file(_file),
+        m_commentsLoaded(false), m_endnotesLoaded(false), m_footnotesLoaded(false)
 {
 }
+
+KoFilter::ConversionStatus DocxXmlDocumentReaderContext::loadComments(KoOdfWriters *writers)
+{
+    if (m_commentsLoaded)
+        return KoFilter::OK;
+    m_commentsLoaded = true;
+    DocxXmlCommentsReaderContext context(m_comments);
+    DocxXmlCommentsReader reader(writers);
+    QString errorMessage;
+    const KoFilter::ConversionStatus status
+        = import->loadAndParseDocument(&reader, "word/comments.xml", errorMessage, &context);
+    if (status != KoFilter::OK)
+        reader.raiseError(errorMessage);
+    return status;
+}
+
+KoFilter::ConversionStatus DocxXmlDocumentReaderContext::loadEndnotes(KoOdfWriters *writers)
+{
+    if (m_endnotesLoaded)
+        return KoFilter::OK;
+    m_endnotesLoaded = true;
+    DocxXmlNotesReaderContext context(m_endnotes);
+    DocxXmlNotesReader reader(writers);
+    QString errorMessage;
+    const KoFilter::ConversionStatus status
+        = import->loadAndParseDocument(&reader, "word/endnotes.xml", errorMessage, &context);
+    if (status != KoFilter::OK)
+        reader.raiseError(errorMessage);
+    return status;
+}
+
+KoFilter::ConversionStatus DocxXmlDocumentReaderContext::loadFootnotes(KoOdfWriters *writers)
+{
+    if (m_footnotesLoaded)
+        return KoFilter::OK;
+    m_footnotesLoaded = true;
+    DocxXmlNotesReaderContext context(m_footnotes);
+    DocxXmlNotesReader reader(writers);
+    QString errorMessage;
+    const KoFilter::ConversionStatus status
+        = import->loadAndParseDocument(&reader, "word/footnotes.xml", errorMessage, &context);
+    if (status != KoFilter::OK)
+        reader.raiseError(errorMessage);
+    return status;
+}
+
+DocxComment DocxXmlDocumentReaderContext::comment(KoOdfWriters *writers, int id)
+{
+    if (KoFilter::OK != loadComments(writers))
+        return DocxComment();
+    return m_comments.value(id);
+}
+
+DocxNote DocxXmlDocumentReaderContext::endnote(KoOdfWriters *writers, int id)
+{
+    if (KoFilter::OK != loadEndnotes(writers))
+        return DocxNote();
+    return m_endnotes.value(id);
+}
+
+DocxNote DocxXmlDocumentReaderContext::footnote(KoOdfWriters *writers, int id)
+{
+    if (KoFilter::OK != loadFootnotes(writers))
+        return DocxNote();
+    return m_footnotes.value(id);
+}
+
+// ---------------------------------------------------------------------
 
 class DocxXmlDocumentReader::Private
 {
@@ -462,12 +531,140 @@ KoFilter::ConversionStatus DocxXmlDocumentReader::read_object()
 //! @todo    TRY_READ_ATTR(dyaOrig)?
     while (!atEnd()) {
         readNext();
-//! @todo support VML here
-        TRY_READ_IF_NS(o, OLEObject)
-//! @todo add ELSE_WRONG_FORMAT
+        if (isStartElement()) {
+            //! @todo support VML here
+            TRY_READ_IF_NS(o, OLEObject)
+            //! @todo add ELSE_WRONG_FORMAT
+        }
         BREAK_IF_END_OF(CURRENT_EL);
     }
     READ_EPILOGUE
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL commentRangeStart
+KoFilter::ConversionStatus DocxXmlDocumentReader::read_commentRangeStart()
+{
+    READ_PROLOGUE
+
+    const QXmlStreamAttributes attrs(attributes());
+
+    READ_ATTR(id)
+    int idNumber;
+    STRING_TO_INT(id, idNumber, "commentRangeStart@id")
+    const DocxComment comment(m_context->comment(this, idNumber));
+    if (comment.isNull()) {
+        raiseError(i18n("Comment \"%1\" not found", id));
+        return KoFilter::WrongFormat;
+    }
+
+    body->startElement("office:annotation");
+
+    body->startElement("dc:creator");
+    body->addTextSpan(comment.author());
+    body->endElement(); // dc:creator
+
+    body->startElement("dc:date");
+    //! @todo date ok?
+    body->addTextSpan(comment.dateTime().toString(Qt::ISODate));
+    body->endElement(); // dc:date
+
+    body->startElement("text:p");
+    //! @todo hardcoded style
+    body->addAttribute("text:style-name", "P1");
+    body->startElement("text:span");
+    body->addTextSpan(comment.text());
+    body->endElement(); // text:span
+    body->endElement(); // text:p
+
+    body->endElement(); // office:annotation
+    return KoFilter::OK;
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL endnoteReference
+KoFilter::ConversionStatus DocxXmlDocumentReader::read_endnoteReference()
+{
+    /*
+    # example endnote from odt document converted with OpenOffice
+    <text:note text:id="ftn1" text:note-class="endnote">
+    <text:note-citation>i</text:note-citation>
+    <text:note-body>
+    <text:p text:style-name="Endnote">Tassa olisi endnote!</text:p>
+    </text:note-body>
+    </text:note></text:p>
+    */
+    const QXmlStreamAttributes attrs(attributes());
+    READ_ATTR(id)
+    int idNumber;
+    STRING_TO_INT(id, idNumber, "endnoteReference@id")
+    const DocxNote note(m_context->endnote(this, idNumber));
+    if (note.isNull()) {
+        raiseError(i18n("Endnote \"%1\" not found", id));
+        return KoFilter::WrongFormat;
+    }
+    body->startElement("text:note");
+    body->addAttribute("text:id", "ftn1");
+    body->addAttribute("text:note-class", "endnote");
+
+    body->startElement("text:note-citation");
+    body->addTextSpan(QString::number(note.number)); // this needs to be improved in future!
+    body->endElement(); // text:note-citation
+
+    body->startElement("text:note-body");
+    body->startElement("text:p");
+    body->addAttribute("text:style-name", "Endnote");
+    body->addTextSpan(note.text);
+    body->endElement(); // text:p
+    body->endElement(); // text:note-body
+
+    body->endElement(); // text:note
+    return KoFilter::OK;
+}
+
+
+
+#undef CURRENT_EL
+#define CURRENT_EL footnoteReference
+KoFilter::ConversionStatus DocxXmlDocumentReader::read_footnoteReference()
+{
+    /*
+    # example endnote from odt document converted with OpenOffice
+    <text:note text:id="ftn1" text:note-class="footnote">
+    <text:note-citation>1</text:note-citation>
+    <text:note-body>
+    <text:p text:style-name="P2">
+    <text:span text:style-name="footnote_20_reference" />studies</text:p>
+    <text:p text:style-name="Footnote" />
+    </text:note-body>
+    </text:note>
+    */
+    const QXmlStreamAttributes attrs(attributes());
+    READ_ATTR(id)
+    int idNumber;
+    STRING_TO_INT(id, idNumber, "footnoteReference@id")
+    const DocxNote note(m_context->footnote(this, idNumber));
+    if (note.isNull()) {
+        raiseError(i18n("Footnote \"%1\" not found", id));
+        return KoFilter::WrongFormat;
+    }
+    body->startElement("text:note");
+    body->addAttribute("text:id", "ftn1");
+    body->addAttribute("text:note-class", "footnote");
+
+    body->startElement("text:note-citation");
+    body->addTextSpan(QString::number(note.number)); // this needs to be improved in future!
+    body->endElement(); // text:note-citation
+
+    body->startElement("text:note-body");
+    body->startElement("text:p");
+    body->addAttribute("text:style-name", "Footnote");
+    body->addTextSpan(note.text);
+    body->endElement(); // text:p
+    body->endElement(); // text:note-body
+
+    body->endElement(); // text:note
+    return KoFilter::OK;
 }
 
 // ---------------------------------------------------------------------------
@@ -528,3 +725,4 @@ KoFilter::ConversionStatus DocxXmlDocumentReader::read_OLEObject()
 #define MSOOXML_CURRENT_NS "pic" // DrawingML/Picture
 
 #include <MsooXmlCommonReaderDrawingMLImpl.h> // this adds pic:pic, etc.
+#include <MsooXmlVmlReaderImpl.h> // this adds w:pict, etc.

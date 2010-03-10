@@ -18,15 +18,17 @@
  */
 
 #include "ColorMatrixEffect.h"
-#include "KoFilterEffectRenderContext.h"
-#include "KoXmlWriter.h"
-#include "KoXmlReader.h"
+#include "ColorChannelConversion.h"
+#include <KoFilterEffectRenderContext.h>
+#include <KoXmlWriter.h>
+#include <KoXmlReader.h>
 #include <KLocale>
 #include <QtCore/QRect>
 #include <math.h>
 
-const int MatrixRows  = 4;
-const int MatrixCols  = 5;
+const int MatrixSize = 20;
+const int MatrixRows = 4;
+const int MatrixCols = 5;
 
 ColorMatrixEffect::ColorMatrixEffect()
         : KoFilterEffect(ColorMatrixEffectId, i18n("Color Matrix"))
@@ -38,6 +40,7 @@ ColorMatrixEffect::ColorMatrixEffect()
 void ColorMatrixEffect::setIdentity()
 {
     // set identity matrix
+    m_matrix.resize(MatrixSize);
     for (int r = 0; r < MatrixRows; ++r) {
         for (int c = 0; c < MatrixCols; ++c) {
             m_matrix[r*MatrixCols+c] = r == c ? 1.0 : 0.0;
@@ -50,14 +53,30 @@ ColorMatrixEffect::Type ColorMatrixEffect::type() const
     return m_type;
 }
 
-const qreal * ColorMatrixEffect::colorMatrix() const
+int ColorMatrixEffect::colorMatrixSize()
+{
+    return MatrixSize;
+}
+
+int ColorMatrixEffect::colorMatrixRowCount()
+{
+    return MatrixRows;
+}
+
+int ColorMatrixEffect::colorMatrixColumnCount()
+{
+    return MatrixCols;
+}
+
+QVector<qreal> ColorMatrixEffect::colorMatrix() const
 {
     return m_matrix;
 }
 
-void ColorMatrixEffect::setColorMatrix(qreal *colorMatrix)
+void ColorMatrixEffect::setColorMatrix(const QVector<qreal> &colorMatrix)
 {
-    memcpy(m_matrix, colorMatrix, ColorMatrixElements*sizeof(qreal));
+    if (colorMatrix.count() == MatrixSize)
+        m_matrix = colorMatrix;
     m_type = Matrix;
 }
 
@@ -125,7 +144,7 @@ void ColorMatrixEffect::setLuminanceAlpha()
 {
     m_type = LuminanceAlpha;
 
-    memset(m_matrix, 0, ColorMatrixElements*sizeof(qreal));
+    memset(m_matrix.data(), 0, MatrixSize*sizeof(qreal));
 
     m_matrix[15] = 0.2125;
     m_matrix[16] = 0.7154;
@@ -141,7 +160,7 @@ QImage ColorMatrixEffect::processImage(const QImage &image, const KoFilterEffect
     QRgb *dst = (QRgb*)result.bits();
     int w = result.width();
 
-    const qreal * m = m_matrix;
+    const qreal * m = m_matrix.data();
     qreal sa, sr, sg, sb;
     qreal da, dr, dg, db;
 
@@ -149,16 +168,13 @@ QImage ColorMatrixEffect::processImage(const QImage &image, const KoFilterEffect
     for (int row = roi.top(); row < roi.bottom(); ++row) {
         for (int col = roi.left(); col < roi.right(); ++col) {
             const QRgb &s = src[row*w+col];
-            sa = qAlpha(s) / 255.0;
-            sr = qRed(s) / 255.0;
-            sb = qBlue(s) / 255.0;
-            sg = qGreen(s) / 255.0;
+            sa = fromIntColor[qAlpha(s)];
+            sr = fromIntColor[qRed(s)];
+            sg = fromIntColor[qGreen(s)];
+            sb = fromIntColor[qBlue(s)];
             // the matrix is applied to non-premultiplied color values
             // so we have to convert colors by dividing by alpha value
-            if (sa == 0.0) {
-                // alpha is zero (fully transparent)
-                //sr = sb = sg = 0.0;
-            } else if (sa != 1.0) {
+            if (sa > 0.0 && sa < 1.0) {
                 sr /= sa;
                 sb /= sa;
                 sg /= sa;
@@ -184,10 +200,8 @@ QImage ColorMatrixEffect::processImage(const QImage &image, const KoFilterEffect
     return result;
 }
 
-bool ColorMatrixEffect::load(const KoXmlElement &element, const QMatrix &matrix)
+bool ColorMatrixEffect::load(const KoXmlElement &element, const KoFilterEffectLoadingContext &)
 {
-    Q_UNUSED(matrix);
-
     if (element.tagName() != id())
         return false;
 
@@ -203,8 +217,8 @@ bool ColorMatrixEffect::load(const KoXmlElement &element, const QMatrix &matrix)
     if (typeStr == "matrix") {
         // values are separated by whitespace and/or comma
         QStringList values = valueStr.trimmed().split(QRegExp("(\\s+|,)"), QString::SkipEmptyParts);
-        if (values.count() == ColorMatrixElements) {
-            for (int i = 0; i < ColorMatrixElements; ++i) {
+        if (values.count() == MatrixSize) {
+            for (int i = 0; i < MatrixSize; ++i) {
                 m_matrix[i] = values[i].toDouble();
             }
         }

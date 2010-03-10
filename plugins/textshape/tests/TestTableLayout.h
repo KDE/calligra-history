@@ -69,8 +69,10 @@ private slots:
     void init();
     /// Test very basic layout functionality.
     void testBasicLayout();
-    /// Test table padding.
+    /// Test table margin.
     void testTableMargin();
+    /// Test individual table margin (top,right,bottom,left).
+    void testIndividualTableMargin();
     /// Test table cell styles.
     void testCellStyles();
     /// Test cell column spanning.
@@ -91,6 +93,8 @@ private slots:
     void testTableWidth();
     /// Test table alignment.
     void testTableAlignment();
+    /// Test combination of several features combined.
+    void testFeatureCombination();
 
 private:
     QTextDocument *m_doc;

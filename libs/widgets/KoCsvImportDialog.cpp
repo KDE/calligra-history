@@ -305,9 +305,12 @@ void KoCsvImportDialog::Private::fillTable()
 
     qApp->setOverrideCursor(Qt::WaitCursor);
 
-    for (row = 0; row < dialog->m_sheet->rowCount(); ++row)
-        for (column = 0; column < dialog->m_sheet->columnCount(); ++column)
-            dialog->m_sheet->item(row, column)->setText("");
+    for (row = 0; row < dialog->m_sheet->rowCount(); ++row) {
+        for (column = 0; column < dialog->m_sheet->columnCount(); ++column) {
+            if(QTableWidgetItem* item = dialog->m_sheet->item(row, column))
+                item->setText("");
+        }
+    }
 
     int maxColumn = 1;
     row = column = 1;
@@ -661,15 +664,15 @@ void KoCsvImportDialog::delimiterClicked(int id)
 {
     const QButtonGroup* group = d->dialog->m_radioComma->group();
     if (id == group->id(d->dialog->m_radioComma) )
-        d->delimiter = ",";
+        d->delimiter = ',';
     else if (id == group->id(d->dialog->m_radioOther))
         d->delimiter = d->dialog->m_delimiterEdit->text();
     else if (id == group->id(d->dialog->m_radioTab))
-        d->delimiter = "\t";
+        d->delimiter = '\t';
     else if (id == group->id(d->dialog->m_radioSpace))
-        d->delimiter = " ";
+        d->delimiter = ' ';
     else if (id == group->id(d->dialog->m_radioSemicolon))
-        d->delimiter = ";";
+        d->delimiter = ';';
 
     kDebug(30501) << "Delimiter" << d->delimiter << "selected.";
     d->fillTable();

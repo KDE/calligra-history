@@ -48,6 +48,7 @@ void KisPainterTest::allCsApplicator(void (KisPainterTest::* funcPtr)(const KoCo
         if (csId.startsWith("Xyz")) continue;
         if (csId.startsWith("Y")) continue;
         if (csId.contains("AF")) continue;
+        if (csId == "GRAYU16") continue; // No point in testing bounds with a cs without alpha
 
         qDebug() << "Testing with cs" << csId;
 
@@ -84,7 +85,7 @@ void KisPainterTest::testPaintDeviceBltSelection(const KoColorSpace * cs)
 
     KisPaintDeviceSP src = new KisPaintDevice(cs);
     KoColor c(Qt::red, cs);
-    c.setOpacity(128);
+    c.setOpacity(quint8(128));
     src->fill(0, 0, 20, 20, c.data());
 
     QCOMPARE(src->exactBounds(), QRect(0, 0, 20, 20));
@@ -160,7 +161,7 @@ void KisPainterTest::testPaintDeviceBltSelectionIrregular(const KoColorSpace * c
 
             dst->pixel(13, 13, &c);
 
-            QCOMPARE((int) c.alpha(), (int) OPACITY_TRANSPARENT);
+            QCOMPARE((int) c.alpha(), (int) OPACITY_TRANSPARENT_U8);
         }
     }
 }

@@ -24,6 +24,8 @@
 #include "value.h"
 #include <map>
 
+#include <QtCore/QString>
+
 namespace Swinder
 {
 
@@ -138,6 +140,13 @@ UString readUnicodeString(const void* data, unsigned length, unsigned maxSize = 
 
 std::ostream& operator<<(std::ostream& s, Swinder::UString ustring);
 
+inline QString string(const Swinder::UString& str)
+{
+    // don't use QString::fromRawData cause it does not create a deep copy what may result in
+    // garbage if the underlying str got deleted before we are using our QString.
+    return QString(reinterpret_cast<const QChar*>(str.data()), str.length());
+}
+
 /**
   Class Record represents a base class for all other type record,
   hence do not use this class in real life.
@@ -222,17 +231,22 @@ protected:
 };
 
 typedef Record*(*RecordFactory)(Workbook*);
+typedef Record*(*RecordFactoryWithArgs)(Workbook*, void*);
 
 class RecordRegistry
 {
 public:
     static void registerRecordClass(unsigned id, RecordFactory factory);
+    static void registerRecordClass(unsigned id, RecordFactoryWithArgs factory, void* args);
+    static void unregisterRecordClass(unsigned id);
     static Record* createRecord(unsigned id, Workbook *book);
 private:
     RecordRegistry() {};
     static RecordRegistry* instance();
 
     std::map<unsigned, RecordFactory> records;
+    std::map<unsigned, RecordFactoryWithArgs> recordsWithArgs;
+    std::map<unsigned, void*> recordArgs;
 };
 
 } // namespace Swinder

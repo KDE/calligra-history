@@ -25,8 +25,6 @@
 #include <kis_paintop_factory.h>
 #include <kis_types.h>
 
-//#define BENCHMARK
-
 #include "brush.h"
 
 #include "kis_sumi_paintop_settings.h"
@@ -41,17 +39,8 @@ class KisSumiPaintOp : public KisPaintOp
 public:
     KisSumiPaintOp(const KisSumiPaintOpSettings *settings, KisPainter * painter, KisImageWSP image);
 
-    void paintAt(const KisPaintInformation& info);
-    double paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, double savedDist);
-
-    double spacing(double & xSpacing, double & ySpacing, double pressure1, double pressure2) const {
-        Q_UNUSED(xSpacing);
-        Q_UNUSED(ySpacing);
-        Q_UNUSED(pressure1);
-        Q_UNUSED(pressure2);
-        // this is wrong, but that doesn't matter, since paintLine doesn't use spacing.
-        return 0.5;
-    }
+    double paintAt(const KisPaintInformation& info);
+    KisDistanceInformation paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, const KisDistanceInformation& savedDist);
 
 private:
     KisSumiProperties m_properties;
@@ -64,12 +53,6 @@ private:
     Brush m_brush;
 
     void loadSettings(const KisSumiPaintOpSettings* settings);
-    
-#ifdef BENCHMARK
-    int m_total;
-    int m_count;
-#endif
-   
 };
 
 #endif // KIS_SUMIPAINTOP_H_

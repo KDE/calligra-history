@@ -73,6 +73,16 @@ void KisConfig::setUndoEnabled(bool undo)
     m_cfg.writeEntry("undoEnabled", undo);
 }
 
+int KisConfig::undoStackLimit() const
+{
+    return m_cfg.readEntry("undoStackLimit", 30);
+}
+
+void KisConfig::setUndoStackLimit(int limit)
+{
+    m_cfg.writeEntry("undoStackLimit", limit);
+}
+
 qint32 KisConfig::defImageWidth() const
 {
     return m_cfg.readEntry("imageWidthDef", IMAGE_DEFAULT_WIDTH);
@@ -589,7 +599,7 @@ QString KisConfig::defaultPainterlyColorModelId()
 
 void KisConfig::setDefaultPainterlyColorModelId(const QString& def)
 {
-    m_cfg.writeEntry("defaultpainterlycolormodel", def);;
+    m_cfg.writeEntry("defaultpainterlycolormodel", def);
 }
 
 QString KisConfig::defaultPainterlyColorDepthId()
@@ -599,7 +609,7 @@ QString KisConfig::defaultPainterlyColorDepthId()
 
 void KisConfig::setDefaultPainterlyColorDepthId(const QString& def)
 {
-    m_cfg.writeEntry("defaultpainterlycolordepth", def);;
+    m_cfg.writeEntry("defaultpainterlycolordepth", def);
 }
 
 QString KisConfig::canvasState() const
@@ -616,4 +626,14 @@ void KisConfig::setCanvasState(const QString& state)
     if (acceptableStates.contains(state)) {
         m_cfg.writeEntry("canvasState", state);
     }
+}
+
+bool KisConfig::paintopPopupDetached() const
+{
+    return m_cfg.readEntry("PaintopPopupDetached", false);
+}
+
+void KisConfig::setPaintopPopupDetached(bool detached)
+{
+    m_cfg.writeEntry("PaintopPopupDetached", detached);
 }

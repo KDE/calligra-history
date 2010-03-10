@@ -57,9 +57,13 @@ void KisStrokeBenchmark::benchmarkStroke()
     int width = TEST_IMAGE_WIDTH;
     int height = TEST_IMAGE_HEIGHT;
 
-    KisImageWSP image = new KisImage(0, width, height, m_colorSpace, "stroke sample image", false);
-    KisLayerSP layer = new KisPaintLayer(image, "temporary for stroke sample", OPACITY_OPAQUE, m_colorSpace);
+    KisImageSP image = new KisImage(0, width, height, m_colorSpace, "stroke sample image", false);
+    KisLayerSP layer = new KisPaintLayer(image, "temporary for stroke sample", OPACITY_OPAQUE_U8, m_colorSpace);
 
+    KoColor white(m_colorSpace);
+    white.fromQColor(Qt::white);
+    layer->paintDevice()->fill(0,0, width, height,white.data());
+    
     KisPainter painter(layer->paintDevice());
     painter.setPaintColor(KoColor(Qt::black, m_colorSpace));
 
@@ -80,8 +84,8 @@ void KisStrokeBenchmark::benchmarkStroke()
     QPointF c2(3.0 / 4.0 * width, 0);
     
     QBENCHMARK{
-        painter.paintBezierCurve(pi1, c1, c1, pi2, 0);
-        painter.paintBezierCurve(pi2, c2, c2, pi3, 0);
+        painter.paintBezierCurve(pi1, c1, c1, pi2, KisDistanceInformation());
+        painter.paintBezierCurve(pi2, c2, c2, pi3, KisDistanceInformation());
     }
     
     //layer->paintDevice()->convertToQImage(0).save(QString(FILES_OUTPUT_DIR) + QDir::separator() + presetFileName + ".png");
@@ -94,9 +98,13 @@ void KisStrokeBenchmark::benchmarkRandomLines()
     int width = TEST_IMAGE_WIDTH;
     int height = TEST_IMAGE_HEIGHT;
 
-    KisImageWSP image = new KisImage(0, width, height, m_colorSpace, "stroke sample image", false);
-    KisLayerSP layer = new KisPaintLayer(image, "temporary for stroke sample", OPACITY_OPAQUE, m_colorSpace);
+    KisImageSP image = new KisImage(0, width, height, m_colorSpace, "stroke sample image", false);
+    KisLayerSP layer = new KisPaintLayer(image, "temporary for stroke sample", OPACITY_OPAQUE_U8, m_colorSpace);
 
+    KoColor white(m_colorSpace);
+    white.fromQColor(Qt::white);
+    layer->paintDevice()->fill(0,0, width, height,white.data());
+    
     KisPainter painter(layer->paintDevice());
     painter.setPaintColor(KoColor(Qt::black, m_colorSpace));
 

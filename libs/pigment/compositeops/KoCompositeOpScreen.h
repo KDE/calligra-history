@@ -26,14 +26,14 @@
  * A template version of the burn composite operation to use in colorspaces.
  */
 template<class _CSTraits>
-class KoCompositeOpScreen : public KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpScreen<_CSTraits> >
+class KoCompositeOpScreen : public KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpScreen<_CSTraits>, true >
 {
     typedef typename _CSTraits::channels_type channels_type;
     typedef typename KoColorSpaceMathsTraits<typename _CSTraits::channels_type>::compositetype compositetype;
 public:
 
     KoCompositeOpScreen(const KoColorSpace * cs)
-            : KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpScreen<_CSTraits> >(cs, COMPOSITE_SCREEN, i18n("Screen"), KoCompositeOp::categoryArithmetic()) {
+            : KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpScreen<_CSTraits>, true >(cs, COMPOSITE_SCREEN, i18n("Screen"), KoCompositeOp::categoryArithmetic()) {
     }
 
 public:
@@ -45,10 +45,11 @@ public:
                                             const channels_type* src,
                                             channels_type* dst,
                                             qint32 pixelSize,
+                                            bool allChannelFlags,
                                             const QBitArray & channelFlags) {
         Q_UNUSED(pixelSize);
         for (uint channel = 0; channel < _CSTraits::channels_nb; channel++) {
-            if ((int)channel != _CSTraits::alpha_pos && (channelFlags.isEmpty() || channelFlags.testBit(channel))) {
+            if ((int)channel != _CSTraits::alpha_pos && (allChannelFlags || channelFlags.testBit(channel))) {
                 compositetype srcChannel = src[channel];
                 compositetype dstChannel = dst[channel];
 

@@ -158,29 +158,19 @@ void KisLayer::setImage(KisImageWSP image)
     }
 }
 
-void KisLayer::setDirty()
-{
-    setDirty(extent());
-}
-
 void KisLayer::setDirty(const QRect & rect)
 {
     m_d->image->updateProjection(this, rect);
 }
 
-void KisLayer::setDirty(const QRegion & region)
-{
-    if (region.isEmpty()) return;
-
-    foreach(const QRect & rc, region.rects()) {
-        setDirty(rc);
-    }
-}
-
 KisSelectionMaskSP KisLayer::selectionMask() const
 {
-    QList<KisNodeSP> masks = childNodes(QStringList("KisSelectionMask"), KoProperties());
-    Q_ASSERT(masks.size() <= 1); // Or do we allow more than one selection mask to a layer?
+    KoProperties properties;
+    properties.setProperty("active", true);
+    QList<KisNodeSP> masks = childNodes(QStringList("KisSelectionMask"), properties);
+    Q_ASSERT(masks.size() <= 1); // only one active mask at a time
+
+    //finds the active selection mask
     if (masks.size() == 1) {
         KisSelectionMaskSP selection = dynamic_cast<KisSelectionMask*>(masks[0].data());
         return selection;
@@ -190,13 +180,14 @@ KisSelectionMaskSP KisLayer::selectionMask() const
 
 KisSelectionSP KisLayer::selection() const
 {
-    KisSelectionMaskSP selMask = selectionMask();
-    if (selMask && selMask->visible())
-        return selMask->selection();
+   KisLayer *layer=(KisLayer *)this;
+
+    if (layer->selectionMask())
+        return layer->selectionMask()->selection();
     else if (m_d->image)
         return m_d->image->globalSelection();
     else
-        return 0;
+        return KisSelectionSP(new KisSelection());
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -278,7 +269,6 @@ QRect KisLayer::masksNeedRect(const QList<KisEffectMaskSP> &masks,
     return needRect;
 }
 
-
 QRect KisLayer::applyMasks(const KisPaintDeviceSP source,
                            const KisPaintDeviceSP destination,
                            const QRect &requestedRect) const
@@ -357,11 +347,8 @@ QRect KisLayer::updateProjection(const QRect& rect)
             !originalDevice) return QRect();
 
     if (!needProjection() && !hasEffectMasks()) {
-        updatedRect = repaintOriginal(originalDevice, updatedRect);
         m_d->projection = 0;
     } else {
-        updatedRect = repaintOriginal(originalDevice, updatedRect);
-
         if (!updatedRect.isEmpty()) {
 
             if (!m_d->projection ||
@@ -406,6 +393,16 @@ void KisLayer::copyOriginalToProjection(const KisPaintDeviceSP original,
 KisPaintDeviceSP KisLayer::projection() const
 {
     return m_d->projection ? m_d->projection : original();
+}
+
+QRect KisLayer::changeRect(const QRect &rect) const
+{
+    bool changeRectVaries;
+    QRect changeRect;
+
+    changeRect = masksChangeRect(effectMasks(), rect, changeRectVaries);
+
+    return rect | changeRect;
 }
 
 QImage KisLayer::createThumbnail(qint32 w, qint32 h)

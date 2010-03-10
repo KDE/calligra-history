@@ -23,14 +23,14 @@
 #ifndef KIS_DUPLICATEOP_SETTINGS_H_
 #define KIS_DUPLICATEOP_SETTINGS_H_
 
-#include <kis_paintop_settings.h>
+#include <kis_brush_based_paintop_settings.h>
 #include <kis_types.h>
 #include <QPointF>
 
 #include "kis_duplicateop_settings_widget.h"
 
 class QDomElement;
-class KisDuplicateOpSettings : public KisPaintOpSettings
+class KisDuplicateOpSettings : public KisBrushBasedPaintOpSettings
 {
 
 public:
@@ -45,15 +45,13 @@ public:
     QPointF offset() const;
     void mousePressEvent(KoPointerEvent *e);
     void activate();
-    bool healing() const;
-    bool perspectiveCorrection() const;
 
     void fromXML(const QDomElement& elt);
     void toXML(QDomDocument& doc, QDomElement& rootElt) const;
 
     KisPaintOpSettingsSP clone() const;
     virtual QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const;
-    virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const;
+    virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, OutlineMode _mode) const;
 
 public:
 

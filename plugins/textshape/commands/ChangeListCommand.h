@@ -38,6 +38,7 @@ class ChangeListCommand : public TextCommandBase
 {
 public:
     enum ChangeFlag {
+        NoFlags = 0,
         ModifyExistingList = 1,
         MergeWithAdjacentList = 2,
         MergeExactly = 4,
@@ -52,8 +53,8 @@ public:
      * @param style indicates which style to use.
      * @param parent the parent undo command for macro functionality
      */
-    ChangeListCommand( const QTextCursor &cursor, KoListStyle::Style style, int level = 0,
-                      int flags = ModifyExistingList | MergeWithAdjacentList,
+    ChangeListCommand(const QTextCursor &cursor, KoListStyle::Style style, int level = 0,
+                      ChangeFlags flags = ChangeFlags(ModifyExistingList | MergeWithAdjacentList),
                       QUndoCommand *parent = 0);
 
     /**
@@ -63,8 +64,8 @@ public:
      * @param exact if true then the actual style 'style' should be set, if false we possibly  merge with another similar style that is near the block
      * @param parent the parent undo command for macro functionality
      */
-    ChangeListCommand( const QTextCursor &cursor, KoListStyle *style, int level = 0,
-                      int flags = ModifyExistingList | MergeWithAdjacentList | MergeExactly,
+    ChangeListCommand(const QTextCursor &cursor, KoListStyle *style, int level = 0,
+                      ChangeFlags flags = ChangeFlags(ModifyExistingList | MergeWithAdjacentList | MergeExactly),
                       QUndoCommand *parent = 0);
     ~ChangeListCommand();
 
@@ -81,16 +82,16 @@ public:
     virtual bool mergeWith(const QUndoCommand *other);
 
 private:
-    enum commandAction {
-        createNew,
-        modifyExisting,
-        reparentList,
-        mergeList,
-        removeList
+    enum CommandAction {
+        CreateNew,
+        ModifyExisting,
+        ReparentList,
+        MergeList,
+        RemoveList
     };
     void extractTextBlocks(const QTextCursor &cursor, int level);
     int detectLevel(const QTextBlock &block, int givenLevel);
-    void initList(KoListStyle *style/*, int level*/);
+    void initList(KoListStyle *style);
     bool formatsEqual(const KoListLevelProperties &llp, const QTextListFormat &format);
 
     int m_flags;
@@ -102,7 +103,7 @@ private:
     QHash<int, int> m_levels;
     QHash<int, KoList*> m_list;
     QHash<int, KoList*> m_oldList;
-    QHash<int, commandAction> m_actions;
+    QHash<int, CommandAction> m_actions;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(ChangeListCommand::ChangeFlags)

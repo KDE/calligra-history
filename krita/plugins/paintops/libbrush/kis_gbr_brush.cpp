@@ -231,7 +231,7 @@ bool KisGbrBrush::init()
     QImage::Format imageFormat;
 
     if (bh.bytes == 1) {
-        imageFormat = QImage::Format_RGB32;
+        imageFormat = QImage::Format_Indexed8;
     } else {
         imageFormat = QImage::Format_ARGB32;
     }
@@ -244,7 +244,10 @@ bool KisGbrBrush::init()
 
     qint32 k = bh.header_size;
 
-    if (bh.bytes == 1) {
+        if (bh.bytes == 1) {
+        QVector<QRgb> table;
+        for (int i = 0; i < 256; ++i) table.append(qRgb(i, i, i));
+        m_image.setColorTable(table);
         // Grayscale
 
         if (static_cast<qint32>(k + bh.width * bh.height) > d->data.size()) {
@@ -255,10 +258,10 @@ bool KisGbrBrush::init()
         setHasColor(false);
 
         for (quint32 y = 0; y < bh.height; y++) {
-            QRgb *pixel = reinterpret_cast<QRgb *>(m_image.scanLine(y));
+            uchar *pixel = reinterpret_cast<uchar *>(m_image.scanLine(y));
             for (quint32 x = 0; x < bh.width; x++, k++) {
                 qint32 val = 255 - static_cast<uchar>(d->data[k]);
-                *pixel = qRgb(val, val, val);
+                *pixel = val;
                 ++pixel;
             }
         }
@@ -469,12 +472,9 @@ KisGbrBrush* KisGbrBrush::clone() const
 void KisGbrBrush::toXML(QDomDocument& d, QDomElement& e) const
 {
     Q_UNUSED(d);
-    e.setAttribute("type", "brush"); // legacy
-    e.setAttribute("brush_type", "kis_gbr_brush");
-    e.setAttribute("name", name()); // legacy
-    e.setAttribute("filename", filename()); // legacy
-    e.setAttribute("brush_filename", filename());
-    e.setAttribute("brush_spacing", spacing());
+    e.setAttribute("type", "gbr_brush");
+    e.setAttribute("filename", filename());
+    e.setAttribute("spacing", spacing());
 }
 
 void KisGbrBrush::setUseColorAsMask(bool useColorAsMask)

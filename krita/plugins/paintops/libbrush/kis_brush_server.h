@@ -58,8 +58,7 @@ private slots:
 
 private:
 
-    QThread * brushThread;
-    QList<KisBrushSP> m_brushes; // to avoid the brushes being deleted.
+    QThread * m_brushThread;
 
 };
 

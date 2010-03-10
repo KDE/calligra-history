@@ -23,8 +23,8 @@
 #include <KoToolFactoryBase.h>
 #include "kis_tool_select_base.h"
 
-class KisSelectionOptions;
 class KoCanvasBase;
+class KoLineBorder;
 
 class KisToolSelectPath : public KisToolSelectBase
 {
@@ -44,23 +44,24 @@ public:
     void mouseReleaseEvent(KoPointerEvent *event);
 
 public slots:
-    virtual void activate(bool);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
     virtual void deactivate();
 
 private:
     /// reimplemented
     virtual QMap<QString, QWidget *> createOptionWidgets();
 
-    class LokalTool : public KoCreatePathTool {
+    class LocalTool : public KoCreatePathTool {
         friend class KisToolSelectPath;
     public:
-        LokalTool(KoCanvasBase * canvas, KisToolSelectPath* selectingTool)
-            : KoCreatePathTool(canvas), m_selectingTool(selectingTool) {}
-        void addPathShape();
+        LocalTool(KoCanvasBase * canvas, KisToolSelectPath* selectingTool);
+        virtual void paintPath(KoPathShape &path, QPainter &painter, const KoViewConverter &converter);
+        virtual void addPathShape(KoPathShape* pathShape);
     private:
         KisToolSelectPath* const m_selectingTool;
+        KoLineBorder* m_borderBackup;
     };
-    LokalTool* const m_lokalTool;
+    LocalTool* const m_localTool;
 
 };
 

@@ -174,6 +174,15 @@ class KRITAIMAGE_EXPORT KisTiledHLineIterator : public KisTiledIterator
 {
 
 public:
+    struct KisTileInfo {
+        KisTileSP tile;
+        KisTileSP oldtile;
+        quint8* data;
+        quint8* oldData;
+    };
+
+    
+public:
     /// do not call constructor directly use factory method in KisDataManager instead.
     KisTiledHLineIterator(KisTiledDataManager *dm, qint32  x, qint32  y, qint32 w, bool writable);
     KisTiledHLineIterator(const KisTiledHLineIterator&);
@@ -215,6 +224,15 @@ protected:
 
     bool m_isDoneFlag;
 
+    void fetchTileData(qint32 col, qint32 row);
+
+    
+    // how many columns in the row are already cached
+    // one row consists of m_rightCol - m_leftCol + 1 columns. The one column is represented by tile 
+private:
+    QVector<KisTileInfo> m_tilesCache;
+    int m_tilesCacheSize;
+
 private:
     inline qint32 calcLeftInTile(qint32 col) const {
         return (col > m_leftCol) ? 0
@@ -228,6 +246,10 @@ private:
     }
 
     void switchToTile(qint32 col, qint32 xInTile);
+    KisTileInfo fetchTileDataForCache(qint32 col, qint32 row);
+    
+    void preallocateTiles(qint32 row);
+    
 };
 
 /**
@@ -236,6 +258,15 @@ private:
  */
 class KRITAIMAGE_EXPORT KisTiledVLineIterator : public KisTiledIterator
 {
+    
+public:
+    struct KisTileInfo {
+        KisTileSP tile;
+        KisTileSP oldtile;
+        quint8* data;
+        quint8* oldData;
+    };
+
 
 public:
     /// do not call constructor directly use factory method in KisDataManager instead.
@@ -270,7 +301,16 @@ protected:
     qint32 m_bottomInTile;
     bool m_isDoneFlag;
     qint32 m_lineStride;
+    
+    void fetchTileData(qint32 col, qint32 row);
 
+private:
+    // how many columns in the row are already cached
+    // one row consists of m_rightCol - m_leftCol + 1 columns. The one column is represented by tile 
+    QVector<KisTileInfo> m_tilesCache;
+    quint32 m_tilesCacheSize;
+
+    
 private:
     inline qint32 calcTopInTile(qint32 row) const {
         return (row > m_topRow) ? 0
@@ -284,6 +324,9 @@ private:
     }
 
     void switchToTile(qint32 col, qint32 xInTile);
+    KisTileInfo fetchTileDataForCache(qint32 col, qint32 row);
+    void preallocateTiles(qint32 col);
+
 };
 
 #endif // KIS_TILED_ITERATOR_H_

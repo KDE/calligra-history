@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
   Copyright (C) 1998, 1999, 2000 Torben Weis <weis@kde.org>
-  Copyright (C) 2002 - 2007 Dag Andersen <danders@get2net.dk>
+  Copyright (C) 2002 - 2010 Dag Andersen <danders@get2net.dk>
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Library General Public
@@ -30,6 +30,7 @@
 #include <QMenu>
 #include <QDockWidget>
 #include <QTimer>
+#include <QMap>
 
 class QProgressBar;
 class QStackedWidget;
@@ -74,6 +75,9 @@ class Relation;
 class Context;
 class ViewAdaptor;
 class HtmlView;
+class ReportView;
+
+class ReportDesignDialog;
 
 //-------------
 class KPLATO_EXPORT View : public KoView
@@ -128,6 +132,7 @@ public:
     ViewBase *createAccountsView( ViewListItem *cat, const QString tag, const QString &name = QString(), const QString &tip = QString(), int index = -1 );
     ViewBase *createResourceAssignmentView( ViewListItem *cat, const QString tag, const QString &name = QString(), const QString &tip = QString(), int index = -1 );
     ViewBase *createChartView( ViewListItem *cat, const QString tag, const QString &name = QString(), const QString &tip = QString(), int index = -1 );
+    ViewBase *createReportView( ViewListItem *cat, const QString tag, const QString &name = QString(), const QString &tip = QString(), int index = -1 );
 
     KoPrintJob * createPrintJob();
 
@@ -141,7 +146,6 @@ signals:
 public slots:
     void slotUpdate();
     void slotCreateTemplate();
-    void slotAddResource( ResourceGroup *group );
     void slotEditResource();
     void slotEditCut();
     void slotEditCopy();
@@ -227,6 +231,10 @@ protected slots:
 
     void slotUpdateViewInfo( ViewListItem *itm );
 
+    void slotEditReportDesign( ReportView *view );
+    void slotCreateReport();
+    void slotOpenReportFile();
+
 #ifndef NDEBUG
     void slotPrintDebug();
     void slotPrintSelectedDebug();
@@ -263,6 +271,29 @@ private slots:
     void slotActionDestroyed( QObject *o );
     void slotViewListItemRemoved( ViewListItem *item );
     void slotViewListItemInserted( ViewListItem *item );
+
+    void slotCreateReportView( ReportDesignDialog *dlg );
+
+    void slotProjectEditFinished( int result );
+    void slotTaskEditFinished( int result );
+    void slotSummaryTaskEditFinished( int result );
+    void slotEditResourceFinished( int result );
+    void slotProjectWorktimeFinished( int result );
+    void slotDefineWBSFinished( int result );
+    void slotCurrencyConfigFinished( int result );
+    void slotInsertFileFinished( int result );
+    void slotAddSubTaskFinished( int result );
+    void slotAddTaskFinished( int result );
+    void slotAddSubMilestoneFinished( int result );
+    void slotAddMilestoneFinished( int result );
+    void slotTaskProgressFinished( int result );
+    void slotMilestoneProgressFinished( int result );
+    void slotTaskDescriptionFinished( int result );
+    void slotAddRelationFinished( int result );
+    void slotModifyRelationFinished( int result );
+    void slotReportDesignFinished( int result );
+    void slotOpenReportFileFinished( int result );
+    void slotCreateViewFinished( int result );
 
 private:
     void createViews();
@@ -317,6 +348,9 @@ private:
     KAction *actionInsertFile;
     KAction *actionCurrencyConfig;
 
+    KAction *actionCreateReport;
+    KAction *actionOpenReportFile;
+
     // ------ Settings
     KAction *actionConfigure;
 
@@ -342,6 +376,7 @@ private:
     //Test
     KAction *actNoInformation;
 
+    QMap<ViewListItem*, QAction*> m_reportActionMap;
 };
 
 } //Kplato namespace

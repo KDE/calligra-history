@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2007 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2007, 2010 Thomas Zander <zander@kde.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -66,14 +66,18 @@ void ParagraphSettingsDialog::slotOk()
 
 void ParagraphSettingsDialog::slotApply()
 {
-    emit startMacro(i18n("Paragraph Settings\n"));
+    emit startMacro(i18n("Paragraph Settings"));
     KoParagraphStyle chosenStyle;
     m_paragraphGeneral->save(&chosenStyle);
     QTextBlockFormat format;
     chosenStyle.applyStyle(format);
     m_cursor->mergeBlockFormat(format);
     if (chosenStyle.listStyle()) {
-        ChangeListCommand *cmd = new ChangeListCommand(*m_cursor, chosenStyle.listStyle(), 0, ChangeListCommand::MergeWithAdjacentList);
+        ChangeListCommand::ChangeFlags flags;
+        if (m_cursor->block().textList() == 0)
+            flags = ChangeListCommand::MergeWithAdjacentList;
+        ChangeListCommand *cmd = new ChangeListCommand(*m_cursor, chosenStyle.listStyle(),
+                chosenStyle.listStyle()->listLevels().first(), flags);
         m_tool->addCommand(cmd);
     } else {
         QTextList *list = m_cursor->block().textList();

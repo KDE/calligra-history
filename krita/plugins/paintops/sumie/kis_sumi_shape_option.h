@@ -25,10 +25,6 @@
 const QString SUMI_RADIUS = "Sumi/radius";
 const QString SUMI_SIGMA = "Sumi/sigma";
 const QString SUMI_IS_DIMENSION_1D = "Sumi/isDimension1D";
-const QString SUMI_USE_MOUSEPRESSURE = "Sumi/useMousePressure";
-const QString SUMI_SCALE = "Sumi/scale";
-const QString SUMI_SHEAR = "Sumi/shear";
-const QString SUMI_RANDOM = "Sumi/random";
 
 class KisShapeOptionsWidget;
 
@@ -45,10 +41,6 @@ public:
     double sigma() const;
     bool isbrushDimension1D() const;
     bool useMousePressure() const;
-
-    double scaleFactor() const;
-    double shearFactor() const;
-    double randomFactor() const;
 
     void writeOptionSetting(KisPropertiesConfiguration* config) const;
     void readOptionSetting(const KisPropertiesConfiguration* config);

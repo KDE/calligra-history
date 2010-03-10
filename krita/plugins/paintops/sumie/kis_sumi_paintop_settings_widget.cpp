@@ -23,19 +23,29 @@
 #include "kis_sumi_ink_option.h"
 
 #include <kis_paintop_options_widget.h>
+#include <kis_brush_option_widget.h>
+#include <kis_paint_action_type_option.h>
+#include "kis_sumi_bristle_option.h"
 
 KisSumiPaintOpSettingsWidget:: KisSumiPaintOpSettingsWidget(QWidget* parent)
         : KisPaintOpOptionsWidget(parent)
 {
-    m_sumiShapeOption = new KisSumiShapeOption();
+    //m_sumiShapeOption = new KisSumiShapeOption();
+    m_sumiBristleOption = new KisSumiBristleOption();
     m_sumiInkOption = new KisSumiInkOption();
-    addPaintOpOption(m_sumiShapeOption);
+    m_brushOption = new KisBrushOptionWidget();
+
+    addPaintOpOption(m_brushOption);
+    //addPaintOpOption(m_sumiShapeOption);
+    addPaintOpOption(m_sumiBristleOption);
     addPaintOpOption(m_sumiInkOption);
+    addPaintOpOption(new KisPaintActionTypeOption());
 }
 
 KisSumiPaintOpSettingsWidget::~ KisSumiPaintOpSettingsWidget()
 {
-    delete m_sumiShapeOption;
+    //delete m_sumiShapeOption;
+    delete m_sumiBristleOption;
     delete m_sumiInkOption;
 }
 
@@ -53,7 +63,7 @@ void KisSumiPaintOpSettingsWidget::changePaintOpSize(qreal x, qreal y)
 {
     // if the movement is more left<->right then up<->down
     if (qAbs(x) > qAbs(y)){
-        m_sumiShapeOption->setRadius( m_sumiShapeOption->radius() + qRound(x) );
+        //m_sumiShapeOption->setRadius( m_sumiShapeOption->radius() + qRound(x) );
     }
     else 
     {

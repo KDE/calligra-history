@@ -51,11 +51,6 @@ KoToolBase::~KoToolBase()
     delete d_ptr;
 }
 
-void KoToolBase::activate(bool temporary)
-{
-    Q_UNUSED(temporary);
-}
-
 void KoToolBase::deactivate()
 {
 }
@@ -66,7 +61,7 @@ void KoToolBase::resourceChanged(int key, const QVariant & res)
     Q_UNUSED(res);
 }
 
-bool KoToolBase::wantsAutoScroll()
+bool KoToolBase::wantsAutoScroll() const
 {
     return true;
 }
@@ -233,9 +228,9 @@ void KoToolBase::setStatusText(const QString &statusText)
     emit statusTextChanged(statusText);
 }
 
-QRectF KoToolBase::handleGrabRect(const QPointF &position)
+QRectF KoToolBase::handleGrabRect(const QPointF &position) const
 {
-    Q_D(KoToolBase);
+    Q_D(const KoToolBase);
     const KoViewConverter * converter = d->canvas->viewConverter();
     uint handleSize = 2*d->canvas->resourceManager()->grabSensitivity();
     QRectF r = converter->viewToDocument(QRectF(0, 0, handleSize, handleSize));
@@ -243,9 +238,9 @@ QRectF KoToolBase::handleGrabRect(const QPointF &position)
     return r;
 }
 
-QRectF KoToolBase::handlePaintRect(const QPointF &position)
+QRectF KoToolBase::handlePaintRect(const QPointF &position) const
 {
-    Q_D(KoToolBase);
+    Q_D(const KoToolBase);
     const KoViewConverter * converter = d->canvas->viewConverter();
     uint handleSize = 2*d->canvas->resourceManager()->handleRadius();
     QRectF r = converter->viewToDocument(QRectF(0, 0, handleSize, handleSize));

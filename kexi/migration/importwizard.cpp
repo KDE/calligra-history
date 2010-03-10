@@ -241,7 +241,7 @@ void ImportWizard::setupDstType()
     QHBoxLayout *hbox = new QHBoxLayout;
     vbox->addLayout(hbox);
     KexiUtils::setStandardMarginsAndSpacing(hbox);
-    QLabel *lbl = new QLabel(i18n("Destination database type:") /*+ " "*/, m_dstTypePageWidget);
+    QLabel *lbl = new QLabel(i18n("Destination database type:") /*+ ' '*/, m_dstTypePageWidget);
     lbl->setAlignment(Qt::AlignAuto | Qt::AlignTop);
     hbox->addWidget(lbl);
 
@@ -745,7 +745,7 @@ KexiMigrate* ImportWizard::prepareImport(Kexi::ObjectStatus& result)
             KexiDB::ConnectionData* conn_data = new KexiDB::ConnectionData();
             conn_data->setFileName(m_srcConn->selectedFileName());
             md->source = conn_data;
-            md->sourceName = "";
+            md->sourceName.clear();
         } else {
             if (m_predefinedConnectionData)
                 md->source = m_predefinedConnectionData;
@@ -778,7 +778,7 @@ tristate ImportWizard::import()
     if (sourceDriver && !result.error()) {
         if (!m_sourceDBEncoding.isEmpty()) {
             sourceDriver->setPropertyValue("source_database_nonunicode_encoding",
-                                           QVariant(m_sourceDBEncoding.toUpper().replace(' ', "")) // "CP1250", not "cp 1250"
+                                           QVariant(m_sourceDBEncoding.toUpper().replace(' ', QString())) // "CP1250", not "cp 1250"
                                           );
         }
 
@@ -978,13 +978,13 @@ void ImportWizard::helpClicked()
 
 void ImportWizard::slotOptionsButtonClicked()
 {
-    OptionsDialog dlg(m_srcConn->selectedFileName(), m_sourceDBEncoding, this);
-    if (QDialog::Accepted != dlg.exec())
-        return;
-
-    if (m_sourceDBEncoding != dlg.encodingComboBox()->selectedEncoding()) {
-        m_sourceDBEncoding = dlg.encodingComboBox()->selectedEncoding();
+    QPointer<OptionsDialog> dlg = new OptionsDialog(m_srcConn->selectedFileName(), m_sourceDBEncoding, this);
+    if (QDialog::Accepted == dlg->exec()) {
+        if (m_sourceDBEncoding != dlg->encodingComboBox()->selectedEncoding()) {
+            m_sourceDBEncoding = dlg->encodingComboBox()->selectedEncoding();
+        }
     }
+    delete dlg;
 }
 
 #include "importwizard.moc"

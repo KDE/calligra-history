@@ -6,6 +6,7 @@
  *  Copyright (c) 2004 Boudewijn Rempt <boud@valdyas.org>
  *  Copyright (c) 2004 Clarence Dang <dang@kde.org>
  *  Copyright (c) 2009 Lukáš Tvrdý <lukast.dev@gmail.com>
+ *  Copyright (c) 2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,7 +30,11 @@
 #include <kis_selection.h>
 #include <kis_shape_tool_helper.h>
 #include <kis_paint_device.h>
+#include <kis_paintop_preset.h>
 
+#include <recorder/kis_action_recorder.h>
+#include <recorder/kis_recorded_shape_paint_action.h>
+#include <recorder/kis_node_query_path.h>
 
 KisToolEllipse::KisToolEllipse(KoCanvasBase * canvas)
         : KisToolEllipseBase(canvas, KisCursor::load("tool_ellipse_cursor.png", 6, 6))
@@ -45,6 +50,12 @@ void KisToolEllipse::finishEllipse(const QRectF& rect)
 {
     if (rect.isEmpty())
         return;
+
+    if (image()) {
+        KisRecordedShapePaintAction linePaintAction(KisNodeQueryPath::absolutePath(currentNode()), currentPaintOpPreset(), KisRecordedShapePaintAction::Ellipse, rect);
+        setupPaintAction(&linePaintAction);
+        image()->actionRecorder()->addAction(linePaintAction);
+    }
 
     if (!currentNode()->inherits("KisShapeLayer")) {
         if (!currentNode()->paintDevice())
@@ -71,7 +82,7 @@ void KisToolEllipse::finishEllipse(const QRectF& rect)
 
         QUndoCommand * cmd = canvas()->shapeController()->addShape(shape);
         canvas()->addCommand(cmd);
-     }
+    }
 }
 
 #include "kis_tool_ellipse.moc"

@@ -32,12 +32,12 @@ KisBrushBasedPaintOp::KisBrushBasedPaintOp(const KisPropertiesConfiguration* set
     m_brush = brushOption.brush();
 }
 
-double KisBrushBasedPaintOp::spacing(double & xSpacing, double & ySpacing, double pressure1, double pressure2) const
+double KisBrushBasedPaintOp::spacing(double scale) const
 {
     // XXX: The spacing should vary as the pressure changes along the line.
     // This is a quick simplification.
-    xSpacing = m_brush->xSpacing(scaleForPressure((pressure1 + pressure2) / 2));
-    ySpacing = m_brush->ySpacing(scaleForPressure((pressure1 + pressure2) / 2));
+    double xSpacing = m_brush->xSpacing(scale);
+    double ySpacing = m_brush->ySpacing(scale);
 
     if (xSpacing < 0.5) {
         xSpacing = 0.5;

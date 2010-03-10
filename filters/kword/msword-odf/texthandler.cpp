@@ -57,30 +57,32 @@ wvWare::U8 KWordReplacementHandler::nonRequiredHyphen()
     return 0xad; // soft hyphen, according to kword.dtd
 }
 
-
 KWordTextHandler::KWordTextHandler(wvWare::SharedPtr<wvWare::Parser> parser, KoXmlWriter* bodyWriter, KoGenStyles* mainStyles)
-        : m_writingHeader(false)
-        , m_writeMasterStyleName(false)
-        , m_headerWriter(0)
-        , m_mainStyles(0)
-        , m_sectionNumber(0)
-        , m_document(0)
-        , m_parser(parser)
-        , m_footNoteNumber(0)
-        , m_endNoteNumber(0)
-        , m_index(0)
-        , m_currentTable(0)
-        , m_paragraph(0)
-        , m_insideField(false)
-        , m_fieldAfterSeparator(false)
-        , m_fieldType(0)
-        , m_insideFootnote(false)
-        , m_footnoteWriter(0)
-        , m_footnoteBuffer(0)
-        , m_maxColumns(0)
-        , m_currentListDepth(-1)
-        , m_currentListID(0)
-        , m_previousListID(0)
+    : m_writingHeader(false)
+    , m_writeMasterStyleName(false)
+    , m_headerWriter(0)
+    , m_mainStyles(0)
+    , m_sectionNumber(0)
+    , m_document(0)
+    , m_parser(parser)
+    , m_footNoteNumber(0)
+    , m_endNoteNumber(0)
+    , m_index(0)
+    , m_currentTable(0)
+    , m_paragraph(0)
+    , m_insideField(false)
+    , m_fieldAfterSeparator(false)
+    , m_fieldType(0)
+    , m_insideFootnote(false)
+    , m_footnoteWriter(0)
+    , m_footnoteBuffer(0)
+    , m_insideAnnotation(false)
+    , m_annotationWriter(0)
+    , m_annotationBuffer(0)
+    , m_maxColumns(0)
+    , m_currentListDepth(-1)
+    , m_currentListID(0)
+    , m_previousListID(0)
 {
 #ifdef IMAGE_IMPORT
     kDebug(30513) << "we have image support";
@@ -203,9 +205,10 @@ void KWordTextHandler::headersFound(const wvWare::HeaderFunctor& parseHeaders)
     }
 }
 
+
 //this part puts the marker in the text, and signals for the rest to be parsed later
 void KWordTextHandler::footnoteFound(wvWare::FootnoteData::Type type,
-                                     wvWare::UChar character, wvWare::SharedPtr<const wvWare::Word97::CHP> chp,
+                                     wvWare::UString characters, wvWare::SharedPtr<const wvWare::Word97::CHP> chp,
                                      const wvWare::FootnoteFunctor& parseFootnote)
 {
     Q_UNUSED(chp);
@@ -214,7 +217,7 @@ void KWordTextHandler::footnoteFound(wvWare::FootnoteData::Type type,
 
     m_insideFootnote = true;
 
-    //create temp writer for footnote contentthat we'll add to m_paragraph
+    //create temp writer for footnote content that we'll add to m_paragraph
     m_footnoteBuffer = new QBuffer();
     m_footnoteBuffer->open(QIODevice::WriteOnly);
     m_footnoteWriter = new KoXmlWriter(m_footnoteBuffer);
@@ -224,7 +227,7 @@ void KWordTextHandler::footnoteFound(wvWare::FootnoteData::Type type,
     m_footnoteWriter->addAttribute("text:note-class", type == wvWare::FootnoteData::Endnote ? "endnote" : "footnote");
     //autonumber or character
     m_footnoteWriter->startElement("text:note-citation");
-    if (character.unicode() == 2) {//autonumbering: 1,2,3,... for footnote; i,ii,iii,... for endnote
+    if (characters[0].unicode() == 2) {//autonumbering: 1,2,3,... for footnote; i,ii,iii,... for endnote
         //Note: besides converting the number to text here the format is specified in section-properties -> notes-configuration too
 
         int noteNumber = (type == wvWare::FootnoteData::Endnote ? ++m_endNoteNumber : ++m_footNoteNumber);
@@ -237,30 +240,41 @@ void KWordTextHandler::footnoteFound(wvWare::FootnoteData::Type type,
             break;
         case 1: // uppercase roman
         case 2:  { // lowercase roman
-            QString numDigitsLower[] = {"m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i" };
-            QString numDigitsUpper[] = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I" };
-            QString *numDigits = (m_parser->dop().nfcFtnRef2 == 1 ? numDigitsUpper : numDigitsLower);
-            int numValues[] = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+                QString numDigitsLower[] = {"m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i" };
+                QString numDigitsUpper[] = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I" };
+                QString *numDigits = (m_parser->dop().nfcFtnRef2 == 1 ? numDigitsUpper : numDigitsLower);
+                int numValues[] = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
 
-            for (int i = 0; i < 13; ++i) {
-                while (noteNumber >= numValues[i]) {
-                    noteNumber -= numValues[i];
-                    noteNumberString += numDigits[i];
+                for (int i = 0; i < 13; ++i) {
+                    while (noteNumber >= numValues[i]) {
+                        noteNumber -= numValues[i];
+                        noteNumberString += numDigits[i];
+                    }
                 }
+                break;
             }
-            break;
-        }
         case 3: // uppercase letter
             letter = 'A';
         case 4: { // lowercase letter
-            while (noteNumber / 25 > 0) {
-                noteNumberString += QString::number(noteNumber / 25);
-                noteNumber = noteNumber % 25;
-                noteNumberString += QChar(letter - 1 + noteNumber / 25);
+                while (noteNumber / 25 > 0) {
+                    noteNumberString += QString::number(noteNumber / 25);
+                    noteNumber = noteNumber % 25;
+                    noteNumberString += QChar(letter - 1 + noteNumber / 25);
+                }
+                noteNumberString += QChar(letter - 1 + noteNumber);
+                break;
             }
-            noteNumberString += QChar(letter - 1 + noteNumber);
-            break;
-        }
+        case 9: {
+                QChar chicagoStyle[] =  {42, 8224, 8225, 167};
+                int styleIndex = (noteNumber - 1) % 4;
+                int repeatCount = (noteNumber - 1) / 4;
+                noteNumberString = QString(chicagoStyle[styleIndex]);
+                while (repeatCount > 0) {
+                    noteNumberString += QString(chicagoStyle[styleIndex]);
+                    repeatCount--;
+                }
+                break;
+            }
         default:
             noteNumberString = QString::number(noteNumber);
             break;
@@ -268,7 +282,14 @@ void KWordTextHandler::footnoteFound(wvWare::FootnoteData::Type type,
 
         m_footnoteWriter->addTextNode(noteNumberString);
     } else {
-        m_footnoteWriter->addTextNode(QString(QChar(character.unicode())));
+        int index = 0;
+        int length = characters.length();
+        QString customNote;
+        while (index != length) {
+            customNote.append(characters[index].unicode());
+            ++index;
+        }
+        m_footnoteWriter->addTextNode(customNote);
     }
     m_footnoteWriter->endElement();//text:note-citation
     //start the body of the footnote
@@ -288,7 +309,6 @@ void KWordTextHandler::footnoteFound(wvWare::FootnoteData::Type type,
     m_insideFootnote = false;
 
     QString contents = QString::fromUtf8(m_footnoteBuffer->buffer(), m_footnoteBuffer->buffer().size());
-    kDebug(30513) << "add footnote to Paragraph: " << contents;
     m_paragraph->addRunOfText(contents, 0, QString(""), m_parser->styleSheet());
 
     //cleanup
@@ -314,6 +334,50 @@ void KWordTextHandler::footnoteFound(wvWare::FootnoteData::Type type,
     //    footnoteElem.setAttribute( "frameset", i18n("Footnote %1", ++m_footNoteNumber ) );
     //varElem.appendChild( footnoteElem );
 }
+
+
+void KWordTextHandler::annotationFound( wvWare::UString characters, wvWare::SharedPtr<const wvWare::Word97::CHP> chp,
+                                        const wvWare::AnnotationFunctor& parseAnnotation)
+{
+    Q_UNUSED(chp);
+    m_insideAnnotation = true;
+
+    m_annotationBuffer = new QBuffer();
+    m_annotationBuffer->open(QIODevice::WriteOnly);
+    m_annotationWriter = new KoXmlWriter(m_annotationBuffer);
+
+    m_annotationWriter->startElement("office:annotation");
+
+    m_annotationWriter->startElement("dc:creator");
+    // XXX: get the creator from the .doc
+    m_annotationWriter->endElement();
+
+    m_annotationWriter->startElement("dc:date");
+    // XXX: get the date from the .doc
+    m_annotationWriter->endElement();
+
+    //save the state of tables & paragraphs because we'll get new ones in the annotation
+    saveState();
+    //signal Document to parse the annotation
+    emit annotationFound(new wvWare::AnnotationFunctor(parseAnnotation), 0);
+    //and now restore state
+    restoreState();
+
+    //end the elements
+    m_annotationWriter->endElement();//office:annotation
+
+    m_insideAnnotation = false;
+
+    QString contents = QString::fromUtf8(m_annotationBuffer->buffer(), m_annotationBuffer->buffer().size());
+    m_paragraph->addRunOfText(contents, 0, QString(""), m_parser->styleSheet());
+
+    //cleanup
+    delete m_annotationWriter;
+    m_annotationWriter = 0;
+    delete m_annotationBuffer;
+    m_annotationBuffer = 0;
+}
+
 
 //create an element for the variable
 QDomElement KWordTextHandler::insertVariable(int type, wvWare::SharedPtr<const wvWare::Word97::CHP> chp, const QString& format)
@@ -459,6 +523,9 @@ void KWordTextHandler::paragraphStart(wvWare::SharedPtr<const wvWare::ParagraphP
     } else if (m_writingHeader) {
         writer = m_headerWriter;
         inStylesDotXml = true;
+    }
+    else if (m_insideAnnotation) {
+        writer = m_annotationWriter;
     } else {
         writer = m_bodyWriter;
     }
@@ -502,7 +569,7 @@ void KWordTextHandler::paragraphStart(wvWare::SharedPtr<const wvWare::ParagraphP
         } else if (listInfo->lsid() == 1 && listInfo->numberFormat() == 255) {
             // Looks like a heading, so that'll be processed in Paragraph.
             kDebug(30513) << "found heading, pap().ilvl="
-            << paragraphProperties->pap().ilvl;
+                    << paragraphProperties->pap().ilvl;
             isHeading = true;
             outlineLevel = paragraphProperties->pap().ilvl + 1;
         } else {
@@ -563,9 +630,13 @@ void KWordTextHandler::paragraphEnd()
     if (m_insideFootnote) {
         kDebug(30513) << "writing a footnote";
         m_paragraph->writeToFile(m_footnoteWriter);
+    } else if (m_insideAnnotation) {
+        kDebug(30513) << "writing an annotation";
+        m_paragraph->writeToFile(m_annotationWriter);
     } else if (!m_writingHeader) {
         kDebug(30513) << "writing to body";
         m_paragraph->writeToFile(m_bodyWriter);
+
     } else {
         kDebug(30513) << "writing a header";
         m_paragraph->writeToFile(m_headerWriter);
@@ -694,8 +765,10 @@ void KWordTextHandler::runOfText(const wvWare::UString& text, wvWare::SharedPtr<
         m_mainStyles->addFontFace(KoFontFace(fontName));
     }
 
-    //add text string and formatting style to m_paragraph
-    m_paragraph->addRunOfText(newText, chp, fontName, m_parser->styleSheet());
+    if(chp->fVanish != 1) { // only show text that is not hidden
+        //add text string and formatting style to m_paragraph
+        m_paragraph->addRunOfText(newText, chp, fontName, m_parser->styleSheet());
+    }
 
 } //end runOfText()
 
@@ -772,6 +845,9 @@ bool KWordTextHandler::writeListInfo(KoXmlWriter* writer, const wvWare::Word97::
     if (listInfo->lsid() == 1 && nfc == 255) {
         return false;
     }
+    
+    m_usedListWriters.push(writer);		// put the currently used writer in the stack 
+
     //process the different places we could be in a list
     if (m_currentListID == 0) {
         //we're starting a new list...
@@ -858,13 +934,13 @@ bool KWordTextHandler::writeListInfo(KoXmlWriter* writer, const wvWare::Word97::
                 unsigned int code = text[0].unicode();
                 if ((code & 0xFF00) == 0xF000)   // see wv2
                     code &= 0x00FF;
-                listStyleWriter.addAttribute("text:bullet-char", QString::QString(code).toUtf8());
+                listStyleWriter.addAttribute("text:bullet-char", QString(code).toUtf8());
             } else
                 kWarning(30513) << "Bullet with more than one character, not supported";
 
             listStyleWriter.startElement("style:list-level-properties");
-            //TODO this is just hardcoded for now
-            listStyleWriter.addAttribute("text:min-label-width", "0.25in");
+            if (listInfo->space())
+                listStyleWriter.addAttributePt("text:min-label-distance", listInfo->space()/20.0);
             listStyleWriter.endElement(); //style:list-level-properties
             //close element
             listStyleWriter.endElement(); //text:list-level-style-bullet
@@ -885,9 +961,10 @@ bool KWordTextHandler::writeListInfo(KoXmlWriter* writer, const wvWare::Word97::
             // Now we need to parse the text, to try and convert msword's powerful list template stuff
             QString prefix, suffix;
             bool depthFound = false;
+            bool anyLevelFound = false;
             int displayLevels = 1;
             // We parse <0>.<2>.<1>. as "level 2 with suffix='.'" (no prefix)
-            // But "Section <0>)" has both prefix and suffix.
+            // But "Section <0>.<1>)" has both prefix and suffix.
             // The common case is <0>.<1>.<2> (display-levels=3)
             //loop through all of text
             //this just sets depthFound & displayLevels & the suffix & prefix
@@ -900,13 +977,13 @@ bool KWordTextHandler::writeListInfo(KoXmlWriter* writer, const wvWare::Word97::
                             kWarning(30513) << "ilvl " << pap.ilvl << " found twice in listInfo text...";
                         else
                             depthFound = true;
-                        suffix.clear();
+                        suffix.clear(); // really should never do anthing so why is it here??
                     } else {
                         Q_ASSERT(ch < pap.ilvl);   // Can't see how level 1 would have a <0> in it...
                         if (ch < pap.ilvl)
                             ++displayLevels; // we found a 'parent level', to be displayed
-                        prefix.clear(); // get rid of previous prefixes
                     }
+                    anyLevelFound = true;
                 }
                 //if it's not a number < 10
                 else {
@@ -914,7 +991,7 @@ bool KWordTextHandler::writeListInfo(KoXmlWriter* writer, const wvWare::Word97::
                     if (depthFound)
                         suffix += QChar(ch);
                     //or add it to prefix if we haven't
-                    else
+                    else if (!anyLevelFound)
                         prefix += QChar(ch);
                 }
             }
@@ -937,13 +1014,12 @@ bool KWordTextHandler::writeListInfo(KoXmlWriter* writer, const wvWare::Word97::
                 if (nfc == 5 && suffix.isEmpty())
                     suffix = '.';
                 kDebug(30513) << " prefix=" << prefix << " suffix=" << suffix;
-                //counterElement.setAttribute( "type", Conversion::numberFormatCode( nfc ) );
                 listStyleWriter.addAttribute("style:num-format", Conversion::numberFormatCode(nfc));
-                //counterElement.setAttribute( "lefttext", prefix );
                 listStyleWriter.addAttribute("style:num-prefix", prefix);
-                //counterElement.setAttribute( "righttext", suffix );
                 listStyleWriter.addAttribute("style:num-suffix", suffix);
-                //counterElement.setAttribute( "display-levels", displayLevels );
+                if (displayLevels > 1) {
+                    listStyleWriter.addAttribute("text:display-levels", displayLevels);
+                }
                 kDebug(30513) << "storing suffix" << suffix << " for depth" << depth;
                 m_listSuffixes[ depth ] = suffix;
             } else {
@@ -957,14 +1033,29 @@ bool KWordTextHandler::writeListInfo(KoXmlWriter* writer, const wvWare::Word97::
                 //counterElement.setAttribute( "restart", "true" );
             }
 
-            //listInfo->alignment() is not supported in KWord
             //listInfo->isLegal() hmm
             //listInfo->notRestarted() [by higher level of lists] not supported
             //listInfo->followingchar() ignored, it's always a space in KWord currently
             //*************************************
             listStyleWriter.startElement("style:list-level-properties");
-            //TODO this is just hardcoded for now
-            listStyleWriter.addAttribute("text:min-label-width", "0.25in");
+            switch (listInfo->alignment()) {
+            case 1:
+                listStyleWriter.addAttribute("fo:text-align", "center");
+                break;
+            case 2:
+                listStyleWriter.addAttribute("fo:text-align", "end");
+                break;
+            case 3:
+                listStyleWriter.addAttribute("fo:text-align", "justify");
+                break;
+            default:
+                break;
+            }
+
+            if (listInfo->space())
+                listStyleWriter.addAttributePt("text:min-label-distance", listInfo->space()/20.0);
+            if (listInfo->indent())
+                listStyleWriter.addAttributePt("text:min-label-width", listInfo->indent()/20.0);
             listStyleWriter.endElement(); //style:list-level-properties
             //close element
             listStyleWriter.endElement(); //text:list-level-style-number
@@ -989,15 +1080,7 @@ void KWordTextHandler::closeList()
     kDebug(30513);
     // Set the correct XML writer.
     //
-    // TODO create m_writer, and just keep it pointing to the current writer
-    KoXmlWriter *writer;
-    if (m_insideFootnote) {
-        writer = m_footnoteWriter;
-    } else if (m_writingHeader) {
-        writer = m_headerWriter;
-    } else {
-        writer = m_bodyWriter;
-    }
+    KoXmlWriter *writer = m_usedListWriters.pop();		// get the last used writer from stack
 
     //TODO should probably test this more, to make sure it does work this way
     //for level 0, we need to close the last item and the list

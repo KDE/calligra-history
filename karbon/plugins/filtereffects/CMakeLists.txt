@@ -26,6 +26,16 @@ set(karbonfiltereffects_PART_SRCS
     ComponentTransferEffect.cpp
     ComponentTransferEffectFactory.cpp
     ComponentTransferEffectConfigWidget.cpp
+    ImageEffect.cpp
+    ImageEffectFactory.cpp
+    ImageEffectConfigWidget.cpp
+    MorphologyEffect.cpp
+    MorphologyEffectFactory.cpp
+    MorphologyEffectConfigWidget.cpp
+    ConvolveMatrixEffect.cpp
+    ConvolveMatrixEffectFactory.cpp
+    ConvolveMatrixEffectConfigWidget.cpp
+    MatrixDataModel.cpp
     )
 
 kde4_add_plugin(karbonfiltereffects ${karbonfiltereffects_PART_SRCS})

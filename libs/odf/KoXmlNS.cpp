@@ -33,6 +33,7 @@ const char* const KoXmlNS::script = "urn:oasis:names:tc:opendocument:xmlns:scrip
 const char* const KoXmlNS::style = "urn:oasis:names:tc:opendocument:xmlns:style:1.0";
 const char* const KoXmlNS::number = "urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0";
 const char* const KoXmlNS::manifest = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
+const char* const KoXmlNS::anim = "urn:oasis:names:tc:opendocument:xmlns:animation:1.0";
 
 const char* const KoXmlNS::math = "http://www.w3.org/1998/Math/MathML";
 const char* const KoXmlNS::svg = "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0";
@@ -41,6 +42,7 @@ const char* const KoXmlNS::dc = "http://purl.org/dc/elements/1.1/";
 const char* const KoXmlNS::xlink = "http://www.w3.org/1999/xlink";
 const char* const KoXmlNS::VL = "http://openoffice.org/2001/versions-list";
 const char* const KoXmlNS::smil = "urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0";
+const char* const KoXmlNS::xhtml = "http://www.w3.org/1999/xhtml";
 
 const char* const KoXmlNS::koffice = "http://www.koffice.org/2005/";
 

@@ -184,6 +184,36 @@ typedef KisRandomAccessorPixelBase<KisRandomConstAccessor, const quint8*> KisRan
 class KisRandomAccessor;
 typedef KisRandomAccessorPixelBase<KisRandomAccessor, quint8*> KisRandomAccessorPixel;
 
+// NG Iterators
+class KisHLineIteratorNG;
+typedef KisSharedPtr<KisHLineIteratorNG> KisHLineIteratorSP;
+
+class KisHLineConstIteratorNG;
+typedef KisSharedPtr<KisHLineConstIteratorNG> KisHLineConstIteratorSP;
+
+class KisVLineIteratorNG;
+typedef KisSharedPtr<KisVLineIteratorNG> KisVLineIteratorSP;
+
+class KisVLineConstIteratorNG;
+typedef KisSharedPtr<KisVLineConstIteratorNG> KisVLineConstIteratorSP;
+
+class KisRectIteratorNG;
+typedef KisSharedPtr<KisRectIteratorNG> KisRectIteratorSP;
+
+class KisRectConstIteratorNG;
+typedef KisSharedPtr<KisRectConstIteratorNG> KisRectConstIteratorSP;
+
+class KisRandomConstAccessorNG;
+typedef KisSharedPtr<KisRandomConstAccessorNG> KisRandomConstAccessorSP;
+
+class KisRandomAccessorNG;
+typedef KisSharedPtr<KisRandomAccessorNG> KisRandomAccessorSP;
+
+class KisRandomSubAccessorPixel;
+typedef KisSharedPtr<KisRandomSubAccessorPixel> KisRandomSubAccessorPixelSP;
+
+// Things
+
 typedef QVector<QPointF> vQPointF;
 
 class KisPaintOpPreset;

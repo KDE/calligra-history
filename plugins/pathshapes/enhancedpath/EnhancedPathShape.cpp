@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
- * Copyright (C) 2007 Jan Hambrecht <jaham@gmx.net>
- * Copyright (C) 2009 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2007,2010 Jan Hambrecht <jaham@gmx.net>
+ * Copyright (C) 2009-2010 Thomas Zander <zander@kde.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -30,9 +30,10 @@
 #include <KoShapeSavingContext.h>
 #include <KoUnit.h>
 #include <KoOdfWorkaround.h>
+#include <KoPathPoint.h>
 
 EnhancedPathShape::EnhancedPathShape(const QRectF &viewBox)
-: m_viewBox(viewBox), m_viewBoxOffset(0.0, 0.0)
+: m_viewBox(viewBox), m_viewBoxOffset(0.0, 0.0), m_mirrorVertically(false), m_mirrorHorizontally(false)
 {
 }
 
@@ -64,7 +65,6 @@ void EnhancedPathShape::moveHandleAction(int handleId, const QPointF & point, Qt
     EnhancedPathHandle *handle = m_enhancedHandles[ handleId ];
     if (handle) {
         handle->changePosition(shapeToViewbox(point));
-        evaluateHandles();
     }
 }
 
@@ -75,29 +75,57 @@ void EnhancedPathShape::updatePath(const QSizeF &)
     foreach (EnhancedPathCommand *cmd, m_commands)
         cmd->execute();
 
+    m_viewBound = outline().boundingRect();
+
+    QMatrix matrix;
+    matrix.translate(m_viewBoxOffset.x(), m_viewBoxOffset.y());
+    matrix = m_viewMatrix * matrix;
+
+    KoSubpathList::const_iterator pathIt(m_subpaths.constBegin());
+    for (; pathIt != m_subpaths.constEnd(); ++pathIt) {
+        KoSubpath::const_iterator it((*pathIt)->constBegin());
+        for (; it != (*pathIt)->constEnd(); ++it) {
+            (*it)->map(matrix);
+        }
+    }
+    const int handleCount = m_enhancedHandles.count();
+    QList<QPointF> handles;
+    for (int i = 0; i < handleCount; ++i)
+        handles.append(matrix.map(m_enhancedHandles[i]->position()));
+    setHandles(handles);
+
     normalize();
 }
 
 void EnhancedPathShape::setSize(const QSizeF &newSize)
 {
-    QMatrix matrix(resizeMatrix(newSize));
-
     KoParameterShape::setSize(newSize);
 
-    qreal scaleX = matrix.m11();
-    qreal scaleY = matrix.m22();
-    m_viewBoxOffset.rx() *= scaleX;
-    m_viewBoxOffset.ry() *= scaleY;
-    m_viewMatrix.scale(scaleX, scaleY);
-}
+    // calculate scaling factors from viewbox size to shape size
+    qreal xScale = newSize.width()/m_viewBound.width();
+    qreal yScale = newSize.height()/m_viewBound.height();
 
+    // create view matrix, take mirroring into account
+    m_viewMatrix.reset();
+    m_viewMatrix.translate(m_viewBound.center().x(), m_viewBound.center().y());
+    m_viewMatrix.scale(m_mirrorHorizontally ? -xScale : xScale, m_mirrorVertically ? -yScale : yScale);
+    m_viewMatrix.translate(-m_viewBound.center().x(), -m_viewBound.center().y());
+
+    updatePath(newSize);
+}
 
 QPointF EnhancedPathShape::normalize()
 {
-    QPointF offset = KoPathShape::normalize();
+    QPointF offset = KoParameterShape::normalize();
+
     m_viewBoxOffset -= offset;
 
     return offset;
+}
+
+QPointF EnhancedPathShape::shapeToViewbox(const QPointF &point) const
+{
+    return m_viewMatrix.inverted().map( point-m_viewBoxOffset );
 }
 
 void EnhancedPathShape::evaluateHandles()
@@ -105,8 +133,13 @@ void EnhancedPathShape::evaluateHandles()
     const int handleCount = m_enhancedHandles.count();
     QList<QPointF> handles;
     for (int i = 0; i < handleCount; ++i)
-        handles.append(viewboxToShape(m_enhancedHandles[i]->position()));
+        handles.append(m_enhancedHandles[i]->position());
     setHandles(handles);
+}
+
+QRectF EnhancedPathShape::viewBox() const
+{
+    return m_viewBox;
 }
 
 qreal EnhancedPathShape::evaluateReference(const QString &reference)
@@ -266,55 +299,26 @@ void EnhancedPathShape::addCommand(const QString &command)
 
 void EnhancedPathShape::addCommand(const QString &command, bool triggerUpdate)
 {
-    if (command.isEmpty())
-        return;
-
     QString commandStr = command.simplified();
     if (commandStr.isEmpty())
         return;
 
     // the first character is the command
-    EnhancedPathCommand * cmd = new EnhancedPathCommand(commandStr[0], this);
+    EnhancedPathCommand *cmd = new EnhancedPathCommand(commandStr[0], this);
 
     // strip command char
-    commandStr = commandStr.mid(1);
+    commandStr = commandStr.mid(1).simplified();
 
     // now parse the command parameters
-    if (commandStr.length() > 0) {
-        QStringList tokens = commandStr.simplified().split(' ');
-        int tokenCount = tokens.count();
-        for (int i = 0; i < tokenCount; ++i)
+    if (!commandStr.isEmpty()) {
+        QStringList tokens = commandStr.split(' ');
+        for (int i = 0; i < tokens.count(); ++i)
             cmd->addParameter(parameter(tokens[i]));
     }
     m_commands.append(cmd);
 
     if (triggerUpdate)
         updatePath(size());
-}
-
-const QRectF & EnhancedPathShape::viewBox() const
-{
-    return m_viewBox;
-}
-
-QPointF EnhancedPathShape::shapeToViewbox(const QPointF &point) const
-{
-    return m_viewMatrix.inverted().map(point-m_viewBoxOffset);
-}
-
-QPointF EnhancedPathShape::viewboxToShape(const QPointF &point) const
-{
-    return m_viewMatrix.map(point) + m_viewBoxOffset;
-}
-
-qreal EnhancedPathShape::shapeToViewbox(qreal value) const
-{
-    return m_viewMatrix.inverted().map(QPointF(value, value)).x();
-}
-
-qreal EnhancedPathShape::viewboxToShape(qreal value) const
-{
-    return m_viewMatrix.map(QPointF(value, value)).x();
 }
 
 void EnhancedPathShape::saveOdf(KoShapeSavingContext &context) const
@@ -350,6 +354,13 @@ void EnhancedPathShape::saveOdf(KoShapeSavingContext &context) const
         context.xmlWriter().endElement(); // draw:enhanced-geometry
         saveOdfCommonChildElements(context);
         context.xmlWriter().endElement(); // draw:custom-shape
+
+        if (m_mirrorHorizontally) {
+            context.xmlWriter().addAttribute("draw:mirror-horizontal", "true");
+        }
+        if (m_mirrorVertically) {
+            context.xmlWriter().addAttribute("draw:mirror-vertical", "true");
+        }
     } else {
         KoPathShape::saveOdf(context);
     }
@@ -400,77 +411,67 @@ bool EnhancedPathShape::loadOdf(const KoXmlElement & element, KoShapeLoadingCont
             if (!path.isEmpty()) {
                 parsePathData(path);
             }
+
+            setMirrorHorizontally( child.attributeNS(KoXmlNS::draw, "mirror-horizontal") == "true");
+            setMirrorVertically( child.attributeNS(KoXmlNS::draw, "mirror-vertical") == "true");
         }
     }
+
+    QSizeF size;
+    size.setWidth(KoUnit::parseValue(element.attributeNS(KoXmlNS::svg, "width", QString())));
+    size.setHeight(KoUnit::parseValue(element.attributeNS(KoXmlNS::svg, "height", QString())));
+    setSize(size);
 
     QPointF pos;
     pos.setX(KoUnit::parseValue(element.attributeNS(KoXmlNS::svg, "x", QString())));
     pos.setY(KoUnit::parseValue(element.attributeNS(KoXmlNS::svg, "y", QString())));
     setPosition(pos);
-    normalize();
-
-    QSizeF size;
-    size.setWidth(KoUnit::parseValue(element.attributeNS(KoXmlNS::svg, "width", QString())));
-    size.setHeight(KoUnit::parseValue(element.attributeNS(KoXmlNS::svg, "height", QString())));
-
-    setSize(size);
 
     loadOdfAttributes(element, context, OdfMandatories | OdfTransformation | OdfAdditionalAttributes | OdfCommonChildElements);
 
     return true;
 }
 
-void EnhancedPathShape::parsePathData(const QString & data)
+void EnhancedPathShape::parsePathData(const QString &data)
 {
     if (data.isEmpty())
         return;
 
-    QString d = data;
-    d = d.replace(',', ' ');
-    d = d.simplified();
-
-    const QByteArray buffer = d.toLatin1();
-    const char *ptr = buffer.constData();
-    const char *end = buffer.constData() + buffer.length();
-
-    char lastChar = ' ';
-
-    QString cmdString;
-
-    for (; ptr < end; ptr++) {
-        switch(*ptr) {
-        case 'M':
-        case 'L':
-        case 'C':
-        case 'Z':
-        case 'N':
-        case 'F':
-        case 'S':
-        case 'T':
-        case 'U':
-        case 'A':
-        case 'B':
-        case 'W':
-        case 'V':
-        case 'X':
-        case 'Y':
-        case 'Q':
-            if (lastChar == ' ' || QChar(lastChar).isNumber()) {
-                if (! cmdString.isEmpty())
-                    addCommand(cmdString, false);
-                cmdString = *ptr;
-            } else {
-                cmdString += *ptr;
+    int start = -1;
+    bool separator = true;
+    for (int i = 0; i < data.length(); ++i) {
+        QChar ch = data.at(i);
+        if (separator && (ch.unicode() == 'M' || ch.unicode() == 'L'
+            || ch.unicode() == 'C' || ch.unicode() == 'Z'
+            || ch.unicode() == 'N' || ch.unicode() == 'F'
+            || ch.unicode() == 'S' || ch.unicode() == 'T'
+            || ch.unicode() == 'U' || ch.unicode() == 'A'
+            || ch.unicode() == 'B' || ch.unicode() == 'W'
+            || ch.unicode() == 'V' || ch.unicode() == 'X'
+            || ch.unicode() == 'Y' || ch.unicode() == 'Q')) {
+            if (start != -1) { // process last chars
+                addCommand(data.mid(start, i - start));
             }
-            break;
-        default:
-            cmdString += *ptr;
+            start = i;
         }
-
-        lastChar = *ptr;
+        separator = ch.isSpace();
     }
-    if (! cmdString.isEmpty())
-        addCommand(cmdString, false);
+    if (start < data.length())
+        addCommand(data.mid(start));
+    if (start != -1)
+        updatePath(size());
+}
 
-    updatePath(size());
+void EnhancedPathShape::setMirrorHorizontally(bool mirrorHorizontally)
+{
+    if( m_mirrorHorizontally != mirrorHorizontally) {
+        m_mirrorHorizontally = mirrorHorizontally;
+    }
+}
+
+void EnhancedPathShape::setMirrorVertically(bool mirrorVertically)
+{
+    if( m_mirrorVertically != mirrorVertically) {
+        m_mirrorVertically = mirrorVertically;
+    }
 }

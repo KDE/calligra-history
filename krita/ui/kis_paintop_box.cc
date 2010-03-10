@@ -95,8 +95,9 @@ KisPaintopBox::KisPaintopBox(KisView2 * view, QWidget *parent, const char * name
     m_layout->addWidget(m_cmbPaintops);
     m_layout->addWidget(m_presetWidget);
 
-    m_presetsPopup = new KisPaintOpPresetsPopup();
+    m_presetsPopup = new KisPaintOpPresetsPopup(m_resourceProvider);
     m_presetWidget->setPopupWidget(m_presetsPopup);
+    m_presetsPopup->switchDetached();
 
     QList<KoID> keys = KisPaintOpRegistry::instance()->listKeys();
     for (QList<KoID>::Iterator it = keys.begin(); it != keys.end(); ++it) {
@@ -110,7 +111,7 @@ KisPaintopBox::KisPaintopBox(KisView2 * view, QWidget *parent, const char * name
     connect(m_cmbPaintops, SIGNAL(activated(int)), this, SLOT(slotItemSelected(int)));
 
     connect(m_presetsPopup, SIGNAL(savePresetClicked()), this, SLOT(slotSaveActivePreset()));
-    
+
     connect(m_presetsPopup, SIGNAL(resourceSelected(KoResource*)),
             this, SLOT(resourceSelected(KoResource*)));
 }
@@ -119,6 +120,7 @@ KisPaintopBox::~KisPaintopBox()
 {
     // Do not delete the widget, since it it is global to the application, not owned by the view
     m_presetsPopup->setPaintOpSettingsWidget(0);
+    qDeleteAll(m_paintopOptionWidgets);
 }
 
 KisPaintOpPresetSP KisPaintopBox::paintOpPresetSP(KoID* paintop)
@@ -163,17 +165,26 @@ void KisPaintopBox::updatePaintops()
     m_displayedOps.clear();
     m_cmbPaintops->clear();
 
+    QStringList paintopNames;
+    QMap<QString, KoID> paintopMap;
     foreach(const KoID & paintopId, m_paintops) {
-        if (KisPaintOpRegistry::instance()->userVisible(paintopId, m_colorspace)) {
-            QPixmap pm = paintopPixmap(paintopId);
+        paintopNames << paintopId.name();
+        paintopMap[paintopId.name()] = paintopId;
+    }
+    qSort(paintopNames);
+
+    foreach(QString paintopName, paintopNames) {
+        KoID paintop = paintopMap[paintopName];
+        if (KisPaintOpRegistry::instance()->userVisible(paintop, m_colorspace)) {
+            QPixmap pm = paintopPixmap(paintop);
 
             if (pm.isNull()) {
                 pm = QPixmap(16, 16);
                 pm.fill();
             }
 
-            m_cmbPaintops->addItem(QIcon(pm), paintopId.name());
-            m_displayedOps.append(paintopId);
+            m_cmbPaintops->addItem(QIcon(pm), paintopName);
+            m_displayedOps.append(paintop);
         }
     }
 
@@ -183,7 +194,11 @@ void KisPaintopBox::resourceSelected(KoResource* resource)
 {
     KisPaintOpPreset* preset = static_cast<KisPaintOpPreset*>(resource);
     dbgUI << "preset " << preset->name() << "selected";
-    
+
+    if(preset->paintOp() != currentPaintop()) {
+        setCurrentPaintop(preset->paintOp());
+    }
+
     m_optionWidget->setConfiguration(preset->settings());
     slotUpdatePreset();
 }
@@ -251,7 +266,6 @@ void KisPaintopBox::setCurrentPaintop(const KoID & paintop)
     if (m_activePreset && m_optionWidget) {
         m_optionWidget->writeConfiguration(const_cast<KisPaintOpSettings*>(m_activePreset->settings().data()));
         m_optionWidget->disconnect(m_presetWidget);
-        m_optionWidget->disconnect(m_presetsPopup->presetPreview());
         m_presetsPopup->setPaintOpSettingsWidget(0);
         m_optionWidget->hide();
     }
@@ -263,7 +277,7 @@ void KisPaintopBox::setCurrentPaintop(const KoID & paintop)
 
     if (preset != 0 && preset->settings()) {
         if (!m_paintopOptionWidgets.contains(paintop)) {
-        m_paintopOptionWidgets[paintop] = KisPaintOpRegistry::instance()->get(paintop.id())->createSettingsWidget(this);
+            m_paintopOptionWidgets[paintop] = KisPaintOpRegistry::instance()->get(paintop.id())->createSettingsWidget(this);
         }
         m_optionWidget = m_paintopOptionWidgets[paintop];
         m_optionWidget->setImage(m_view->image());
@@ -274,9 +288,11 @@ void KisPaintopBox::setCurrentPaintop(const KoID & paintop)
             m_optionWidget->setConfiguration(preset->settings());
         }
         m_presetsPopup->setPaintOpSettingsWidget(m_optionWidget);
+        m_presetsPopup->setPresetFilter(paintop);
         Q_ASSERT(m_optionWidget);
         Q_ASSERT(m_presetWidget);
         connect(m_optionWidget, SIGNAL(sigConfigurationUpdated()), this, SLOT(slotUpdatePreset()));
+        m_presetsPopup->setPreset(preset);
     } else {
         m_presetsPopup->setPaintOpSettingsWidget(0);
     }
@@ -295,7 +311,7 @@ void KisPaintopBox::setCurrentPaintop(const KoID & paintop)
     m_cmbPaintops->setCurrentIndex(index);
     m_activePreset = preset;
     m_presetWidget->setPreset(m_activePreset);
-    m_presetsPopup->presetPreview()->setPreset(m_activePreset);
+    //m_presetsPopup->presetPreview()->setPreset(m_activePreset);
 
     emit signalPaintopChanged(preset);
 }
@@ -339,6 +355,7 @@ void KisPaintopBox::slotSaveActivePreset()
         return;
 
     KisPaintOpPreset* newPreset = preset->clone();
+    newPreset->setImage(m_presetsPopup->cutOutOverlay());
 
     KoResourceServer<KisPaintOpPreset>* rServer = KisResourceServerProvider::instance()->paintOpPresetServer();
     QString saveLocation = rServer->saveLocation();
@@ -359,7 +376,7 @@ void KisPaintopBox::slotUpdatePreset()
 {
     m_optionWidget->writeConfiguration(const_cast<KisPaintOpSettings*>(m_activePreset->settings().data()));
     m_presetWidget->updatePreview();
-    m_presetsPopup->presetPreview()->updatePreview();
+    //m_presetsPopup->presetPreview()->updatePreview();
 }
 
 #include "kis_paintop_box.moc"

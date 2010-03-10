@@ -26,14 +26,14 @@
  * A template version of the divide composite operation to use in colorspaces.
  */
 template<class _CSTraits>
-class KoCompositeOpAdd : public KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpAdd<_CSTraits> >
+class KoCompositeOpAdd : public KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpAdd<_CSTraits>, true >
 {
     typedef typename _CSTraits::channels_type channels_type;
     typedef typename KoColorSpaceMathsTraits<typename _CSTraits::channels_type>::compositetype compositetype;
 public:
 
     KoCompositeOpAdd(const KoColorSpace * cs)
-            : KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpAdd<_CSTraits> >(cs, COMPOSITE_ADD, i18n("Add"), KoCompositeOp::categoryArithmetic()) {
+            : KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpAdd<_CSTraits>, true >(cs, COMPOSITE_ADD, i18n("Add"), KoCompositeOp::categoryArithmetic()) {
     }
 
 public:
@@ -45,10 +45,11 @@ public:
                                             const channels_type* src,
                                             channels_type* dst,
                                             qint32 pixelSize,
+                                            bool allChannelFlags,
                                             const QBitArray & channelFlags) {
         Q_UNUSED(pixelSize);
         for (uint i = 0; i < _CSTraits::channels_nb; i++) {
-            if ((int)i != _CSTraits::alpha_pos && (channelFlags.isEmpty() ||  channelFlags.testBit(i))) {
+            if ((int)i != _CSTraits::alpha_pos && (allChannelFlags ||  channelFlags.testBit(i))) {
                 compositetype srcColor = src[i];
                 compositetype dstColor = dst[i];
 

@@ -178,13 +178,10 @@ public:  // Krita specific interfaces
     KisGridManager * gridManager();
     KisPerspectiveGridManager* perspectiveGridManager();
     KisPaintingAssistantsManager* paintingAssistantManager();
-    void setFavoriteResourceManager (KisPaintopBox*);
-    KoFavoriteResourceManager* favoriteResourceManager();
 
 signals:
 
     void sigLoadingFinished();
-    void favoritePaletteCalled(const QPoint&);
 
 protected:
 
@@ -193,15 +190,10 @@ protected:
 private slots:
 
     void slotLoadingFinished();
-    void slotUpdateFullScreen(bool);
     void slotPreferences();
     void slotEditPalette();
     void slotImageSizeChanged();
     void slotTotalRefresh();
-    void toggleDockers(bool toggle);
-
-public slots:
-    void slotCanvasDestroyed(QWidget*);
 
 private:
 

@@ -66,6 +66,7 @@ SET ( textshape_SRCS
     commands/TextPasteCommand.cpp
     commands/TextCutCommand.cpp
     commands/ShowChangesCommand.cpp
+    commands/ChangeTrackedDeleteCommand.cpp
     commands/DeleteCommand.cpp
     commands/AcceptChangeCommand.cpp
     commands/RejectChangeCommand.cpp
@@ -96,6 +97,10 @@ kde4_add_ui_files(textshape_SRCS
 kde4_add_plugin(textshape ${textshape_SRCS})
 
 target_link_libraries(textshape kotext komain ${EXTRA_LIBS})
+if( Soprano_FOUND )
+    target_link_libraries(textshape ${SOPRANO_LIBRARIES})
+endif( Soprano_FOUND )
+
 
 install(TARGETS textshape DESTINATION ${PLUGIN_INSTALL_DIR})
 

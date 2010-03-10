@@ -24,8 +24,10 @@
 
 #include <KoInlineObject.h>
 
-class KoXmlElement;
 class KoChangeTracker;
+class KoXmlElement;
+
+class QTextDocument;
 
 class KOTEXT_EXPORT KoDeleteChangeMarker : public KoInlineObject
 {
@@ -56,9 +58,14 @@ public:
     ///Return the position of the marker in the document
     int position() const;
 
+    ///Return the document this marker belongs to.
+    QTextDocument* document() const;
+
     bool loadOdf(const KoXmlElement &element);
     ///reimplemented
     virtual void saveOdf(KoShapeSavingContext &context);
+
+    void setDeleteChangeXml(QString &deleteChangeXml);
 
 protected:
 

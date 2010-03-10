@@ -6,6 +6,7 @@
  *  Copyright (c) 2004 Boudewijn Rempt <boud@valdyas.org>
  *  Copyright (c) 2004 Clarence Dang <dang@k.org>
  *  Copyright (c) 2009 Lukáš Tvrdý <lukast.dev@gmail.com>
+ *  Copyright (c) 2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,6 +44,9 @@
 #include <kis_paint_device.h>
 #include "kis_shape_tool_helper.h"
 
+#include <recorder/kis_action_recorder.h>
+#include <recorder/kis_recorded_shape_paint_action.h>
+#include <recorder/kis_node_query_path.h>
 
 #include <KoCanvasController.h>
 
@@ -60,6 +64,12 @@ void KisToolRectangle::finishRect(const QRectF &rect)
 {
     if (rect.isNull())
         return;
+    
+    if (image()) {
+        KisRecordedShapePaintAction linePaintAction(KisNodeQueryPath::absolutePath(currentNode()), currentPaintOpPreset(), KisRecordedShapePaintAction::Rectangle, rect);
+        setupPaintAction(&linePaintAction);
+        image()->actionRecorder()->addAction(linePaintAction);
+    }
 
     if (!currentNode()->inherits("KisShapeLayer")) {
         KisPaintDeviceSP device = currentNode()->paintDevice();

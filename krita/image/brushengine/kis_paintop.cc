@@ -3,7 +3,7 @@
  *  Copyright (c) 2004 Boudewijn Rempt <boud@valdyas.org>
  *  Copyright (c) 2004 Clarence Dang <dang@kde.org>
  *  Copyright (c) 2004 Adrian Page <adrian@pagenet.plus.com>
- *  Copyright (c) 2004,2007 Cyrille Berger <cberger@cberger.net>
+ *  Copyright (c) 2004,2007,2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@
 
 #define BEZIER_FLATNESS_THRESHOLD 0.5
 #define MAXIMUM_SCALE 2
+#include <kis_distance_information.h>
 
 struct KisPaintOp::Private {
     Private()
@@ -99,14 +100,14 @@ void KisPaintOp::splitCoordinate(double coordinate, qint32 *whole, double *fract
     *fraction = f;
 }
 
-static double paintBezierCurve(KisPaintOp *paintOp,
+static KisDistanceInformation paintBezierCurve(KisPaintOp *paintOp,
                                const KisPaintInformation &pi1,
                                const KisVector2D &control1,
                                const KisVector2D &control2,
                                const KisPaintInformation &pi2,
-                               const double savedDist)
+                               const KisDistanceInformation& savedDist)
 {
-    qreal newDistance;
+    KisDistanceInformation newDistance;
     LineEquation line = LineEquation::Through(toKisVector2D(pi1.pos()), toKisVector2D(pi2.pos()));
     qreal d1 = line.absDistance(control1);
     qreal d2 = line.absDistance(control2);
@@ -127,11 +128,10 @@ static double paintBezierCurve(KisPaintOp *paintOp,
         KisVector2D r2 = (h + r3) / 2;
         KisVector2D l4 = (l3 + r2) / 2;
 
-        double midPressure = (pi1.pressure() + pi2.pressure()) / 2;
-        double midXTilt = (pi1.xTilt() + pi2.xTilt()) / 2;
-        double midYTilt = (pi1.yTilt() + pi2.yTilt()) / 2;
-
-        KisPaintInformation middlePI(toQPointF(l4), midPressure, midXTilt, midYTilt);
+        KisVector2D midMovement = (pi1.movement() + pi2.movement()) * 0.5;
+        
+        KisPaintInformation middlePI = KisPaintInformation::mix(toQPointF(l4), 0.5, pi1, pi2, midMovement);
+        
         newDistance = paintBezierCurve(paintOp, pi1, l2, l3, middlePI, savedDist);
         newDistance = paintBezierCurve(paintOp, middlePI, r2, r3, pi2, newDistance);
     }
@@ -139,94 +139,48 @@ static double paintBezierCurve(KisPaintOp *paintOp,
     return newDistance;
 }
 
-double KisPaintOp::paintBezierCurve(const KisPaintInformation &pi1,
+KisDistanceInformation KisPaintOp::paintBezierCurve(const KisPaintInformation &pi1,
                                     const QPointF &control1,
                                     const QPointF &control2,
                                     const KisPaintInformation &pi2,
-                                    const double savedDist)
+                                    const KisDistanceInformation& savedDist)
 {
     return ::paintBezierCurve(this, pi1, toKisVector2D(control1), toKisVector2D(control2), pi2, savedDist);
 }
 
 
-double KisPaintOp::paintLine(const KisPaintInformation &pi1,
+KisDistanceInformation KisPaintOp::paintLine(const KisPaintInformation &pi1,
                              const KisPaintInformation &pi2,
-                             double savedDist)
+                             const KisDistanceInformation& savedDist)
 {
     KisVector2D end = toKisVector2D(pi2.pos());
     KisVector2D start = toKisVector2D(pi1.pos());
 
     KisVector2D dragVec = end - start;
 
-    if (savedDist < 0) {
-        paintAt(pi1);
-        savedDist = 0;
-    }
+    Q_ASSERT(savedDist.distance >= 0);
 
-    double xSpacing = 1.0;
-    double ySpacing = 1.0;
-    double sp = spacing(xSpacing, ySpacing, pi1.pressure(), pi2.pressure());
-
-    Q_ASSERT(xSpacing >= 0.0);
-    Q_ASSERT(ySpacing >= 0.0);
-
-    KisVector2D scale(1, 1);
-
-    // Scale x or y so that we effectively have a square brush
-    // and calculate distance in that coordinate space. We reverse this scaling
-    // before drawing the brush. This produces the correct spacing in both
-    // x and y directions, even if the brush's aspect ratio is not 1:1.
-    if (xSpacing > ySpacing) {
-        scale.y() = xSpacing / ySpacing;
-    } else {
-        scale.x() = ySpacing / xSpacing;
-    }
-
-    dragVec = dragVec.cwise() * scale;
-
-    double newDist = dragVec.norm();
-    double dist = savedDist + newDist;
-    double l_savedDist = savedDist;
-
-    if (dist < sp) {
-        return dist;
-    }
+    double endDist = dragVec.norm();
+    double currentDist = savedDist.distance;
 
     dragVec.normalize();
     KisVector2D step(0, 0);
 
-    while (dist >= sp) {
-        if (l_savedDist > 0) {
-            step += dragVec * (sp - l_savedDist);
-            l_savedDist -= sp;
-        } else {
-            step += dragVec * sp;
-        }
+    double sp = savedDist.spacing;
+    while (currentDist < endDist) {
 
-        QPointF p = toQPointF(start + step.cwise() / scale);
+        QPointF p = toQPointF(start +  currentDist * dragVec);
 
-        double distanceMoved = step.norm();
-        double t = 0;
+        double t = currentDist / endDist;
 
-        if (!Eigen::ei_isMuchSmallerThan(newDist, distanceMoved)) {
-            t = distanceMoved / newDist;
-        }
-
-        double pressure = (1 - t) * pi1.pressure() + t * pi2.pressure();
-        double xTilt = (1 - t) * pi1.xTilt() + t * pi2.xTilt();
-        double yTilt = (1 - t) * pi1.yTilt() + t * pi2.yTilt();
-
-        paintAt(KisPaintInformation(p, pressure, xTilt, yTilt, dragVec));
-        dist -= sp;
+        sp = paintAt(KisPaintInformation::mix(p, t, pi1, pi2, sp * dragVec));
+        currentDist += sp;
     }
 
     QRect r(pi1.pos().toPoint(), pi2.pos().toPoint());
     d->painter->addDirtyRect(r.normalized());
 
-    if (dist > 0)
-        return dist;
-    else
-        return 0;
+    return KisDistanceInformation(currentDist - endDist, sp);
 }
 
 KisPainter* KisPaintOp::painter() const

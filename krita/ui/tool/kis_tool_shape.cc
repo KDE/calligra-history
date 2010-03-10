@@ -29,6 +29,7 @@
 
 #include <kis_paint_layer.h>
 #include <kis_paint_device.h>
+#include <recorder/kis_recorded_paint_action.h>
 
 KisToolShape::KisToolShape(KoCanvasBase * canvas, const QCursor & cursor)
         : KisToolPaint(canvas, cursor)
@@ -93,19 +94,28 @@ KisPainter::StrokeStyle KisToolShape::strokeStyle(void)
 
 void KisToolShape::setupPainter(KisPainter * painter)
 {
-    qDebug() << "setupPainter";
     KisTool::setupPainter(painter);
     painter->setFillStyle(fillStyle());
     painter->setStrokeStyle(strokeStyle());
-    if(currentNode()) {
+    if (currentNode()) {
         KisPaintLayer* paintLayer = dynamic_cast<KisPaintLayer*>(currentNode().data());
-        painter->setChannelFlags(paintLayer->channelFlags());
-        if (paintLayer->alphaLocked()) {
-            qDebug() << "\t" << "alphalocked";
-            painter->setLockAlpha(paintLayer->alphaLocked());
+        if (paintLayer) {
+            painter->setChannelFlags(paintLayer->channelFlags());
+            if (paintLayer->alphaLocked()) {
+                painter->setLockAlpha(paintLayer->alphaLocked());
+            }
         }
     }
 }
 
-#include "kis_tool_shape.moc"
+void KisToolShape::setupPaintAction(KisRecordedPaintAction* action)
+{
+    KisToolPaint::setupPaintAction(action);
+    action->setFillStyle(fillStyle());
+    action->setStrokeStyle(strokeStyle());
+    action->setGenerator(currentGenerator());
+    action->setPattern(currentPattern());
+    action->setGradient(currentGradient());
+}
 
+#include "kis_tool_shape.moc"

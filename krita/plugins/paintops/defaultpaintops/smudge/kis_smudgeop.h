@@ -23,45 +23,31 @@
 #ifndef KIS_SMUDGEOP_H_
 #define KIS_SMUDGEOP_H_
 
-#include "kis_brush_based_paintop.h"
-#include <klocale.h>
-#include <QDialog>
 #include <KoColorSpace.h>
 
+#include "kis_brush_based_paintop.h"
 #include <kis_types.h>
-
-#include <kis_paintop_factory.h>
-#include <kis_paintop_settings.h>
-#include <kis_paintop_options_widget.h>
 #include <kis_pressure_opacity_option.h>
 #include <kis_pressure_size_option.h>
 #include <kis_pressure_rate_option.h>
 
-class KisBrushOptionWidget;
-class KisPaintActionTypeOption;
-class KisSmudgeOpSettings;
-class KisSmudgeOpSettingsWidget;
+class KisBrushBasedPaintOpSettings;
 
-class QWidget;
 class QPointF;
 class KisPainter;
-
 
 class KisSmudgeOp : public KisBrushBasedPaintOp
 {
 
 public:
 
-    KisSmudgeOp(const KisSmudgeOpSettings *settings, KisPainter * painter, KisImageWSP image);
+    KisSmudgeOp(const KisBrushBasedPaintOpSettings *settings, KisPainter * painter, KisImageWSP image);
     virtual ~KisSmudgeOp();
 
-    void paintAt(const KisPaintInformation& info);
+    double paintAt(const KisPaintInformation& info);
 
 private:
-
-    const KisSmudgeOpSettings * settings;
     bool m_firstRun;
-    KisPaintDeviceSP m_source;
     KisPaintDeviceSP m_target;
     KisPaintDeviceSP m_srcdev;
     KisPressureSizeOption m_sizeOption;

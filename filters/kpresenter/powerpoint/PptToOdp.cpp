@@ -1,6 +1,8 @@
 /* This file is part of the KDE project
    Copyright (C) 2005 Yolla Indria <yolla.indria@gmail.com>
    Copyright (C) 2010 KO GmbH <jos.van.den.oever@kogmbh.com>
+   Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
+   Contact: Amit Aggarwal <amitcs06@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,6 +21,7 @@
 */
 
 #include "PptToOdp.h"
+#include "globalobjectcollectors.h"
 #include "pictures.h"
 
 #include <kdebug.h>
@@ -28,285 +31,27 @@
 
 #include <QtCore/QBuffer>
 
-#include <cmath>
-
-using namespace PPT;
-
-enum {
-    msosptMin = 0,
-    msosptNotPrimitive = msosptMin,
-    msosptRectangle = 1,
-    msosptRoundRectangle = 2,
-    msosptEllipse = 3,
-    msosptDiamond = 4,
-    msosptIsoscelesTriangle = 5,
-    msosptRightTriangle = 6,
-    msosptParallelogram = 7,
-    msosptTrapezoid = 8,
-    msosptHexagon = 9,
-    msosptOctagon = 10,
-    msosptPlus = 11,
-    msosptStar = 12,
-    msosptArrow = 13,
-    msosptThickArrow = 14,
-    msosptHomePlate = 15,
-    msosptCube = 16,
-    msosptBalloon = 17,
-    msosptSeal = 18,
-    msosptArc = 19,
-    msosptLine = 20,
-    msosptPlaque = 21,
-    msosptCan = 22,
-    msosptDonut = 23,
-    msosptTextSimple = 24,
-    msosptTextOctagon = 25,
-    msosptTextHexagon = 26,
-    msosptTextCurve = 27,
-    msosptTextWave = 28,
-    msosptTextRing = 29,
-    msosptTextOnCurve = 30,
-    msosptTextOnRing = 31,
-    msosptStraightConnector1 = 32,
-    msosptBentConnector2 = 33,
-    msosptBentConnector3 = 34,
-    msosptBentConnector4 = 35,
-    msosptBentConnector5 = 36,
-    msosptCurvedConnector2 = 37,
-    msosptCurvedConnector3 = 38,
-    msosptCurvedConnector4 = 39,
-    msosptCurvedConnector5 = 40,
-    msosptCallout1 = 41,
-    msosptCallout2 = 42,
-    msosptCallout3 = 43,
-    msosptAccentCallout1 = 44,
-    msosptAccentCallout2 = 45,
-    msosptAccentCallout3 = 46,
-    msosptBorderCallout1 = 47,
-    msosptBorderCallout2 = 48,
-    msosptBorderCallout3 = 49,
-    msosptAccentBorderCallout1 = 50,
-    msosptAccentBorderCallout2 = 51,
-    msosptAccentBorderCallout3 = 52,
-    msosptRibbon = 53,
-    msosptRibbon2 = 54,
-    msosptChevron = 55,
-    msosptPentagon = 56,
-    msosptNoSmoking = 57,
-    msosptSeal8 = 58,
-    msosptSeal16 = 59,
-    msosptSeal32 = 60,
-    msosptWedgeRectCallout = 61,
-    msosptWedgeRRectCallout = 62,
-    msosptWedgeEllipseCallout = 63,
-    msosptWave = 64,
-    msosptFoldedCorner = 65,
-    msosptLeftArrow = 66,
-    msosptDownArrow = 67,
-    msosptUpArrow = 68,
-    msosptLeftRightArrow = 69,
-    msosptUpDownArrow = 70,
-    msosptIrregularSeal1 = 71,
-    msosptIrregularSeal2 = 72,
-    msosptLightningBolt = 73,
-    msosptHeart = 74,
-    msosptPictureFrame = 75,
-    msosptQuadArrow = 76,
-    msosptLeftArrowCallout = 77,
-    msosptRightArrowCallout = 78,
-    msosptUpArrowCallout = 79,
-    msosptDownArrowCallout = 80,
-    msosptLeftRightArrowCallout = 81,
-    msosptUpDownArrowCallout = 82,
-    msosptQuadArrowCallout = 83,
-    msosptBevel = 84,
-    msosptLeftBracket = 85,
-    msosptRightBracket = 86,
-    msosptLeftBrace = 87,
-    msosptRightBrace = 88,
-    msosptLeftUpArrow = 89,
-    msosptBentUpArrow = 90,
-    msosptBentArrow = 91,
-    msosptSeal24 = 92,
-    msosptStripedRightArrow = 93,
-    msosptNotchedRightArrow = 94,
-    msosptBlockArc = 95,
-    msosptSmileyFace = 96,
-    msosptVerticalScroll = 97,
-    msosptHorizontalScroll = 98,
-    msosptCircularArrow = 99,
-    msosptNotchedCircularArrow = 100,
-    msosptUturnArrow = 101,
-    msosptCurvedRightArrow = 102,
-    msosptCurvedLeftArrow = 103,
-    msosptCurvedUpArrow = 104,
-    msosptCurvedDownArrow = 105,
-    msosptCloudCallout = 106,
-    msosptEllipseRibbon = 107,
-    msosptEllipseRibbon2 = 108,
-    msosptFlowChartProcess = 109,
-    msosptFlowChartDecision = 110,
-    msosptFlowChartInputOutput = 111,
-    msosptFlowChartPredefinedProcess = 112,
-    msosptFlowChartInternalStorage = 113,
-    msosptFlowChartDocument = 114,
-    msosptFlowChartMultidocument = 115,
-    msosptFlowChartTerminator = 116,
-    msosptFlowChartPreparation = 117,
-    msosptFlowChartManualInput = 118,
-    msosptFlowChartManualOperation = 119,
-    msosptFlowChartConnector = 120,
-    msosptFlowChartPunchedCard = 121,
-    msosptFlowChartPunchedTape = 122,
-    msosptFlowChartSummingJunction = 123,
-    msosptFlowChartOr = 124,
-    msosptFlowChartCollate = 125,
-    msosptFlowChartSort = 126,
-    msosptFlowChartExtract = 127,
-    msosptFlowChartMerge = 128,
-    msosptFlowChartOfflineStorage = 129,
-    msosptFlowChartOnlineStorage = 130,
-    msosptFlowChartMagneticTape = 131,
-    msosptFlowChartMagneticDisk = 132,
-    msosptFlowChartMagneticDrum = 133,
-    msosptFlowChartDisplay = 134,
-    msosptFlowChartDelay = 135,
-    msosptTextPlainText = 136,
-    msosptTextStop = 137,
-    msosptTextTriangle = 138,
-    msosptTextTriangleInverted = 139,
-    msosptTextChevron = 140,
-    msosptTextChevronInverted = 141,
-    msosptTextRingInside = 142,
-    msosptTextRingOutside = 143,
-    msosptTextArchUpCurve = 144,
-    msosptTextArchDownCurve = 145,
-    msosptTextCircleCurve = 146,
-    msosptTextButtonCurve = 147,
-    msosptTextArchUpPour = 148,
-    msosptTextArchDownPour = 149,
-    msosptTextCirclePour = 150,
-    msosptTextButtonPour = 151,
-    msosptTextCurveUp = 152,
-    msosptTextCurveDown = 153,
-    msosptTextCascadeUp = 154,
-    msosptTextCascadeDown = 155,
-    msosptTextWave1 = 156,
-    msosptTextWave2 = 157,
-    msosptTextWave3 = 158,
-    msosptTextWave4 = 159,
-    msosptTextInflate = 160,
-    msosptTextDeflate = 161,
-    msosptTextInflateBottom = 162,
-    msosptTextDeflateBottom = 163,
-    msosptTextInflateTop = 164,
-    msosptTextDeflateTop = 165,
-    msosptTextDeflateInflate = 166,
-    msosptTextDeflateInflateDeflate = 167,
-    msosptTextFadeRight = 168,
-    msosptTextFadeLeft = 169,
-    msosptTextFadeUp = 170,
-    msosptTextFadeDown = 171,
-    msosptTextSlantUp = 172,
-    msosptTextSlantDown = 173,
-    msosptTextCanUp = 174,
-    msosptTextCanDown = 175,
-    msosptFlowChartAlternateProcess = 176,
-    msosptFlowChartOffpageConnector = 177,
-    msosptCallout90 = 178,
-    msosptAccentCallout90 = 179,
-    msosptBorderCallout90 = 180,
-    msosptAccentBorderCallout90 = 181,
-    msosptLeftRightUpArrow = 182,
-    msosptSun = 183,
-    msosptMoon = 184,
-    msosptBracketPair = 185,
-    msosptBracePair = 186,
-    msosptSeal4 = 187,
-    msosptDoubleWave = 188,
-    msosptActionButtonBlank = 189,
-    msosptActionButtonHome = 190,
-    msosptActionButtonHelp = 191,
-    msosptActionButtonInformation = 192,
-    msosptActionButtonForwardNext = 193,
-    msosptActionButtonBackPrevious = 194,
-    msosptActionButtonEnd = 195,
-    msosptActionButtonBeginning = 196,
-    msosptActionButtonReturn = 197,
-    msosptActionButtonDocument = 198,
-    msosptActionButtonSound = 199,
-    msosptActionButtonMovie = 200,
-    msosptHostControl = 201,
-    msosptTextBox = 202,
-    msosptMax,
-    msosptNil = 0x0FFF
-} ;
+using namespace MSO;
 
 namespace
 {
-static const QString mm("%1mm");
-
-/**
- * Retrieve an option from an options containing class B
- *
- * @p b must have a member fopt that is an array of
- * type OfficeArtFOPTEChoice.
- * A is the type of the required option. The option containers
- * in PPT have only one instance of each option in a option container.
- * @param b class that contains options.
- * @return pointer to the option of type A or 0 if there is none.
- */
-template <typename A, typename B>
-const A*
-get(const B& b)
-{
-    foreach(const OfficeArtFOPTEChoice& a, b.fopt) {
-        const A *ptr = a.anon.get<A>();
-        if (ptr) return ptr;
+    QString mm(double v) {
+        static const QString mm("%1mm");
+        return mm.arg(v, 0, 'f');
     }
-    return 0;
-}
-/**
- * Retrieve an option from an OfficeArtSpContainer
- *
- * Look in all option containers in @p o for an option of type A.
- * @param o OfficeArtSpContainer instance which contains options.
- * @return pointer to the option of type A or 0 if there is none.
- */
-template <typename A>
-const A*
-get(const OfficeArtSpContainer& o)
-{
-    const A* a = 0;
-    if (o.shapePrimaryOptions) a = get<A>(*o.shapePrimaryOptions);
-    if (!a && o.shapeSecondaryOptions1) a = get<A>(*o.shapeSecondaryOptions1);
-    if (!a && o.shapeSecondaryOptions2) a = get<A>(*o.shapeSecondaryOptions2);
-    if (!a && o.shapeTertiaryOptions1) a = get<A>(*o.shapeTertiaryOptions1);
-    if (!a && o.shapeTertiaryOptions2) a = get<A>(*o.shapeTertiaryOptions2);
-    return a;
-}
-/**
- * Retrieve an option from an OfficeArtDggContainer
- *
- * Look in all option containers in @p o for an option of type A.
- * @param o OfficeArtDggContainer instance which contains options.
- * @return pointer to the option of type A or 0 if there is none.
- */
-template <typename A>
-const A*
-get(const OfficeArtDggContainer& o)
-{
-    const A* a = get<A>(o.drawingPrimaryOptions);
-    if (!a && o.drawingTertiaryOptions) a = get<A>(*o.drawingTertiaryOptions);
-    return a;
-}
-/**
- * Convert FixedPoint to a qreal
- */
-qreal
-toFloat(const FixedPoint& f)
-{
-    return f.integral + f.fractional / 65536.0;
-}
+    QString cm(double v) {
+        static const QString cm("%1cm");
+        return cm.arg(v, 0, 'f');
+    }
+    QString pt(double v) {
+        static const QString pt("%1pt");
+        return pt.arg(v, 0, 'f');
+    }
+    QString percent(double v) {
+        static const QString percent("%1%");
+        return percent.arg(v, 0, 'f');
+    }
+
 /**
  * Return the bounding rectangle for this object.
  **/
@@ -319,7 +64,7 @@ getRect(const OfficeArtFSPGR &r)
  * Return the bounding rectangle for this object.
  **/
 QRect
-getRect(const OfficeArtClientAnchor &a)
+getRect(const PptOfficeArtClientAnchor &a)
 {
     if (a.rect1) {
         const SmallRectStruct &r = *a.rect1;
@@ -329,35 +74,116 @@ getRect(const OfficeArtClientAnchor &a)
         return QRect(r.left, r.top, r.right - r.left, r.bottom - r.top);
     }
 }
+
+QString
+getText(const TextContainer& tc)
+{
+    if (tc.text.is<TextCharsAtom>()) {
+        const QVector<quint16> textChars(tc.text.get<TextCharsAtom>()->textChars);
+        return QString::fromUtf16(textChars.data(), textChars.size());
+    } else if (tc.text.is<TextBytesAtom>()) {
+        // each item represents the low byte of a UTF-16 Unicode character whose high byte is 0x00
+        const QByteArray& textChars(tc.text.get<TextBytesAtom>()->textChars);
+        return QString::fromAscii(textChars, textChars.size());
+    }
+    return QString();
+}
+
+QString getText(const TextContainer& tc, int start, int count)
+{
+    return getText(tc).mid(start,count);
+}
+
+template<class T>
+const T*
+getPP(const DocumentContainer* dc)
+{
+    if (dc == 0 || dc->docInfoList == 0) return 0;
+    foreach (const DocInfoListSubContainerOrAtom& a, dc->docInfoList->rgChildRec) {
+        const DocProgTagsContainer* d = a.anon.get<DocProgTagsContainer>();
+        if (d) {
+            foreach (const DocProgTagsSubContainerOrAtom& da, d->rgChildRec) {
+                const DocProgBinaryTagContainer* c
+                        = da.anon.get<DocProgBinaryTagContainer>();
+                if (c) {
+                    const T* t = c->rec.anon.get<T>();
+                    if (t) return t;
+                }
+            }
+        }
+    }
+    return 0;
+}
+template<class T>
+const T*
+getPP(const MSO::PptOfficeArtClientData& o)
+{
+    foreach (const ShapeClientRoundtripDataSubcontainerOrAtom& s, o.rgShapeClientRoundtripData) {
+        const ShapeProgsTagContainer* p = s.anon.get<ShapeProgsTagContainer>();
+        if (p) {
+            foreach (const ShapeProgTagsSubContainerOrAtom& s, p->rgChildRec) {
+                const ShapeProgBinaryTagContainer* a = s.anon.get<ShapeProgBinaryTagContainer>();
+                if (a) {
+                    const T* pp = a->rec.anon.get<T>();
+                    if (pp) {
+                        return pp;
+                    }
+                }
+            }
+        }
+    }
+    foreach (const ShapeClientRoundtripDataSubcontainerOrAtom& s, o.rgShapeClientRoundtripData0) {
+        const ShapeProgsTagContainer* p = s.anon.get<ShapeProgsTagContainer>();
+        if (p) {
+            foreach (const ShapeProgTagsSubContainerOrAtom& s, p->rgChildRec) {
+                const ShapeProgBinaryTagContainer* a = s.anon.get<ShapeProgBinaryTagContainer>();
+                if (a) {
+                    const T* pp = a->rec.anon.get<T>();
+                    if (pp) {
+                        return pp;
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+}//namespace
+
 /**
  * Return the bounding rectangle for this object.
  **/
 QRect
-getRect(const OfficeArtSpContainer &o)
+PptToOdp::getRect(const OfficeArtSpContainer &o)
 {
     if (o.childAnchor) {
         const OfficeArtChildAnchor& r = *o.childAnchor;
         return QRect(r.xLeft, r.yTop, r.xRight - r.xLeft, r.yBottom - r.yTop);
     } else if (o.clientAnchor) {
-        return getRect(*o.clientAnchor);
+        const PptOfficeArtClientAnchor* a = o.clientAnchor->anon.get<PptOfficeArtClientAnchor>();
+        if (a) {
+            return ::getRect(*a);
+        }
     }
     return QRect(0, 0, 1, 1);
 }
-
-}
-
-PptToOdp::Writer::Writer(KoXmlWriter& xmlWriter) : xOffset(0),
+PptToOdp::Writer::Writer(KoXmlWriter& xmlWriter, KoGenStyles& kostyles,
+                         bool stylesxml_)
+      : xOffset(0),
         yOffset(0),
         scaleX(25.4 / 576),
         scaleY(25.4 / 576),
-        xml(xmlWriter)
+        xml(xmlWriter),
+        styles(kostyles),
+        stylesxml(stylesxml_)
 {
 }
 
 PptToOdp::Writer
 PptToOdp::Writer::transform(const QRectF& oldCoords, const QRectF &newCoords) const
 {
-    Writer w(xml);
+    Writer w(xml, styles, stylesxml);
     w.xOffset = xOffset + oldCoords.x() * scaleX;
     w.yOffset = yOffset + oldCoords.y() * scaleY;
     w.scaleX = scaleX * oldCoords.width() / newCoords.width();
@@ -368,22 +194,22 @@ PptToOdp::Writer::transform(const QRectF& oldCoords, const QRectF &newCoords) co
 }
 QString PptToOdp::Writer::vLength(qreal length)
 {
-    return mm.arg(length*scaleY);
+    return mm(length*scaleY);
 }
 
 QString PptToOdp::Writer::hLength(qreal length)
 {
-    return mm.arg(length*scaleX);
+    return mm(length*scaleX);
 }
 
 QString PptToOdp::Writer::vOffset(qreal offset)
 {
-    return mm.arg(yOffset + offset*scaleY);
+    return mm(yOffset + offset*scaleY);
 }
 
 QString PptToOdp::Writer::hOffset(qreal offset)
 {
-    return mm.arg(xOffset + offset*scaleX);
+    return mm(xOffset + offset*scaleX);
 }
 
 PptToOdp::PptToOdp() : p(0)
@@ -411,6 +237,21 @@ createPictures(POLE::Storage& storage, KoStore* store, KoXmlWriter* manifest)
     storage.close();
     delete stream;
     return fileNames;
+}
+QMap<quint16, QString>
+createBulletPictures(const PP9DocBinaryTagExtension* pp9, KoStore* store, KoXmlWriter* manifest)
+{
+    QMap<quint16, QString> ids;
+    if (!pp9 || !pp9->blipCollectionContainer) {
+        return ids;
+    }
+    foreach (const BlipEntityAtom& a, pp9->blipCollectionContainer->rgBlipEntityAtom) {
+        PictureReference ref = savePicture(a.blip, store);
+        if (ref.name.length() == 0) continue;
+        ids[a.rh.recInstance] = "Pictures/" + ref.name;
+        manifest->addManifestEntry(ids[a.rh.recInstance], ref.mimetype);
+    }
+    return ids;
 }
 bool
 PptToOdp::parse(POLE::Storage& storage)
@@ -474,9 +315,13 @@ KoFilter::ConversionStatus PptToOdp::doConversion(POLE::Storage& storage,
     storeout->enterDirectory("Pictures");
     pictureNames = createPictures(storage,
                                   storeout, manifest);
+    // read pictures from the PowerPoint Document structures
+    bulletPictureNames = createBulletPictures(getPP<PP9DocBinaryTagExtension>(
+            p->documentContainer), storeout, manifest);
     storeout->leaveDirectory();
 
     KoGenStyles styles;
+
     createMainStyles(styles);
 
     // store document content
@@ -500,150 +345,20 @@ KoFilter::ConversionStatus PptToOdp::doConversion(POLE::Storage& storage,
     return KoFilter::OK;
 }
 
-void
-addElement(KoGenStyle& style, const char* name,
-           const QMap<const char*, QString>& m,
-           const QMap<const char*, QString>& mtext)
+namespace
 {
-    QBuffer buffer;
-    buffer.open(QIODevice::WriteOnly);
-    KoXmlWriter elementWriter(&buffer);
-    elementWriter.startElement(name);
-    QMapIterator<const char*, QString> i(m);
-    while (i.hasNext()) {
-        i.next();
-        elementWriter.addAttribute(i.key(), i.value());
-    }
-    if (mtext.size()) {
-        elementWriter.startElement("style:text-properties");
-        QMapIterator<const char*, QString> j(mtext);
-        while (j.hasNext()) {
-            j.next();
-            elementWriter.addAttribute(j.key(), j.value());
-        }
-        elementWriter.endElement();
-    }
-    elementWriter.endElement();
-    style.addChildElement(name,
-                          QString::fromUtf8(buffer.buffer(), buffer.buffer().size()));
-}
-template <typename T>
-void addFillBlips(const T& fopt, QSet<quint32>& fillBlips)
-{
-    foreach(const OfficeArtFOPTEChoice& f, fopt.fopt) {
-        // complex blips are ignored for now
-        const FillBlip* fb = f.anon.get<FillBlip>();
-        if (fb && !fb->opid.fComplex && fb->fillBlip) {
-            fillBlips.insert(fb->fillBlip);
-        }
-    }
-}
-void addFillBlips(const OfficeArtSpContainer& sp, QSet<quint32>& fillBlips)
-{
-    if (sp.shapePrimaryOptions)
-        addFillBlips(*sp.shapePrimaryOptions, fillBlips);
-    if (sp.shapeSecondaryOptions1)
-        addFillBlips(*sp.shapeSecondaryOptions1, fillBlips);
-    if (sp.shapeSecondaryOptions2)
-        addFillBlips(*sp.shapeSecondaryOptions2, fillBlips);
-    if (sp.shapeTertiaryOptions1)
-        addFillBlips(*sp.shapeTertiaryOptions1, fillBlips);
-    if (sp.shapeTertiaryOptions2)
-        addFillBlips(*sp.shapeTertiaryOptions2, fillBlips);
-}
-void addFillBlips(const OfficeArtSpgrContainerFileBlock& spgr, QSet<quint32>& fillBlips);
-void addFillBlips(const OfficeArtSpgrContainer& spgr, QSet<quint32>& fillBlips)
-{
-    foreach(const OfficeArtSpgrContainerFileBlock& o, spgr.rgfb) {
-        addFillBlips(o, fillBlips);
-    }
-}
-void addFillBlips(const OfficeArtDgContainer& dg, QSet<quint32>& fillBlips)
-{
-    addFillBlips(dg.groupShape, fillBlips);
-    if (dg.shape)
-        addFillBlips(*dg.shape, fillBlips);
-    foreach(const OfficeArtSpgrContainerFileBlock& o, dg.deletedShapes) {
-        addFillBlips(o, fillBlips);
-    }
-}
-void addFillBlips(const OfficeArtSpgrContainerFileBlock& spgr, QSet<quint32>& fillBlips)
-{
-    if (spgr.anon.is<OfficeArtSpContainer>())
-        addFillBlips(*spgr.anon.get<OfficeArtSpContainer>(), fillBlips);
-    if (spgr.anon.is<OfficeArtSpgrContainer>())
-        addFillBlips(*spgr.anon.get<OfficeArtSpgrContainer>(), fillBlips);
-}
-void PptToOdp::createFillImages(KoGenStyles& styles)
-{
-    // loop over all objects to find all "fillPib" numbers
-    QSet<quint32> fillBlips;
-    // get blips from default options
-    const DrawingGroupContainer& dg = p->documentContainer->drawingGroup;
-    addFillBlips(dg.OfficeArtDgg.drawingPrimaryOptions, fillBlips);
-    if (dg.OfficeArtDgg.drawingTertiaryOptions)
-        addFillBlips(*dg.OfficeArtDgg.drawingTertiaryOptions, fillBlips);
-    // get blips from masters
-    foreach(const MasterOrSlideContainer* master, p->masters) {
-        if (master->anon.is<SlideContainer>())
-            addFillBlips(master->anon.get<SlideContainer>()->drawing.OfficeArtDg, fillBlips);
-        if (master->anon.is<MainMasterContainer>())
-            addFillBlips(master->anon.get<MainMasterContainer>()->drawing.OfficeArtDg, fillBlips);
-    }
-    // get blips from slides
-    foreach(const SlideContainer* slide, p->slides) {
-        addFillBlips(slide->drawing.OfficeArtDg, fillBlips);
-    }
-    // get blips from notes
-    foreach(const NotesContainer* notes, p->notes) {
-        addFillBlips(notes->drawing.OfficeArtDg, fillBlips);
-    }
-    foreach(quint32 pib, fillBlips) {
-        KoGenStyle fillImage(KoGenStyle::StyleFillImage);
-        fillImage.addAttribute("xlink:href", getPicturePath(pib));
-        styles.lookup(fillImage, "fillImage" + QString::number(pib),
-                      KoGenStyles::DontForceNumbering);
-    }
-}
 
-void PptToOdp::createMainStyles(KoGenStyles& styles)
-{
-    int x = 0;
-    int y = 0;
-
+QString
+definePageLayout(KoGenStyles& styles, const MSO::PointStruct& size) {
     // x and y are given in master units (1/576 inches)
-    QString pageWidth = QString("%1in").arg(
-                            p->documentContainer->documentAtom.slideSize.x / 576);
-    QString pageHeight = QString("%1in").arg(
-                             p->documentContainer->documentAtom.slideSize.y / 576);
-
-    //KoGenStyle defaultStyle(KoGenStyle::StyleUser, "graphic");
-    KoGenStyle defaultStyle(KoGenStyle::StyleGraphicAuto, "graphic");
-    //defaultStyle.setDefaultStyle(true);
-    defaultStyle.setAutoStyleInStylesDotXml(true);
-    const OfficeArtDggContainer& drawingGroup
-    = p->documentContainer->drawingGroup.OfficeArtDgg;
-    processGraphicStyle(defaultStyle, drawingGroup);
-    // add the defaults that were not set yet
-    if (!get<LineWidth>(drawingGroup)) {
-        defaultStyle.addProperty("svg:stroke-width",
-                                 QString("%1pt").arg(0x2535 / 12700.f),
-                                 KoGenStyle::GraphicType);
-    }
-    styles.lookup(defaultStyle, "pptDefaults", KoGenStyles::DontForceNumbering);
-
-    KoGenStyle marker(KoGenStyle::StyleMarker);
-    marker.addAttribute("draw:display-name", "msArrowEnd 5");
-    marker.addAttribute("svg:viewBox", "0 0 210 210");
-    marker.addAttribute("svg:d", "m105 0 105 210h-210z");
-    styles.lookup(marker, "msArrowEnd_20_5");
-
-    // add all the fill image definitions
-    createFillImages(styles);
+    double sizeX = size.x * (25.4 / (double)576);
+    double sizeY = size.y * (25.4 / (double)576);
+    QString pageWidth = mm(sizeX);
+    QString pageHeight = mm(sizeY);
 
     KoGenStyle pl(KoGenStyle::StylePageLayout);
     pl.setAutoStyleInStylesDotXml(true);
-    pl.addAttribute("style:page-usage", "all");
+    // pl.addAttribute("style:page-usage", "all"); // probably not needed
     pl.addProperty("fo:margin-bottom", "0pt");
     pl.addProperty("fo:margin-left", "0pt");
     pl.addProperty("fo:margin-right", "0pt");
@@ -651,38 +366,1032 @@ void PptToOdp::createMainStyles(KoGenStyles& styles)
     pl.addProperty("fo:page-height", pageHeight);
     pl.addProperty("fo:page-width", pageWidth);
     pl.addProperty("style:print-orientation", "landscape");
-    styles.lookup(pl, "pm");
+    return styles.lookup(pl, "pm");
+}
 
-    KoGenStyle dp(KoGenStyle::StyleDrawingPage, "drawing-page");
-    dp.setAutoStyleInStylesDotXml(true);
-    dp.addProperty("draw:background-size", "border");
-    dp.addProperty("draw:fill", "solid");
-    dp.addProperty("draw:fill-color", "#ffffff");
-    styles.lookup(dp, "dp");
+const char* dashses[11] = {
+    "", "Dash_20_2", "Dash_20_3", "Dash_20_2", "Dash_20_2", "Dash_20_2",
+    "Dash_20_4", "Dash_20_6", "Dash_20_5", "Dash_20_7", "Dash_20_8"
+};
+const char* arrowHeads[6] = {
+    "", "msArrowEnd_20_5", "msArrowStealthEnd_20_5", "msArrowDiamondEnd_20_5",
+    "msArrowOvalEnd_20_5", "msArrowOpenEnd_20_5"
+};
+const char* getFillType(quint32 fillType)
+{
+    switch (fillType) {
+    case 2: // msofillTexture
+    case 3: // msofillPicture
+        return "bitmap";
+    case 4: // msofillShade
+    case 5: // msofillShadeCenter
+    case 6: // msofillShadeShape
+    case 7: // msofillShadeScale
+    case 8: // msofillShadeTitle
+        return "gradient";
+    case 1: // msofillPattern
+        return "hatch";
+    case 9: // msofillBackground
+        return "none";
+    case 0: // msofillSolid
+    default:
+        return "solid";
+    }
+}
+}
 
-    KoGenStyle pa(KoGenStyle::StyleAuto, "paragraph");
-    pa.setAutoStyleInStylesDotXml(true);
-    pa.addProperty("fo:margin-left", "0cm");
-    pa.addProperty("fo:margin-right", "0cm");
-    pa.addProperty("fo:text-indent", "0cm");
-    pa.addProperty("fo:font-size", "14pt", KoGenStyle::TextType);
-    pa.addProperty("style:font-size-asian", "14pt", KoGenStyle::TextType);
-    pa.addProperty("style:font-size-complex", "14pt", KoGenStyle::TextType);
-    styles.lookup(pa, "P");
+void PptToOdp::defineDefaultTextStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="text">
+    KoGenStyle style(KoGenStyle::StyleText, "text");
+    style.setDefaultStyle(true);
+    defineDefaultTextProperties(style);
+    styles.lookup(style);
+}
 
-    KoGenStyle l(KoGenStyle::StyleListAuto);
-    l.setAutoStyleInStylesDotXml(true);
-    QMap<const char*, QString> lmap;
-    lmap["text:level"] = "1";
-    const char bullet[4] = {0xe2, 0x97, 0x8f, 0};
-    lmap["text:bullet-char"] = QString::fromUtf8(bullet);//  "●";
-    QMap<const char*, QString> ltextmap;
-    ltextmap["fo:font-family"] = "StarSymbol";
-    ltextmap["style:font-pitch"] = "variable";
-    ltextmap["fo:color"] = "#000000";
-    ltextmap["fo:font-size"] = "45%";
-    addElement(l, "text:list-level-style-bullet", lmap, ltextmap);
-    styles.lookup(l, "L");
+void PptToOdp::defineDefaultParagraphStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="paragraph">
+    KoGenStyle style(KoGenStyle::StyleUser, "paragraph");
+    style.setDefaultStyle(true);
+    defineDefaultParagraphProperties(style);
+    defineDefaultTextProperties(style);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultSectionStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="section">
+    KoGenStyle style(KoGenStyle::StyleSection, "section");
+    style.setDefaultStyle(true);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultRubyStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="ruby">
+    KoGenStyle style(KoGenStyle::StyleRuby, "ruby");
+    style.setDefaultStyle(true);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultTableStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="table">
+    KoGenStyle style(KoGenStyle::StyleTable, "table");
+    style.setDefaultStyle(true);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultTableColumnStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="table-column">
+    KoGenStyle style(KoGenStyle::StyleTableColumn, "table-column");
+    style.setDefaultStyle(true);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultTableRowStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="table-row">
+    KoGenStyle style(KoGenStyle::StyleTableRow, "table-row");
+    style.setDefaultStyle(true);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultTableCellStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="table-cell">
+    KoGenStyle style(KoGenStyle::StyleTableCell, "table-cell");
+    style.setDefaultStyle(true);
+    defineDefaultParagraphProperties(style);
+    defineDefaultTextProperties(style);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultGraphicStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="graphic">
+    KoGenStyle style(KoGenStyle::StyleGraphic, "graphic");
+    style.setDefaultStyle(true);
+    defineDefaultGraphicProperties(style);
+    defineDefaultParagraphProperties(style);
+    defineDefaultTextProperties(style);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultPresentationStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="presentation">
+    KoGenStyle style(KoGenStyle::StylePresentation, "presentation");
+    style.setDefaultStyle(true);
+    defineDefaultGraphicProperties(style);
+    defineDefaultParagraphProperties(style);
+    defineDefaultTextProperties(style);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultDrawingPageStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="drawing-page">
+    KoGenStyle style(KoGenStyle::StyleDrawingPage, "drawing-page");
+    const KoGenStyle::PropertyType dpt = KoGenStyle::DrawingPageType;
+    style.addProperty("draw:background-size", "border", dpt);
+    style.addProperty("draw:fill", "none", dpt);
+    style.addProperty("style:repeat", "stretch", dpt);
+    style.setDefaultStyle(true);
+    const OfficeArtDggContainer* drawingGroup = 0;
+    if (p->documentContainer) {
+        drawingGroup = &p->documentContainer->drawingGroup.OfficeArtDgg;
+    }
+    const MSO::SlideHeadersFootersContainer* hf = getSlideHF();
+    defineDrawingPageStyle(style, drawingGroup, (hf) ?&hf->hfAtom :0);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultChartStyle(KoGenStyles& styles)
+{
+    // write style <style:default-style style:family="chart">
+    KoGenStyle style(KoGenStyle::StyleChart, "chart");
+    style.setDefaultStyle(true);
+    defineDefaultGraphicProperties(style);
+    defineDefaultParagraphProperties(style);
+    defineDefaultTextProperties(style);
+    styles.lookup(style);
+}
+
+void PptToOdp::defineDefaultTextProperties(KoGenStyle& style) {
+    const TextCFException* cf = 0;
+    const TextCFException9* cf9 = 0;
+    const TextCFException10* cf10 = 0;
+    const TextSIException* si = 0;
+    if (p->documentContainer) {
+        if (p->documentContainer->documentTextInfo.textCFDefaultsAtom) {
+            cf = &p->documentContainer->documentTextInfo.textCFDefaultsAtom->cf;
+        }
+        const PP9DocBinaryTagExtension* pp9 = getPP<PP9DocBinaryTagExtension>(
+                p->documentContainer);
+        const PP10DocBinaryTagExtension* pp10 = getPP<PP10DocBinaryTagExtension>(
+                p->documentContainer);
+        if (pp9 && pp9->textDefaultsAtom) {
+            cf9 = &pp9->textDefaultsAtom->cf9;
+        }
+        if (pp10 && pp10->textDefaultsAtom) {
+            cf10 = &pp10->textDefaultsAtom->cf10;
+        }
+        si = &p->documentContainer->documentTextInfo.textSIDefaultsAtom.textSIException;
+    }
+    defineTextProperties(style, cf, cf9, cf10, si);
+}
+
+void PptToOdp::defineDefaultParagraphProperties(KoGenStyle& style) {
+    const TextPFException9* pf9 = 0;
+    if (p->documentContainer) {
+        const PP9DocBinaryTagExtension* pp9 = getPP<PP9DocBinaryTagExtension>(
+                p->documentContainer);
+        if (pp9 && pp9->textDefaultsAtom) {
+            pf9 = &pp9->textDefaultsAtom->pf9;
+        }
+    }
+    PptTextPFRun pf(p->documentContainer);
+    defineParagraphProperties(style, pf);
+}
+
+void PptToOdp::defineDefaultGraphicProperties(KoGenStyle& style) {
+    const KoGenStyle::PropertyType gt = KoGenStyle::GraphicType;
+    style.addProperty("svg:stroke-width", "0.75pt", gt); // 2.3.8.15
+    style.addProperty("draw:fill", "none", gt); // 2.3.8.38
+    style.addProperty("draw:auto-grow-height", false, gt);
+    style.addProperty("draw:stroke", "solid", gt);
+    style.addProperty("draw:fill-color", "#ffffff", gt);
+    const OfficeArtDggContainer& drawingGroup
+        = p->documentContainer->drawingGroup.OfficeArtDgg;
+    defineGraphicProperties(style, drawingGroup);
+}
+
+void PptToOdp::defineTextProperties(KoGenStyle& style,
+                                     const TextCFException* cf,
+                                     const TextCFException9* /*cf9*/,
+                                     const TextCFException10* /*cf10*/,
+                                     const TextSIException* si) {
+    const KoGenStyle::PropertyType text = KoGenStyle::TextType;
+    /* We try to get information for all the possible attributes in
+       style:text-properties for clarity we handle then in alphabetical order */
+    // fo:background-color
+    // fo:color
+    if (cf && cf->masks.color && cf->color) {
+        QColor color = toQColor(*cf->color);
+        if (color.isValid()) {
+            style.addProperty("fo:color", color.name(), text);
+        }
+    }
+    // fo:country
+    // fo:font-family
+    if (cf && cf->masks.typeface) {
+        const FontEntityAtom* font = getFont(cf->fontRef);
+        if (font) {
+            const QString name= QString::fromUtf16(font->lfFaceName.data(),
+                                                   font->lfFaceName.size());
+            style.addProperty("fo:font-family", name, text);
+        }
+    }
+    // fo:font-size
+    if (cf && cf->masks.size) {
+        style.addProperty("fo:font-size", pt(cf->fontSize),
+                          text);
+    }
+    // fo:font-style: "italic", "normal" or "oblique
+    if (cf && cf->masks.italic && cf->fontStyle) {
+        style.addProperty("fo:font-style",
+                          cf->fontStyle->italic ?"italic" :"normal", text);
+    }
+    // fo:font-variant: "normal" or "small-caps"
+    // fo:font-weight: "100", "200", "300", "400", "500", "600", "700", "800", "900", "bold" or "normal"
+    if (cf && cf->masks.bold && cf->fontStyle) {
+        style.addProperty("fo:font-weight",
+                          cf->fontStyle->bold ?"bold" :"normal", text);
+    }
+    // fo:hyphenate
+    // fo:hyphenation-push-char
+    // fo:hyphenation-remain-char-count
+    // fo:language
+    if (si && si->lang) {
+        // TODO: get mapping from lid to language code
+    }
+    // fo:letter-spacing
+    // fo:text-shadow
+    if (cf && cf->masks.shadow) {
+        style.addProperty("fo:text-shadow",
+                          cf->fontStyle->bold ?"1pt 1pt" :"none", text);
+    }
+    // fo:text-transform: "capitalize", "lowercase", "none" or "uppercase"
+    // style:country-asian
+    // style:country-complex
+    // style:font-charset
+    // style:font-family-asian
+    // style:font-family-complex
+    // style:font-family-generic
+    // style:font-family-generic-asian
+    // style:font-family-generic-complex
+    // style:font-name
+    // style:font-name-asian
+    // style:font-name-complex
+    // style:font-pitch
+    // style:font-pitch-asian
+    // style:font-pitch-complex
+    // style:font-relief: "embossed", "engraved" or "none"
+    if (cf && cf->masks.emboss) {
+        style.addProperty("style:font-relief",
+                          cf->fontStyle->emboss ?"embossed" :"none", text);
+    }
+    // style:font-size-asian
+    // style:font-size-complex
+    // style:font-size-rel
+    // style:font-size-rel-asian
+    // style:font-size-rel-complex
+    // style:font-style-asian
+    // style:font-style-complex
+    // style:font-style-name
+    // style:font-style-name-asian
+    // style:font-style-name-complex
+    // style:font-weight-asian
+    // style:font-weight-complex
+    // style:language-asian
+    // style:language-complex
+    // style:letter-kerning
+    // style:script-type
+    // style:text-blinking
+    // style:text-combine
+    // style:text-combine-end-char
+    // style:text-combine-start-char
+    // style:text-emphasize
+    // style:text-line-through-color
+    // style:text-line-through-mode
+    // style:text-line-through-style
+    // style:text-line-through-text
+    // style:text-line-through-text-style
+    // style:text-line-through-type
+    // style:text-line-through-width
+    // style:text-outline
+    // style:text-position
+    // style:text-rotation-angle
+    // style:text-rotation-scale
+    // style:text-scale
+    // style:text-underline-color
+    // style:text-underline-mode
+    // style:text-underline-style
+    // style:text-underline-type: "double", "none" or "single"
+    if (cf && cf->masks.underline) {
+        style.addProperty("style:text-underline-type",
+                          cf->fontStyle->underline ?"single" :"none", text);
+    }
+    // style:text-underline-width
+    // style:use-window-font-color
+}
+
+void PptToOdp::defineParagraphProperties(KoGenStyle& style,
+                                         const PptTextPFRun& pf) {
+    const KoGenStyle::PropertyType para = KoGenStyle::ParagraphType;
+    // fo:background-color
+    // fo:border
+    // fo:border-bottom
+    // fo:border-left
+    // fo:border-right
+    // fo:border-top
+    // fo:break-after
+    // fo:break-before
+    // fo:hyphenation-keep
+    // fo:hyphenation-ladder-count
+    // fo:keep-together
+    // fo:keep-with-next
+    // fo:line-height
+    // fo:margin
+    // fo:margin-bottom
+    style.addProperty("fo:margin-bottom", paraSpacingToCm(pf.spaceAfter()), para);
+    // fo:margin-left
+    style.addProperty("fo:margin-left", pptMasterUnitToCm(pf.leftMargin()),
+                para);
+    // fo:margin-right
+    // fo:margin-top
+    style.addProperty("fo:margin-top", paraSpacingToCm(pf.spaceBefore()), para);
+    // fo:orphans
+    // fo:padding
+    // fo:padding-bottom
+    // fo:padding-left
+    // fo:padding-right
+    // fo:padding-top
+    // fo:text-align
+    const QString align = textAlignmentToString(pf.textAlignment());
+    if (!align.isEmpty()) {
+        style.addProperty("fo:text-align", align, para);
+    }
+    // fo:text-align-last
+    // fo:text-indent
+    style.addProperty("fo:text-indent", pptMasterUnitToCm(pf.indent()), para);
+    // fo:widows
+    // style:auto-text-indent
+    // style:background-transparency
+    // style:border-line-width
+    // style:border-line-width-bottom
+    // style:border-line-width-left
+    // style:border-line-width-right
+    // style:border-line-width-top
+    // style:font-independent-line-spacing
+    // style:justify-single-word
+    // style:line-break
+    // style:line-height-at-least
+    // style:line-spacing
+    // style:page-number
+    // style:punctuation-wrap
+    // style:register-true
+    // style:shadow
+    // style:snap-to-layout-grid
+    // style:tab-stop-distance
+    // style:text-autospace
+    // style:vertical-align
+    // style:writing-mode
+    // style:writing-mode-automatic
+    // text:line-number
+    // text:number-lines
+}
+
+template <typename T>
+void PptToOdp::defineDrawingPageStyle(KoGenStyle& style, const T* o,
+                                      const HeadersFootersAtom* hf)
+{
+    const KoGenStyle::PropertyType dp = KoGenStyle::DrawingPageType;
+    // draw:background-size ("border", or "full")
+    const FillStyleBooleanProperties* fs
+            = get<FillStyleBooleanProperties>(o);
+    if (fs) {
+        style.addProperty("draw:background-size",
+                          (fs->fUseFillUseRext && fs->fillUseRect)
+                          ?"border" :"full", dp);
+    }
+    // draw:fill ("bitmap", "gradient", "hatch", "none" or "solid")
+    const FillType* fillType = get<FillType>(o);
+    if (fs && fs->fUseFilled && !fs->fFilled) {
+        style.addProperty("draw:fill", "none", dp);
+    } else if (fillType) {
+        style.addProperty("draw:fill", getFillType(fillType->fillType), dp);
+    }
+    // draw:fill-color
+    const FillColor* fc = get<FillColor>(o);
+    if (fc && fillType && fillType->fillType == 0) {
+        // only set the color if the fill type is 'solid' because OOo ignores
+        // fill='non' if the color is set
+        style.addProperty("draw:fill-color", toQColor(fc->fillColor).name(), dp);
+    }
+    // draw:fill-gradient-name
+    // draw:fill-hatch-name
+    // draw:fill-hatch-solid
+    // draw:fill-image-height
+    // draw:fill-image-name
+    const FillBlip* fb = get<FillBlip>(o);
+    const QString fillImagePath = (fb) ?getPicturePath(fb->fillBlip) :"";
+    if (!fillImagePath.isEmpty()) {
+        style.addProperty("draw:fill-image-name",
+                          "fillImage" + QString::number(fb->fillBlip), dp);
+    }
+    // draw:fill-image-ref-point-x
+    // draw:fill-image-ref-point-y
+    // draw:fill-image-ref-point
+    // draw:fill-image-width
+    // draw:gradient-step-count
+    // draw:opacity-name
+    // draw:opacity
+    // draw:secondary-fill-color
+    // draw:tile-repeat-offset
+    // presentation:background-objects-visible
+    // presentation:background-visible
+    // presentation:display-date-time
+    if (hf) {
+        style.addProperty("presentation:display-date-time",
+                          hf->fHasDate, dp);
+    }
+    // presentation:display-footer
+    if (hf) {
+        style.addProperty("presentation:display-footer",
+                          hf->fHasFooter, dp);
+    }
+    // presentation:display-header
+    if (hf) {
+        style.addProperty("presentation:display-header",
+                          hf->fHasHeader, dp);
+    }
+    // presentation:display-page-number
+    if (hf) {
+        style.addProperty("presentation:display-page-number",
+                          hf->fHasSlideNumber, dp);
+    }
+    // presentation:duration
+    // presentation:transition-speed
+    // presentation:transition-style
+    // presentation:transition-type
+    // presentation:visibility
+    // smil:direction
+    // smil:fadeColor
+    // smil:subtype
+    // smil:type
+    // style:repeat
+    // svg:fill-rule
+}
+
+void PptToOdp::defineListStyle(KoGenStyle& style,
+                               const TextMasterStyleAtom& levels,
+                               const TextMasterStyle9Atom* levels9,
+                               const TextMasterStyle10Atom* levels10)
+{
+    ListStyleInput input;
+    if (levels.lstLvl1) {
+        defineListStyle(style, 1, input, levels.lstLvl1.data(),
+                        ((levels9) ?levels9->lstLvl1.data() :0),
+                        ((levels10) ?levels10->lstLvl1.data() :0));
+    }
+    if (levels.lstLvl2) {
+        defineListStyle(style, 2, input, levels.lstLvl2.data(),
+                        ((levels9) ?levels9->lstLvl2.data() :0),
+                        ((levels10) ?levels10->lstLvl2.data() :0));
+    }
+    if (levels.lstLvl3) {
+        defineListStyle(style, 3, input, levels.lstLvl3.data(),
+                        ((levels9) ?levels9->lstLvl3.data() :0),
+                        ((levels10) ?levels10->lstLvl3.data() :0));
+    }
+    if (levels.lstLvl4) {
+        defineListStyle(style, 4, input, levels.lstLvl4.data(),
+                        ((levels9) ?levels9->lstLvl4.data() :0),
+                        ((levels10) ?levels10->lstLvl4.data() :0));
+    }
+    if (levels.lstLvl5) {
+        defineListStyle(style, 5, input, levels.lstLvl5.data(),
+                        ((levels9) ?levels9->lstLvl5.data() :0),
+                        ((levels10) ?levels10->lstLvl5.data() :0));
+    }
+}
+
+void PptToOdp::defineListStyle(KoGenStyle& style, quint8 depth,
+                               ListStyleInput info,
+                               const TextMasterStyleLevel* level,
+                               const TextMasterStyle9Level* level9,
+                               const TextMasterStyle10Level* level10)
+{
+    ListStyleInput parent;
+    //parent.pf = (level) ?&level->pf :0;
+    parent.cf = (level) ?&level->cf :0;
+    parent.pf9 = (level9) ?&level9->pf9 :0;
+    parent.cf9 = (level9) ?&level9->cf9 :0;
+    parent.cf10 = (level10) ?&level10->cf10 :0;
+    //if (info.pf == 0) info.pf = parent.pf;
+    if (info.pf9 == 0) info.pf9 = parent.pf9;
+    if (info.cf == 0) info.cf = parent.cf;
+    if (info.cf9 == 0) info.cf9 = parent.cf9;
+    if (info.cf10 == 0) info.cf10 = parent.cf10;
+    defineListStyle(style, depth, info, parent);
+}
+
+QChar
+getBulletChar(const PptTextPFRun& pf) {
+    quint16 v = (quint16)pf.bulletChar();
+    if (v == 0xf06c) { // 0xF06C from windings is similar to ●
+        return QChar(0x25cf); //  "●"
+    }
+    if (v == 0xf02d) { // 0xF02D from symbol is similar to –
+        return QChar(0x2013);
+    }
+    if (v == 0xf0e8) { // 0xF0E8 is similar to ➔
+        return QChar(0x2794);
+    }
+    if (v == 0xf0d8) { // 0xF0D8 is similar to ➢
+        return QChar(0x27a2);
+    }
+    if (v == 0xf0fb) { // 0xF0FB is similar to ✗
+        return QChar(0x2717);
+    }
+    if (v == 0xf0fc) { // 0xF0FC is similar to ✔
+        return QChar(0x2714);
+    }
+    return QChar(v);
+    return QChar(0x25cf); //  "●"
+}
+QString
+bulletSizeToSizeString(const PptTextPFRun& pf)
+{
+    if (pf.fBulletHasSize()) {
+        qint16 size = pf.bulletSize();
+        if (size >= 25 && size <= 400) {
+            return percent(size);
+        } else if (size >= -4000 && size <= -1) {
+            return pt(size);
+        }
+    }
+    return QString();
+}
+void PptToOdp::defineListStyle(KoGenStyle& style, quint8 level,
+                               const ListStyleInput& i,
+                               const ListStyleInput& p)
+{
+    QBuffer buffer;
+    buffer.open(QIODevice::WriteOnly);
+    KoXmlWriter out(&buffer);
+
+    QString bulletSize = bulletSizeToSizeString(i.pf);
+    if (bulletSize.isNull()) {
+        bulletSize = bulletSizeToSizeString(p.pf);
+    }
+
+    QString elementName;
+    bool imageBullet = i.pf9 && i.pf9->masks.bulletBlip;
+    if (imageBullet) {
+        elementName = "text:list-level-style-image";
+        out.startElement("text:list-level-style-image");
+        out.addAttribute("xlink:href",
+                         bulletPictureNames.value(i.pf9->bulletBlipRef));
+        if (bulletSize.isNull() || bulletSize.endsWith("%")) {
+            if (i.cf && i.cf->masks.size) {
+                bulletSize = pt(i.cf->fontSize);
+            } else if (p.cf && p.cf->masks.size) {
+                bulletSize = pt(p.cf->fontSize);
+            }
+        }
+        if (bulletSize.isNull() || bulletSize.endsWith("%")) {
+            bulletSize = "20pt"; // fallback value
+        }
+    } else {
+        QString numFormat("1"), numSuffix, numPrefix;
+        if (i.pf9 && i.pf9->bulletAutoNumberScheme) {
+            processTextAutoNumberScheme(i.pf9->bulletAutoNumberScheme->scheme,
+                                        numFormat, numSuffix, numPrefix);
+        } else if (p.pf9 && p.pf9->bulletAutoNumberScheme) {
+            processTextAutoNumberScheme(p.pf9->bulletAutoNumberScheme->scheme,
+                                        numFormat, numSuffix, numPrefix);
+        }
+        // if there is a bulletChar in the current pf, then this is a bullet
+        // list, otherwise, it is a numbered list
+        if (i.pf.bulletChar()) {
+            elementName = "text:list-level-style-bullet";
+            out.startElement("text:list-level-style-bullet");
+            out.addAttribute("text:bullet-char", getBulletChar(i.pf));
+            if (i.pf.fBulletHasSize() && i.cf) {
+                qreal relSize = 100.0 * i.pf.bulletSize() / i.cf->fontSize;
+                out.addAttribute("text:bullet-relative-size", percent(relSize));
+            }
+        } else {
+            elementName = "text:list-level-style-number";
+            out.startElement("text:list-level-style-number");
+            if (!numFormat.isNull()) {
+                out.addAttribute("style:num-format", numFormat);
+            }
+            //out.addAttribute("style:display-levels", "TODO");
+            if (i.pf9 && i.pf9->masks.bulletScheme) {
+                out.addAttribute("style:start-value",
+                                 i.pf9->bulletAutoNumberScheme->startNum);
+            }
+        }
+        if (!numPrefix.isNull()) {
+            out.addAttribute("style:num-prefix", numPrefix);
+        }
+        if (!numSuffix.isNull()) {
+            out.addAttribute("style:num-suffix", numSuffix);
+        }
+    }
+    out.addAttribute("text:level", level);
+
+    bool hasIndent = i.pf.level();
+    out.startElement("style:list-level-properties");
+    // fo:height
+    if (imageBullet && !bulletSize.isNull()) {
+        out.addAttribute("fo:height", bulletSize);
+    }
+    // fo:text-align
+    // fo:width
+    if (imageBullet && !bulletSize.isNull()) {
+        out.addAttribute("fo:width", bulletSize);
+    }
+    // style:font-name
+    // style:vertical-pos
+    if (imageBullet) {
+        out.addAttribute("style:vertical-pos", "middle");
+    }
+    // style:vertical-rel
+    if (imageBullet) {
+        out.addAttribute("style:vertical-rel", "line");
+    }
+    // svg:y
+    // text:min-label-distance
+    // text:min-label-width
+    if (imageBullet && !bulletSize.isNull()) {
+        out.addAttribute("text:min-label-width", bulletSize);
+    }
+    // text:space-before
+    int spacebefore = i.pf.spaceBefore() + i.pf.leftMargin();
+    if (spacebefore != 0) {
+        out.addAttribute("text:space-before",
+                         paraSpacingToCm(spacebefore));
+    }
+    out.endElement(); // style:list-level-properties
+
+    if (!imageBullet) {
+        KoGenStyle ls(KoGenStyle::StyleText);
+        defineTextProperties(ls, p.cf, p.cf9, p.cf10, p.si);
+        defineTextProperties(ls, i.cf, i.cf9, i.cf10, i.si);
+
+        // override some properties with information from the paragraph
+        if (hasIndent) {
+            const MSO::FontEntityAtom* font = getFont(i.pf.bulletFontRef());
+            if (font) {
+                ls.addProperty("fo:font-family",
+                           QString::fromUtf16(font->lfFaceName.data(),
+                                              font->lfFaceName.size()),
+                           KoGenStyle::TextType);
+            }
+        }
+        if (hasIndent && i.pf.fBulletHasColor()) {
+            const QColor color = toQColor(i.pf.bulletColor());
+            if (color.isValid()) {
+                ls.addProperty("fo:color", color.name(), KoGenStyle::TextType);
+            }
+        }
+        // maybe fo:font-size should be set from pf.bulletSize
+
+        ls.writeStyleProperties(&out, KoGenStyle::TextType);
+    }
+    out.endElement();  // text:list-level-style-*
+    // serialize the text:list-style element into the properties
+    QString elementContents = QString::fromUtf8(buffer.buffer(),
+                                                buffer.buffer().size() );
+    style.addChildElement(elementName, elementContents);
+}
+
+template<class O>
+void handleOfficeArtContainer(O& handler, const OfficeArtSpgrContainerFileBlock& c) {
+    const OfficeArtSpContainer* a = c.anon.get<OfficeArtSpContainer>();
+    const OfficeArtSpgrContainer* b= c.anon.get<OfficeArtSpgrContainer>();
+    if (a) {
+        handler.handle(*a);
+    } else {
+        foreach (const OfficeArtSpgrContainerFileBlock& fb, b->rgfb) {
+            handleOfficeArtContainer(handler, fb);
+        }
+    }
+}
+template<class O>
+void handleOfficeArtContainer(O& handler, const MSO::OfficeArtDgContainer& c) {
+    if (c.shape) {
+        handler.handle(*c.shape);
+    }
+    foreach (const OfficeArtSpgrContainerFileBlock& fb, c.groupShape.rgfb) {
+        handleOfficeArtContainer(handler, fb);
+    }
+}
+
+class PlaceholderFinder {
+public:
+    quint32 wanted;
+    const MSO::OfficeArtSpContainer* sp;
+    PlaceholderFinder(int w) :wanted(w), sp(0) {}
+    void handle(const MSO::OfficeArtSpContainer& o) {
+        if (o.clientTextbox) {
+            const PptOfficeArtClientTextBox* b
+                    = o.clientTextbox->anon.get<PptOfficeArtClientTextBox>();
+            if (b) {
+                foreach (const TextClientDataSubContainerOrAtom& a, b->rgChildRec) {
+                    const TextContainer* tc = a.anon.get<TextContainer>();
+                    if (tc && tc->textHeaderAtom.textType == wanted) {
+                        if (sp) {
+                            qDebug() << "Already found a placeholder with the right type " << wanted;
+                        } else {
+                            sp = &o;
+                        }
+                    }
+                }
+            }
+        }
+    }
+};
+const TextMasterStyleAtom*
+getTextMasterStyleAtom(const MasterOrSlideContainer* m, quint16 texttype)
+{
+    if (!m) return 0;
+    const MainMasterContainer* mm = m->anon.get<MainMasterContainer>();
+    if (!mm) return 0;
+    const TextMasterStyleAtom* textstyle = 0;
+    foreach (const TextMasterStyleAtom&ma, mm->rgTextMasterStyle) {
+        if (ma.rh.recInstance == texttype) {
+            textstyle = &ma;
+        }
+    }
+    return textstyle;
+}
+void PptToOdp::defineMasterStyles(KoGenStyles& styles)
+{
+    foreach (const MSO::MasterOrSlideContainer* m, p->masters) {
+        currentMaster = m;
+        const SlideContainer* sc = m->anon.get<SlideContainer>();
+        const MainMasterContainer* mm = m->anon.get<MainMasterContainer>();
+
+        // look for a style for each of the values of TextEnumType
+        for (quint16 texttype = 0; texttype <= 8; ++texttype) {
+            // look for placeholder with the right texttype
+            PlaceholderFinder finder(texttype);
+            if (sc) {
+                handleOfficeArtContainer(finder, sc->drawing.OfficeArtDg);
+            } else if (mm) {
+                handleOfficeArtContainer(finder, mm->drawing.OfficeArtDg);
+            }
+            if (finder.sp) {
+                QBuffer buffer;
+                KoXmlWriter dummy(&buffer);
+                Writer w(dummy, styles, true);
+                addGraphicStyleToDrawElement(w, *finder.sp);
+            }
+        }
+        // if no style for Tx_TYPE_CENTERTITLE (6) has been defined yet,
+        // derive it from Tx_TYPE_TITLE (0)
+        if (!masterPresentationStyles[m].contains(6)
+                && masterPresentationStyles[m].contains(0)) {
+            KoGenStyle style(KoGenStyle::StylePresentation, "presentation");
+            style.setParentName(masterPresentationStyles[m][0]);
+            style.addProperty("fo:text-align", "center",
+                              KoGenStyle::ParagraphType);
+            style.addProperty("style:vertical-align", "middle",
+                              KoGenStyle::ParagraphType);
+            masterPresentationStyles[m][6] = styles.lookup(style);
+        }
+        // if no style for Tx_TYPE_CENTERBODY (5) has been defined yet,
+        // derive it from Tx_TYPE_BODY (1)
+        if (!masterPresentationStyles[m].contains(5)
+                && masterPresentationStyles[m].contains(1)) {
+            KoGenStyle style(KoGenStyle::StylePresentation, "presentation");
+            style.setParentName(masterPresentationStyles[m][1]);
+            style.addProperty("fo:text-align", "center",
+                              KoGenStyle::ParagraphType);
+//            style.addProperty("style:vertical-align", "middle",
+//                              KoGenStyle::ParagraphType);
+            masterPresentationStyles[m][5] = styles.lookup(style);
+        }
+    }
+}
+void PptToOdp::defineAutomaticDrawingPageStyles(KoGenStyles& styles)
+{
+    // define for master for use in <master-page style:name="...">
+    foreach (const MSO::MasterOrSlideContainer* m, p->masters) {
+        KoGenStyle dp(KoGenStyle::StyleDrawingPageAuto, "drawing-page");
+        dp.setAutoStyleInStylesDotXml(true);
+        const SlideContainer* sc = m->anon.get<SlideContainer>();
+        const MainMasterContainer* mm = m->anon.get<MainMasterContainer>();
+        const HeadersFootersAtom* hf = 0;
+        const OfficeArtSpContainer* scp = 0;
+        if (sc) {
+            if (sc->perSlideHFContainer) {
+                hf = &sc->perSlideHFContainer->hfAtom;
+            }
+            if (sc->drawing.OfficeArtDg.shape) {
+                scp = sc->drawing.OfficeArtDg.shape.data();
+            }
+        } else if (mm) {
+            if (mm->perSlideHeadersFootersContainer) {
+                hf = &mm->perSlideHeadersFootersContainer->hfAtom;
+            }
+            if (mm->drawing.OfficeArtDg.shape) {
+                scp = mm->drawing.OfficeArtDg.shape.data();
+            }
+        }
+        defineDrawingPageStyle(dp, scp, hf);
+        drawingPageStyles[m] = styles.lookup(dp, "Mdp");
+    }
+    QString notesMasterPageStyle;
+    if (p->notesMaster) {
+        const HeadersFootersAtom* hf = 0;
+        if (p->notesMaster->perSlideHFContainer) {
+            hf = &p->notesMaster->perSlideHFContainer->hfAtom;
+        } else if (p->notesMaster->perSlideHFContainer2) {
+            hf = &p->notesMaster->perSlideHFContainer2->hfAtom;
+        }
+        KoGenStyle dp(KoGenStyle::StyleDrawingPageAuto, "drawing-page");
+        dp.setAutoStyleInStylesDotXml(true);
+        defineDrawingPageStyle(dp,
+                p->notesMaster->drawing.OfficeArtDg.shape.data(), hf);
+        notesMasterPageStyle = styles.lookup(dp, "Mdp");
+        drawingPageStyles[p->notesMaster] = notesMasterPageStyle;
+    }
+
+    // define for handouts for use in <style:handout-master style:name="...">
+    // TODO
+
+    // define for slides for use in <draw:page style:name="...">
+    foreach (const MSO::SlideContainer* sc, p->slides) {
+        KoGenStyle dp(KoGenStyle::StyleDrawingPageAuto, "drawing-page");
+        dp.setAutoStyleInStylesDotXml(false);
+        // TODO derive from master page style
+        const HeadersFootersAtom* hf = 0;
+        if (sc->perSlideHFContainer) {
+            hf = &sc->perSlideHFContainer->hfAtom;
+        }
+        defineDrawingPageStyle(dp, sc->drawing.OfficeArtDg.shape.data(),  hf);
+        drawingPageStyles[sc] = styles.lookup(dp, "dp");
+    }
+
+    // define for notes for use in <presentation:notes style:name="...">
+    foreach (const MSO::NotesContainer* nc, p->notes) {
+        if (!nc) continue;
+        const HeadersFootersAtom* hf = 0;
+        if (nc->perSlideHFContainer) {
+            hf = &nc->perSlideHFContainer->hfAtom;
+        } else if (nc->perSlideHFContainer2) {
+            hf = &nc->perSlideHFContainer2->hfAtom;
+        }
+        KoGenStyle dp(KoGenStyle::StyleDrawingPageAuto, "drawing-page");
+        dp.setAutoStyleInStylesDotXml(false);
+        dp.setParentName(notesMasterPageStyle);
+        defineDrawingPageStyle(dp, nc->drawing.OfficeArtDg.shape.data(), hf);
+        drawingPageStyles[nc] = styles.lookup(dp, "dp");
+    }
+}
+
+void PptToOdp::createMainStyles(KoGenStyles& styles)
+{
+    /* This function is follows the flow of the styles.xml file.
+       -> style:styles
+       first, the global objects are looked up and defined. This includes the
+       style:presentation-page-layout elements. Next, the
+       default styles for the 12 style families are defined.
+
+       -> style:automatic-styles
+       After that, style:page-layout and automatic styles are defined
+
+       -> office:master-styles
+       And lastly, the master slides are defined
+    */
+    /*
+       collect all the global objects into
+       styles.xml/office:document-styles/office:styles
+    */
+    // TODO: draw:gradient
+    // TODO: svg:linearGradient
+    // TODO: svg:radialGradient
+    // TODO: draw:hatch
+    // style:fill-image
+    FillImageCollector fillImageCollector(styles, *this);
+    collectGlobalObjects(fillImageCollector, *p);
+    // TODO: draw:marker
+    // draw:stroke-dash
+    StrokeDashCollector strokeDashCollector(styles, *this);
+    collectGlobalObjects(strokeDashCollector, *p);
+    // TODO: draw:opacity
+
+    /*
+       Define the style:presentation-page-layout elements.
+    */
+    // TODO
+
+    /*
+       Define default styles for some of the 12 style families.
+       No default styles for the families 'text' and 'paragraph'
+       are defined, since these have higher precedence than the text and
+       paragraph settings for the other style families that may contain text and
+       paragraph settings, like 'graphic' and 'presentation'.
+    */
+    //defineDefaultTextStyle(styles);
+    //defineDefaultParagraphStyle(styles);
+    defineDefaultSectionStyle(styles);
+    defineDefaultRubyStyle(styles);
+    defineDefaultTableStyle(styles);
+    defineDefaultTableColumnStyle(styles);
+    defineDefaultTableRowStyle(styles);
+    defineDefaultTableCellStyle(styles);
+    defineDefaultGraphicStyle(styles);
+    defineDefaultPresentationStyle(styles);
+    defineDefaultDrawingPageStyle(styles);
+    defineDefaultChartStyle(styles);
+
+    /*
+       Define the standard list style
+     */
+    if (p->documentContainer) {
+        KoGenStyle list(KoGenStyle::StyleList);
+        defineListStyle(list,
+                p->documentContainer->documentTextInfo.textMasterStyleAtom);
+        styles.lookup(list, "standardListStyle",
+                KoGenStyles::DontForceNumbering);
+    }
+
+    /*
+       Define the style:page-layout elements, for ppt files there are only two.
+     */
+    slidePageLayoutName = definePageLayout(styles,
+            p->documentContainer->documentAtom.slideSize);
+    notesPageLayoutName = definePageLayout(styles,
+            p->documentContainer->documentAtom.notesSize);
+
+    /*
+      Define the automatic styles
+     */
+    currentSlideTexts = 0;
+    defineMasterStyles(styles);
+    defineAutomaticDrawingPageStyles(styles);
+
+    /*
+      Define the draw:layer-set.
+     */
+    // TODO
+
+    /*
+      Define the style:handout-master
+     */
+    // TODO
+
+    /*
+      Define the style:master-pages
+     */
+    QBuffer notesBuffer;
+    if (p->notesMaster) { // draw the notes master
+        notesBuffer.open(QIODevice::WriteOnly);
+        KoXmlWriter writer(&notesBuffer);
+        Writer out(writer, styles, true);
+
+        writer.startElement("presentation:notes");
+        writer.addAttribute("style:page-layout-name", notesPageLayoutName);
+        writer.addAttribute("draw:style-name",
+                            drawingPageStyles[p->notesMaster]);
+        currentMaster = 0;
+        foreach(const OfficeArtSpgrContainerFileBlock& co,
+                p->notesMaster->drawing.OfficeArtDg.groupShape.rgfb) {
+            processObjectForBody(co, out);
+        }
+        writer.endElement();
+    }
+    foreach (const MSO::MasterOrSlideContainer* m, p->masters) {
+        const SlideContainer* sc = m->anon.get<SlideContainer>();
+        const MainMasterContainer* mm = m->anon.get<MainMasterContainer>();
+        const DrawingContainer* drawing = 0;
+        if (sc) {
+            drawing = &sc->drawing;
+        } else if (mm) {
+            drawing = &mm->drawing;
+        }
+
+        KoGenStyle master(KoGenStyle::StyleMaster);
+        master.addAttribute("style:page-layout-name", slidePageLayoutName);
+        master.addAttribute("draw:style-name", drawingPageStyles[m]);
+        currentMaster = m;
+        QBuffer buffer;
+        buffer.open(QIODevice::WriteOnly);
+        KoXmlWriter writer(&buffer);
+        Writer out(writer, styles, true);
+        foreach(const OfficeArtSpgrContainerFileBlock& co,
+                drawing->OfficeArtDg.groupShape.rgfb) {
+            processObjectForBody(co, out);
+        }
+        master.addChildElement("", QString::fromUtf8(buffer.buffer(),
+                                                     buffer.buffer().size()));
+        if (notesBuffer.buffer().size()) {
+            master.addChildElement("presentation:notes",
+                                   QString::fromUtf8(notesBuffer.buffer(),
+                                                     notesBuffer.buffer().size()));
+        }
+        masterNames[m] = styles.lookup(master, "M");
+    }
 
     // Creating dateTime class object
     if (getSlideHF()) {
@@ -692,67 +1401,27 @@ void PptToOdp::createMainStyles(KoGenStyles& styles)
         dateTime = DateTimeFormat(dateTimeFomatId);
         dateTime.addDateTimeAutoStyles(styles, hasTodayDate, hasUserDate);
     }
-
-    KoGenStyle text(KoGenStyle::StyleTextAuto, "text");
-    text.setAutoStyleInStylesDotXml(true);
-    text.addProperty("fo:font-size", "12pt");
-    text.addProperty("fo:language", "en");
-    text.addProperty("fo:country", "US");
-    text.addProperty("style:font-size-asian", "12pt");
-    text.addProperty("style:font-size-complex", "12pt");
-
-    KoGenStyle Mpr(KoGenStyle::StylePresentationAuto, "presentation");
-    Mpr.setAutoStyleInStylesDotXml(true);
-    Mpr.addProperty("draw:stroke", "none");
-    Mpr.addProperty("draw:fill", "none");
-    Mpr.addProperty("draw:fill-color", "#bbe0e3");
-    Mpr.addProperty("draw:textarea-horizontal-align", "justify");
-    Mpr.addProperty("draw:textarea-vertical-align", "top");
-    Mpr.addProperty("fo:wrap-option", "wrap");
-    styles.lookup(Mpr, "Mpr");
-
-    KoGenStyle s(KoGenStyle::StyleMaster);
-    s.addAttribute("style:page-layout-name", styles.lookup(pl));
-    s.addAttribute("draw:style-name", styles.lookup(dp));
-
-    x = p->documentContainer->documentAtom.slideSize.x - 50;
-    y = p->documentContainer->documentAtom.slideSize.y - 50;
-
-    addFrame(s, "page-number", "20pt", "20pt",
-
-             QString("%1pt").arg(x), QString("%1pt").arg(y),
-             styles.lookup(pa), styles.lookup(text));
-    addFrame(s, "date-time", "200pt", "20pt", "20pt",
-             QString("%1pt").arg(y), styles.lookup(pa), styles.lookup(text));
-    styles.lookup(s, "Standard", KoGenStyles::DontForceNumbering);
 }
 
-void PptToOdp::addFrame(KoGenStyle& style, const char* presentationClass,
-                        QString width, QString height,
-                        QString x, QString y, QString pStyle, QString tStyle)
+void PptToOdp::addFrame(KoGenStyle& style, Writer& out, const char* presentationClass,
+                 const QRect &rect, QString mStyle, QString pStyle, QString tStyle)
 {
     QBuffer buffer;
-    //int  headerFooterAtomFlags = 0;
-    //Slide *master = presentation->masterSlide();
-    // if (master)
-    //    headerFooterAtomFlags = master->headerFooterFlags();
-    //QString datetime;
 
     buffer.open(QIODevice::WriteOnly);
     KoXmlWriter xmlWriter(&buffer);
 
     xmlWriter.startElement("draw:frame");
-    xmlWriter.addAttribute("presentation:style-name", "Mpr1");
+    xmlWriter.addAttribute("presentation:style-name", mStyle);
     xmlWriter.addAttribute("draw:layer", "layout");
-    xmlWriter.addAttribute("svg:width", width);
-    xmlWriter.addAttribute("svg:height", height);
-    xmlWriter.addAttribute("svg:x", x);
-    xmlWriter.addAttribute("svg:y", y);
+    xmlWriter.addAttribute("svg:width", out.hLength(rect.width()));
+    xmlWriter.addAttribute("svg:height", out.vLength(rect.height()));
+    xmlWriter.addAttribute("svg:x", out.hOffset(rect.x()));
+    xmlWriter.addAttribute("svg:y", out.vOffset(rect.y()));
     xmlWriter.addAttribute("presentation:class", presentationClass);
     xmlWriter.startElement("draw:text-box");
     xmlWriter.startElement("text:p");
     xmlWriter.addAttribute("text:style-name", pStyle);
-
     if (strcmp(presentationClass, "page-number") == 0) {
         xmlWriter.startElement("text:span");
         xmlWriter.addAttribute("text:style-name", tStyle);
@@ -772,6 +1441,15 @@ void PptToOdp::addFrame(KoGenStyle& style, const char* presentationClass,
             }
         }
     }
+    if (strcmp(presentationClass, "footer") == 0) {
+        xmlWriter.startElement("presentation:footer");
+        xmlWriter.endElement(); // presentation:footer
+    }
+    if (strcmp(presentationClass, "header") == 0) {
+        xmlWriter.startElement("presentation:header");
+        xmlWriter.endElement(); // presentation:header
+    }
+
 
     xmlWriter.endElement(); // text:p
 
@@ -783,9 +1461,19 @@ void PptToOdp::addFrame(KoGenStyle& style, const char* presentationClass,
 
 QByteArray PptToOdp::createContent(KoGenStyles& styles)
 {
+    QBuffer presentationBuffer;
+    presentationBuffer.open(QIODevice::WriteOnly);
+    KoXmlWriter presentationWriter(&presentationBuffer);
+
+    processDeclaration(&presentationWriter);
+
+    Writer out(presentationWriter, styles);
+    for (int c = 0; c < p->slides.size(); c++) {
+        processSlideForBody(c, out);
+    }
+
     QByteArray contentData;
     QBuffer contentBuffer(&contentData);
-
     contentBuffer.open(QIODevice::WriteOnly);
     KoXmlWriter contentWriter(&contentBuffer);
 
@@ -802,38 +1490,13 @@ QByteArray PptToOdp::createContent(KoGenStyles& styles)
     contentWriter.addAttribute("office:version", "1.0");
 
     // office:automatic-styles
-    processDocStyles(styles);
-
-    for (int c = 0; c < p->slides.size(); c++) {
-        processSlideForStyle(c, styles);
-    }
-
     styles.saveOdfAutomaticStyles(&contentWriter, false);
 
     // office:body
-
     contentWriter.startElement("office:body");
     contentWriter.startElement("office:presentation");
 
-    if (getSlideHF()) {
-        if (getSlideHF()->hfAtom.fHasTodayDate) {
-            contentWriter.startElement("presentation:date-time-decl");
-            contentWriter.addAttribute("presentation:name", "dtd1");
-            contentWriter.addAttribute("presentation:source", "current-date");
-            //contentWriter.addAttribute("style:data-style-name", "Dt1");
-            contentWriter.endElement();  // presentation:date-time-decl
-        } else if (getSlideHF()->hfAtom.fHasUserDate) {
-            contentWriter.startElement("presentation:date-time-decl");
-            contentWriter.addAttribute("presentation:name", "dtd1");
-            contentWriter.addAttribute("presentation:source", "fixed");
-            //Future - Add Fixed date data here
-            contentWriter.endElement();  //presentation:date-time-decl
-        }
-    }
-
-    for (int c = 0; c < p->slides.size(); c++) {
-        processSlideForBody(c, contentWriter);
-    }
+    contentWriter.addCompleteElement(&presentationBuffer);
 
     contentWriter.endElement();  // office:presentation
 
@@ -844,877 +1507,31 @@ QByteArray PptToOdp::createContent(KoGenStyles& styles)
     return contentData;
 }
 
-void PptToOdp::processDocStyles(KoGenStyles &styles)
+QString PptToOdp::utf16ToString(const QVector<quint16> &data)
 {
-    KoGenStyle dp(KoGenStyle::StyleDrawingPage, "drawing-page");
-    dp.addProperty("presentation:background-objects-visible", "true");
-
-    if (getSlideHF() && getSlideHF()->hfAtom.fHasSlideNumber)
-        dp.addProperty("presentation:display-page-number", "true");
-    else
-        dp.addProperty("presentation:display-page-number", "false");
-
-    if (getSlideHF() && getSlideHF()->hfAtom.fHasDate)
-        dp.addProperty("presentation:display-date-time" , "true");
-    else
-        dp.addProperty("presentation:display-date-time" , "false");
-
-    styles.lookup(dp, "dp");
-
-    masterStyleName = styles.lookup(dp);
+    return QString::fromUtf16(data.data(), data.size());
 }
 
-
-void PptToOdp::processEllipse(const OfficeArtSpContainer& o, Writer& out)
+QPair<QString, QString> PptToOdp::findHyperlink(const quint32 id)
 {
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:ellipse");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.endElement(); // draw:ellipse
-}
-
-void PptToOdp::processRectangle(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    static const QString rotate("rotate (%1) translate (%2mm %3mm)");
-    out.xml.startElement("draw:rect");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    const Rotation* rotation = get<Rotation>(o);
-    if (rotation) {
-        qreal rotAngle = toFloat(rotation->rotation);
-        qreal xMid = (rect.left() + 0.5 * rect.width());
-        qreal yMid = (rect.top() + 0.5 * rect.height());
-        qreal xVec = rect.left() - xMid;
-        qreal yVec = yMid - rect.top();
-
-        qreal xNew = xVec * cos(rotAngle) - yVec * sin(rotAngle);
-        qreal yNew = xVec * sin(rotAngle) + yVec * cos(rotAngle);
-        QString rot = rotate.arg(rotAngle).arg(xNew + xMid).arg(yMid - yNew);
-        out.xml.addAttribute("draw:transform", rot);
-    } else {
-        out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-        out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    }
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.endElement(); // draw:rect
-}
-
-void PptToOdp::processRoundRectangle(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-
-    const Rotation* rotation = get<Rotation>(o);
-    if (rotation) {
-        qreal rotAngle = toFloat(rotation->rotation);
-        if (rotAngle > 0.785399) { // > 45 deg
-            out.xml.addAttribute("svg:width", out.vLength(rect.height()));
-            out.xml.addAttribute("svg:height", out.hLength(rect.width()));
-            double xMid = (rect.x() - 0.5 * rect.height());
-            double yMid = (rect.y() + 0.5 * rect.width());
-            double xVec = rect.x() - xMid;
-            double yVec =  rect.y() - yMid;
-
-            double xNew = xVec * cos(rotAngle) - yVec * sin(rotAngle);
-            double yNew = xVec * sin(rotAngle) + yVec * cos(rotAngle);
-            QString rot = QString("rotate (%1) translate (%2mm %3mm)").arg(rotAngle).arg(xNew + xMid).arg(yMid + yNew);
-            out.xml.addAttribute("draw:transform", rot);
-        } else {
-            out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-            out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-            double xMid = (rect.x() + 0.5 * rect.width());
-            double yMid = (rect.y() + 0.5 * rect.height());
-            double xVec = rect.x() - xMid;
-            double yVec = yMid - rect.y();
-
-            double xNew = xVec * cos(rotAngle) - yVec * sin(rotAngle);
-            double yNew = xVec * sin(rotAngle) + yVec * cos(rotAngle);
-            QString rot = QString("rotate (%1) translate (%2mm %3mm)").arg(rotAngle).arg(xNew + xMid).arg(yMid - yNew);
-            out.xml.addAttribute("draw:transform", rot);
+    QString friendly;
+    QString target;
+    foreach(ExObjListSubContainer container,
+            p->documentContainer->exObjList->rgChildRec) {
+        // Search all ExHyperlinkContainers for specified id
+        ExHyperlinkContainer *hyperlink = container.anon.get<ExHyperlinkContainer>();
+        if (hyperlink && hyperlink->exHyperlinkAtom.exHyperLinkId == id) {
+            if (hyperlink->friendlyNameAtom) {
+                friendly = utf16ToString(hyperlink->friendlyNameAtom->friendlyName);
+            }
+            if (hyperlink->targetAtom) {
+                target = utf16ToString(hyperlink->targetAtom->target);
+            }
+            // TODO currently location is ignored. Location referes to
+            // position within a file
         }
-
-
-    } else {
-        out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-        out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-        out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-        out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
     }
-// out.xml.addAttribute( "svg:x", out.hOffset(rect.x()) );
-// out.xml.addAttribute( "svg:y", out.vOffset(rect.y()) );
-
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:enhanced-geometry");
-    out.xml.addAttribute("draw:type", "round-rectangle");
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0 /3");
-    out.xml.addAttribute("draw:name", "f0");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "right-?f0 ");
-    out.xml.addAttribute("draw:name", "f1");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "bottom-?f0 ");
-    out.xml.addAttribute("draw:name", "f2");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "left+?f0 ");
-    out.xml.addAttribute("draw:name", "f3");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "top+?f0 ");
-    out.xml.addAttribute("draw:name", "f4");
-    out.xml.endElement(); // draw:equation
-    out.xml.endElement(); // draw:enhanced-geometry
-    out.xml.endElement(); // draw:custom-shape
-}
-
-void PptToOdp::processDiamond(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 0);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 0);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 10);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:enhanced-geometry");
-    out.xml.addAttribute("draw:type", "diamond");
-    out.xml.endElement();
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.endElement();
-}
-
-void PptToOdp::processTriangle(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    /* draw IsocelesTriangle or RightTriangle */
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 0);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 2.5);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 0);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 10);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 7.5);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-
-    out.xml.startElement("draw:enhanced-geometry");
-
-    if (o.shapeProp.fFlipV) {
-        out.xml.addAttribute("draw:mirror-vertical", "true");
-    }
-    if (o.shapeProp.fFlipH) {
-        out.xml.addAttribute("draw:mirror-horizontal", "true");
-    }
-    const Rotation* rotation = get<Rotation>(o);
-    if (rotation) { // draw:transform="rotate (1.5707963267946) translate (6.985cm 14.181cm)"
-        double rotAngle = toFloat(rotation->rotation);
-        double xMid = (rect.x() + 0.5 * rect.width());
-        double yMid = (rect.y() + 0.5 * rect.height());
-        QString rot = QString("rotate (%1) translate (%2cm %3cm)").arg(rotAngle).arg(xMid).arg(yMid);
-        out.xml.addAttribute("draw:transform", rot);
-    }
-    if (o.shapeProp.rh.recInstance == msosptRightTriangle) {
-        out.xml.addAttribute("draw:type", "right-triangle");
-    } else if (o.shapeProp.rh.recInstance == msosptIsoscelesTriangle) {
-        out.xml.addAttribute("draw:type", "isosceles-triangle");
-        out.xml.startElement("draw:equation");
-        out.xml.addAttribute("draw:formula", "$0 ");
-        out.xml.addAttribute("draw:name", "f0");
-        out.xml.endElement();
-        out.xml.startElement("draw:equation");
-        out.xml.addAttribute("draw:formula", "$0 /2");
-        out.xml.addAttribute("draw:name", "f1");
-        out.xml.endElement();
-        out.xml.startElement("draw:equation");
-        out.xml.addAttribute("draw:formula", "?f1 +10800");
-        out.xml.addAttribute("draw:name", "f2");
-        out.xml.endElement();
-        out.xml.startElement("draw:equation");
-        out.xml.addAttribute("draw:formula", "$0 *2/3");
-        out.xml.addAttribute("draw:name", "f3");
-        out.xml.endElement();
-        out.xml.startElement("draw:equation");
-        out.xml.addAttribute("draw:formula", "?f3 +7200");
-        out.xml.addAttribute("draw:name", "f4");
-        out.xml.endElement();
-        out.xml.startElement("draw:equation");
-        out.xml.addAttribute("draw:formula", "21600-?f0 ");
-        out.xml.addAttribute("draw:name", "f5");
-        out.xml.endElement();
-        out.xml.startElement("draw:equation");
-        out.xml.addAttribute("draw:formula", "?f5 /2");
-        out.xml.addAttribute("draw:name", "f6");
-        out.xml.endElement();
-        out.xml.startElement("draw:equation");
-        out.xml.addAttribute("draw:formula", "21600-?f6 ");
-        out.xml.addAttribute("draw:name", "f7");
-        out.xml.endElement();
-        out.xml.startElement("draw:handle");
-        out.xml.addAttribute("draw:handle-range-x-maximum", 21600);
-        out.xml.addAttribute("draw:handle-range-x-minimum", 0);
-        out.xml.addAttribute("draw:handle-position", "$0 top");
-        out.xml.endElement();
-    }
-
-    out.xml.endElement();    // enhanced-geometry
-    out.xml.endElement(); // custom-shape
-}
-
-void PptToOdp::processTrapezoid(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 0);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 2.5);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 0);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:enhanced-geometry");
-    if (o.shapeProp.fFlipV) {
-        out.xml.addAttribute("draw:mirror-vertical", "true");
-    }
-    if (o.shapeProp.fFlipH) {
-        out.xml.addAttribute("draw:mirror-horizontal", "true");
-    }
-    out.xml.addAttribute("draw:type", "trapezoid");
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-$0 ");
-    out.xml.addAttribute("draw:name", "f0");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0");
-    out.xml.addAttribute("draw:name", "f1");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0 *10/18");
-    out.xml.addAttribute("draw:name", "f2");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f2 +1750");
-    out.xml.addAttribute("draw:name", "f3");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-?f3");
-    out.xml.addAttribute("draw:name", "f4");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0 /2");
-    out.xml.addAttribute("draw:name", "f5");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-?f5");
-    out.xml.addAttribute("draw:name", "f6");
-    out.xml.endElement();
-    out.xml.startElement("draw:handle");
-    out.xml.addAttribute("draw:handle-range-x-maximum", 10800);
-    out.xml.addAttribute("draw:handle-range-x-minimum", 0);
-    out.xml.addAttribute("draw:handle-position", "$0 bottom");
-    out.xml.endElement();
-    out.xml.endElement(); // enhanced-geometry
-    out.xml.endElement(); // custom-shape
-}
-
-void PptToOdp::processParallelogram(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 6.25);
-    out.xml.addAttribute("svg:y", 0);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 4.5);
-    out.xml.addAttribute("svg:y", 0);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 8.75);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 3.75);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 1.25);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:enhanced-geometry");
-    if (o.shapeProp.fFlipV) {
-        out.xml.addAttribute("draw:mirror-vertical", "true");
-    }
-    if (o.shapeProp.fFlipH) {
-        out.xml.addAttribute("draw:mirror-horizontal", "true");
-    }
-    out.xml.addAttribute("draw:type", "parallelogram");
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0 ");
-    out.xml.addAttribute("draw:name", "f0");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-$0");
-    out.xml.addAttribute("draw:name", "f1");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0 *10/24");
-    out.xml.addAttribute("draw:name", "f2");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f2 +1750");
-    out.xml.addAttribute("draw:name", "f3");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-?f3");
-    out.xml.addAttribute("draw:name", "f4");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f0 /2");
-    out.xml.addAttribute("draw:name", "f5");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "10800+?f5");
-    out.xml.addAttribute("draw:name", "f6");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f0-10800 ");
-    out.xml.addAttribute("draw:name", "f7");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "if(?f7,?f12,0");
-    out.xml.addAttribute("draw:name", "f8");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "10800-?f5");
-    out.xml.addAttribute("draw:name", "f9");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "if(?f7, ?f12, 21600");
-    out.xml.addAttribute("draw:name", "f10");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-?f5");
-    out.xml.addAttribute("draw:name", "f11");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600*10800/?f0");
-    out.xml.addAttribute("draw:name", "f12");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-?f12");
-    out.xml.addAttribute("draw:name", "f13");
-    out.xml.endElement();
-    out.xml.startElement("draw:handle");
-    out.xml.addAttribute("draw:handle-range-x-maximum", 21600);
-    out.xml.addAttribute("draw:handle-range-x-minimum", 0);
-    out.xml.addAttribute("draw:handle-position", "$0 top");
-    out.xml.endElement();
-    out.xml.endElement(); // enhanced-geometry
-    out.xml.endElement(); // custom-shape
-}
-
-void PptToOdp::processHexagon(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 0);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 0);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 10);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:enhanced-geometry");
-    out.xml.addAttribute("draw:type", "hexagon");
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0 ");
-    out.xml.addAttribute("draw:name", "f0");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-$0");
-    out.xml.addAttribute("draw:name", "f1");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0 *100/234");
-    out.xml.addAttribute("draw:name", "f2");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f2 +1700");
-    out.xml.addAttribute("draw:name", "f3");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-?f3");
-    out.xml.addAttribute("draw:name", "f4");
-    out.xml.endElement();
-    out.xml.startElement("draw:handle");
-    out.xml.addAttribute("draw:handle-range-x-maximum", 10800);
-    out.xml.addAttribute("draw:handle-range-x-minimum", 0);
-    out.xml.addAttribute("draw:handle-position", "$0 top");
-    out.xml.endElement();
-    out.xml.endElement(); // enhanced-geometry
-    out.xml.endElement(); // custom-shape
-}
-
-void PptToOdp::processOctagon(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 0);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 0);
-    out.xml.addAttribute("svg:y", 4.782);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 10);
-    out.xml.addAttribute("svg:y", 4.782);
-    out.xml.endElement();
-    out.xml.startElement("draw:enhanced-geometry");
-    out.xml.addAttribute("draw:type", "octagon");
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "left+$0 ");
-    out.xml.addAttribute("draw:name", "f0");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "top+$0 ");
-    out.xml.addAttribute("draw:name", "f1");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "right-$0 ");
-    out.xml.addAttribute("draw:name", "f2");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "bottom-$0 ");
-    out.xml.addAttribute("draw:name", "f3");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0 /2");
-    out.xml.addAttribute("draw:name", "f4");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "left+?f4 ");
-    out.xml.addAttribute("draw:name", "f5");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "top+?f4 ");
-    out.xml.addAttribute("draw:name", "f6");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "right-?f4 ");
-    out.xml.addAttribute("draw:name", "f7");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "bottom-?f4 ");
-    out.xml.addAttribute("draw:name", "f8");
-    out.xml.endElement();
-    out.xml.startElement("draw:handle");
-    out.xml.addAttribute("draw:handle-range-x-maximum", 10800);
-    out.xml.addAttribute("draw:handle-range-x-minimum", 0);
-    out.xml.addAttribute("draw:handle-position", "$0 top");
-    out.xml.endElement();
-    out.xml.endElement(); // enhanced-geometry
-    out.xml.endElement(); // custom-shape
-}
-
-void PptToOdp::processArrow(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:enhanced-geometry");
-
-    if (o.shapeProp.rh.recInstance == msosptLeftArrow) {
-        if (o.shapeProp.fFlipH)
-            out.xml.addAttribute("draw:type", "right-arrow");
-        else
-            out.xml.addAttribute("draw:type", "left-arrow");
-    } else if (o.shapeProp.rh.recInstance == msosptUpArrow)
-        out.xml.addAttribute("draw:type", "up-arrow");
-    else if (o.shapeProp.rh.recInstance == msosptDownArrow)
-        out.xml.addAttribute("draw:type", "down-arrow");
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$1");
-    out.xml.addAttribute("draw:name", "f0");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0");
-    out.xml.addAttribute("draw:name", "f1");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-$1");
-    out.xml.addAttribute("draw:name", "f2");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "21600-?f1");
-    out.xml.addAttribute("draw:name", "f3");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f3 *?f0 /10800");
-    out.xml.addAttribute("draw:name", "f4");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f1 +?f4 ");
-    out.xml.addAttribute("draw:name", "f5");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f1 *?f0 /10800");
-    out.xml.addAttribute("draw:name", "f6");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "?f1 -?f6 ");
-    out.xml.addAttribute("draw:name", "f7");
-    out.xml.endElement(); // draw:equation
-    out.xml.startElement("draw:handle");
-    if (o.shapeProp.rh.recInstance == msosptLeftRightArrow || o.shapeProp.rh.recInstance == msosptLeftArrow) {
-        out.xml.addAttribute("draw:handle-range-x-maximum", 21600);
-        out.xml.addAttribute("draw:handle-range-x-minimum", 0);
-        out.xml.addAttribute("draw:handle-position", "$0 $1");
-        out.xml.addAttribute("draw:handle-range-y-maximum", 10800);
-        out.xml.addAttribute("draw:handle-range-y-minimum", 0);
-    } else if (o.shapeProp.rh.recInstance == msosptUpArrow || o.shapeProp.rh.recInstance == msosptDownArrow) {
-        out.xml.addAttribute("draw:handle-range-x-maximum", 10800);
-        out.xml.addAttribute("draw:handle-range-x-minimum", 0);
-        out.xml.addAttribute("draw:handle-position", "$1 $0");
-        out.xml.addAttribute("draw:handle-range-y-maximum", 21600);
-        out.xml.addAttribute("draw:handle-range-y-minimum", 0);
-    }
-    out.xml.endElement(); // draw:handle
-    out.xml.endElement(); // draw:enhanced-geometry
-    out.xml.endElement(); // draw:custom-shape
-}
-
-void PptToOdp::processLine(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    QString x1Str = QString("%1mm").arg(rect.x());
-    QString y1Str = QString("%1mm").arg(rect.y());
-    QString x2Str = QString("%1mm").arg(rect.x() + rect.width());
-    QString y2Str = QString("%1mm").arg(rect.y() + rect.height());
-
-    if (o.shapeProp.fFlipV) {
-        QString temp = y1Str;
-        y1Str = y2Str;
-        y2Str = temp;
-    }
-    if (o.shapeProp.fFlipH) {
-        QString temp = x1Str;
-        x1Str = x2Str;
-        x2Str = temp;
-    }
-
-    out.xml.startElement("draw:line");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:y1", y1Str);
-    out.xml.addAttribute("svg:y2", y2Str);
-    out.xml.addAttribute("svg:x1", x1Str);
-    out.xml.addAttribute("svg:x2", x2Str);
-    out.xml.addAttribute("draw:layer", "layout");
-
-    out.xml.endElement();
-}
-
-void PptToOdp::processSmiley(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 0);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 1.461);
-    out.xml.addAttribute("svg:y", 1.461);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 0);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 1.461);
-    out.xml.addAttribute("svg:y", 8.536);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 10);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 8.536);
-    out.xml.addAttribute("svg:y", 1.461);
-    out.xml.endElement();
-    out.xml.startElement("draw:enhanced-geometry");
-    out.xml.addAttribute("draw:type", "smiley");
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "$0-15510 ");
-    out.xml.addAttribute("draw:name", "f0");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "17520-?f0");
-    out.xml.addAttribute("draw:name", "f1");
-    out.xml.endElement();
-    out.xml.startElement("draw:equation");
-    out.xml.addAttribute("draw:formula", "15510+?f0");
-    out.xml.addAttribute("draw:name", "f2");
-    out.xml.endElement();
-    out.xml.startElement("draw:handle");
-    out.xml.addAttribute("draw:position", 10800);
-    out.xml.addAttribute("draw:handle-range-y-maximum", 17520);
-    out.xml.addAttribute("draw:handle-range-y-minimum", 15510);
-    out.xml.addAttribute("draw:handle-position", "$0 top");
-    out.xml.endElement();
-    out.xml.endElement(); // enhanced-geometry
-    out.xml.endElement(); // custom-shape
-}
-
-void PptToOdp::processHeart(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:custom-shape");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 1);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 1.43);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 5);
-    out.xml.addAttribute("svg:y", 10);
-    out.xml.endElement();
-    out.xml.startElement("draw:glue-point");
-    out.xml.addAttribute("svg:x", 8.553);
-    out.xml.addAttribute("svg:y", 5);
-    out.xml.endElement();
-    out.xml.startElement("draw:enhanced-geometry");
-    out.xml.addAttribute("draw:type", "heart");
-
-    out.xml.endElement(); // enhanced-geometry
-    out.xml.endElement(); // custom-shape
-}
-
-void PptToOdp::processFreeLine(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    out.xml.startElement("draw:path");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.endElement(); // path
-}
-
-QString PptToOdp::getPicturePath(int pib) const
-{
-    int picturePosition = pib - 1;
-    QByteArray rgbUid = getRgbUid(picturePosition);
-    return rgbUid.length() ? "Pictures/" + pictureNames[rgbUid] : "";
-}
-
-void PptToOdp::processPictureFrame(const OfficeArtSpContainer& o, Writer& out)
-{
-    const QRect rect = getRect(o);
-    QString url;
-    const Pib* pib = get<Pib>(o);
-    if (pib) {
-        url = getPicturePath(pib->pib);
-    }
-    //Ima drawObject->getIntProperty("pib"));
-    out.xml.startElement("draw:frame");
-    out.xml.addAttribute("draw:style-name", getGraphicStyleName(o));
-    out.xml.addAttribute("svg:width", out.hLength(rect.width()));
-    out.xml.addAttribute("svg:height", out.vLength(rect.height()));
-    out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
-    out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("draw:layer", "layout");
-    out.xml.startElement("draw:image");
-    out.xml.addAttribute("xlink:href", url);
-    out.xml.addAttribute("xlink:type", "simple");
-    out.xml.addAttribute("xlink:show", "embed");
-    out.xml.addAttribute("xlink:actuate", "onLoad");
-    out.xml.endElement(); // image
-    out.xml.endElement(); // frame
-}
-
-void PptToOdp::processDrawingObjectForBody(const OfficeArtSpContainer& o, Writer& out)
-{
-    quint16 shapeType = o.shapeProp.rh.recInstance;
-    if (shapeType == msosptEllipse) {
-        processEllipse(o, out);
-    } else if (shapeType == msosptRectangle) {
-        processRectangle(o, out);
-    } else if (shapeType == msosptRoundRectangle) {
-        processRoundRectangle(o, out);
-    } else  if (shapeType == msosptDiamond) {
-        processDiamond(o, out);
-    } else  if (shapeType == msosptIsoscelesTriangle ||
-                shapeType == msosptRightTriangle) {
-        processTriangle(o, out);
-    } else if (shapeType == msosptTrapezoid) {
-        processTrapezoid(o, out);
-    } else if (shapeType == msosptParallelogram) {
-        processParallelogram(o, out);
-    } else if (shapeType == msosptHexagon) {
-        processHexagon(o, out);
-    } else if (shapeType == msosptOctagon) {
-        processOctagon(o, out);
-    } else if (shapeType == msosptLeftArrow ||
-               shapeType == msosptUpArrow ||
-               shapeType == msosptDownArrow) {
-        processArrow(o, out);
-    } else if (shapeType == msosptLine) {
-        processLine(o, out);
-    } else if (shapeType == msosptSmileyFace) {
-        processSmiley(o, out);
-    } else if (shapeType == msosptHeart) {
-        processHeart(o, out);
-        //} else if (shapeType == msosptMin) {
-        //    processFreeLine(o, out);
-    } else if (shapeType == msosptPictureFrame
-               || shapeType == msosptHostControl) {
-        processPictureFrame(o, out);
-    } else if (shapeType == msosptTextBox) {
-        qDebug() << "what's my name!' " << o.shapeProp.rh.recInstance;
-        //processTextObjectForBody(o, , out);
-    } else {
-        Q_ASSERT(o.shapeProp.rh.recInstance);
-        qDebug() << "cannot handle object of type " << o.shapeProp.rh.recInstance;
-    }
-}
-
-void PptToOdp::writeTextCFException(KoXmlWriter& xmlWriter,
-                                    const TextCFException *cf,
-                                    const TextPFException *pf,
-                                    const QString &text)
-{
-    xmlWriter.startElement("text:span");
-    xmlWriter.addAttribute("text:style-name", getTextStyleName(cf, pf));
-
-    QString copy = text;
-    copy.remove(QChar(11)); //Remove vertical tabs which appear in some ppt files
-    xmlWriter.addTextSpan(copy);
-
-    xmlWriter.endElement(); // text:span
+    return qMakePair(friendly, target);
 }
 
 const TextCFRun *findTextCFRun(const StyleTextPropAtom& style, unsigned int pos)
@@ -1740,68 +1557,13 @@ const TextPFRun *findTextPFRun(const StyleTextPropAtom& style, unsigned int pos)
     return 0;
 }
 
-void PptToOdp::writeTextLine(KoXmlWriter& xmlWriter,
-                             const StyleTextPropAtom& style,
-                             const TextPFException *pf,
-                             const QString& text,
-                             const unsigned int linePosition)
-{
-    QString part = "";
-    const TextCFRun *cf = findTextCFRun(style, linePosition);
-    if (!cf) {
-        return;
-    }
-
-    if (text.isEmpty()) {
-        writeTextCFException(xmlWriter, &cf->cf, pf, text);
-        return;
-    }
-
-    //Iterate through all the characters in text
-    for (int i = 0;i < text.length();i++) {
-        const TextCFRun *nextCFRun = findTextCFRun(style, linePosition + i);
-
-        //While character exception stays the same
-        if (cf == nextCFRun) {
-            //Catenate strings to our substring
-            part += text[i];
-        } else {
-            /*
-            When exception changes we write the text to xmlwriter unless the
-            text style name stays the same, then we'll reuse the same
-            stylename for the next character exception
-            */
-            if (nextCFRun &&
-                    getTextStyleName(&cf->cf, pf) != getTextStyleName(&nextCFRun->cf, pf)) {
-                writeTextCFException(xmlWriter, &cf->cf, pf, part);
-                part = text[i];
-            } else {
-                part += text[i];
-            }
-
-            cf = nextCFRun;
-        }
-    }
-
-    //If at the end we still have some text left, write it out
-    if (!part.isEmpty()) {
-        writeTextCFException(xmlWriter, &cf->cf, pf, part);
-    }
-}
-
 void PptToOdp::writeTextObjectDeIndent(KoXmlWriter& xmlWriter,
                                        const unsigned int count, QStack<QString>& levels)
 {
     while ((unsigned int)levels.size() > count) {
-        // if the style name at the lowest level is empty, there is no
-        // list there
-        if (levels.size() > 1
-                || (levels.size() == 1 && !levels.top().isNull())) {
-            xmlWriter.endElement(); // text:list
-        }
+        xmlWriter.endElement(); // text:list
         levels.pop();
-        if (levels.size() > 1
-                || (levels.size() == 1 && !levels.top().isNull())) {
+        if (levels.size()) {
             xmlWriter.endElement(); // text:list-item
         }
     }
@@ -1811,118 +1573,18 @@ namespace
 void addListElement(KoXmlWriter& xmlWriter, QStack<QString>& levels,
                     const QString& listStyle)
 {
-    if (!listStyle.isNull()) {
-        // if the context is a text:list, a text:list-item is needed
-        if (levels.size() > 1
-                || (levels.size() == 1 && !levels.top().isNull())) {
-            xmlWriter.startElement("text:list-item");
-        }
-        xmlWriter.startElement("text:list");
-        if (!listStyle.isEmpty()) {
-            xmlWriter.addAttribute("text:style-name", listStyle);
-        }
+    // if the context is a text:list, a text:list-item is needed
+    if (levels.size() > 0) {
+        xmlWriter.startElement("text:list-item");
+    }
+    xmlWriter.startElement("text:list");
+    if (!listStyle.isEmpty()) {
+        xmlWriter.addAttribute("text:style-name", listStyle);
     }
     levels.push(listStyle);
 }
 }
 
-void PptToOdp::writeTextPFException(KoXmlWriter& xmlWriter,
-                                    const TextPFRun *pf,
-                                    const TextContainer& tc,
-                                    const QString& intext,
-                                    const unsigned int textPos,
-                                    QStack<QString>& levels)
-{
-    const StyleTextPropAtom* style = tc.style.data();
-    if (!pf || !style) {
-        return;
-    }
-
-    QString text = intext.mid(textPos, pf->count);
-    //Text lines are separated with carriage return
-    //There seems to be an extra carriage return at the end. We'll remove the last
-    // carriage return so we don't end up with a single empty line in the end
-    if (text.endsWith("\r")) {
-        text = text.left(text.length() - 1);
-    }
-
-    //Then split the text into lines
-    QStringList lines = text.split("\r");
-    unsigned int linePos = textPos;
-
-    //Indentation level paragraph wants
-    unsigned int paragraphIndent = pf->indentLevel;
-    //[MS-PPT].pdf says the itendation level can be 4 at most
-    if (paragraphIndent > 4) paragraphIndent = 4;
-    qint16 bullet = 0;
-    //Check if this paragraph has a bullet
-    if (pf->pf.masks.bulletChar) {
-        bullet = pf->pf.bulletChar;
-    } else {
-        //If text paragraph exception doesn't have a definition on bullet
-        //then we'll have to check master style with our indentation level
-        const TextPFException *masterPF
-                = masterTextPFException(tc.textHeaderAtom.textType,
-                                        pf->indentLevel);
-        if (masterPF && masterPF->masks.bulletChar) {
-            bullet = masterPF->bulletChar;
-        }
-    }
-    const TextCFRun *cf = findTextCFRun(&style, linePos);
-    // find the name of the list style, if the current style is a list
-    // if the style is null, there is no, list, if the style is an empty string
-    // there is a list but it has no style
-    QString listStyle;
-    if (cf && (bullet || paragraphIndent > 0)) {
-        listStyle = getListStyleName(&cf->cf, &pf->pf);
-    }
-    if (listStyle.isNull() && (bullet || paragraphIndent > 0)) {
-        listStyle = "";
-    }
-    // remove levels until the top level is the right indentation
-    if ((unsigned int)levels.size() > paragraphIndent
-            && levels[paragraphIndent] == listStyle) {
-        writeTextObjectDeIndent(xmlWriter, paragraphIndent + 2, levels);
-    } else {
-        writeTextObjectDeIndent(xmlWriter, paragraphIndent + 1, levels);
-    }
-    // add styleless levels up to the current level of indentation
-    while ((unsigned int)levels.size() < paragraphIndent) {
-        addListElement(xmlWriter, levels, "");
-    }
-    // at this point, levels.size() == paragraphIndent
-    if (levels.size() == 0 || listStyle != levels.top()) {
-        addListElement(xmlWriter, levels, listStyle);
-    }
-    bool listItem = levels.size() > 1 || !levels.top().isNull();
-    if (listItem) {
-        xmlWriter.startElement("text:list-item");
-    }
-    QString pstyle;
-    if (cf) {
-        pstyle = getParagraphStyleName(&cf->cf,                                     &pf->pf);
-    }
-    xmlWriter.startElement("text:p");
-    if (pstyle.size() > 0) {
-        xmlWriter.addAttribute("text:style-name", pstyle);
-    }
-
-    //Handle all lines
-    for (int i = 0;i < lines.size();i++) {
-        cf = findTextCFRun(*style, linePos);
-        if (cf) {
-            writeTextCFException(xmlWriter, &cf->cf, &pf->pf, lines[i]);
-        }
-
-        //Add +1 to line position to compensate for carriage return that is
-        //missing from line due to the split method
-        linePos += lines[i].size() + 1;
-    }
-    xmlWriter.endElement(); // text:p
-    if (listItem) {
-        xmlWriter.endElement(); // text:list-item
-    }
-}
 namespace Text
 {
 enum {
@@ -1936,79 +1598,450 @@ enum {
     HalfBody    = 7,  // body in two-column slide
     QuarterBody = 8   // body in four-body slide
 };
+
 }
-QString
-getText(const TextContainer& tc)
+
+/* The placementId is mapped to one of
+   "chart", "date-time", "footer", "graphic", "handout", "header", "notes",
+   "object", "orgchart", "outline", "page", "page-number", "subtitle", "table",
+   "text" or "title" */
+/* Note: we use 'outline' for  PT_MasterBody, PT_Body and PT_VerticalBody types
+   to be compatible with OpenOffice. OpenOffice <= 3.2 does not render lists
+   properly if the presentation class is not 'outline', 'subtitle', or 'notes'.
+   */
+const char*
+getPresentationClass(const PlaceholderAtom* p)
 {
-    if (tc.text.is<TextCharsAtom>()) {
-        const QVector<quint16> textChars(tc.text.get<TextCharsAtom>()->textChars);
-        return QString::fromUtf16(textChars.data(), textChars.size());
-    } else if (tc.text.is<TextBytesAtom>()) {
-        // each item represents the low byte of a UTF-16 Unicode character whose high byte is 0x00
-        const QByteArray& textChars(tc.text.get<TextBytesAtom>()->textChars);
-        return QString::fromAscii(textChars, textChars.size());
+    if (p == 0) return 0;
+    switch (p->placementId) {
+    case 0x01: return "title";       // PT_MasterTitle
+    case 0x02: return "outline";     // PT_MasterBody
+    case 0x03: return "title";       // PT_MasterCenterTitle
+    case 0x04: return "subtitle";    // PT_MasterSubTitle
+    case 0x05: return "graphic";     // PT_MasterNotesSlideImage
+    case 0x06: return "notes";       // PT_MasterNotesBody
+    case 0x07: return "date-time";   // PT_MasterDate
+    case 0x08: return "page-number"; // PT_MasterSlideNumber
+    case 0x09: return "footer";      // PT_MasterFooter
+    case 0x0A: return "header";      // PT_MasterHeader
+    case 0x0B: return "page";        // PT_NotesSlideImage
+    case 0x0C: return "notes";       // PT_NotesBody
+    case 0x0D: return "title";       // PT_Title
+    case 0x0E: return "outline";     // PT_Body
+    case 0x0F: return "title";       // PT_CenterTitle
+    case 0x10: return "subtitle";    // PT_SubTitle
+    case 0x11: return "title";       // PT_VerticalTitle
+    case 0x12: return "outline";     // PT_VerticalBody
+    case 0x13: return "object";      // PT_Object
+    case 0x14: return "chart";       // PT_Graph
+    case 0x15: return "table";       // PT_Table
+    case 0x16: return "object";      // PT_ClipArt
+    case 0x17: return "orgchart";    // PT_OrgChart
+    case 0x18: return "object";      // PT_Media
+    case 0x19: return "object";      // PT_VerticalObject
+    case 0x1A: return "graphic";     // PT_Picture
+    default: return 0;
     }
-    return QString();
+}
+void
+getMeta(const TextContainerMeta& m, KoXmlWriter& out)
+{
+    const SlideNumberMCAtom* a = m.meta.get<SlideNumberMCAtom>();
+    const DateTimeMCAtom* b = m.meta.get<DateTimeMCAtom>();
+    const GenericDateMCAtom* c = m.meta.get<GenericDateMCAtom>();
+    const HeaderMCAtom* d = m.meta.get<HeaderMCAtom>();
+    const FooterMCAtom* e = m.meta.get<FooterMCAtom>();
+    const RTFDateTimeMCAtom* f = m.meta.get<RTFDateTimeMCAtom>();
+    if (a) {
+        out.startElement("text:page-number");
+        out.endElement();
+    }
+    if (b) {
+        // TODO: datetime format
+        out.startElement("text:time");
+        out.endElement();
+    }
+    if (c) {
+        // TODO: datetime format
+        out.startElement("text:date");
+        out.endElement();
+    }
+    if (d) {
+        out.startElement("presentation:header");
+        out.endElement();
+    }
+    if (e) {
+        out.startElement("presentation:footer");
+        out.endElement();
+    }
+    if (f) {
+        // TODO
+    }
+}
+const TextCFException*
+getTextCFException(const MSO::TextContainer& tc, const int start, int& cfend)
+{
+    if (!tc.style) return 0;
+    const QList<TextCFRun> &cfs = tc.style->rgTextCFRun;
+    int i = 0;
+    while (i < cfs.size()) {
+        cfend += cfs[i].count;
+        if (cfend > start) {
+            break;
+        }
+        i++;
+    }
+    if (i >= cfs.size()) {
+        return 0;
+    }
+    return &cfs[i].cf;
 }
 
-void PptToOdp::processTextObjectForBody(const OfficeArtSpContainer& o, const PPT::TextContainer& tc, Writer& out)
+int PptToOdp::processTextSpan(const MSO::TextContainer& tc, Writer& out,
+                              const QString& text, const int start,
+                              int end)
 {
+    // find all components that start at position start
+    // get the right character run
+    int cfend = end;
+    const TextCFException* cf = getTextCFException(tc, start, cfend);
+
+    // get the right special info run
+    const QList<TextSIRun>* tsi = 0;
+    if (tc.specialinfo) tsi = &tc.specialinfo->rgSIRun;
+    if (tc.specialinfo2) tsi = &tc.specialinfo2->rgSIRun;
+    const TextSIException* si = 0;
+    int siend = 0;
+    int i = 0;
+    if (tsi) {
+        while (i < tsi->size()) {
+            si = &(*tsi)[i].si;
+            siend += (*tsi)[i].count;
+            if (siend > start) {
+                break;
+            }
+            i++;
+        }
+        if (i >= tsi->size()) {
+            si = 0;
+        }
+    }
+
+    // find a meta character
+    const TextContainerMeta* meta = 0;
+    for (i = 0; i<tc.meta.size(); ++i) {
+        const TextContainerMeta& m = tc.meta[i];
+        const SlideNumberMCAtom* a = m.meta.get<SlideNumberMCAtom>();
+        const DateTimeMCAtom* b = m.meta.get<DateTimeMCAtom>();
+        const GenericDateMCAtom* c = m.meta.get<GenericDateMCAtom>();
+        const HeaderMCAtom* d = m.meta.get<HeaderMCAtom>();
+        const FooterMCAtom* e = m.meta.get<FooterMCAtom>();
+        const RTFDateTimeMCAtom* f = m.meta.get<RTFDateTimeMCAtom>();
+        if (a && a->position == start) meta = &m;
+        if (b && b->position == start) meta = &m;
+        if (c && c->position == start) meta = &m;
+        if (d && d->position == start) meta = &m;
+        if (e && e->position == start) meta = &m;
+        if (f && f->position == start) meta = &m;
+    }
+
+    // find the right bookmark
+    const TextBookmarkAtom* bookmark = 0;
+    for (i = 0; i<tc.bookmark.size(); ++i) {
+        if (tc.bookmark[i].begin < start && tc.bookmark[i].end >= start) {
+            bookmark = &tc.bookmark[i];
+        }
+    }
+
+    // find the interactive atom
+    const MouseClickTextInfo* mouseclick = 0;
+    const MouseOverTextInfo* mouseover = 0;
+    for (i = 0; i<tc.interactive.size(); ++i) {
+        const TextContainerInteractiveInfo& ti = tc.interactive[i];
+        const MouseClickTextInfo* a =
+                ti.interactive.get<MouseClickTextInfo>();
+        const MouseOverTextInfo* b =
+                ti.interactive.get<MouseOverTextInfo>();
+        if (a && start >= a->text.range.begin && start < a->text.range.end) {
+            mouseclick = a;
+        }
+        if (b && start >= b->text.range.begin && start < b->text.range.end) {
+            mouseover = b;
+        }
+    }
+
+    // determine the end of the range
+    if (si && siend < end) {
+        end = siend;
+    }
+    if (meta) {
+        end = start + 1; // meta is always one character
+    }
+    if (bookmark && bookmark->end < end) {
+        end = bookmark->end;
+    }
+    if (mouseclick && mouseclick->text.range.end < end) {
+        end = mouseclick->text.range.end;
+    }
+    if (mouseover && mouseover->text.range.end < end) {
+        end = mouseover->text.range.end;
+    }
+
+    if (mouseclick) {
+        /**
+        * [MS-PPT].PDF states exHyperlinkIdRef must be ignored unless action is
+        * equal to II_JumpAction (0x3), II_HyperlinkAction (0x4), or
+        * II_CustomShowAction (0x7).
+        */
+        out.xml.startElement("text:a");
+        QPair<QString, QString> link = findHyperlink(
+                mouseclick->interactive.interactiveInfoAtom.exHyperlinkIdRef);
+        if (!link.second.isEmpty()) { // target
+            out.xml.addAttribute("xlink:href", link.second);
+        } else if (!link.first.isEmpty()) {
+            out.xml.addAttribute("xlink:href", link.first);
+        }
+    } else if (mouseover) {
+        out.xml.startElement("text:a");
+        QPair<QString, QString> link = findHyperlink(
+                mouseover->interactive.interactiveInfoAtom.exHyperlinkIdRef);
+        if (!link.second.isEmpty()) { // target
+            out.xml.addAttribute("xlink:href", link.second);
+        } else if (!link.first.isEmpty()) {
+            out.xml.addAttribute("xlink:href", link.first);
+        }
+    } else {
+        out.xml.startElement("text:span");
+    }
+    KoGenStyle style(KoGenStyle::StyleTextAuto, "text");
+    style.setAutoStyleInStylesDotXml(out.stylesxml);
+    defineTextProperties(style, cf, 0, 0, si);
+    out.xml.addAttribute("text:style-name", out.styles.lookup(style));
+
+    if (meta) {
+        getMeta(*meta, out.xml);
+    } else {
+        int len = end - start;
+        if (text[end-1] == '\r' || text[end-1] == '\v') {
+            len--;
+        }
+        const QString txt
+                = text.mid(start, len).replace('\r', '\n').replace('\v', '\n');
+        out.xml.addTextNode(txt);
+    }
+
+    out.xml.endElement();
+
+    return end;
+}
+
+int PptToOdp::processTextSpans(const MSO::TextContainer& tc, Writer& out,
+                              const QString& text, int start, int end)
+{
+    int pos = start;
+    while (pos < end) {
+        int r = processTextSpan(tc, out, text, pos, end);
+        if (r <= pos) {
+            // some error
+            qDebug() << "pos: " << pos << " end: " << end << " r: " << r;
+            return -2;
+        }
+        pos = r;
+        if (pos == end) {
+            return 0;
+        }
+    }
+    return (pos == end) ?0 :-pos;
+}
+const MSO::StyleTextProp9*
+PptToOdp::getStyleTextProp9(quint32 slideIdRef, quint32 textType, quint8 pp9rt)
+{
+    const PP9DocBinaryTagExtension* pp9 = getPP<PP9DocBinaryTagExtension>(
+            p->documentContainer);
+    if (pp9) {
+        if (pp9->outlineTextPropsContainer) {
+            foreach (const OutlineTextProps9Entry& o,
+                     pp9->outlineTextPropsContainer->rgOutlineTextProps9Entry) {
+                if (o.outlineTextHeaderAtom.slideIdRef == slideIdRef
+                        && o.outlineTextHeaderAtom.txType == textType) {
+                    // we assume that pp9rt is the index in this array
+                    if (o.styleTextProp9Atom.rgStyleTextProp9.size() > pp9rt) {
+                        return &o.styleTextProp9Atom.rgStyleTextProp9[pp9rt];
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+const MSO::StyleTextProp9*
+getStyleTextProp9(const MSO::OfficeArtSpContainer& o, quint8 pp9rt)
+{
+    if (!o.clientData) return 0;
+    const PptOfficeArtClientData* pcd
+            = o.clientData->anon.get<PptOfficeArtClientData>();
+    const PP9ShapeBinaryTagExtension* p = 0;
+    if (pcd) {
+        p = getPP<PP9ShapeBinaryTagExtension>(*pcd);
+    }
+    if (p && p->styleTextProp9Atom.rgStyleTextProp9.size() > pp9rt) {
+        return &p->styleTextProp9Atom.rgStyleTextProp9[pp9rt];
+    }
+    return 0;
+}
+QString PptToOdp::defineAutoListStyle(Writer& out, const PptTextPFRun& pf,
+                   const TextPFException9* pf9)
+{
+    KoGenStyle list(KoGenStyle::StyleListAuto);
+    ListStyleInput info;
+    info.pf = pf;
+    info.pf9 = pf9;
+    ListStyleInput parent;
+    /*
+    if (level) {
+        parent.pf = &level->pf;
+        parent.cf = &level->cf;
+    }
+    */
+    defineListStyle(list, pf.level(), info, parent);
+    return out.styles.lookup(list);
+}
+
+void PptToOdp::processTextLine(Writer& out, const OfficeArtSpContainer& o,
+                               const MSO::TextContainer& tc,
+                               const QString& text, int start, int end,
+                               QStack<QString>& levels)
+{
+    PptTextPFRun pf(p->documentContainer, currentMaster, &tc, start);
+
+    // to find the pf9, the cf has to be obtained which contains a pp9rt
+    quint8 pp9rt = 0;
+    int cfend = 0;
+    const TextCFException* cf = getTextCFException(tc, start, cfend);
+    if (cf && cf->fontStyle) {
+        pp9rt = cf->fontStyle->pp9rt;
+    }
+    quint32 textType = tc.textHeaderAtom.textType;
+    const StyleTextProp9* stp9 = ::getStyleTextProp9(o, pp9rt);
+    if (!stp9 && currentSlideTexts) {
+         stp9 = getStyleTextProp9(currentSlideTexts->slidePersistAtom.slideId.slideId,
+                                  textType, pp9rt);
+    }
+    const TextPFException9* pf9 = 0;
+    if (stp9) {
+        pf9 = &stp9->pf9;
+    }
+    bool islist = pf.level() > 0 && start < end;
+    if (islist) {
+        QString listStyle = defineAutoListStyle(out, pf, pf9);
+        // remove levels until the top level is the right indentation
+        if ((quint16)levels.size() > pf.level()
+                && levels[pf.level()] == listStyle) {
+            writeTextObjectDeIndent(out.xml, pf.level() + 1, levels);
+        } else {
+            writeTextObjectDeIndent(out.xml, pf.level(), levels);
+        }
+        // add styleless levels up to the current level of indentation
+        while ((quint16)levels.size() < pf.level()) {
+            addListElement(out.xml, levels, "");
+        }
+        // at this point, levels.size() == paragraphIndent
+        if (pf.level() + 1 != levels.size()) {
+            addListElement(out.xml, levels, listStyle);
+        }
+        out.xml.startElement("text:list-item");
+    } else {
+        writeTextObjectDeIndent(out.xml, 0, levels);
+    }
+
+    out.xml.startElement("text:p");
+    KoGenStyle style(KoGenStyle::StyleAuto, "paragraph");
+    style.setAutoStyleInStylesDotXml(out.stylesxml);
+    defineParagraphProperties(style, pf);
+    out.xml.addAttribute("text:style-name", out.styles.lookup(style));
+    processTextSpans(tc, out, text, start, end);
+    out.xml.endElement(); // text:p
+
+    if (islist) {
+        out.xml.endElement(); // text:list-item
+    }
+}
+
+void PptToOdp::processTextForBody(const OfficeArtSpContainer& o,
+                                  const MSO::TextContainer& tc, Writer& out)
+{
+    /* Text in a textcontainer is divided into sections.
+       The sections occur on different levels:
+       - paragraph (TextPFRun) 1-n characters
+       - character (TextCFRun) 1-n characters
+       - variables (TextContainerMeta) 1 character
+       - spelling and language (TextSIRun) 1-n characters
+       - links (TextContainerInteractiveInfo) 1-n characters
+       - indentation (MasterTextPropRun) 1-n characters (ignored)
+
+       Variables are the smallest level, they should be replaced by special
+       xml elements.
+
+       TextPFRuns correspond to text:list-item and text:p.
+       MasterTextPropRun also corresponds to text:list-items too.
+       TextCFRuns correspond to text:span elements as do
+    */
+
+    static const QRegExp lineend("[\v\r]");
+    const QString text = getText(tc);
+
+    // loop over all the '\r' delimited lines
+    // Paragraph formatting that applies to substring
+    QStack<QString> levels;
+    levels.reserve(5);
+    int pos = 0;
+    while (pos < text.length()) {
+        int end = text.indexOf(lineend, pos);
+        if (end == -1) end = text.size();
+
+        processTextLine(out, o, tc, text, pos, end, levels);
+
+        pos = end + 1;
+    }
+    // close all open text:list elements
+    writeTextObjectDeIndent(out.xml, 0, levels);
+}
+
+void PptToOdp::processTextObjectForBody(const OfficeArtSpContainer& o,
+                                        const MSO::TextContainer& tc,
+                                        Writer& out)
+{
+    const PlaceholderAtom* p = 0;
+    if (o.clientData) {
+        const PptOfficeArtClientData* pcd
+                = o.clientData->anon.get<PptOfficeArtClientData>();
+        if (pcd) {
+            p = pcd->placeholderAtom.data();
+        }
+    }
+    const char* const classStr = getPresentationClass(p);
     const QRect& rect = getRect(o);
-    QString classStr = "subtitle";
-
-    if (tc.textHeaderAtom.textType == Text::Title)
-        classStr = "title";
-
-    if (tc.textHeaderAtom.textType == Text::Body)
-        classStr = "outline";
 
     out.xml.startElement("draw:frame");
-
-    if (!getGraphicStyleName(o).isEmpty()) {
-        out.xml.addAttribute("presentation:style-name",
-                             getGraphicStyleName(o));
+    addGraphicStyleToDrawElement(out, o);
+    if (p) {
+        if (p->placementId >= 1 && p->placementId <= 6) {
+            out.xml.addAttribute("presentation:placeholder", "true");
+        } else if (p->placementId >= 0xB) {
+            out.xml.addAttribute("presentation:user-transformed", "true");
+        }
     }
 
-    out.xml.addAttribute("draw:layer", "layout");
-
+    //out.xml.addAttribute("draw:layer", "layout");
     out.xml.addAttribute("svg:width", out.hLength(rect.width()));
     out.xml.addAttribute("svg:height", out.vLength(rect.height()));
     out.xml.addAttribute("svg:x", out.hOffset(rect.x()));
     out.xml.addAttribute("svg:y", out.vOffset(rect.y()));
-    out.xml.addAttribute("presentation:class", classStr);
-    out.xml.startElement("draw:text-box");
-
-    QString text = getText(tc);
-
-    const StyleTextPropAtom *style = tc.style.data();
-    if (style  && style->rgTextPFRun.size()) {
-        //Paragraph formatting that applies to substring
-        QStack<QString> levels;
-        levels.reserve(5);
-        int pos = 0;
-        foreach(const TextPFRun& pf, style->rgTextPFRun) {
-            writeTextPFException(out.xml, &pf, tc, text, pos, levels);
-            pos += pf.count;
-        }
-
-        writeTextObjectDeIndent(out.xml, 0, levels);
-    } else {
-        out.xml.startElement("text:p");
-
-        if (!getParagraphStyleName(0, 0).isEmpty()) {
-            out.xml.addAttribute("text:style-name", getParagraphStyleName(0, 0));
-        }
-
-        out.xml.startElement("text:span");
-        if (!getTextStyleName(0, 0).isEmpty()) {
-            out.xml.addAttribute("text:style-name", getTextStyleName(0, 0));
-        }
-
-        out.xml.addTextSpan(text);
-        out.xml.endElement(); // text:span
-        out.xml.endElement(); // text:p
+    if (classStr) {
+        out.xml.addAttribute("presentation:class", classStr);
     }
-
+    out.xml.startElement("draw:text-box");
+    processTextForBody(o, tc, out);
     out.xml.endElement(); // draw:text-box
     out.xml.endElement(); // draw:frame
 }
@@ -2021,7 +2054,7 @@ void PptToOdp::processObjectForBody(const OfficeArtSpgrContainerFileBlock& of, W
         processObjectForBody(*of.anon.get<OfficeArtSpContainer>(), out);
     }
 }
-void PptToOdp::processObjectForBody(const PPT::OfficeArtSpgrContainer& o, Writer& out)
+void PptToOdp::processObjectForBody(const MSO::OfficeArtSpgrContainer& o, Writer& out)
 {
     if (o.rgfb.size() < 2) return;
     out.xml.startElement("draw:g");
@@ -2029,10 +2062,14 @@ void PptToOdp::processObjectForBody(const PPT::OfficeArtSpgrContainer& o, Writer
        a new coordinate system is introduced.
        */
     const OfficeArtSpContainer* first
-    = o.rgfb[0].anon.get<OfficeArtSpContainer>();
-    if (first && first->clientAnchor && first->shapeGroup) {
-        const QRect oldCoords = getRect(*first->clientAnchor);
-        QRect newCoords = getRect(*first->shapeGroup);
+        = o.rgfb[0].anon.get<OfficeArtSpContainer>();
+    const PptOfficeArtClientAnchor* pcc = 0;
+    if (first && first->clientAnchor) {
+        pcc = first->clientAnchor->anon.get<PptOfficeArtClientAnchor>();
+    }
+    if (pcc && first->shapeGroup) {
+        const QRect oldCoords = ::getRect(*pcc);
+        QRect newCoords = ::getRect(*first->shapeGroup);
         Writer transformedOut = out.transform(oldCoords, newCoords);
         for (int i = 1; i < o.rgfb.size(); ++i) {
             processObjectForBody(o.rgfb[i], transformedOut);
@@ -2044,29 +2081,36 @@ void PptToOdp::processObjectForBody(const PPT::OfficeArtSpgrContainer& o, Writer
     }
     out.xml.endElement(); // draw:g
 }
-void PptToOdp::processObjectForBody(const PPT::OfficeArtSpContainer& o, Writer& out)
+void PptToOdp::processObjectForBody(const MSO::OfficeArtSpContainer& o, Writer& out)
 {
-    // text is process separately until drawing objects support it
-    if (o.clientData && o.clientData->placeholderAtom) {
-        const PlaceholderAtom* p = o.clientData->placeholderAtom.data();
+    const PptOfficeArtClientData* pcd = 0;
+    if (o.clientData) {
+        pcd = o.clientData->anon.get<PptOfficeArtClientData>();
+    }
+    if (pcd && pcd->placeholderAtom && currentSlideTexts) {
+        const PlaceholderAtom* p = pcd->placeholderAtom.data();
         if (p->position >= 0 && p->position < currentSlideTexts->atoms.size()) {
             const TextContainer& tc = currentSlideTexts->atoms[p->position];
             processTextObjectForBody(o, tc, out);
-        } else {
-            processDrawingObjectForBody(o, out);
+            return;
         }
-    } else if (o.clientTextbox) { // TODO
-        foreach(const TextClientDataSubContainerOrAtom& tc, o.clientTextbox->rgChildRec) {
-            if (tc.anon.is<TextContainer>()) {
-                processTextObjectForBody(o, *tc.anon.get<TextContainer>(), out);
+    }
+    if (o.clientTextbox) {
+        const PptOfficeArtClientTextBox* tb
+                = o.clientTextbox->anon.get<PptOfficeArtClientTextBox>();
+        if (tb) {
+            foreach(const TextClientDataSubContainerOrAtom& tc, tb->rgChildRec) {
+                if (tc.anon.is<TextContainer>()) {
+                    processTextObjectForBody(o, *tc.anon.get<TextContainer>(), out);
+                }
             }
         }
-    } else if (o.shapeProp.rh.recInstance) { // why is this check needed?
+    } else {
         processDrawingObjectForBody(o, out);
     }
 }
 
-void PptToOdp::processSlideForBody(unsigned slideNo, KoXmlWriter& xmlWriter)
+void PptToOdp::processSlideForBody(unsigned slideNo, Writer& out)
 {
     const SlideContainer* slide = p->slides[slideNo];
     const MasterOrSlideContainer* master = p->getMaster(slide);
@@ -2085,18 +2129,29 @@ void PptToOdp::processSlideForBody(unsigned slideNo, KoXmlWriter& xmlWriter)
         foreach(const TextContainer& tc, p->documentContainer->slideList->rgChildRec[slideNo].atoms) {
             if (tc.textHeaderAtom.textType == Text::Title) {
                 nameStr = getText(tc);
+                break;
             }
         }
     }
 
-    if (nameStr.isEmpty())
+    if (nameStr.isEmpty()) {
         nameStr = QString("page%1").arg(slideNo + 1);
+    }
 
-    xmlWriter.startElement("draw:page");
-    xmlWriter.addAttribute("draw:master-page-name", "Default");
-    xmlWriter.addAttribute("draw:name", nameStr);
-    xmlWriter.addAttribute("draw:style-name", QString("master%1").arg(masterNumber));
-    xmlWriter.addAttribute("presentation:presentation-page-layout-name", "AL1T0");
+    nameStr.remove('\r');
+    nameStr.remove('\v');
+
+    out.xml.startElement("draw:page");
+    QString value = masterNames.value(master);
+    if (!value.isEmpty()) {
+        out.xml.addAttribute("draw:master-page-name", value);
+    }
+    out.xml.addAttribute("draw:name", nameStr);
+    value = drawingPageStyles[slide];
+    if (!value.isEmpty()) {
+        out.xml.addAttribute("draw:style-name", value);
+    }
+    //xmlWriter.addAttribute("presentation:presentation-page-layout-name", "AL1T0");
 
     const HeadersFootersAtom* headerFooterAtom = 0;
     if (master->anon.is<MainMasterContainer>()) {
@@ -2113,15 +2168,22 @@ void PptToOdp::processSlideForBody(unsigned slideNo, KoXmlWriter& xmlWriter)
     if (!headerFooterAtom && getSlideHF()) {
         headerFooterAtom = &getSlideHF()->hfAtom;
     }
-    if (headerFooterAtom && headerFooterAtom->fHasTodayDate) {
-        xmlWriter.addAttribute("presentation:use-date-time-name", "dtd1");
+    if (!usedDateTimeDeclaration.value(slideNo).isEmpty()) {
+        out.xml.addAttribute("presentation:use-date-time-name",
+                               usedDateTimeDeclaration[slideNo]);
+    }
+    if (!usedHeaderDeclaration.value(slideNo).isEmpty()) {
+        if(usedHeaderDeclaration[slideNo] != "")
+            out.xml.addAttribute("presentation:use-header-name", usedHeaderDeclaration[slideNo]);
+    }
+    if (!usedFooterDeclaration.value(slideNo).isEmpty()) {
+        if(usedFooterDeclaration[slideNo] != "")
+            out.xml.addAttribute("presentation:use-footer-name", usedFooterDeclaration[slideNo]);
     }
 
-    QRectF rect; // TODO add some geometry magic
-    currentSlide = slide;
     currentSlideTexts = &p->documentContainer->slideList->rgChildRec[slideNo];
+    currentMaster = master;
 
-    Writer out(xmlWriter);
     foreach(const OfficeArtSpgrContainerFileBlock& co,
             slide->drawing.OfficeArtDg.groupShape.rgfb) {
         processObjectForBody(co, out);
@@ -2131,43 +2193,25 @@ void PptToOdp::processSlideForBody(unsigned slideNo, KoXmlWriter& xmlWriter)
         //  processObjectForBody(*slide->drawing.OfficeArtDg.shape, out);
     }
 
-    xmlWriter.endElement(); // draw:page
+    // draw the notes
+    const NotesContainer* nc = p->notes[slideNo];
+    if (nc) {
+        currentSlideTexts = 0;
+        out.xml.startElement("presentation:notes");
+        value = drawingPageStyles[nc];
+        if (!value.isEmpty()) {
+            out.xml.addAttribute("draw:style-name", value);
+        }
+        foreach(const OfficeArtSpgrContainerFileBlock& co,
+                nc->drawing.OfficeArtDg.groupShape.rgfb) {
+            processObjectForBody(co, out);
+        }
+        out.xml.endElement();
+    }
+
+    out.xml.endElement(); // draw:page
 }
 
-void PptToOdp::processSlideForStyle(int slideNo, KoGenStyles &styles)
-{
-    const SlideContainer* slide = p->slides[slideNo];
-    processObjectForStyle(slide->drawing.OfficeArtDg.groupShape, styles);
-    if (slide->drawing.OfficeArtDg.shape) {
-        processObjectForStyle(*slide->drawing.OfficeArtDg.shape, styles);
-    }
-}
-void PptToOdp::processObjectForStyle(const OfficeArtSpgrContainerFileBlock& of, KoGenStyles &styles)
-{
-    if (of.anon.is<OfficeArtSpgrContainer>()) {
-        processObjectForStyle(*of.anon.get<OfficeArtSpgrContainer>(), styles);
-    } else { // OfficeArtSpContainer
-        processObjectForStyle(*of.anon.get<OfficeArtSpContainer>(), styles);
-    }
-}
-void PptToOdp::processObjectForStyle(const PPT::OfficeArtSpgrContainer& o, KoGenStyles &styles)
-{
-    foreach(const OfficeArtSpgrContainerFileBlock& co, o.rgfb) {
-        processObjectForStyle(co, styles);
-    }
-}
-void PptToOdp::processObjectForStyle(const PPT::OfficeArtSpContainer& o, KoGenStyles &styles)
-{
-    // text is process separately until drawing objects support it
-    if (o.clientTextbox) {
-        foreach(const TextClientDataSubContainerOrAtom& tc, o.clientTextbox->rgChildRec) {
-            if (tc.anon.is<TextContainer>()) {
-                processTextObjectForStyle(o, *tc.anon.get<TextContainer>(), styles);
-            }
-        }
-    }
-    processDrawingObjectForStyle(o, styles);
-}
 QString PptToOdp::paraSpacingToCm(int value) const
 {
     if (value < 0) {
@@ -2183,7 +2227,7 @@ QString PptToOdp::pptMasterUnitToCm(unsigned int value) const
     qreal result = value;
     result *= 2.54;
     result /= 576;
-    return QString("%1cm").arg(result);
+    return cm(result);
 }
 
 QString PptToOdp::textAlignmentToString(unsigned int value) const
@@ -2294,440 +2338,6 @@ QColor PptToOdp::toQColor(const OfficeArtCOLORREF& c)
     return QColor(c.red, c.green, c.blue);
 }
 
-const TextMasterStyleLevel *
-getTextMasterStyleLevel(quint16 type, quint16 level, const MasterOrSlideContainer* m)
-{
-    const TextMasterStyleAtom* masterStyle = 0;
-    if (m->anon.is<MainMasterContainer>()) {
-        const MainMasterContainer* n = m->anon.get<MainMasterContainer>();
-        if (n->rgTextMasterStyle.size() > type) {
-            masterStyle = &n->rgTextMasterStyle[type];
-        }
-    } else {
-        const MainMasterContainer* n = m->anon.get<MainMasterContainer>();
-        if (n->rgTextMasterStyle.size() > type) {
-            masterStyle = &n->rgTextMasterStyle[type];
-        }
-    }
-    if (!masterStyle) {
-        return 0;
-    }
-    const TextMasterStyleLevel *l = 0;
-    switch (level) {
-    case 0: if (masterStyle->lstLvl1) l = masterStyle->lstLvl1.data();break;
-    case 1: if (masterStyle->lstLvl2) l = masterStyle->lstLvl2.data();break;
-    case 2: if (masterStyle->lstLvl3) l = masterStyle->lstLvl3.data();break;
-    case 3: if (masterStyle->lstLvl4) l = masterStyle->lstLvl4.data();break;
-    case 4: if (masterStyle->lstLvl5) l = masterStyle->lstLvl5.data();break;
-    }
-    return l;
-}
-
-const TextPFException *PptToOdp::masterTextPFException(quint16 type, quint16 level)
-{
-    // TODO look for the right master, not just the first one
-    const MasterOrSlideContainer* m = p->masters[0];
-    const TextMasterStyleLevel *l = getTextMasterStyleLevel(type, level, m);
-    return (l) ? &l->pf : 0;
-}
-
-const TextCFException *PptToOdp::masterTextCFException(int type, unsigned int level)
-{
-    // TODO look for the right master, not just the first one
-    const MasterOrSlideContainer* m = p->masters[0];
-    const TextMasterStyleLevel *l = getTextMasterStyleLevel(type, level, m);
-    return (l) ? &l->cf : 0;
-}
-
-void PptToOdp::processTextExceptionsForStyle(const TextCFRun *cf,
-        const TextPFRun *pf,
-        KoGenStyles &styles,
-        const TextContainer& tc)
-{
-    qint16 indentLevel = 0;
-    int indent = 0;
-    if (pf) {
-        indentLevel = pf->indentLevel;
-        if (pf->pf.masks.indent) {
-            indent = pf->pf.indent;
-        }
-    }
-
-    qint16 textType = tc.textHeaderAtom.textType;
-
-    /**
-    TODO I had some ppt files where the text headers of slide body's text
-    where defined as Tx_TYPE_CENTERBODY and title as Tx_TYPE_CENTERTITLE
-    but their true style definitions (when compared to MS Powerpoint)
-    where in Tx_TYPE_BODY and Tx_TYPE_TITLE TextMasterStyleAtoms.
-    Either the text type is loaded incorrectly or there is some logic behind
-    this that needs to be figured out.
-    */
-    if (textType == 5) {
-        //Replace Tx_TYPE_CENTERBODY with Tx_TYPE_BODY
-        textType = 1;
-    } else if (textType == 6) {
-        //and Tx_TYPE_CENTERTITLE with Tx_TYPE_TITLE
-        textType = 0;
-    }
-
-    //Master character/paragraph styles are fetched for the textobjects type
-    //using paragraph's indentation level
-    const TextCFException *masterCF = masterTextCFException(textType,
-                                      indentLevel);
-
-    const TextPFException *masterPF = masterTextPFException(textType,
-                                      indentLevel);
-
-    //As mentioned in previous TODO we'll check if the text types
-    //were placeholder types (2.13.33 TextTypeEnum in [MS-PPT].pdf
-    //and use them for some styles
-    const TextCFException *placeholderCF = 0;
-    const TextPFException *placeholderPF = 0;
-
-    if (textType == 5 || textType == 6) {
-        placeholderPF = masterTextPFException(textType, indentLevel);
-        placeholderCF = masterTextCFException(textType, indentLevel);
-    }
-
-    KoGenStyle styleParagraph(KoGenStyle::StyleAuto, "paragraph");
-    if (pf && pf->pf.masks.leftMargin) {
-        styleParagraph.addProperty("fo:margin-left",
-                                   paraSpacingToCm(pf->pf.leftMargin),
-                                   KoGenStyle::ParagraphType);
-    } else {
-        if (masterPF && masterPF->masks.leftMargin) {
-            styleParagraph.addProperty("fo:margin-left",
-                                       paraSpacingToCm(masterPF->leftMargin),
-                                       KoGenStyle::ParagraphType);
-        }
-    }
-
-    if (pf && pf->pf.masks.spaceBefore) {
-        styleParagraph.addProperty("fo:margin-top",
-                                   paraSpacingToCm(pf->pf.spaceBefore),
-                                   KoGenStyle::ParagraphType);
-    } else {
-        if (masterPF && masterPF->masks.spaceBefore) {
-            styleParagraph.addProperty("fo:margin-top",
-                                       paraSpacingToCm(masterPF->spaceBefore),
-                                       KoGenStyle::ParagraphType);
-        }
-    }
-
-    if (pf && pf->pf.masks.spaceAfter) {
-        styleParagraph.addProperty("fo:margin-bottom",
-                                   paraSpacingToCm(pf->pf.spaceAfter),
-                                   KoGenStyle::ParagraphType);
-    } else {
-        if (masterPF && masterPF->masks.spaceAfter) {
-            styleParagraph.addProperty("fo:margin-bottom",
-                                       paraSpacingToCm(masterPF->spaceAfter),
-                                       KoGenStyle::ParagraphType);
-        }
-    }
-
-    if (pf && pf->pf.masks.indent) {
-        styleParagraph.addProperty("fo:text-indent",
-                                   pptMasterUnitToCm(pf->pf.indent),
-                                   KoGenStyle::ParagraphType);
-    } else {
-        if (masterPF && masterPF->masks.indent) {
-            styleParagraph.addProperty("fo:text-indent",
-                                       pptMasterUnitToCm(masterPF->indent),
-                                       KoGenStyle::ParagraphType);
-        }
-    }
-
-
-    /**
-    TODO When previous TODO about Tx_TYPE_CENTERBODY and Tx_TYPE_CENTERTITLE
-    is fixed, correct the logic here. Here is added an extra if to use the
-    placeholderPF which in turn contained the correct value.
-    */
-    if (pf && pf->pf.masks.align) {
-        styleParagraph.addProperty("fo:text-align",
-                                   textAlignmentToString(pf->pf.textAlignment),
-                                   KoGenStyle::ParagraphType);
-    } else if (placeholderPF && placeholderPF->masks.align) {
-        styleParagraph.addProperty("fo:text-align",
-                                   textAlignmentToString(placeholderPF->textAlignment),
-                                   KoGenStyle::ParagraphType);
-    } else {
-        if (masterPF && masterPF->masks.align) {
-            styleParagraph.addProperty("fo:text-align",
-                                       textAlignmentToString(masterPF->textAlignment),
-                                       KoGenStyle::ParagraphType);
-        }
-    }
-
-    //Text style
-    KoGenStyle styleText(KoGenStyle::StyleTextAuto, "text");
-    if (cf && cf->cf.color) {
-        QColor color = toQColor(*cf->cf.color);
-        if (color.isValid()) {
-            styleText.addProperty("fo:color", color.name(),
-                                  KoGenStyle::TextType);
-        }
-    } else {
-        //Make sure that character formatting has color aswell
-        if (masterCF && masterCF->color) {
-            QColor color = toQColor(*masterCF->color);
-            if (color.isValid()) {
-                styleText.addProperty("fo:color", color.name(),
-                                      KoGenStyle::TextType);
-            }
-        }
-    }
-
-    if (cf && cf->cf.masks.size) {
-        styleText.addProperty("fo:font-size",
-                              QString("%1pt").arg(cf->cf.fontSize),
-                              KoGenStyle::TextType);
-    } else {
-        if (masterCF && masterCF->masks.size) {
-            styleText.addProperty("fo:font-size",
-                                  QString("%1pt").arg(masterCF->fontSize),
-                                  KoGenStyle::TextType);
-        }
-    }
-
-    if (cf && cf->cf.masks.italic && cf->cf.fontStyle) {
-        if (cf->cf.fontStyle->italic) {
-            styleText.addProperty("fo:font-style",
-                                  "italic",
-                                  KoGenStyle::TextType);
-        }
-    } else {
-        if (masterCF && masterCF->masks.italic && masterCF->fontStyle
-                && masterCF->fontStyle->italic) {
-            styleText.addProperty("fo:font-style",
-                                  "italic",
-                                  KoGenStyle::TextType);
-        }
-    }
-
-    if (cf && cf->cf.masks.bold && cf->cf.fontStyle) {
-        if (cf->cf.fontStyle->bold) {
-            styleText.addProperty("fo:font-weight",
-                                  "bold",
-                                  KoGenStyle::TextType);
-        }
-    } else {
-        if (masterCF && masterCF->masks.bold && masterCF->fontStyle && masterCF->fontStyle->bold) {
-            styleText.addProperty("fo:font-weight",
-                                  "bold",
-                                  KoGenStyle::TextType);
-        }
-    }
-
-    const FontEntityAtom* font = 0;
-    if (cf && cf->cf.masks.typeface) {
-        font = getFont(cf->cf.fontRef);
-    } else {
-        if (masterCF && masterCF->masks.typeface) {
-            font = getFont(masterCF->fontRef);
-        }
-    }
-
-    if (font) {
-        styleText.addProperty("fo:font-family",
-                              QString::fromUtf16(font->lfFaceName.data(), font->lfFaceName.size()));
-        font = 0;
-    }
-
-    if (cf && cf->cf.masks.position) {
-        styleText.addProperty("style:text-position",
-                              QString("%1%").arg(cf->cf.position),
-                              KoGenStyle::TextType);
-
-    } else {
-        if (masterCF && masterCF->masks.position) {
-            styleText.addProperty("style:text-position",
-                                  QString("%1%").arg(masterCF->position),
-                                  KoGenStyle::TextType);
-        }
-    }
-
-    bool underline = false;
-    if (cf && cf->cf.masks.underline) {
-        underline = cf->cf.fontStyle->underline;
-    } else {
-        if (masterCF && masterCF->masks.underline) {
-            underline = masterCF->fontStyle->underline;
-        }
-    }
-
-    if (underline) {
-        styleText.addProperty("style:text-underline-style",
-                              "solid",
-                              KoGenStyle::TextType);
-
-        styleText.addProperty("style:text-underline-width",
-                              "auto",
-                              KoGenStyle::TextType);
-
-        styleText.addProperty("style:text-underline-color",
-                              "font-color",
-                              KoGenStyle::TextType);
-    }
-
-    bool emboss = false;
-    if (cf && cf->cf.masks.emboss) {
-        emboss = cf->cf.fontStyle->emboss;
-    } else {
-        if (masterCF && masterCF->masks.emboss) {
-            emboss = masterCF->fontStyle->emboss;
-        }
-    }
-
-    if (emboss) {
-        styleText.addProperty("style:font-relief",
-                              "embossed",
-                              KoGenStyle::TextType);
-    }
-
-    bool shadow = false;
-    if (cf && cf->cf.masks.shadow) {
-        shadow = cf->cf.fontStyle->shadow;
-    } else {
-        if (masterCF && masterCF->masks.shadow) {
-            shadow = masterCF->fontStyle->shadow;
-        }
-    }
-
-    if (shadow) {
-        styleText.addProperty("fo:text-shadow", 0, KoGenStyle::TextType);
-    }
-
-    KoGenStyle styleList(KoGenStyle::StyleListAuto, 0);
-
-    QBuffer buffer;
-    buffer.open(QIODevice::WriteOnly);
-    KoXmlWriter elementWriter(&buffer);    // TODO pass indentation level
-
-    const TextPFException9 *pf9 = 0;
-    const StyleTextProp9 *prop9 = 0;
-
-    if (cf) {
-        // TODO how does one find this structure?
-        prop9 = 0;//textObject->findStyleTextProp9(cf->textCFException());
-    }
-
-    for (int i = 0;i < indent + 1;i++) {
-        //TextCFException *levelCF = masterTextCFException(type, i);
-        const TextPFException *levelPF = masterTextPFException(textType, i);
-
-        if (prop9) {
-            pf9 = &prop9->pf9;
-        }
-
-        bool isListLevelStyleNumber =
-            (levelPF && levelPF->masks.bulletFont)
-            || (pf9 && pf9->masks.bulletHasScheme);
-        if (isListLevelStyleNumber) {
-            elementWriter.startElement("text:list-level-style-number");
-        } else {
-            elementWriter.startElement("text:list-level-style-bullet");
-            // every text:list-level-style-bullet must have a text:bullet-char
-            const char bullet[4] = {0xe2, 0x97, 0x8f, 0};
-            QString bulletChar(QString::fromUtf8(bullet)); //  "●";
-            if (pf && pf->pf.masks.indent && i == pf->pf.indent &&
-                    pf->pf.masks.bulletChar) {
-                bulletChar = pf->pf.bulletChar;
-            } else if (!isListLevelStyleNumber
-                       && levelPF && levelPF->masks.bulletChar) {
-                bulletChar = levelPF->bulletChar;
-            } else {
-                QString::fromUtf8(bullet);//  "●";
-            }
-            elementWriter.addAttribute("text:bullet-char", bulletChar);
-        }
-
-        elementWriter.addAttribute("text:level", i + 1);
-
-        if (pf9 && pf9->masks.bulletHasScheme) {
-            QString numFormat = 0;
-            QString numSuffix = 0;
-            QString numPrefix = 0;
-            processTextAutoNumberScheme(pf9->bulletAutoNumberScheme->scheme, numFormat, numSuffix,
-                                        numPrefix);
-
-            if (numPrefix != 0) {
-                elementWriter.addAttribute("style:num-prefix", numPrefix);
-            }
-
-            if (numSuffix != 0) {
-                elementWriter.addAttribute("style:num-suffix", numSuffix);
-            }
-
-            elementWriter.addAttribute("style:num-format", numFormat);
-        }
-
-        elementWriter.startElement("style:list-level-properties");
-
-        bool hasIndent = pf && pf->pf.masks.indent && i == pf->pf.indent;
-        if (hasIndent && pf->pf.masks.spaceBefore) {
-            elementWriter.addAttribute("text:space-before",
-                                       paraSpacingToCm(pf->pf.spaceBefore));
-        } else if (levelPF && levelPF->masks.spaceBefore) {
-            elementWriter.addAttribute("text:space-before",
-                                       paraSpacingToCm(levelPF->spaceBefore));
-        }
-        elementWriter.endElement(); // style:list-level-properties
-
-        elementWriter.startElement("style:text-properties");
-
-        if (hasIndent && pf->pf.masks.bulletFont) {
-            font = getFont(pf->pf.bulletFontRef);
-        } else if (levelPF && levelPF->masks.bulletFont) {
-            font = getFont(levelPF->bulletFontRef);
-        }
-
-        if (font) {
-            elementWriter.addAttribute("fo:font-family",
-                                       QString::fromUtf16(font->lfFaceName.data(),
-                                                          font->lfFaceName.size()));
-        }
-
-        if (hasIndent && pf->pf.masks.bulletColor) {
-            elementWriter.addAttribute("fo:color",
-                                       toQColor(*pf->pf.bulletColor).name());
-        } else {
-            if (levelPF && levelPF->masks.bulletColor) {
-                elementWriter.addAttribute("fo:color",
-                                           toQColor(*levelPF->bulletColor).name());
-            }
-        }
-
-        if (hasIndent && pf->pf.masks.bulletSize) {
-            elementWriter.addAttribute("fo:font-size",
-                                       QString("%1%").arg(pf->pf.bulletSize));
-        } else {
-            if (levelPF && levelPF->masks.bulletSize) {
-                elementWriter.addAttribute("fo:font-size",
-                                           QString("%1%").arg(levelPF->bulletSize));
-            } else {
-                elementWriter.addAttribute("fo:font-size", "100%");
-            }
-        }
-
-        elementWriter.endElement(); // style:text-properties
-
-        elementWriter.endElement();  // text:list-level-style-bullet
-
-
-        styleList.addChildElement("text:list-level-style-bullet",
-                                  QString::fromUtf8(buffer.buffer(),
-                                                    buffer.buffer().size()));
-    }
-
-    addStyleNames((cf) ? &cf->cf : 0, (pf) ? &pf->pf : 0,
-                  styles.lookup(styleText),
-                  styles.lookup(styleParagraph),
-                  styles.lookup(styleList));
-}
-
 void PptToOdp::processTextAutoNumberScheme(int val, QString& numFormat, QString& numSuffix, QString& numPrefix)
 {
     switch (val) {
@@ -2822,179 +2432,564 @@ void PptToOdp::processTextAutoNumberScheme(int val, QString& numFormat, QString&
         break;
     }
 }
-
-void PptToOdp::processTextObjectForStyle(const PPT::OfficeArtSpContainer& o,
-        const PPT::TextContainer& tc,
-        KoGenStyles &styles)
-{
-    const StyleTextPropAtom* style  = tc.style.data();
-    if (!style) {
-        processTextExceptionsForStyle(0, 0, styles, tc);
-        return;
-    }
-
-    //What paragraph/character exceptions were used last
-    const TextPFRun *pf = 0;
-    const TextCFRun *cf = 0;
-
-    //TODO this can be easily optimized by calculating proper increments to i
-    //from both exception's character count
-    QString text = getText(tc);
-    for (int i = 0;i < text.length(); i++) {
-        if (cf == findTextCFRun(*style, i) && pf == findTextPFRun(*style, i) && i > 0) {
-            continue;
-        }
-
-        pf = findTextPFRun(*style, i);
-        cf = findTextCFRun(*style, i);
-
-        processTextExceptionsForStyle(cf, pf, styles, tc);
-    }
-
-    // set the presentation style
-    QString styleName;
-    KoGenStyle kostyle(KoGenStyle::StyleGraphicAuto, "presentation");
-    processGraphicStyle(kostyle, o);
-    styleName = styles.lookup(kostyle);
-    setGraphicStyleName(o, styleName);
-}
-namespace
-{
-const char* dashses[11] = {
-    "", "Dash_20_2", "Dash_20_3", "Dash_20_2", "Dash_20_2", "Dash_20_2",
-    "Dash_20_4", "Dash_20_6", "Dash_20_5", "Dash_20_7", "Dash_20_8"
-};
-const char* arrowHeads[6] = {
-    "", "msArrowEnd_20_5", "msArrowStealthEnd_20_5", "msArrowDiamondEnd_20_5",
-    "msArrowOvalEnd_20_5", "msArrowOpenEnd_20_5"
-};
-}
 template <typename T>
-void PptToOdp::processGraphicStyle(KoGenStyle& style, T& o)
+void PptToOdp::defineGraphicProperties(KoGenStyle& style, const T& o,
+                                       const QString& listStyle)
 {
-    /** 2.3.8 Line Style **/
-    // 2.3.8.1 lineColor
-    const LineColor* lc = get<LineColor>(o);
-    if (lc) {
-        style.addProperty("svg:stroke-color", toQColor(lc->lineColor).name(),
-                          KoGenStyle::GraphicType);
+    const KoGenStyle::PropertyType gt = KoGenStyle::GraphicType;
+    // dr3d:ambient-color
+    // dr3d:back-scale
+    // dr3d:backface-culling
+    // dr3d:close-back
+    // dr3d:close-front
+    // dr3d:depth
+    // dr3d:diffuse-color
+    // dr3d:edge-rounding
+    // dr3d:edge-rounding-mode
+    // dr3d:emissive-color
+    // dr3d:end-angle
+    // dr3d:horizontal-segments
+    // dr3d:lighting-mode
+    // dr3d:normals-direction
+    // dr3d:normals-kind
+    // dr3d:shadow
+    // dr3d:shininess
+    // dr3d:specular-color
+    // dr3d:texture-filter
+    // dr3d:texture-generation-mode-x
+    // dr3d:texture-generation-mode-y
+    // dr3d:texture-kind
+    // dr3d:texture-mode
+    // dr3d:vertical-segments
+    // draw:auto-grow-height
+    // draw:auto-grow-width
+    // draw:blue
+    // draw:caption-angle
+    // draw:caption-angle-type
+    // draw:caption-escape
+    // draw:caption-escape-direction
+    // draw:caption-fit-line-length
+    // draw:caption-gap
+    // draw:caption-line-length
+    // draw:caption-type
+    // draw:color-inversion
+    // draw:color-mode
+    // draw:contrast
+    // draw:decimal-places
+    // draw:end-guide
+    // draw:end-line-spacing-horizontal
+    // draw:end-line-spacing-vertical
+    // draw:fill ("bitmap", "gradient", "hatch", "none" or "solid")
+    const FillStyleBooleanProperties* fs = get<FillStyleBooleanProperties>(o);
+    const FillType* fillType = get<FillType>(o);
+    if (fs && fs->fUseFilled && !fs->fFilled) {
+        style.addProperty("draw:fill", "none", gt);
+    } else if (fillType) {
+        style.addProperty("draw:fill", getFillType(fillType->fillType), gt);
     }
-    // 2.3.8.2 lineOpacity
-    const LineOpacity* lo = get<LineOpacity>(o);
-    if (lo) {
-        style.addProperty("svg:stroke-opacity", lo->lineOpacity / 0x10000f);
+    // draw:fill-color
+    const FillColor* fc = get<FillColor>(o);
+    if (fc && fillType && fillType->fillType == 0) {
+        // only set the color if the fill type is 'solid' because OOo ignores
+        // fill='non' if the color is set
+        style.addProperty("draw:fill-color", toQColor(fc->fillColor).name(), gt);
     }
-    // 2.3.8.5 lineType
-    // solid, pattern or texture
-    // 2.3.8.14 lineWidth
-    const LineWidth* lw = get<LineWidth>(o);
-    if (lw) {
-        style.addProperty("svg:stroke-width",
-                          QString("%1pt").arg(lw->lineWidth / 12700.f),
-                          KoGenStyle::GraphicType);
+    // draw:fill-gradient-name
+    // draw:fill-hatch-name
+    // draw:fill-hatch-solid
+    // draw:fill-image-height
+    // draw:fill-image-name
+    const FillBlip* fb = get<FillBlip>(o);
+    const QString fillImagePath = (fb) ?getPicturePath(fb->fillBlip) :"";
+    if (!fillImagePath.isEmpty()) {
+        style.addProperty("draw:fill-image-name",
+                          "fillImage" + QString::number(fb->fillBlip), gt);
     }
-    // 2.3.8.16 lineStyle
-    // single, double, tiple etc line
-    // 2.3.8.17 lineDashing
-    const LineDashing* ld = get<LineDashing>(o);
-
-    // This is not nearly complete. left, right, top and bottom lines not yes
-    // supported.
-    // for now, go by the assumption that there is only a line
-    // when fUsefLine and fLine are true
-    const LineStyleBooleanProperties* bp = get<LineStyleBooleanProperties>(o);
-    if (bp && bp->fUsefLine && bp->fLine) {
-        if (bp->fNoLineDrawDash) {
-            style.addProperty("draw:stroke", "none", KoGenStyle::GraphicType);
-        } else if (ld) {
-            if (ld->lineDashing == 0 || ld->lineDashing >= 11) { // solid
-                style.addProperty("draw:stroke", "solid", KoGenStyle::GraphicType);
-            } else {
-                style.addProperty("draw:stroke", "solid", KoGenStyle::GraphicType);
-                style.addProperty("draw:stroke-dash", dashses[ld->lineDashing],
-                                  KoGenStyle::GraphicType);
-            }
-        } else {
-            // default style is a solid line, this must be set explicitly as long
-            // as kpresenter takes draw:stroke="none" as default
-            style.addProperty("draw:stroke", "solid", KoGenStyle::GraphicType);
-        }
-    }
-    style.addProperty("draw:stroke", "solid", KoGenStyle::GraphicType);
-
-
-    const LineStartArrowhead* lsa = get<LineStartArrowhead>(o);
-    if (lsa && lsa->lineStartArrowhead > 0 && lsa->lineStartArrowhead < 6) {
-        style.addProperty("draw:marker-start",
-                          arrowHeads[lsa->lineStartArrowhead], KoGenStyle::GraphicType);
-    }
-
+    // draw:fill-image-ref-point
+    // draw:fill-image-ref-point-x
+    // draw:fill-image-ref-point-y
+    // draw:fill-image-width
+    // draw:fit-to-contour
+    // draw:fit-to-size
+    // draw:frame-display-border
+    // draw:frame-display-scrollbar
+    // draw:frame-margin-horizontal
+    // draw:frame-margin-vertical
+    // draw:gamma
+    // draw:gradient-step-count
+    // draw:green
+    // draw:guide-distance
+    // draw:guide-overhang
+    // draw:image-opacity
+    // draw:line-distance
+    // draw:luminance
+    // draw:marker-end
     const LineEndArrowhead* lea = get<LineEndArrowhead>(o);
     if (lea && lea->lineEndArrowhead > 0 && lea->lineEndArrowhead < 6) {
         style.addProperty("draw:marker-end",
-                          arrowHeads[lea->lineEndArrowhead], KoGenStyle::GraphicType);
+                          arrowHeads[lea->lineEndArrowhead], gt);
     }
-
-    const LineStartArrowWidth* lsw = get<LineStartArrowWidth>(o);
-    if (lw && lsw) {
-        style.addProperty("draw:marker-start-width", QString("%1cm").arg(
-                              lw->lineWidth*lsw->lineStartArrowWidth), KoGenStyle::GraphicType);
-    }
-
+    // draw:marker-end-center
+    // draw:marker-end-width
+    const LineWidth* lw = get<LineWidth>(o);
     const LineEndArrowWidth* lew = get<LineEndArrowWidth>(o);
     if (lw && lew) {
-        style.addProperty("draw:marker-end-width", QString("%1cm").arg(lw->lineWidth*lew->lineEndArrowWidth), KoGenStyle::GraphicType);
+        style.addProperty("draw:marker-end-width", cm(lw->lineWidth*lew->lineEndArrowWidth), gt);
     }
-
-    const FillBlip* fb = get<FillBlip>(o);
-    const FillStyleBooleanProperties* fs = get<FillStyleBooleanProperties>(o);
-    if (fb) {
-        style.addProperty("draw:fill", "bitmap");
-        style.addProperty("draw:fill-image-name",
-                          "fillImage" + QString::number(fb->fillBlip));
-    } else if (fs && fs->fUseFilled) {
-        style.addProperty("draw:fill", fs->fFilled ? "solid" : "none",
-                          KoGenStyle::GraphicType);
+    // draw:marker-start
+    const LineStartArrowhead* lsa = get<LineStartArrowhead>(o);
+    if (lsa && lsa->lineStartArrowhead > 0 && lsa->lineStartArrowhead < 6) {
+        style.addProperty("draw:marker-start",
+                          arrowHeads[lsa->lineStartArrowhead], gt);
     }
-    const FillColor* fc = get<FillColor>(o);
-    if (fc) {
-        style.addProperty("draw:fill-color", toQColor(fc->fillColor).name(),
-                          KoGenStyle::GraphicType);
-    } else {
-        style.addProperty("draw:fill-color", "#99ccff",
-                          KoGenStyle::GraphicType);
+    // draw:marker-start-center
+    // draw:marker-start-width
+    const LineStartArrowWidth* lsw = get<LineStartArrowWidth>(o);
+    if (lw && lsw) {
+        style.addProperty("draw:marker-start-width",
+                          cm(lw->lineWidth*lsw->lineStartArrowWidth), gt);
     }
-
-#if 0
-    if (drawObject->hasProperty("draw:shadow-color")) {
-        elementWriter.addAttribute("draw:shadow", "visible");
-        Color shadowColor = drawObject->getColorProperty("draw:shadow-color");
-        style.addProperty("draw:shadow-color", hexname(shadowColor), KoGenStyle::GraphicType);
-    } else {
-        style.addProperty("draw:shadow", "hidden", KoGenStyle::GraphicType);
-    }
-#endif
-
-    const ShadowOpacity* so = get<ShadowOpacity>(o);
-    if (so) {
-        float opacity = so->shadowOpacity.integral + so->shadowOpacity.fractional / 65535.0;
-        style.addProperty("draw:shadow-opacity", QString("%1%").arg(opacity), KoGenStyle::GraphicType);
-    }
-
+    // draw:measure-align
+    // draw:measure-vertical-align
+    // draw:ole-draw-aspect
+    // draw:opacity
+    // draw:opacity-name
+    // draw:parallel
+    // draw:placing
+    // draw:red
+    // draw:secondary-fill-color
+    // draw:shadow
+    // draw:shadow-color
+    // draw:shadow-offset-x
     const ShadowOffsetX* sox =  get<ShadowOffsetX>(o);
     if (sox) {
-        style.addProperty("draw:shadow-offset-x", QString("%1cm").arg(sox->shadowOffsetX), KoGenStyle::GraphicType);
+        style.addProperty("draw:shadow-offset-x", cm(sox->shadowOffsetX), gt);
     }
-
+    // draw:shadow-offset-y
     const ShadowOffsetY* soy =  get<ShadowOffsetY>(o);
     if (soy) {
-        style.addProperty("draw:shadow-offset-y", QString("%1cm").arg(soy->shadowOffsetY), KoGenStyle::GraphicType);
+        style.addProperty("draw:shadow-offset-y", cm(soy->shadowOffsetY), gt);
+    }
+    // draw:shadow-opacity
+    const ShadowOpacity* so = get<ShadowOpacity>(o);
+    if (so) {
+        float opacity = toQReal(so->shadowOpacity);
+        style.addProperty("draw:shadow-opacity", percent(opacity), gt);
+    }
+    // draw:show-unit
+    // draw:start-guide
+    // draw:start-line-spacing-horizontal
+    // draw:start-line-spacing-vertical
+    // draw:stroke ('dash', 'none' or 'solid')
+    const LineDashing* ld = get<LineDashing>(o);
+    const LineStyleBooleanProperties* bp = get<LineStyleBooleanProperties>(o);
+    // OOo interprets solid line with with 0 as hairline, so if
+    // width == 0, stroke *must* be none to avoid OOo from
+    // displaying a line
+    if (lw && lw->lineWidth == 0) {
+        style.addProperty("draw:stroke", "none", gt);
+    } else if (bp && bp->fUsefLine) {
+        if (bp->fLine
+                || (ld && bp->fUseNoLineDrawDash && bp->fNoLineDrawDash)) {
+            if (ld && ld->lineDashing > 0 && ld->lineDashing < 11) {
+                style.addProperty("draw:stroke", "dash", gt);
+            } else {
+                style.addProperty("draw:stroke", "solid", gt);
+            }
+        } else {
+            style.addProperty("draw:stroke", "none", gt);
+        }
+    }
+    // draw:stroke-dash from 2.3.8.17 lineDashing
+    if (ld && ld->lineDashing > 0 && ld->lineDashing < 11) {
+        style.addProperty("draw:stroke-dash", dashses[ld->lineDashing], gt);
+    }
+    // draw:stroke-dash-names
+    // draw:stroke-linejoin
+    // draw:symbol-color
+    // draw:textarea-horizontal-align
+    // draw:textarea-vertical-align
+    // draw:tile-repeat-offset
+    // draw:unit
+    // draw:visible-area-height
+    // draw:visible-area-left
+    // draw:visible-area-top
+    // draw:visible-area-width
+    // draw:wrap-influence-on-position
+    // fo:background-color
+    // fo:border
+    // fo:border-bottom
+    // fo:border-left
+    // fo:border-right
+    // fo:border-top
+    // fo:clip
+    // fo:margin
+    // fo:margin-bottom
+    // fo:margin-left
+    // fo:margin-right
+    // fo:margin-top
+    // fo:max-height
+    // fo:max-width
+    // fo:min-height
+    // fo:min-width
+    // fo:padding
+    // fo:padding-bottom
+    // fo:padding-left
+    // fo:padding-right
+    // fo:padding-top
+    // fo:wrap-option
+    // style:border-line-width
+    // style:border-line-width-bottom
+    // style:border-line-width-left
+    // style:border-line-width-right
+    // style:border-line-width-top
+    // style:editable
+    // style:flow-with-text
+    // style:horizontal-pos
+    // style:horizontal-rel
+    // style:mirror
+    // style:number-wrapped-paragraphs
+    // style:overflow-behavior
+    // style:print-content
+    // style:protect
+    // style:rel-height
+    // style:rel-width
+    // style:repeat
+    // style:run-through
+    // style:shadow
+    // style:vertical-pos
+    // style:vertical-rel
+    // style:wrap
+    // style:wrap-contour
+    // style:wrap-contour-mode
+    // style:wrap-dynamic-treshold
+    // svg:fill-rule
+    // svg:height
+    // svg:stroke-color from 2.3.8.1 lineColor
+    const LineColor* lc = get<LineColor>(o);
+    if (lc) {
+        style.addProperty("svg:stroke-color", toQColor(lc->lineColor).name(),
+                          gt);
+    }
+    // svg:stroke-opacity from 2.3.8.2 lineOpacity
+    const LineOpacity* lo = get<LineOpacity>(o);
+    if (lo) {
+        style.addProperty("svg:stroke-opacity", lo->lineOpacity / 0x10000f, gt);
+    }
+    // svg:stroke-width from 2.3.8.14 lineWidth
+    if (lw) {
+        style.addProperty("svg:stroke-width",
+                          pt(lw->lineWidth / 12700.f), gt);
+    }
+    // svg:width
+    // svg:x
+    // svg:y
+    // text:anchor-page-number
+    // text:anchor-type
+    // text:animation
+    // text:animation-delay
+    // text:animation-direction
+    // text:animation-repeat
+    // text:animation-start-inside
+    // text:animation-steps
+    // text:animation-stop-inside
+
+    /* associate with a text:list-style element */
+    if (!listStyle.isNull()) {
+        style.addAttribute("style:list-style-name", listStyle);
     }
 }
-void PptToOdp::processDrawingObjectForStyle(const PPT::OfficeArtSpContainer& o, KoGenStyles &styles)
+quint32 PptToOdp::getTextType(const PptOfficeArtClientTextBox* clientTextbox,
+            const PptOfficeArtClientData* clientData) const
 {
-    KoGenStyle style(KoGenStyle::StyleGraphicAuto, "graphic");
-    style.setParentName("pptDefaults");
-    processGraphicStyle(style, o);
-    setGraphicStyleName(o, styles.lookup(style));
+    if (clientData && clientData->placeholderAtom && currentSlideTexts) {
+        const PlaceholderAtom* p = clientData->placeholderAtom.data();
+        if (p->position >= 0 && p->position < currentSlideTexts->atoms.size()) {
+            const TextContainer& tc = currentSlideTexts->atoms[p->position];
+            return tc.textHeaderAtom.textType;
+        }
+    }
+    if (clientTextbox) {
+        // find the text type
+        foreach (const TextClientDataSubContainerOrAtom& a, clientTextbox->rgChildRec) {
+            const TextContainer* tc = a.anon.get<TextContainer>();
+            if (tc) {
+                return tc->textHeaderAtom.textType;
+            }
+        }
+    }
+    return 99; // 99 means it is undefined here
 }
+
+QString getMasterStyle(const QMap<int, QString>& map, int texttype) {
+    if (map.contains(texttype)) {
+        return map[texttype];
+    }
+    // fallback for titles
+    if (texttype == 0 || texttype == 6) {
+        if (map.contains(0)) return map[0]; // Tx_TYPE_TITLE
+        if (map.contains(6)) return map[6]; // Tx_TYPE_CENTERTITLE
+        return QString();
+    } else { // fallback for body
+        if (map.contains(1)) return map[1]; // Tx_TYPE_BODY
+        if (map.contains(5)) return map[5]; // Tx_TYPE_CENTERBODY
+        if (map.contains(7)) return map[7]; // Tx_TYPE_HALFBODY
+        if (map.contains(8)) return map[8]; // Tx_TYPE_QUARTERBODY
+        if (map.contains(4)) return map[4]; // Tx_TYPE_OTHER
+        return QString();
+    }
+    return QString();
+}
+
+void PptToOdp::addPresentationStyleToDrawElement(Writer& out,
+                                            const OfficeArtSpContainer& o)
+{
+    const PptOfficeArtClientTextBox* tb = 0;
+    if (o.clientTextbox) {
+        tb = o.clientTextbox->anon.get<PptOfficeArtClientTextBox>();
+    }
+    const PptOfficeArtClientData* cd = 0;
+    if (o.clientData) {
+        cd = o.clientData->anon.get<PptOfficeArtClientData>();
+    }
+    quint32 textType = getTextType(tb, cd);
+    bool canBeParentStyle = textType != 99 && out.stylesxml && currentMaster;
+    bool isAutomatic = !canBeParentStyle;
+
+    // if this object has a placeholder type, it defines a presentation style,
+    // otherwise, it defines a graphic style
+    // A graphic style is always automatic
+    KoGenStyle::Type type = KoGenStyle::StylePresentation;
+    if (isAutomatic) {
+        type = KoGenStyle::StylePresentationAuto;
+    }
+    KoGenStyle style(type, "presentation");
+    if (isAutomatic) {
+        style.setAutoStyleInStylesDotXml(out.stylesxml);
+    }
+
+    QString parent;
+    // for now we only set parent styles on presentation styled elements
+    if (currentMaster) {
+        parent = getMasterStyle(masterPresentationStyles[currentMaster],
+                                textType);
+    }
+    if (!parent.isEmpty()) {
+        style.setParentName(parent);
+    }
+    const TextMasterStyleAtom* listStyle = 0;
+    if (out.stylesxml) {
+        listStyle = getTextMasterStyleAtom(currentMaster, textType);
+    }
+    QString listStyleName;
+    if (listStyle) {
+        KoGenStyle list(KoGenStyle::StyleList);
+        defineListStyle(list, *listStyle);
+        listStyleName = out.styles.lookup(list);
+    }
+    defineGraphicProperties(style, o, listStyleName);
+    if (listStyle && listStyle->lstLvl1) {
+        PptTextPFRun pf(p->documentContainer, currentMaster, textType);
+        defineParagraphProperties(style, pf);
+        defineTextProperties(style, &listStyle->lstLvl1->cf, 0, 0, 0);
+    }
+    const QString styleName = out.styles.lookup(style);
+    out.xml.addAttribute("presentation:style-name", styleName);
+    if (canBeParentStyle) {
+        masterPresentationStyles[currentMaster][textType] = styleName;
+    }
+}
+void PptToOdp::addGraphicStyleToDrawElement(Writer& out,
+                                            const OfficeArtSpContainer& o)
+{
+    const PptOfficeArtClientData* cd = 0;
+    if (o.clientData) {
+        cd = o.clientData->anon.get<PptOfficeArtClientData>();
+    }
+    bool isPlaceholder = cd && cd->placeholderAtom;
+    if (isPlaceholder) {
+        PptToOdp::addPresentationStyleToDrawElement(out, o);
+        return;
+    }
+
+    const PptOfficeArtClientTextBox* tb = 0;
+    if (o.clientTextbox) {
+        tb = o.clientTextbox->anon.get<PptOfficeArtClientTextBox>();
+    }
+    quint32 textType = getTextType(tb, cd);
+    KoGenStyle style(KoGenStyle::StyleGraphicAuto, "graphic");
+    style.setAutoStyleInStylesDotXml(out.stylesxml);
+
+    const TextMasterStyleAtom* listStyle = 0;
+    listStyle = getTextMasterStyleAtom(currentMaster, textType);
+    QString listStyleName;
+    if (listStyle) {
+        KoGenStyle list(KoGenStyle::StyleList);
+        defineListStyle(list, *listStyle);
+        listStyleName = out.styles.lookup(list);
+    }
+    defineGraphicProperties(style, o, listStyleName);
+    if (listStyle && listStyle->lstLvl1) {
+        PptTextPFRun pf(p->documentContainer, currentMaster, textType);
+        defineParagraphProperties(style, pf);
+        defineTextProperties(style, &listStyle->lstLvl1->cf, 0, 0, 0);
+    }
+    const QString styleName = out.styles.lookup(style);
+    out.xml.addAttribute("draw:style-name", styleName);
+}
+
+void PptToOdp::processDeclaration(KoXmlWriter* xmlWriter)
+{
+    const HeadersFootersAtom* headerFooterAtom = 0;
+    QSharedPointer<UserDateAtom> userDateAtom;
+    QSharedPointer<FooterAtom> footerAtom;
+    HeaderAtom* headerAtom = 0;
+    const MSO::SlideHeadersFootersContainer* slideHF = getSlideHF();
+
+    for (int slideNo = 0; slideNo < p->slides.size(); slideNo++) {
+        const SlideContainer* slide = p->slides[slideNo];
+        if (slide->perSlideHFContainer) {
+            userDateAtom = slide->perSlideHFContainer->userDateAtom;
+            footerAtom = slide->perSlideHFContainer->footerAtom;
+            headerFooterAtom = &slide->perSlideHFContainer->hfAtom;
+        }
+        else if (slideHF) {
+            userDateAtom = slideHF->userDateAtom;
+            footerAtom = slideHF->footerAtom;
+            headerFooterAtom = &slideHF->hfAtom;
+        }
+
+
+        if (headerFooterAtom && headerFooterAtom->fHasHeader && headerAtom) {
+#if 0
+            QString headerText = QString::fromAscii(headerAtom->header, headerAtom->header.size());
+            QString hdrName = findDeclaration(Header, headerText);
+            if (hdrName == 0 ) {
+                hdrName = QString("hdr%1").arg(declaration.values(Header).count() + 1);
+                insertDeclaration(Header, hdrName, headerText);
+            }
+            usedHeaderDeclaration.insert(slideNo,hdrName);
+#endif
+        }
+        if (headerFooterAtom && headerFooterAtom->fHasFooter && footerAtom) {
+            QString footerText = QString::fromUtf16(footerAtom->footer.data(), footerAtom->footer.size());
+            QString ftrName = findDeclaration(Footer, footerText);
+            if ( ftrName == 0) {
+                ftrName = QString("ftr%1").arg((declaration.values(Footer).count() + 1));
+                insertDeclaration(Footer, ftrName, footerText);
+            }
+            usedFooterDeclaration.insert(slideNo,ftrName);
+        }
+        if (headerFooterAtom && headerFooterAtom->fHasDate) {
+            if(headerFooterAtom->fHasUserDate && userDateAtom) {
+                QString userDate = QString::fromUtf16(userDateAtom->userDate.data(), userDateAtom->userDate.size());
+                QString dtdName = findDeclaration(DateTime, userDate);
+                if ( dtdName == 0) {
+                    dtdName = QString("dtd%1").arg((declaration.values(DateTime).count() + 1));
+                    insertDeclaration(DateTime, dtdName, userDate);
+                }
+                usedDateTimeDeclaration.insert(slideNo,dtdName);
+            }
+            if(headerFooterAtom->fHasTodayDate) {
+                QString dtdName = findDeclaration(DateTime, "");
+                if ( dtdName == 0) {
+                    dtdName = QString("dtd%1").arg((declaration.values(DateTime).count() + 1));
+                    insertDeclaration(DateTime, dtdName, "");
+                }
+                usedDateTimeDeclaration.insert(slideNo,dtdName);
+            }
+        }
+    }
+
+    if (slideHF) {
+        if (slideHF->hfAtom.fHasTodayDate) {
+           QList<QPair<QString, QString> >items = declaration.values(DateTime);
+           for( int i = items.size()-1; i >= 0; --i) {
+                QPair<QString, QString > item = items.at(i);
+                xmlWriter->startElement("presentation:date-time-decl");
+                xmlWriter->addAttribute("presentation:name", item.first);
+                xmlWriter->addAttribute("presentation:source", "current-date");
+                //xmlWrite->addAttribute("style:data-style-name", "Dt1");
+                xmlWriter->endElement();  // presentation:date-time-decl
+            }
+        } else if (slideHF->hfAtom.fHasUserDate) {
+            QList<QPair<QString, QString> >items = declaration.values(DateTime);
+            for( int i = 0; i < items.size(); ++i) {
+                QPair<QString, QString > item = items.at(i);
+                xmlWriter->startElement("presentation:date-time-decl");
+                xmlWriter->addAttribute("presentation:name", item.first);
+                xmlWriter->addAttribute("presentation:source", "fixed");
+                xmlWriter->addTextNode(item.second);
+                //Future - Add Fixed date data here
+                xmlWriter->endElement();  //presentation:date-time-decl
+            }
+        }
+        if (headerAtom && slideHF->hfAtom.fHasHeader) {
+            QList< QPair < QString, QString > > items = declaration.values(Header);
+            for( int i = items.size()-1; i >= 0; --i) {
+                QPair<QString, QString > item = items.value(i);
+                xmlWriter->startElement("presentation:header-decl");
+                xmlWriter->addAttribute("presentation:name", item.first);
+                xmlWriter->addTextNode(item.second);
+                xmlWriter->endElement();  //presentation:header-decl
+            }
+        }
+        if (footerAtom && slideHF->hfAtom.fHasFooter) {
+            QList< QPair < QString, QString > > items = declaration.values(Footer);
+            for( int i = items.size()-1 ; i >= 0; --i) {
+                QPair<QString, QString > item = items.at(i);
+                xmlWriter->startElement("presentation:footer-decl");
+                xmlWriter->addAttribute("presentation:name", item.first);
+                xmlWriter->addTextNode(item.second);
+                xmlWriter->endElement();  //presentation:footer-decl
+            }
+        }
+    }
+}
+
+QString PptToOdp::findDeclaration(DeclarationType type, const QString &text) const
+{
+    QList< QPair< QString , QString > > items = declaration.values(type);
+
+    for( int i = 0; i < items.size(); ++i) {
+        QPair<QString, QString>item = items.at(i);
+        if ( item.second == text ) {
+            return item.first;
+        }
+    }
+    return 0;
+}
+
+QString PptToOdp::findNotesDeclaration(DeclarationType type, const QString &text) const
+{
+    QList<QPair<QString, QString> >items = notesDeclaration.values(type);
+
+    for( int i = 0; i < items.size(); ++i) {
+        QPair<QString, QString>item = items.at(i);
+        if ( item.second == text) {
+            return item.first;
+        }
+    }
+    return 0;
+}
+
+void PptToOdp::insertDeclaration(DeclarationType type, const QString &name, const QString &text)
+{
+    QPair<QString, QString>item;
+    item.first = name;
+    item.second = text;
+
+    declaration.insertMulti(type, item);
+}
+
+void PptToOdp::insertNotesDeclaration(DeclarationType type, const QString &name, const QString &text)
+{
+    QPair<QString, QString > item;
+    item.first = name;
+    item.second = text;
+
+    notesDeclaration.insertMulti(type, item);
+}
+
+
+

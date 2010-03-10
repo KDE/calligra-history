@@ -167,7 +167,7 @@ bool KWDLoader::load(KoXmlElement &root)
                 pos = KWord::FootNoteSeparatorCenter;
             else if (tmp == "right")
                 pos = KWord::FootNoteSeparatorRight;
-            else // default: if ( tmp =="left" )
+            else // default: if (tmp =="left")
                 pos = KWord::FootNoteSeparatorLeft;
             m_pageStyle.setFootNoteSeparatorLinePosition(pos);
         }
@@ -212,7 +212,7 @@ bool KWDLoader::load(KoXmlElement &root)
             m_foundMainFS = true; // we will not reuse the main FS now.
         }
 
-        //KWDocument::getAttribute( attributes, "standardpage", QString::null );
+        //KWDocument::getAttribute(attributes, "standardpage", QString::null);
         if (attributes.attribute("hasHeader") != "1") {
             m_pageStyle.setHeaderPolicy(KWord::HFTypeNone);
             if (m_firstPageStyle.isValid())
@@ -230,9 +230,9 @@ bool KWDLoader::load(KoXmlElement &root)
         //    m_document->m_tabStop = attributes.attribute("tabStopValue").toDouble();
         /* TODO
                 m_initialEditing = new InitialEditing();
-                m_initialEditing->m_initialFrameSet = attributes.attribute( "activeFrameset" );
-                m_initialEditing->m_initialCursorParag = attributes.attribute( "cursorParagraph" ).toInt();
-                m_initialEditing->m_initialCursorIndex = attributes.attribute( "cursorIndex" ).toInt();
+                m_initialEditing->m_initialFrameSet = attributes.attribute("activeFrameset");
+                m_initialEditing->m_initialCursorParag = attributes.attribute("cursorParagraph").toInt();
+                m_initialEditing->m_initialCursorIndex = attributes.attribute("cursorIndex").toInt();
         */
     }
     if (m_firstPageStyle.isValid()
@@ -394,7 +394,7 @@ void KWDLoader::loadFrameSets(const KoXmlElement &framesets)
     }
 }
 
-void KWDLoader::loadFrameSet(const KoXmlElement &framesetElem, bool loadFrames, bool loadFootnote)
+void KWDLoader::loadFrameSet(const KoXmlElement &framesetElem)
 {
     QString fsname = framesetElem.attribute("name");
 
@@ -531,8 +531,18 @@ void KWDLoader::loadFrameSet(const KoXmlElement &framesetElem, bool loadFrames, 
 
 void KWDLoader::fill(KWFrameSet *fs, const KoXmlElement &framesetElem)
 {
-    //m_visible = static_cast<bool>( KWDocument::getAttribute( framesetElem, "visible", true ) ); // TODO
-    //m_protectSize=static_cast<bool>( KWDocument::getAttribute( framesetElem, "protectSize", false ) ); TODO
+    if (framesetElem.hasAttribute("visible")) {
+        bool visible = framesetElem.attribute("visible").toLower() == "true";
+        foreach (KWFrame *frame, fs->frames()) {
+            frame->shape()->setVisible(visible);
+        }
+    }
+    if (framesetElem.hasAttribute("protectSize")) {
+        bool protectSize = framesetElem.attribute("protectSize").toLower() == "true";
+        foreach (KWFrame *frame, fs->frames()) {
+            frame->shape()->setGeometryProtected(protectSize);
+        }
+    }
 
 }
 
@@ -554,7 +564,7 @@ void KWDLoader::fill(KWTextFrameSet *fs, const KoXmlElement &framesetElem)
     }
 
 
-    //m_info = static_cast<KWFrameSet::Info>( KWDocument::getAttribute( framesetElem, "frameInfo", KWFrameSet::FI_BODY ) ); // TODO
+    //m_info = static_cast<KWFrameSet::Info>(KWDocument::getAttribute(framesetElem, "frameInfo", KWFrameSet::FI_BODY)); // TODO
     switch (framesetElem.attribute("frameInfo").toInt()) {
     case 0: ;
     }
@@ -1168,7 +1178,7 @@ void KWDLoader::insertAnchors()
         if (fs->frames().count() == 0)  continue;
         KWFrame *frame = fs->frames().first();
         frame->shape()->setPosition(QPointF(0, 0));
-        KoShapeContainer* container = dynamic_cast<KoShapeContainer*>(anchor.textShape);
+        KoShapeContainer *container = dynamic_cast<KoShapeContainer*>(anchor.textShape);
         Q_ASSERT(container);
         if (! container) continue;
         container->addChild(frame->shape());   // attach here & avoid extra layouts

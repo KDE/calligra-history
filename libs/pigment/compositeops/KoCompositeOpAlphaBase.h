@@ -22,8 +22,9 @@
 
 #include <QBitArray>
 
-#include "KoColorSpaceMaths.h"
-#include "KoCompositeOp.h"
+#include <KoColorSpaceMaths.h>
+#include <KoCompositeOp.h>
+#include <KoColorSpaceConstants.h>
 
 #define NATIVE_MIN_VALUE KoColorSpaceMathsTraits<channels_type>::min
 #define NATIVE_MAX_VALUE KoColorSpaceMathsTraits<channels_type>::max
@@ -37,7 +38,7 @@
  * @param _compositeOp this class should define a function with the
  *        following signature: inline static void composeColorChannels
  */
-template<class _CSTraits, class _compositeOp>
+template<class _CSTraits, class _compositeOp, bool _alphaLocked>
 class KoCompositeOpAlphaBase : public KoCompositeOp
 {
     typedef typename _CSTraits::channels_type channels_type;
@@ -62,9 +63,10 @@ public:
                    const QBitArray & channelFlags) const {
 
         qint32 srcInc = (srcstride == 0) ? 0 : _CSTraits::channels_nb;
+        bool allChannelFlags = channelFlags.isEmpty();
         if (_CSTraits::alpha_pos == -1) {
 
-            qint32 pixelSize = colorSpace()->pixelSize();
+            qint32 pixelSize = _CSTraits::pixelSize;
 
             // XXX: if cols == (dststride/dstPixelSize) == (srcstride/srcPixelSize) == maskstride/maskpixelsize)
             // then don't loop through rows and cols, but composite everything in one go
@@ -82,7 +84,7 @@ public:
                     // transparent
 
                     if (mask != 0) {
-                        if (*mask == OPACITY_TRANSPARENT) {
+                        if (*mask == OPACITY_TRANSPARENT_U8) {
                             mask++;
                             columns--;
                             srcN += _CSTraits::channels_nb;
@@ -92,7 +94,7 @@ public:
                         mask++;
                     }
 
-                    _compositeOp::composeColorChannels(NATIVE_OPACITY_OPAQUE, srcN, dstN, pixelSize, channelFlags);
+                    _compositeOp::composeColorChannels(NATIVE_OPACITY_OPAQUE, srcN, dstN, pixelSize, allChannelFlags, channelFlags);
 
                     columns--;
                     srcN += srcInc;
@@ -115,7 +117,7 @@ public:
             }
 
             channels_type opacity = KoColorSpaceMaths<quint8, channels_type>::scaleToA(U8_opacity);
-            qint32 pixelSize = colorSpace()->pixelSize();
+            qint32 pixelSize = _CSTraits::pixelSize;
 
             while (rows > 0) {
                 const channels_type *srcN = reinterpret_cast<const channels_type *>(srcRowStart);
@@ -130,7 +132,7 @@ public:
 
                     // apply the alphamask
                     if (mask != 0) {
-                        if (*mask != OPACITY_OPAQUE) {
+                        if (*mask != OPACITY_OPAQUE_U8) {
                             srcAlpha = KoColorSpaceMaths<channels_type, quint8>::multiply(srcAlpha, *mask);
                         }
                         mask++;
@@ -150,7 +152,7 @@ public:
                             srcBlend = srcAlpha;
                         } else {
                             channels_type newAlpha = dstAlpha + KoColorSpaceMaths<channels_type>::multiply(NATIVE_OPACITY_OPAQUE - dstAlpha, srcAlpha);
-                            if (!alphaLocked) {
+                            if (!alphaLocked && !_alphaLocked) {
                                 dstN[_CSTraits::alpha_pos] = newAlpha;
                             }
 
@@ -160,7 +162,7 @@ public:
                                 srcBlend = srcAlpha;
                             }
                         }
-                        _compositeOp::composeColorChannels(srcBlend, srcN, dstN, pixelSize, channelFlags);
+                        _compositeOp::composeColorChannels(srcBlend, srcN, dstN, pixelSize, allChannelFlags, channelFlags);
 
                     }
                     columns--;

@@ -121,7 +121,7 @@ void TestDocumentLayout::testNumberedList()
 
     // now to make sure the text is actually properly set.
     block = m_doc->begin().next();
-    i = 0;
+    i = 1;
     while (block.isValid() && i < 13) {
         KoTextBlockData *data = dynamic_cast<KoTextBlockData*>(block.userData());
         QVERIFY(data);
@@ -330,6 +330,70 @@ void TestDocumentLayout::testNestedLists()
             QVERIFY(indent < data->counterWidth());  // deeper indent, larger width
             indent = data->counterWidth();
         }
+        block = block.next();
+    }
+}
+
+void TestDocumentLayout::testNestedPrefixedLists()
+{
+    /* A list with different prefix for each level should show only the prefix of that level
+     * Specifically we should not concatenate the prefixes of the higher levels
+     * Specifically we should not concatenate the suffixes of the higher levels
+     * That is only the prefix and the suffix of the current level should be applied
+     */
+    initForNewTest("MMMM\nSSSS\n");
+
+    KoParagraphStyle h1;
+    m_styleManager->add(&h1);
+    KoParagraphStyle h2;
+    m_styleManager->add(&h2);
+
+    KoListStyle listStyle;
+    KoListLevelProperties llp1;
+    llp1.setStartValue(1);
+    llp1.setStyle(KoListStyle::DecimalItem);
+    llp1.setListItemPrefix("Main");
+    llp1.setListItemSuffix(":");
+
+    listStyle.setLevelProperties(llp1);
+
+    KoListLevelProperties llp2;
+    llp2.setStartValue(1);
+    llp2.setStyle(KoListStyle::DecimalItem);
+    llp2.setLevel(2);
+    llp2.setListItemPrefix("Sub");
+    llp2.setListItemSuffix("*");
+    llp2.setDisplayLevel(2);
+    listStyle.setLevelProperties(llp2);
+
+    h1.setListStyle(&listStyle);
+    h2.setListLevel(2);
+    h2.setListStyle(&listStyle);
+    
+    QVERIFY(listStyle.hasLevelProperties(1));
+    QVERIFY(listStyle.hasLevelProperties(2));
+    QVERIFY(!listStyle.hasLevelProperties(3));
+
+    QTextBlock block = m_doc->begin().next();
+    h1.applyStyle(block);
+    block = block.next();
+    QVERIFY(block.isValid());
+    h2.applyStyle(block);
+
+    m_layout->layout();
+
+    block = m_doc->begin();
+    QVERIFY(block.userData() == 0);
+    block = block.next();
+    static const char* texts[] = { "Main1:", "Sub1.1*"};
+    int i = 0;
+    while (block.isValid()) {
+        KoTextBlockData *data = dynamic_cast<KoTextBlockData*>(block.userData());
+        //qDebug() << "text: " << block.text();
+        //qDebug() << "expected: " << texts[i];
+        QVERIFY(data);
+        //qDebug() << data->counterText();
+        QCOMPARE(data->counterText(), QString(texts[i++]));
         block = block.next();
     }
 }
@@ -634,4 +698,27 @@ void TestDocumentLayout::testCenteredItems()
     QTextLine line = layout->lineAt(0);
     KoTextBlockData *data = dynamic_cast<KoTextBlockData*>(block.userData());
     QCOMPARE(data->counterPosition().x(), 200 - padding - data->counterWidth());
+}
+
+void TestDocumentLayout::testMultiLevel()
+{
+    initForNewTest("ListItem1\n");
+    KoListStyle listStyle;
+    KoListLevelProperties llp;
+    llp.setStyle(KoListStyle::DecimalItem);
+    llp.setLevel(3);
+    llp.setDisplayLevel(4); // we won't show a .0 at the end so this is truncated to 3
+    listStyle.setLevelProperties(llp);
+
+    QTextBlock block = m_doc->begin();
+    QVERIFY(block.isValid());
+    listStyle.applyStyle(block);
+    QVERIFY(block.textList());
+
+    m_layout->layout();
+
+    KoTextBlockData *data = dynamic_cast<KoTextBlockData*> (block.userData());
+    QVERIFY(data);
+    QVERIFY(data->hasCounterData());
+    QCOMPARE(data->counterText(), QString("1.1.1"));
 }

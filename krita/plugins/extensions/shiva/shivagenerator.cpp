@@ -31,13 +31,14 @@
 #include <ShivaGeneratorConfigWidget.h>
 #include <OpenShiva/Metadata.h>
 #include <OpenShiva/Source.h>
-#include <OpenShiva/Version.h>
+#include "Version.h"
 
 #include "PaintDeviceImage.h"
 #include "QVariantValue.h"
-
-#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION >= 12
 #include "UpdaterProgressReport.h"
+
+#if OPENSHIVA_13_OR_MORE
+#include "GTLCore/CompilationMessages.h"
 #endif
 
 extern QMutex* shivaMutex;
@@ -66,14 +67,12 @@ void ShivaGenerator::generate(KisProcessingInformation dstInfo,
     KisPaintDeviceSP dst = dstInfo.paintDevice();
     QPoint dstTopLeft = dstInfo.topLeft();
 
-#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION >= 12
     UpdaterProgressReport* report = 0;
     if (progressUpdater) {
         progressUpdater->setRange(0, size.height());
         report = new UpdaterProgressReport(progressUpdater);
     }
-#endif
-        
+    
     Q_ASSERT(!dst.isNull());
 //     Q_ASSERT(config);
     // TODO implement the generating of pixel
@@ -85,7 +84,11 @@ void ShivaGenerator::generate(KisProcessingInformation dstInfo,
         for (QMap<QString, QVariant>::iterator it = map.begin(); it != map.end(); ++it) {
             const GTLCore::Metadata::Entry* entry = kernel.metadata()->parameter(it.key().toAscii().data());
             if (entry && entry->asParameterEntry()) {
+#if OPENSHIVA_12
                 GTLCore::Value val = qvariantToValue(it.value(), entry->asParameterEntry()->valueType());
+#else
+                GTLCore::Value val = qvariantToValue(it.value(), entry->asParameterEntry()->type());
+#endif
                 if(val.isValid())
                 {
                     kernel.setParameter(it.key().toAscii().data(), val);
@@ -96,29 +99,22 @@ void ShivaGenerator::generate(KisProcessingInformation dstInfo,
     {
         QMutexLocker l(shivaMutex);
         kernel.compile();
-#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION >= 12
     }
-#endif
-        if (kernel.isCompiled()) {
-            PaintDeviceImage pdi(dst);
-#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION < 13
-            std::list< GTLCore::AbstractImage* > inputs;
-            GTLCore::Region region(dstTopLeft.x(), dstTopLeft.y() , size.width(), size.height());
+    if (kernel.isCompiled()) {
+        PaintDeviceImage pdi(dst);
+#if OPENSHIVA_12
+        std::list< GTLCore::AbstractImage* > inputs;
+        GTLCore::Region region(dstTopLeft.x(), dstTopLeft.y() , size.width(), size.height());
+        kernel.evaluatePixeles(region, inputs, &pdi, report );
 #else
-            std::list< const GTLCore::AbstractImage* > inputs;
-            GTLCore::RegionI region(dstTopLeft.x(), dstTopLeft.y() , size.width(), size.height());
+        std::list< const GTLCore::AbstractImage* > inputs;
+        GTLCore::RegionI region(dstTopLeft.x(), dstTopLeft.y() , size.width(), size.height());
+        kernel.evaluatePixels(region, inputs, &pdi, report );
 #endif
-#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION < 13
-            kernel.evaluatePixeles(region, inputs, &pdi
-#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION >= 12
-                , report
-#endif
-            );
-#else
-            kernel.evaluatePixels(region, inputs, &pdi, report );
-#endif
-        }
-#if OPENSHIVA_VERSION_MAJOR == 0 && OPENSHIVA_VERSION_MINOR == 9 && OPENSHIVA_VERSION_REVISION < 12
+    }
+#if OPENSHIVA_13_OR_MORE
+    else {
+        dbgPlugins << "Error: " << kernel.compilationMessages().toString().c_str();
     }
 #endif
 }

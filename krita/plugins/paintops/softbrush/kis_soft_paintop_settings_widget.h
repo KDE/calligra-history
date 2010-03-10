@@ -21,11 +21,11 @@
 
 #include <kis_paintop_options_widget.h>
 
-#include "ui_wdgsoftoptions.h"
-#include "widgets/kis_popup_button.h"
 
 class KisPaintActionTypeOption;
 class KisSoftOpOption;
+class KisBrushSizeOption;
+class KisHSVOption;
 
 class KisSoftPaintOpSettingsWidget : public KisPaintOpOptionsWidget
 {
@@ -41,7 +41,8 @@ public:
 public:
     KisPaintActionTypeOption* m_paintActionTypeOption;
     KisSoftOpOption* m_softOption;
-
+    KisBrushSizeOption * m_sizeOption;
+    KisHSVOption * m_hsvOption;
 };
 
 #endif

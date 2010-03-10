@@ -146,7 +146,7 @@ void KisSelectionManager::setup(KActionCollection * collection)
 
     m_clear = collection->addAction(KStandardAction::Clear,  "clear", this, SLOT(clear()));
 
-    m_delete = new KAction(KIcon("edit-delete"), i18n("D&elete"), this);
+    m_delete = new KAction(KIcon("edit-delete"), i18n("D&elete Selection"), this);
     collection->addAction("delete", m_delete);
     m_delete->setShortcut(QKeySequence(Qt::Key_Delete));
     connect(m_delete, SIGNAL(triggered()), this, SLOT(deleteSelection()));
@@ -156,7 +156,7 @@ void KisSelectionManager::setup(KActionCollection * collection)
     m_reselect->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_D));
     connect(m_reselect, SIGNAL(triggered()), this, SLOT(reselect()));
 
-    m_invert  = new KAction(i18n("&Invert"), this);
+    m_invert  = new KAction(i18n("&Invert Selection"), this);
     collection->addAction("invert", m_invert);
     m_invert->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_I));
     connect(m_invert, SIGNAL(triggered()), this, SLOT(invert()));
@@ -187,7 +187,7 @@ void KisSelectionManager::setup(KActionCollection * collection)
 
     m_toggleDisplaySelection  = new KToggleAction(i18n("Display Selection"), this);
     collection->addAction("toggle_display_selection", m_toggleDisplaySelection);
-    m_toggleDisplaySelection->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_H));
+    m_toggleDisplaySelection->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_H));
     connect(m_toggleDisplaySelection, SIGNAL(triggered()), this, SLOT(toggleDisplaySelection()));
 
     m_toggleDisplaySelection->setCheckedState(KGuiItem(i18n("Hide Selection")));
@@ -440,7 +440,7 @@ void KisSelectionManager::copy()
             }
         }
 
-        m_clipboard->setClip(clip);
+        m_clipboard->setClip(clip, r.topLeft());
     }
 
     selectionChanged();
@@ -451,45 +451,29 @@ void KisSelectionManager::paste()
 {
     KisImageWSP image = m_view->image();
     if (!image) return;
+    
+    //figure out where to position the clip
+    // XXX: Fix this for internal points & zoom! (BSAR)
+    QWidget * w = m_view->canvas();
+    QPoint center = QPoint(w->width() / 2, w->height() / 2);
+    QPoint bottomright = QPoint(w->width(), w->height());
+    if (bottomright.x() > image->width())
+        center.setX(image->width() / 2);
+    if (bottomright.y() > image->height())
+        center.setY(image->height() / 2);
 
-    KisPaintDeviceSP clip = m_clipboard->clip();
+    const KoCanvasBase* canvasBase = m_view->canvasBase();
+    const KoViewConverter* viewConverter = m_view->canvasBase()->viewConverter();
+
+    KisPaintDeviceSP clip = m_clipboard->clip(
+        QPoint(
+            viewConverter->viewToDocumentX(canvasBase->canvasController()->canvasOffsetX()) + center.x(),
+            viewConverter->viewToDocumentY(canvasBase->canvasController()->canvasOffsetY()) + center.y()));
 
     if (clip) {
-        KisPaintLayer *layer = new KisPaintLayer(image.data(), image->nextLayerName() + i18n("(pasted)"), OPACITY_OPAQUE);
+        KisPaintLayer *layer = new KisPaintLayer(image.data(), image->nextLayerName() + i18n("(pasted)"), OPACITY_OPAQUE_U8, clip);
         Q_CHECK_PTR(layer);
 
-        QRect r = clip->exactBounds();
-        KisPainter gc;
-        gc.begin(layer->paintDevice());
-        gc.setCompositeOp(COMPOSITE_COPY);
-        gc.bitBlt(0, 0, clip, r.x(), r.y(), r.width(), r.height());
-        gc.end();
-
-        //figure out where to position the clip
-        // XXX: Fix this for internal points & zoom! (BSAR)
-        QWidget * w = m_view->canvas();
-        QPoint center = QPoint(w->width() / 2, w->height() / 2);
-        QPoint bottomright = QPoint(w->width(), w->height());
-        if (bottomright.x() > image->width())
-            center.setX(image->width() / 2);
-        if (bottomright.y() > image->height())
-            center.setY(image->height() / 2);
-        center -= QPoint(r.width() / 2, r.height() / 2);
-
-        const KoCanvasBase* canvasBase = m_view->canvasBase();
-        const KoViewConverter* viewConverter = m_view->canvasBase()->viewConverter();
-
-        layer->setX(viewConverter->viewToDocumentX(canvasBase->canvasController()->canvasOffsetX() + center.x()));
-        layer->setY(viewConverter->viewToDocumentY(canvasBase->canvasController()->canvasOffsetY() + center.y()));
-
-        qDebug() << "layer x,y:" << layer->x() << ", " << layer->y();
-
-        /*XXX CBR have an idea of asking the user if he is about to paste a clip in another cs than that of
-          the image if that is what he want rather than silently converting
-          if ( ! ( *clip->colorSpace == *image ->colorSpace()) )
-          if (dlg->exec() == QDialog::Accepted)
-          layer->convertTo(image->colorSpace());
-        */
         if (m_view->activeLayer()) {
             m_adapter->addNode(layer , m_view->activeLayer()->parent(), m_view->activeLayer().data());
         } else {
@@ -507,7 +491,7 @@ void KisSelectionManager::pasteAt()
 
 void KisSelectionManager::pasteNew()
 {
-    KisPaintDeviceSP clip = m_clipboard->clip();
+    KisPaintDeviceSP clip = m_clipboard->clip(QPoint(0,0));
     if (!clip) return;
 
     QRect r = clip->exactBounds();
@@ -527,7 +511,7 @@ void KisSelectionManager::pasteNew()
 
     KisImageWSP image = new KisImage(doc->undoAdapter(), r.width(), r.height(),
                                    KoColorSpaceRegistry::instance()->colorSpace(clip->colorSpace()->colorModelId().id(), clip->colorSpace()->colorDepthId().id(), clip->colorSpace()->profile()), "Pasted");    // TODO should be translated ?
-    KisPaintLayerSP layer = new KisPaintLayer(image.data(), clip->objectName(), OPACITY_OPAQUE, clip->colorSpace());
+    KisPaintLayerSP layer = new KisPaintLayer(image.data(), clip->objectName(), OPACITY_OPAQUE_U8, clip->colorSpace());
 
     KisPainter p(layer->paintDevice());
     p.setCompositeOp(COMPOSITE_COPY);
@@ -551,9 +535,9 @@ void KisSelectionManager::selectAll()
 
     QUndoCommand* selectionCmd = new QUndoCommand(i18n("Select All"));
 
-    if (!m_view->selection())
+    if (!image->globalSelection())
         new KisSetGlobalSelectionCommand(image, selectionCmd);
-    KisSelectionSP selection = m_view->selection();
+    KisSelectionSP selection = image->globalSelection();
 
     new KisSelectionTransaction(QString(), image, selection, selectionCmd);
 
@@ -574,14 +558,9 @@ void KisSelectionManager::deselect()
     KisLayerSP layer = m_view->activeLayer();
     if (!layer) return;
 
-    if (layer->selectionMask()) {
-        KisDeselectLocalSelectionCommand* cmd = new KisDeselectLocalSelectionCommand(image, layer->selectionMask());
+    if (image->globalSelection()) {
+        KisDeselectGlobalSelectionCommand* cmd = new KisDeselectGlobalSelectionCommand(image);
         m_view->document()->addCommand(cmd);
-    } else {
-        if (image->globalSelection()) {
-            KisDeselectGlobalSelectionCommand* cmd = new KisDeselectGlobalSelectionCommand(image);
-            m_view->document()->addCommand(cmd);
-        }
     }
 }
 
@@ -675,14 +654,9 @@ void KisSelectionManager::reselect()
     KisLayerSP layer = m_view->activeLayer();
     if (!layer) return;
 
-    if (layer->selectionMask() && layer->selectionMask()->deleselectedSelection()) {
-        KisReselectLocalSelectionCommand* cmd = new KisReselectLocalSelectionCommand(image, layer->selectionMask());
+    if (image->globalSelection()) {
+        KisReselectGlobalSelectionCommand* cmd = new KisReselectGlobalSelectionCommand(image);
         m_view->document()->addCommand(cmd);
-    } else {
-        if (image->globalSelection()) {
-            KisReselectGlobalSelectionCommand* cmd = new KisReselectGlobalSelectionCommand(image);
-            m_view->document()->addCommand(cmd);
-        }
     }
 }
 
@@ -767,7 +741,7 @@ void KisSelectionManager::grow(qint32 xradius, qint32 yradius)
     if (xradius <= 0 || yradius <= 0)
         return;
 
-    KisSelectionTransaction *t = new KisSelectionTransaction(i18n("Grow"), image, m_view->selection());
+    KisSelectionTransaction *t = new KisSelectionTransaction(i18n("Grow Selection"), image, m_view->selection());
 
     max = new quint8* [layerSize.width() + 2 * xradius];
     buf = new quint8* [yradius + 1];
@@ -879,7 +853,7 @@ void KisSelectionManager::shrink(qint32 xradius, qint32 yradius, bool edge_lock)
     if (!m_view->selection()) return;
     KisPixelSelectionSP selection = m_view->selection()->getOrCreatePixelSelection();
 
-    KisSelectionTransaction *t = new KisSelectionTransaction(i18n("Shrink"), image, m_view->selection());
+    KisSelectionTransaction *t = new KisSelectionTransaction(i18n("Shrink Selection"), image, m_view->selection());
     Q_CHECK_PTR(t);
 
     //determine the layerSize
@@ -1228,7 +1202,7 @@ void KisSelectionManager::border(qint32 xradius, qint32 yradius)
     //determine the layerSize
     QRect layerSize = image->bounds();
 
-    KisSelectionTransaction *t = new KisSelectionTransaction(i18n("Border"), image, m_view->selection());
+    KisSelectionTransaction *t = new KisSelectionTransaction(i18n("Border Selection"), image, m_view->selection());
     Q_CHECK_PTR(t);
 
     quint8  *buf[3];
@@ -1446,7 +1420,7 @@ void KisSelectionManager::feather(qint32 radius)
         return;
 
     KisPixelSelectionSP selection = m_view->selection()->getOrCreatePixelSelection();
-    KisSelectionTransaction * t = new KisSelectionTransaction(i18n("Feather..."), image, m_view->selection());
+    KisSelectionTransaction * t = new KisSelectionTransaction(i18n("Feather Selection"), image, m_view->selection());
     Q_CHECK_PTR(t);
 
     // compute horizontal kernel

@@ -1,6 +1,5 @@
 include_directories(brush)
 include_directories(pen)
-include_directories(airbrush)
 include_directories(eraser)
 include_directories(duplicate)
 include_directories(smudge)
@@ -8,11 +7,7 @@ include_directories(smudge)
 
 set(kritadefaultpaintops_PART_SRCS
 	defaultpaintops_plugin.cc
-	airbrush/kis_airbrushop.cpp
-	airbrush/kis_airbrushop_settings.cpp
-	airbrush/kis_airbrushop_settings_widget.cpp
 	brush/kis_brushop.cpp
-	brush/kis_brushop_settings.cpp
 	brush/kis_brushop_settings_widget.cpp
 	duplicate/kis_duplicateop.cpp
 	duplicate/kis_duplicateop_factory.cpp
@@ -20,13 +15,10 @@ set(kritadefaultpaintops_PART_SRCS
 	duplicate/kis_duplicateop_settings_widget.cpp
 	duplicate/kis_duplicateop_option.cpp
 	eraser/kis_eraseop.cpp
-	eraser/kis_eraseop_settings.cpp
 	eraser/kis_eraseop_settings_widget.cpp
 	pen/kis_penop.cpp
-	pen/kis_penop_settings.cpp
 	pen/kis_penop_settings_widget.cpp
 	smudge/kis_smudgeop.cpp
-	smudge/kis_smudgeop_settings.cpp
 	smudge/kis_smudgeop_settings_widget.cpp
     )
 
@@ -45,7 +37,6 @@ install(TARGETS kritadefaultpaintops  DESTINATION ${PLUGIN_INSTALL_DIR})
 
 install( FILES  kritadefaultpaintops.desktop  DESTINATION ${SERVICES_INSTALL_DIR})
 install( FILES
-    krita-airbrush.png
     krita-smudgebrush.png
     krita-paintbrush.png
     krita-eraser.png
@@ -55,7 +46,5 @@ install( FILES
 
 install( FILES  
     smudge/smudge-finger.obj 
-    smudge/smudge-finger.mtl
-    airbrush/airbrush.obj
-    airbrush/airbrush.mtl DESTINATION ${DATA_INSTALL_DIR}/krita/brushmodels )
+    smudge/smudge-finger.mtl DESTINATION ${DATA_INSTALL_DIR}/krita/brushmodels )
 

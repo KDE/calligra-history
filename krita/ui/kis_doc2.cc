@@ -121,7 +121,7 @@ public:
 
     ~KisDocPrivate() {
         // Don't delete m_d->shapeController or m_d->nodeModel because it's in a QObject hierarchy.
-        //delete undoAdapter;
+        delete undoAdapter;
         delete nserver;
     }
 
@@ -150,10 +150,12 @@ KisDoc2::KisDoc2(QWidget *parentWidget, QObject *parent, bool singleViewMode)
     setTemplateType("krita_template");
     init();
     connect(this, SIGNAL(sigLoadingFinished()), this, SLOT(slotLoadingFinished()));
+    undoStack()->setUndoLimit(KisConfig().undoStackLimit());
 }
 
 KisDoc2::~KisDoc2()
 {
+    delete m_d->shapeController; // Despite being a QObject it needs to be deleted before the image
     m_d->image.clear();
 
     delete m_d;
@@ -396,7 +398,7 @@ bool KisDoc2::newImage(const QString& name,
     documentInfo()->setAboutInfo("title", name);
     documentInfo()->setAboutInfo("comments", description);
 
-    layer = new KisPaintLayer(image.data(), image->nextLayerName(), bgColor.opacity(), cs);
+    layer = new KisPaintLayer(image.data(), image->nextLayerName(), bgColor.opacityU8(), cs);
     Q_CHECK_PTR(layer);
 
     layer->paintDevice()->setDefaultPixel(bgColor.data());

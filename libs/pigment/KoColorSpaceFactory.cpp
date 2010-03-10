@@ -18,6 +18,9 @@
  */
 
 #include "KoColorSpaceFactory.h"
+
+#include "DebugPigment.h"
+
 #include "KoColorProfile.h"
 #include "KoColorSpace.h"
 #include "KoColorSpaceRegistry.h"
@@ -26,6 +29,9 @@ struct KoColorSpaceFactory::Private {
     QList<KoColorProfile*> colorprofiles;
     QList<KoColorSpace*> colorspaces;
     QHash<QString, QList<KoColorSpace*> > availableColorspaces;
+#ifndef NDEBUG
+    QHash<KoColorSpace*, QString> stackInformation;
+#endif
 };
 
 KoColorSpaceFactory::KoColorSpaceFactory() : d(new Private)
@@ -34,12 +40,25 @@ KoColorSpaceFactory::KoColorSpaceFactory() : d(new Private)
 
 KoColorSpaceFactory::~KoColorSpaceFactory()
 {
+#ifndef NDEBUG
     // Check that all color spaces have been released
     int count = 0;
     foreach(const QList<KoColorSpace*>& cl, d->availableColorspaces) {
         count += cl.size();
     }
+    for(QHash<KoColorSpace*, QString>::const_iterator it = d->stackInformation.begin();
+        it != d->stackInformation.end(); ++it)
+    {
+        errorPigment << "*******************************************";
+        errorPigment << it.key()->id() << " still in used, and grabed in: ";
+        errorPigment << it.value();
+    }
+    if( count != d->colorspaces.size())
+    {
+        errorPigment << (d->colorspaces.size() - count) << " colorspaces are still used";
+    }
     Q_ASSERT(count == d->colorspaces.size());
+#endif
     foreach(KoColorSpace* cs, d->colorspaces) {
         delete cs;
     }
@@ -70,10 +89,14 @@ KoColorSpace* KoColorSpaceFactory::grabColorSpace(const KoColorProfile * profile
     if (!csList.isEmpty()) {
         KoColorSpace* cs = csList.back();
         csList.pop_back();
+        Q_ASSERT(!d->availableColorspaces[profile->name()].contains(cs));
         return cs;
     }
     KoColorSpace* cs = createColorSpace(profile);
     d->colorspaces.push_back(cs);
+#ifndef NDEBUG
+    d->stackInformation[cs] = kBacktrace();
+#endif
     return cs;
 }
 
@@ -81,5 +104,10 @@ void KoColorSpaceFactory::releaseColorSpace(KoColorSpace * colorspace)
 {
     // TODO it is probably worth to avoid caching too many color spaces
     const KoColorProfile* profile = colorspace->profile();
+    Q_ASSERT(d->colorspaces.contains(colorspace));
+    Q_ASSERT(!d->availableColorspaces[profile->name()].contains(colorspace));
     d->availableColorspaces[profile->name()].push_back(colorspace);
+#ifndef NDEBUG
+    d->stackInformation.remove(colorspace);
+#endif
 }

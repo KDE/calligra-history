@@ -609,7 +609,9 @@ void CellView::paintDefaultBorders(QPainter& painter, const QRectF& paintRect,
     // Does the cell intersect the clipped painting region?
     if (!painter.clipRegion().intersects(QRectF(coordinate, QSizeF(d->width, d->height)).toRect()))
         return;
-
+    // Don't draw the border if a background fill-color was define.
+    if (d->style.backgroundColor().isValid())
+        return;
     // disable antialiasing
     painter.setRenderHint(QPainter::Antialiasing, false);
 
@@ -676,7 +678,7 @@ void CellView::paintDefaultBorders(QPainter& painter, const QRectF& paintRect,
         d->style.setBottomBorderPen(sheetView->cellView(col, row + cell.mergedYCells()).style().topBorderPen());
     else if (d->style.bottomPenValue() >= sheetView->cellView(col, row + cell.mergedYCells()).style().topPenValue())
         paintBorder |= BottomBorder;
-
+    
     // Check merging...
     if (d->merged) {
         // by default: none ...
@@ -722,6 +724,16 @@ void CellView::paintDefaultBorders(QPainter& painter, const QRectF& paintRect,
     if (d->style.rightBorderPen().style() != Qt::NoPen)
         paintBorder &= ~RightBorder;
     if (d->style.bottomBorderPen().style() != Qt::NoPen)
+        paintBorder &= ~BottomBorder;
+
+    // Check if the neighbor-cells do have a background fill-color in which case the border is not drawn.
+    if(col > 1 && sheetView->cellView(col - 1, row).style().backgroundColor().isValid())
+        paintBorder &= ~LeftBorder;
+    if(col < KS_colMax && sheetView->cellView(col + 1, row).style().backgroundColor().isValid())
+        paintBorder &= ~RightBorder;
+    if(row > 1 && sheetView->cellView(col, row - 1).style().backgroundColor().isValid())
+        paintBorder &= ~TopBorder;
+    if(row < KS_rowMax && sheetView->cellView(col, row + 1).style().backgroundColor().isValid())
         paintBorder &= ~BottomBorder;
 
     // Set the single-pixel width pen for drawing the borders with.
@@ -1123,10 +1135,10 @@ void CellView::paintText(QPainter& painter,
 
     KoPostscriptPaintDevice device;
     const QFontMetricsF fontMetrics(font, &device);
-    qreal offsetFont = 0.0;
+    qreal fontOffset = 0.0;
 
-    if (style().valign() == Style::Bottom && style().underline())
-        offsetFont = fontMetrics.underlinePos() + 1;
+    if ((style().valign() == Style::Bottom || style().valign() == Style::VAlignUndefined) && style().underline())
+        fontOffset = fontMetrics.underlinePos() + 1;
 
     const int tmpAngle = d->style.angle();
     const bool tmpVerticalText = d->style.verticalText();
@@ -1146,7 +1158,7 @@ void CellView::paintText(QPainter& painter,
         // Case 1: The simple case, one line, no angle.
 
         const QPointF position(indent + coordinate.x() - offsetCellTooShort,
-                               coordinate.y() + d->textY - offsetFont);
+                               coordinate.y() + d->textY - fontOffset);
         drawText(painter, position, d->displayText.split('\n'), cell);
     } else if (tmpAngle != 0) {
         // Case 2: an angle.

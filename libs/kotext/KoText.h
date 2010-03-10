@@ -42,8 +42,8 @@ KOTEXT_EXPORT QStringList underlineStyleList();
 KOTEXT_EXPORT Qt::Alignment alignmentFromString(const QString &align);
 KOTEXT_EXPORT QString alignmentToString(Qt::Alignment align);
 
-/// This enum contains values to be used as keys in the KoResourceManager
-enum Options {
+/// This enum contains values to be used as keys in the canvas KoResourceManager
+enum CanvasResource {
     ShowTextFrames =  278622039, ///< boolean that enables painting of frame outlines
     ShowSpaces,         ///< boolean that enables painting of spaces
     ShowTabs,           ///< boolean that enables painting of tabs
@@ -54,7 +54,10 @@ enum Options {
     CurrentTextAnchor = 341899485,   ///<  used by the text plugin whenever the anchor-position is changed
     SelectedTextPosition = 21314576,   ///<  used by the text plugin whenever the alternative selection is changed
     ///  used by the text plugin whenever the alternative selection anchor-position is changed
-    SelectedTextAnchor = 3344189
+    SelectedTextAnchor = 3344189,
+    /** The KoDocumentRdf for the document,
+     this will be a KoDocumentRdfBase when Soprano support is not compiled in. */
+    DocumentRdf
 };
 
 /// For paragraphs each tab definition is represented by this struct.

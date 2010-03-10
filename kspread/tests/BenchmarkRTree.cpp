@@ -16,14 +16,11 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
    MA  02110-1301  USA
 */
+#include "BenchmarkRTree.h"
 
-#include <iostream>
-
-#include <QCoreApplication>
+#include <QtTest/QtTest>
 
 #include <kdebug.h>
-
-#include "BenchmarkHelper.h"
 
 // #include "rtree.h"
 #include "RTree.h"
@@ -31,56 +28,91 @@
 using namespace std;
 using namespace KSpread;
 
-int main(int argc, char** argv)
+void RTreeBenchmark::init()
 {
-    QCoreApplication app(argc, argv);
-
     RTree<double> tree;
+    m_tree = tree;
+    // insert some data in the RTree
+    const int max_x = 100;
+    const int step_x = 1;
+    const int max_y = 1000;
+    const int step_y = 1;
+    for (int y = 1; y <= max_y; y += step_y) { // equals row insertion into table
+        for (int x = 1; x <= max_x; x += step_x) { // equals cell insertion into row
+            m_tree.insert(QRect(x, y, step_x, step_y), 42);
+        }
+    }
+}
 
-    cout << "Insertion performance test..." << endl;
+void RTreeBenchmark::cleanup()
+{
+}
+
+void RTreeBenchmark::testInsertionPerformance()
+{
+    // reset tree for this test
+    RTree<double> tree;
+    m_tree = tree;
 
     const int max_x = 100;
     const int step_x = 1;
     const int max_y = 1000;
     const int step_y = 1;
-    int counter = 0;
-    Time::tval start = Time::stamp();
-    for (int y = 1; y <= max_y; y += step_y) { // equals row insertion into table
-        for (int x = 1; x <= max_x; x += step_x) { // equals cell insertion into row
-            tree.insert(QRect(x, y, step_x, step_y), 42);
-            ++counter;
+
+    QBENCHMARK {
+        for (int y = 1; y <= max_y; y += step_y) { // equals row insertion into table
+            for (int x = 1; x <= max_x; x += step_x) { // equals cell insertion into row
+                m_tree.insert(QRect(x, y, step_x, step_y), 42);
+            }
         }
     }
-    cout << "\t " << qPrintable(Time::printAverage(Time::elapsed(start), counter)) << endl;
-
-    cout << "Row insertion performance test (5 rows at row 1)..." << endl;
-    start = Time::stamp();
-    tree.insertRows(1, 5);
-    cout << "\t " << qPrintable(Time::printAverage(Time::elapsed(start), 1)) << endl;
-
-    cout << "Column insertion performance test (5 columns at column 1)..." << endl;
-    start = Time::stamp();
-    tree.insertColumns(1, 5);
-    cout << "\t " << qPrintable(Time::printAverage(Time::elapsed(start), 1)) << endl;
-
-    cout << "Row deletion performance test (5 rows at row 1)..." << endl;
-    start = Time::stamp();
-    tree.removeRows(1, 5);
-    cout << "\t " << qPrintable(Time::printAverage(Time::elapsed(start), 1)) << endl;
-
-    cout << "Column deletion performance test (5 columns at column 1)..." << endl;
-    start = Time::stamp();
-    tree.removeColumns(1, 5);
-    cout << "\t " << qPrintable(Time::printAverage(Time::elapsed(start), 1)) << endl;
-
-    cout << "Lookup performance test..." << endl;
-    start = Time::stamp();
-    counter = 0;
-    for (int y = 1; y <= max_y; y += step_y) {
-        for (int x = 1; x <= max_x; x += step_x) {
-            if (!tree.contains(QPoint(x, y)).isEmpty()) counter++;
-        }
-    }
-    cout << "\t " << qPrintable(Time::printAverage(Time::elapsed(start), counter)) << endl;
-    return 0;
 }
+
+void RTreeBenchmark::testRowInsertionPerformance()
+{
+    QBENCHMARK {
+        m_tree.insertRows(1, 5);
+    }
+}
+
+void RTreeBenchmark::testColumnInsertionPerformance()
+{
+    QBENCHMARK {
+        m_tree.insertColumns(1, 5);
+    }
+}
+
+void RTreeBenchmark::testRowDeletionPerformance()
+{
+    QBENCHMARK {
+        m_tree.removeRows(1, 5);
+    }
+}
+
+void RTreeBenchmark::testColumnDeletionPerformance()
+{
+    QBENCHMARK {
+        m_tree.removeColumns(1, 5);
+    }
+}
+
+void RTreeBenchmark::testLookupPerformance()
+{
+    int counter = 0;
+    const int max_x = 100;
+    const int step_x = 1;
+    const int max_y = 1000;
+    const int step_y = 1;
+    QBENCHMARK {
+        for (int y = 1; y <= max_y; y += step_y) {
+            for (int x = 1; x <= max_x; x += step_x) {
+                if (!m_tree.contains(QPoint(x, y)).isEmpty()) counter++;
+            }
+        }
+    }
+}
+
+QTEST_MAIN(RTreeBenchmark)
+
+#include "BenchmarkRTree.moc"
+

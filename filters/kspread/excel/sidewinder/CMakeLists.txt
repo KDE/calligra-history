@@ -1,5 +1,7 @@
-include_directories( ${CMAKE_BINARY_DIR}/filters/ )
-
+include_directories(
+    ${CMAKE_BINARY_DIR}/filters/
+    ${CMAKE_SOURCE_DIR}/filters/kspread/xlsx # for Charting.h
+)
 
 kde4_add_executable(recordsxml2cpp recordsxml2cpp.cpp)
 target_link_libraries(recordsxml2cpp ${QT_QTCORE_LIBRARY} ${QT_QTXML_LIBRARY})
@@ -22,9 +24,11 @@ set(sidewinder_SRCS
   workbook.cpp
   formulas.cpp
   utils.cpp
+  objects.cpp
   substreamhandler.cpp
   globalssubstreamhandler.cpp
   worksheetsubstreamhandler.cpp
+  chartsubstreamhandler.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/records.cpp
 )
 
@@ -32,5 +36,3 @@ add_definitions(-DSWINDER_XLS2RAW)
 
 kde4_add_executable(sidewinder TEST ${sidewinder_SRCS})
 target_link_libraries(sidewinder ${QT_QTCORE_LIBRARY})
-
-

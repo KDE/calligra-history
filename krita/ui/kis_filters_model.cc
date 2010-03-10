@@ -90,6 +90,11 @@ KisFiltersModel::KisFiltersModel(KisPaintDeviceSP thumb) : d(new Private)
     qSort(d->categoriesKeys);
 }
 
+KisFiltersModel::~KisFiltersModel()
+{
+    delete d;
+}
+
 int KisFiltersModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid()) {
@@ -167,12 +172,14 @@ QVariant KisFiltersModel::data(const QModelIndex &index, int role) const
                     KisPaintDeviceSP target = new KisPaintDevice(*d->thumb);
 
                     QRect rc = target->exactBounds();
-
+                    dbgUI << "Previewing " << filter->name << " on: " << rc;
                     KisConstProcessingInformation cpi(d->thumb, rc.topLeft());
                     KisProcessingInformation cp(target, rc.topLeft());
 
                     filter->filter->process(cpi, cp, rc.size()/*QSize(100, 100)*/, filter->filter->defaultConfiguration(d->thumb));
+                    dbgUI << "Resulting in: " << target->exactBounds();
                     d->previewCache[ filter->filter ] = target->convertToQImage(0);
+                    dbgUI << "And in a qimage of size: " << d->previewCache[ filter->filter ].rect();
                 }
                 return d->previewCache[ filter->filter ];
             } else {

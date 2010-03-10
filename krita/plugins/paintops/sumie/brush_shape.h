@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2008 Lukas Tvrdy <lukast.dev@gmail.com>
+ *  Copyright (c) 2008-2010 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #include <QVector>
 #include "bristle.h"
 
+class QString;
+class QImage;
+class KoColorSpace;
 class BrushShape
 {
 
@@ -32,15 +35,19 @@ public:
     void fromDistance(int radius, float scale);
     void fromGaussian(int radius, float sigma);
     void fromLine(int radius, float sigma);
-    void fromBitMap(const char* fileName);
-    void tresholdBristles(double treshold);
+    // slow, optimize!
+    void fromQImageWithDensity(QImage image, qreal density);
+    void thresholdBristles(double threshold);
 
-    QVector<Bristle> getBristles();
+    QVector<Bristle*> getBristles();
     int width();
     int height();
     int radius();
     float sigma();
 
+    bool hasColor(){ return m_hasColor; }
+    void setHasColor(bool hasColor){ m_hasColor = hasColor; }
+    void setColorSpace(KoColorSpace * cs){ m_colorSpace = cs;}
 private:
     int m_width;
     int m_height;
@@ -48,7 +55,9 @@ private:
     int m_radius;
     float m_sigma;
 
-    QVector<Bristle> m_bristles;
+    bool m_hasColor;
+    const KoColorSpace * m_colorSpace;
+    QVector<Bristle*> m_bristles;
 };
 
 #endif

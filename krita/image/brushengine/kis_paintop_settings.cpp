@@ -41,6 +41,7 @@
 struct KisPaintOpSettings::Private {
     KisNodeSP node;
     QPointer<KisPaintOpSettingsWidget> settingsWidget;
+    QString modelName;
 };
 
 KisPaintOpSettings::KisPaintOpSettings()
@@ -68,7 +69,7 @@ KisPaintOpSettingsSP KisPaintOpSettings::clone() const
     QString paintopID = getString("paintop");
     if(paintopID.isEmpty())
         return 0;
-    
+
     KisPaintOpSettingsSP settings = KisPaintOpRegistry::instance()->settings(KoID(paintopID, ""));
     QMapIterator<QString, QVariant> i(getProperties());
     while (i.hasNext()) {
@@ -94,40 +95,46 @@ KisNodeSP KisPaintOpSettings::node() const
 
 QImage KisPaintOpSettings::sampleStroke(const QSize& size)
 {
-    const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
-    int width = size.width();
-    int height = size.height();
+//    const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
+//    int width = size.width();
+//    int height = size.height();
+//
+//    KisLayerSP layer = new KisPaintLayer(0, "temporary for stroke sample", OPACITY_OPAQUE_U8, cs);
+//    KisImageSP image = new KisImage(0, width, height, cs, "stroke sample image", false);
+//    KisPainter painter(layer->paintDevice());
+//    painter.setPaintColor(KoColor(Qt::black, cs));
+//
+//    KisPaintOpPresetSP preset = new KisPaintOpPreset();
+//    preset->setSettings(this);   // This clones
+//    preset->settings()->setNode(layer);
+//
+//    painter.setPaintOpPreset(preset, image);
+//
+//    QPointF p1(0                , 7.0 / 12.0 * height);
+//    QPointF p2(1.0 / 2.0 * width  , 7.0 / 12.0 * height);
+//    QPointF p3(width - 4.0, height - 4.0);
+//
+//    KisPaintInformation pi1(p1, 0.0);
+//    KisPaintInformation pi2(p2, 0.95);
+//    KisPaintInformation pi3(p3, 0.0);
+//
+//    QPointF c1(1.0 / 4.0* width , height - 2.0);
+//    QPointF c2(c1);
+//    KisDistanceInformation saveddist = painter.paintBezierCurve(pi1, c1, c2, pi2, KisDistanceInformation());
+//
+//    c1.setX(3.0 / 4.0 * width);
+//    c1.setY(0);
+//    c2.setX(c1.x());
+//    c2.setY(c1.y());
+//    painter.paintBezierCurve(pi2, c1, c2, pi3, saveddist);
+//
+//    return layer->paintDevice()->convertToQImage(0);
+    QImage img = QImage(size, QImage::Format_ARGB32);
+    QPainter gc(&img);
+    gc.fillRect(0, 0, size.width(), size.height(), Qt::red);
+    gc.end();
+    return img;
 
-    KisLayerSP layer = new KisPaintLayer(0, "temporary for stroke sample", OPACITY_OPAQUE, cs);
-    KisImageSP image = new KisImage(0, width, height, cs, "stroke sample image", false);
-    KisPainter painter(layer->paintDevice());
-    painter.setPaintColor(KoColor(Qt::black, cs));
-
-    KisPaintOpPresetSP preset = new KisPaintOpPreset();
-    preset->setSettings(this);   // This clones
-    preset->settings()->setNode(layer);
-
-    painter.setPaintOpPreset(preset, image);
-
-    QPointF p1(0                , 7.0 / 12.0 * height);
-    QPointF p2(1.0 / 2.0 * width  , 7.0 / 12.0 * height);
-    QPointF p3(width - 4.0, height - 4.0);
-
-    KisPaintInformation pi1(p1, 0.0);
-    KisPaintInformation pi2(p2, 0.95);
-    KisPaintInformation pi3(p3, 0.0);
-
-    QPointF c1(1.0 / 4.0* width , height - 2.0);
-    QPointF c2(c1);
-    painter.paintBezierCurve(pi1, c1, c2, pi2, 0);
-
-    c1.setX(3.0 / 4.0 * width);
-    c1.setY(0);
-    c2.setX(c1.x());
-    c2.setY(c1.y());
-    painter.paintBezierCurve(pi2, c1, c2, pi3, 0);
-
-    return layer->paintDevice()->convertToQImage(0);
 }
 
 QRectF KisPaintOpSettings::paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const
@@ -138,12 +145,11 @@ QRectF KisPaintOpSettings::paintOutlineRect(const QPointF& pos, KisImageWSP imag
     return QRectF();
 }
 
-void KisPaintOpSettings::paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const
+void KisPaintOpSettings::paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, OutlineMode _mode) const
 {
     Q_UNUSED(pos);
     Q_UNUSED(image);
     Q_UNUSED(painter);
-    Q_UNUSED(converter);
     Q_UNUSED(_mode);
 }
 
@@ -156,18 +162,21 @@ void KisPaintOpSettings::changePaintOpSize(qreal x, qreal y)
     }
 }
 
-#if defined(HAVE_OPENGL)
 QString KisPaintOpSettings::modelName() const
 {
-    return "";
+    return d->modelName;
 }
-#endif
+
+void KisPaintOpSettings::setModelName(const QString & modelName)
+{
+    d->modelName = modelName;
+}
 
 KisPaintOpSettingsWidget* KisPaintOpSettings::optionsWidget() const
 {
     if(d->settingsWidget.isNull())
         return 0;
-    
+
     return d->settingsWidget.data();
 }
 

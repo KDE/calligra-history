@@ -165,7 +165,7 @@ Format::Type ValueFormatter::determineFormatting(const Value &value,
             break;
         case Value::fmt_Number: {
             Number val = fabs(value.asFloat());
-            if (((val > 1e+10) || (val < 1e-10)) && (val != 0.0))
+            if (((val > 10000e+10) || (val < 10000e-10)) && (val != 0.0))
                 fmtType = Format::Scientific;
             else
                 fmtType = Format::Number;
@@ -244,16 +244,21 @@ QString ValueFormatter::removeTrailingZeros(const QString& str, const QString& d
 }
 
 QString ValueFormatter::createNumberFormat(Number value, int precision,
-        Format::Type fmt, Style::FloatFormat floatFormat, const QString& currencySymbol, const QString& formatString)
+        Format::Type fmt, Style::FloatFormat floatFormat, const QString& currencySymbol, const QString& _formatString)
 {
+    QString prefix, postfix;
+    QString formatString(_formatString);
+
+    // try to split formatstring into prefix, formatstring and postfix.
     if (!formatString.isEmpty() ) {
         QRegExp re( QLatin1String( "^([^0#.,E+]*)([0#.,E+]*)(.*)$" ) );
         if( re.exactMatch( formatString ) ) {
-            return re.cap( 1 ) + createNumberFormat(value, precision, fmt, floatFormat, currencySymbol) + re.cap( 3 );
+            prefix = re.cap( 1 );
+            formatString = re.cap( 2 );
+            postfix = re.cap( 3 );
         }
     }
     
-
     // NOTE: If precision (obtained from the cell style) is -1 (arbitrary),
     //       use the document default decimal precision.
     int p = (precision == -1) ? settings()->defaultDecimalPrecision() : precision;
@@ -288,11 +293,12 @@ QString ValueFormatter::createNumberFormat(Number value, int precision,
         localizedNumber = m_converter->settings()->locale()->formatNumber(val, p);
         break;
     case Format::Percentage:
-        localizedNumber = m_converter->settings()->locale()->formatNumber(val, p) + " %";
+        localizedNumber = m_converter->settings()->locale()->formatNumber(val, p);
+        if(!postfix.endsWith("%")) // percent formattings needs to end with a "%"-sign
+            postfix += "%";
         break;
     case Format::Money:
-        localizedNumber = m_converter->settings()->locale()->formatMoney(val,
-                          currencySymbol.isEmpty() ? m_converter->settings()->locale()->currencySymbol() : currencySymbol, p);
+        localizedNumber = m_converter->settings()->locale()->formatMoney(val, currencySymbol.isEmpty() ? m_converter->settings()->locale()->currencySymbol() : currencySymbol, p);
         break;
     case Format::Scientific: {
         const QString decimalSymbol = m_converter->settings()->locale()->decimalSymbol();
@@ -323,7 +329,7 @@ QString ValueFormatter::createNumberFormat(Number value, int precision,
         localizedNumber = removeTrailingZeros(localizedNumber, decimalSymbol);
     }
 
-    return localizedNumber;
+    return prefix + localizedNumber + postfix;
 }
 
 QString ValueFormatter::fractionFormat(Number value, Format::Type fmtType)
@@ -378,7 +384,6 @@ QString ValueFormatter::fractionFormat(Number value, Format::Type fmtType)
 
 
     /* handle halves, quarters, tenths, ... */
-
     if (fmtType != Format::fraction_three_digits
             && fmtType != Format::fraction_two_digits
             && fmtType != Format::fraction_one_digit) {
@@ -404,14 +409,10 @@ QString ValueFormatter::fractionFormat(Number value, Format::Type fmtType)
     }
 
 
-    /* handle Format::fraction_one_digit, Format::fraction_two_digit
-      * and Format::fraction_three_digit style */
-
+    /* handle Format::fraction_one_digit, Format::fraction_two_digit and Format::fraction_three_digit style */
     double target = numToDouble(result);
-
     double numerator = 1;
     double denominator = 1;
-
     double bestNumerator = 0;
     double bestDenominator = 1;
     double bestDist = target;
@@ -675,8 +676,8 @@ QString ValueFormatter::complexFormat(const Value& value, int precision,
     QString str;
     const Number real = value.asComplex().real();
     const Number imag = value.asComplex().imag();
-    str = createNumberFormat(real, precision, formatType, floatFormat, QString());
-    str += createNumberFormat(imag, precision, formatType, Style::AlwaysSigned, currencySymbol);
+    str = createNumberFormat(real, precision, formatType, floatFormat, QString(), QString());
+    str += createNumberFormat(imag, precision, formatType, Style::AlwaysSigned, currencySymbol, QString());
     str += 'i';
     return str;
 }

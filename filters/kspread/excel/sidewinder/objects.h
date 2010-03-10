@@ -20,10 +20,67 @@
 #ifndef SWINDER_OBJECTS_H
 #define SWINDER_OBJECTS_H
 
+#include <Charting.h>
+
 #include "ustring.h"
+#include "formulas.h"
+#include "records.h"
+#include "format.h"
+#include "value.h"
+#include "cell.h"
+#include "sheet.h"
+#include "workbook.h"
+
+#include <string>
+#include <iostream>
+#include <vector>
+
+#include <QRect>
+#include <QList>
 
 namespace Swinder
 {
+
+class DrawingObject
+{
+public:
+    enum Property {
+        pid = 0x0104, // identifier for pictures
+        itxid = 0x0080, // identifier for text
+        cxk = 0x0158, // where on the shape the connection points are
+        fillColor = 0x0181, // foreground color of the fill
+        fillBackColor = 0x0183, // background color of the fill
+        fillCrMod = 0x0185, // background color of the fill for black-white displays
+        fillStyleBooleanProperties = 0x01bf, // 32-bit field of Bollean properties for the fill style
+        lineColor = 0x01c0, // foreground color of the line
+        lineCrMod = 0x01c3, // foreground color of the line for black-white displays
+        shadowColor = 0x0201, // primary color of the shadow
+        shadowCrMod = 0x0203, // primary color of the shadow for black-white displays
+        shadowStyleBooleanProperties = 0x023f, // 32-bit field of Bollean properties for shadows
+        groupShapeBooleanProperties = 0x03bf, // 32-bit field of Bollean properties for a shape or a group
+        lineStyleBooleanProperties = 0x01ff, // 32-bit field of Bollean properties for the line style
+        pictureContrast = 0x7f,
+        textBooleanProperties = 0x00bf,
+        wzName = 0x0380
+    };
+
+    static const char* propertyName(Property p);
+    
+    std::map<unsigned long,unsigned long> m_properties;
+    unsigned long m_colL, m_dxL, m_rwT, m_dyT, m_colR, m_dxR, m_rwB, m_dyB;
+    bool m_gotClientData; // indicates that a OfficeArtClientData was received
+
+    explicit DrawingObject();
+    virtual ~DrawingObject();
+    DrawingObject(const DrawingObject& other);
+    void operator=(const DrawingObject& other);
+
+protected:
+    // read a OfficeArtRecordHeader struct.
+    void readHeader(const unsigned char* data, unsigned *recVer = 0, unsigned *recInstance = 0, unsigned *recType = 0, unsigned long *recLen = 0);
+    // read a drawing object (container or atom) and handle/dispatch according to the recType.
+    unsigned long handleObject(unsigned size, const unsigned char* data, bool* recordHandled = 0);
+};
 
 /**
  * Base class for all kind of objects.
@@ -58,8 +115,8 @@ public:
         OfficeArtObject = 0x001E
     };
 
-    Object(Type t, unsigned long id): m_type(t), m_id(id) {}
-    virtual ~Object() {}
+    Object(Type t, unsigned long id): m_type(t), m_id(id), m_drawingObject(0) {}
+    virtual ~Object() { delete m_drawingObject; }
 
     /// Returns the object type.
     Type type() const {
@@ -70,9 +127,14 @@ public:
         return m_id;
     }
 
+    // Each Object can have optional a DrawingObject assigned.
+    DrawingObject* drawingObject() const { return m_drawingObject; }
+    void setDrawingObject(DrawingObject* drawing) { m_drawingObject = drawing; }
+
 private:
     const Type m_type;
     unsigned long m_id;
+    DrawingObject* m_drawingObject;
 };
 
 /**
@@ -148,6 +210,17 @@ public:
     }
 private:
     UString m_note;
+};
+
+class ChartObject : public Object
+{
+public:
+    Charting::Chart* m_chart;
+
+    explicit ChartObject(unsigned long id) : Object(Chart, id), m_chart(new Charting::Chart) {}
+    virtual ~ChartObject() { delete m_chart; }
+    bool operator==(const ChartObject &other) const { return this == &other; }
+    bool operator!=(const ChartObject &other) const { return ! (*this == other); }
 };
 
 } // namespace Swinder

@@ -1,7 +1,8 @@
 /*
  * This file is part of the KDE project
  *
- * Copyright (c) 2004 Casper Boemann <cbr@boemann.dk>
+ *  Copyright (c) 2004 Casper Boemann <cbr@boemann.dk>
+ *  Copyright (c) 2010 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,12 +22,14 @@
 #include <QtGlobal>
 
 #include "kis_tilediterator.h"
+
+#include "kis_tile.h"
 #include "kis_debug.h"
 
 KisTiledHLineIterator::KisTiledHLineIterator(KisTiledDataManager *dataManager,
         qint32 x, qint32 y,
         qint32 w, bool writable)
-        : KisTiledIterator(dataManager)
+        : KisTiledIterator(dataManager), m_tilesCacheSize(0)
 {
     m_writable = writable;
 
@@ -44,11 +47,22 @@ KisTiledHLineIterator::KisTiledHLineIterator(KisTiledDataManager *dataManager,
 
     m_leftCol = xToCol(m_left);
     m_rightCol = xToCol(m_right);
-
+    
+    
     m_row = yToRow(m_y);
     m_yInTile = calcYInTile(m_y, m_row);
 
     qint32 leftInLeftmostTile = calcLeftInTile(m_leftCol);
+
+    m_tilesCacheSize = m_rightCol - m_leftCol + 1;
+    m_tilesCache.resize(m_tilesCacheSize);
+    Q_ASSERT(m_tilesCacheSize == m_tilesCache.size());
+    
+    // let's prealocate first row 
+    for (int i = 0; i < m_tilesCacheSize; i++){
+        m_tilesCache[i] = fetchTileDataForCache(m_leftCol + i, m_row);
+    }
+    
     switchToTile(m_leftCol, leftInLeftmostTile);
 }
 
@@ -65,6 +79,8 @@ KisTiledHLineIterator::KisTiledHLineIterator(const KisTiledHLineIterator& rhs)
         m_leftInTile = rhs.m_leftInTile;
         m_rightInTile = rhs.m_rightInTile;
         m_isDoneFlag = rhs.m_isDoneFlag;
+        m_tilesCacheSize = rhs.m_tilesCacheSize;
+        m_tilesCache = rhs.m_tilesCache;
     }
 }
 
@@ -81,12 +97,19 @@ KisTiledHLineIterator& KisTiledHLineIterator::operator=(const KisTiledHLineItera
         m_leftInTile = rhs.m_leftInTile;
         m_rightInTile = rhs.m_rightInTile;
         m_isDoneFlag = rhs.m_isDoneFlag;
+        m_tilesCacheSize = rhs.m_tilesCacheSize;
+        m_tilesCache = rhs.m_tilesCache;
     }
     return *this;
 }
 
 KisTiledHLineIterator::~KisTiledHLineIterator()
 {
+    Q_ASSERT(m_tilesCacheSize == m_tilesCache.size());
+    for (uint i = 0; i < m_tilesCacheSize; i++) {
+        unlockTile(m_tilesCache[i].tile);
+        unlockTile(m_tilesCache[i].oldtile);
+    }
 }
 
 qint32 KisTiledHLineIterator::nConseqHPixels() const
@@ -186,9 +209,41 @@ void KisTiledHLineIterator::nextRow()
     } else {
         m_row++;
         m_yInTile = 0;
+        preallocateTiles(m_row);
     }
-
     switchToTile(m_leftCol, leftInLeftmostTile);
 
     m_isDoneFlag = false;
+}
+
+void KisTiledHLineIterator::fetchTileData(qint32 col, qint32 row){
+    // check if we have the cached column and row
+    int index = col - m_leftCol;
+    
+    // setup correct data
+    m_data = m_tilesCache[index].data;
+    m_oldData = m_tilesCache[index].oldData;
+}
+
+KisTiledHLineIterator::KisTileInfo KisTiledHLineIterator::fetchTileDataForCache(qint32 col, qint32 row)
+{
+    KisTileInfo kti;
+    kti.tile = m_dataManager->getTile(col, row, m_writable);
+    lockTile(kti.tile);
+    kti.data = kti.tile->data();
+
+    // set old data
+    kti.oldtile = m_dataManager->getOldTile(col, row);
+    lockOldTile(kti.oldtile);
+    kti.oldData = kti.oldtile->data();
+    return kti;
+}
+
+void KisTiledHLineIterator::preallocateTiles(qint32 row)
+{
+    for (int i = 0; i < m_tilesCacheSize; i++){
+        unlockTile(m_tilesCache[i].tile);
+        unlockTile(m_tilesCache[i].oldtile);
+        m_tilesCache[i] = fetchTileDataForCache(m_leftCol + i, row);
+    }
 }

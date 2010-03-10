@@ -37,6 +37,7 @@
 #include "commands/ChangeListLevelCommand.h"
 #include "commands/ListItemNumberingCommand.h"
 #include "commands/ShowChangesCommand.h"
+#include "commands/ChangeTrackedDeleteCommand.h"
 #include "commands/DeleteCommand.h"
 
 #include <KoCanvasBase.h>
@@ -74,6 +75,8 @@
 #include <QTabWidget>
 #include <QTextDocumentFragment>
 #include <QToolTip>
+
+#include <rdf/KoDocumentRdfBase.h>
 
 static bool hit(const QKeySequence &input, KStandardShortcut::StandardShortcut shortcut)
 {
@@ -330,10 +333,6 @@ TextTool::TextTool(KoCanvasBase *canvas)
             ++i;
         }
     }
-    if (m_textEditingPlugins->spellcheck()) {
-           connect(canvas->resourceManager(), SIGNAL(resourceChanged(int, const QVariant&)),
-                   m_textEditingPlugins->spellcheck(), SLOT(resourceChanged(int, const QVariant&)));
-    }
 
     // setup the context list.
     QSignalMapper *signalMapper = new QSignalMapper(this);
@@ -356,7 +355,6 @@ TextTool::TextTool(KoCanvasBase *canvas)
 
     action = new KAction(i18n("Table..."), this);
     addAction("insert_table", action);
-    action->setShortcut(Qt::ALT + Qt::CTRL + Qt::Key_P);
     action->setToolTip(i18n("Insert a table into the document."));
     connect(action, SIGNAL(triggered()), this, SLOT(insertTable()));
 
@@ -702,8 +700,6 @@ void TextTool::setShapeData(KoTextShapeData *data)
         }
     }
     m_textEditor->updateDefaultTextDirection(m_textShapeData->pageDirection());
-    if (m_textEditingPlugins->spellcheck())
-        m_textEditingPlugins->spellcheck()->checkSection(m_textShapeData->document(), 0, 0);
 }
 
 void TextTool::updateSelectionHandler()
@@ -741,6 +737,9 @@ void TextTool::copy() const
     KoTextOdfSaveHelper saveHelper(m_textShapeData, from, to);
     KoTextDrag drag;
 
+    if (KoDocumentRdfBase *rdf = KoDocumentRdfBase::fromResourceManager(canvas())) {
+        saveHelper.setRdfModel(rdf->model());
+    }
     drag.setOdf(KoOdf::mimeType(KoOdf::Text), saveHelper);
     QTextDocumentFragment fragment = m_textEditor->selection();
     drag.setData("text/html", fragment.toHtml("utf-8").toUtf8());
@@ -751,9 +750,9 @@ void TextTool::copy() const
 void TextTool::deleteSelection()
 {
     if (m_actionRecordChanges->isChecked())
-      m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
+      m_textEditor->addCommand(new ChangeTrackedDeleteCommand(ChangeTrackedDeleteCommand::NextChar, this));
     else
-      m_textEditor->deleteChar();
+      m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
     editingPluginEvents();
 }
 
@@ -764,7 +763,9 @@ bool TextTool::paste()
     // on windows we do not have data if we try to paste this selection
     if (!data) return false;
 
+    m_prevCursorPosition = m_textEditor->position();
     m_textEditor->addCommand(new TextPasteCommand(QClipboard::Clipboard, this));
+    editingPluginEvents();
     return true;
 }
 
@@ -904,9 +905,9 @@ void TextTool::keyPressEvent(QKeyEvent *event)
             if (!m_textEditor->hasSelection() && event->modifiers() & Qt::ControlModifier) // delete prev word.
                 m_textEditor->movePosition(QTextCursor::PreviousWord, QTextCursor::KeepAnchor);
             if (m_actionRecordChanges->isChecked())
-              m_textEditor->addCommand(new DeleteCommand(DeleteCommand::PreviousChar, this));
+              m_textEditor->addCommand(new ChangeTrackedDeleteCommand(ChangeTrackedDeleteCommand::PreviousChar, this));
             else
-              m_textEditor->deletePreviousChar();
+              m_textEditor->addCommand(new DeleteCommand(DeleteCommand::PreviousChar, this));
             editingPluginEvents();
         }
         ensureCursorVisible();
@@ -923,9 +924,9 @@ void TextTool::keyPressEvent(QKeyEvent *event)
         // the event only gets through when the Del is not used in the app
         // if the app forwards Del then deleteSelection is used
         if (m_actionRecordChanges->isChecked())
-          m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
+          m_textEditor->addCommand(new ChangeTrackedDeleteCommand(ChangeTrackedDeleteCommand::NextChar, this));
         else
-          m_textEditor->deleteChar();
+          m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
         editingPluginEvents();
     } else if ((event->key() == Qt::Key_Left) && (event->modifiers() | Qt::ShiftModifier) == Qt::ShiftModifier)
         moveOperation = QTextCursor::Left;
@@ -1080,9 +1081,9 @@ void TextTool::inputMethodEvent(QInputMethodEvent *event)
         m_textEditor->setPosition(m_textEditor->position() + event->replacementStart());
         for (int i = event->replacementLength(); i > 0; --i) {
             if (m_actionRecordChanges->isChecked())
-              m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
+              m_textEditor->addCommand(new ChangeTrackedDeleteCommand(ChangeTrackedDeleteCommand::NextChar, this));
             else
-              m_textEditor->deleteChar();
+              m_textEditor->addCommand(new DeleteCommand(DeleteCommand::NextChar, this));
         }
     }
     QTextBlock block = m_textEditor->block();
@@ -1199,12 +1200,11 @@ void TextTool::updateStyleManager()
     m_changeTracker = KoTextDocument(m_textShapeData->document()).changeTracker();
 }
 
-void TextTool::activate(bool temporary)
+void TextTool::activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes)
 {
-    Q_UNUSED(temporary);
+    Q_UNUSED(toolActivation);
     m_caretTimer.start();
-    KoSelection *selection = canvas()->shapeManager()->selection();
-    foreach (KoShape *shape, selection->selectedShapes()) {
+    foreach (KoShape *shape, shapes) {
         m_textShape = dynamic_cast<TextShape*>(shape);
         if (m_textShape)
             break;
@@ -1213,11 +1213,7 @@ void TextTool::activate(bool temporary)
         emit done();
         return;
     }
-    foreach (KoShape *shape, selection->selectedShapes()) {
-        // deselect others.
-        if (m_textShape == shape) continue;
-        selection->deselect(shape);
-    }
+
     setShapeData(static_cast<KoTextShapeData*>(m_textShape->userData()));
     useCursor(Qt::IBeamCursor);
 
@@ -1656,7 +1652,7 @@ void TextTool::formatParagraph()
 
 void TextTool::toggleShowChanges(bool on)//TODO transfer this in KoTextEditor
 {
-    ShowChangesCommand *command = new ShowChangesCommand(on, m_textShapeData->document());
+    ShowChangesCommand *command = new ShowChangesCommand(on, m_textShapeData->document(), this->canvas());
     connect(command, SIGNAL(toggledShowChange(bool)), m_actionShowChanges, SLOT(setChecked(bool)));
     m_textEditor->addCommand(command);
 }

@@ -35,30 +35,26 @@ using namespace KSpread;
 class Binding::Private : public QSharedData
 {
 public:
-    Private() : model(0) {}
-    ~Private() {
-        delete model;
-    }
-
     BindingModel* model;
+    Private(Binding *q) : model(new BindingModel(q)) {}
+    ~Private() { delete model; }
 };
 
 
 Binding::Binding()
-        : d(new Private)
+    : d(new Private(this))
 {
 }
 
 Binding::Binding(const Region& region)
-        : d(new Private)
+    : d(new Private(this))
 {
     Q_ASSERT(region.isValid());
-    d->model = new BindingModel(this);
     d->model->setRegion(region);
 }
 
 Binding::Binding(const Binding& other)
-        : d(other.d)
+    : d(other.d)
 {
 }
 
@@ -196,7 +192,7 @@ void BindingModel::emitDataChanged(const QRect& rect)
 {
     const QPoint tl = rect.topLeft();
     const QPoint br = rect.bottomRight();
-    kDebug() << "emit QAbstractItemModel::dataChanged(" << index(tl.y(), tl.x()) << ", " << index(br.y(), br.x()) << ");";
+    //kDebug(36005) << "emit QAbstractItemModel::dataChanged" << QString("%1:%2").arg(tl).arg(br);
     emit dataChanged(index(tl.y(), tl.x()), index(br.y(), br.x()));
 }
 

@@ -30,15 +30,30 @@
 #include <KoXmlReader.h>
 
 class KoListLevelProperties;
-class KoOdfLoadingContext;
+class KoShapeLoadingContext;
 class KoGenStyle;
 
 /**
  * This class groups all styling-options for lists.
  * See KoParagraphStyle::setListStyle()
- * This class represents one list-level which can span several paragraphs, but
- * typically just one pargraph-style since that style can be reused on various
- * paragraphs.
+ * The list-style represents several list-levels, where each level is represented by the
+ * KoListLevelProperties class. The top most list level is 1.
+ *
+ * list level1
+ *   list level2
+ *   list level2
+ *     list level3
+ * list level1
+ *
+ * A list-style as such represents cross paragraph relations. The most obvious evidence of this
+ * is with a numbered list where a counter is automatically increased from one paragraph to the next.
+ *
+ * If the list is interrupted by a praragraph with another list-style the counting will start from
+ * fresh when the list resumes. However you can set the list to continue if you like.
+ *
+ * Following from the above you can use the same paragraph style for several paragraphs and the
+ * the counter wil increase. If you want a paragraph to be on a sub level you do however need to
+ * create a new paragraph-style when another listLevel set.
  */
 class  KOTEXT_EXPORT KoListStyle : public QObject
 {
@@ -90,10 +105,11 @@ public:
         Thai,       ///< Thai characters for normal 10-base counting
         Abjad,      ///< Abjad sequence.
         AbjadMinor, ///< A lesser known version of the Abjad sequence.
-        ArabicAlphabet
+        ArabicAlphabet,
+        /// an image for the bullet
+        ImageItem
 
         // TODO look at css 3 for things like hebrew counters
-        // TODO allow a bitmap 'bullet'
     };
 
     /// further properties
@@ -114,7 +130,10 @@ public:
         StyleId,        ///< The id stored in the listFormat to link the list to this style.
         ContinueNumbering, ///< Continue numbering this list from the counter of a previous list
         Indent,         ///< The space (margin) to include for all paragraphs
-        MinimumDistance ///< The minimum distance, in pt, between the counter and the text
+        MinimumDistance, ///< The minimum distance, in pt, between the counter and the text
+        Width,          ///< The width, in pt, of  a picture bullet.
+        Height,         ///< The height, in pt, of a picture bullet.
+        BulletImageKey ///< Bullet image stored as a key for lookup in the imageCollection
     };
 
     /**
@@ -192,7 +211,7 @@ public:
      * Load the style from the \a KoStyleStack style stack using the
      * OpenDocument format.
      */
-    void loadOdf(KoOdfLoadingContext& context, const KoXmlElement& style = KoXmlElement());
+    void loadOdf(KoShapeLoadingContext& context, const KoXmlElement& style = KoXmlElement());
 
     /**
      * Save the style to a KoGenStyle object using the OpenDocument format

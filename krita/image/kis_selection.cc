@@ -2,9 +2,6 @@
  *  Copyright (c) 2004 Boudewijn Rempt <boud@valdyas.org>
  *  Copyright (c) 2007 Sven Langkamp <sven.langkamp@gmail.com>
  *
- *  Outline algorithm based of the limn of fontutils
- *  Copyright (c) 1992 Karl Berry <karl@cs.umb.edu>
- *  Copyright (c) 1992 Kathryn Hargreaves <letters@cs.umb.edu>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -50,6 +47,7 @@ struct KisSelection::Private {
     bool hasPixelSelection;
     bool hasShapeSelection;
     bool isDeselected; // true if the selection is empty, no pixels are selected
+    bool isVisible; //false is the selection decoration should not be displayed
     KisPixelSelectionSP pixelSelection;
     KisSelectionComponent* shapeSelection;
 };
@@ -64,6 +62,7 @@ KisSelection::KisSelection(KisPaintDeviceSP dev)
     m_d->hasPixelSelection = false;
     m_d->hasShapeSelection = false;
     m_d->isDeselected = false;
+    m_d->isVisible = true;
     m_d->shapeSelection = 0;
 
     clear();
@@ -80,6 +79,7 @@ KisSelection::KisSelection(KisPaintDeviceSP parent, KisMaskSP mask)
     m_d->pixelSelection = new KisPixelSelection();
     m_d->hasShapeSelection = false;
     m_d->isDeselected = false;
+    m_d->isVisible = true;
     m_d->shapeSelection = 0;
 
     clear();
@@ -107,6 +107,7 @@ KisSelection::KisSelection()
     m_d->hasPixelSelection = false;
     m_d->hasShapeSelection = false;
     m_d->isDeselected = false;
+    m_d->isVisible = true;
     m_d->shapeSelection = 0;
 
     clear();
@@ -125,6 +126,7 @@ KisSelection::KisSelection(const KisSelection& rhs)
     m_d->hasPixelSelection = rhs.m_d->hasPixelSelection;
     m_d->hasShapeSelection = rhs.m_d->hasShapeSelection;
     m_d->isDeselected = rhs.m_d->isDeselected;
+    m_d->isVisible = rhs.m_d->isVisible;
 
     if (rhs.m_d->hasShapeSelection) {
         Q_ASSERT(rhs.m_d->shapeSelection);
@@ -358,3 +360,14 @@ bool KisSelection::isDeselected()
 {
     return m_d->isDeselected;
 }
+
+void KisSelection::setVisible(bool visible)
+{
+    m_d->isVisible = visible;
+}
+
+bool KisSelection::isVisible()
+{
+    return m_d->isVisible;
+}
+

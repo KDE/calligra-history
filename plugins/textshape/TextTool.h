@@ -80,7 +80,7 @@ public:
     virtual void keyReleaseEvent(QKeyEvent *event);
 
     /// reimplemented from superclass
-    virtual void activate(bool temporary = false);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
     /// reimplemented from superclass
     virtual void deactivate();
     /// reimplemented from superclass
@@ -272,6 +272,7 @@ private:
     friend class TextPasteCommand;
     friend class TextCutCommand;
     friend class ShowChangesCommand;
+    friend class ChangeTrackedDeleteCommand;
     friend class DeleteCommand;
     TextShape *m_textShape;
     KoTextShapeData *m_textShapeData;

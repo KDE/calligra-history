@@ -36,10 +36,10 @@
 
 #include "pole.h"
 #include "swinder.h"
+#include "utils.h"
 #include "globalssubstreamhandler.h"
 #include "worksheetsubstreamhandler.h"
 #include "chartsubstreamhandler.h"
-#include "utils.h"
 
 //#define SWINDER_XLS2RAW
 
@@ -762,32 +762,8 @@ void FormulaRecord::setData(unsigned size, const unsigned char* data, const unsi
 
     // 4 bytes chn...
 
-    // formula-variable, reconstruct all tokens...
-    unsigned formula_len = readU16(data + 20);
-    d->tokens.clear();
-    for (unsigned j = 22; j < size;) {
-        unsigned ptg = data[j++];
-        ptg = ((ptg & 0x40) ? (ptg | 0x20) : ptg) & 0x3F;
-        FormulaToken token(ptg);
-        token.setVersion(version());
-
-        if (token.id() == FormulaToken::String) {
-            // find bytes taken to represent the string
-            EString estr = (version() == Excel97) ?
-                           EString::fromUnicodeString(data + j, false, formula_len) :
-                           EString::fromByteString(data + j, false, formula_len);
-            token.setData(estr.size(), data + j);
-            j += estr.size();
-        } else {
-            // normal, fixed-size token
-            if (token.size() > 0) {
-                token.setData(token.size(), data + j);
-                j += token.size();
-            }
-        }
-
-        d->tokens.push_back(token);
-    }
+    FormulaDecoder decoder;
+    d->tokens = decoder.decodeFormula(size, 20, data, version());
 }
 
 void FormulaRecord::dump(std::ostream& out) const
@@ -1539,7 +1515,10 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
     }
     break;
 
-    case Object::Chart: printf("ObjRecord::setData Chart\n"); break;
+    case Object::Chart:
+        std::cout << "ObjRecord::setData chart id=" << id << std::endl;
+        m_object = new ChartObject(id);
+        break;
     case Object::Rectangle: printf("ObjRecord::setData Rectangle\n"); break;
     case Object::Line: printf("ObjRecord::setData Line\n"); break;
     case Object::Oval: printf("ObjRecord::setData Oval\n"); break;
@@ -1583,7 +1562,7 @@ void ObjRecord::setData(unsigned size, const unsigned char* data, const unsigned
 
     // pictFmla
     if(ot == Object::Picture && readU16(startPict) == 0x0009 /* checks ft */) {
-        const unsigned long cb = readU16(startPict + 2);
+        //const unsigned long cb = readU16(startPict + 2);
         startPict += 4;
 
         /* from the specs;
@@ -1708,11 +1687,11 @@ void TxORecord::setData(unsigned size, const unsigned char* data, const unsigned
     const unsigned long cchText = readU16(data + 14);
     const unsigned char* startPict = data + 16;
     if(cchText > 0) {
-        const unsigned long cbRuns = readU16(startPict);
+        //const unsigned long cbRuns = readU16(startPict);
         const unsigned long cbFmla = readU16(startPict + 2); // fmla, ObjFmla structure
         startPict += 4 + cbFmla;
     } else {
-        const unsigned long ifntEmpty = readU16(data + 18); // FontIndex
+        //const unsigned long ifntEmpty = readU16(data + 18); // FontIndex
         startPict += 2;
     }
     
@@ -1735,183 +1714,6 @@ void TxORecord::setData(unsigned size, const unsigned char* data, const unsigned
     }
 
     std::cout << "TxORecord::setData size=" << size << " text=" << m_text.ascii() << std::endl;
-}
-
-// ========== DrawingObject ==========
-
-
-const char* DrawingObject::propertyName(DrawingObject::Property p)
-{
-    switch(p) {
-        case DrawingObject::pid: return "pid"; break;
-        case DrawingObject::itxid: return "itxid"; break;
-        case DrawingObject::cxk: return "cxk"; break;
-        case DrawingObject::fillColor: return "fillColor"; break;
-        case DrawingObject::fillBackColor: return "fillBackColor"; break;
-        case DrawingObject::fillCrMod: return "fillCrMod"; break;
-        case DrawingObject::fillStyleBooleanProperties: return "fillStyleBooleanProperties"; break;
-        case DrawingObject::lineColor: return "lineColor"; break;
-        case DrawingObject::lineCrMod: return "lineCrMod"; break;
-        case DrawingObject::shadowColor: return "shadowColor"; break;
-        case DrawingObject::shadowCrMod: return "shadowCrMod"; break;
-        case DrawingObject::shadowStyleBooleanProperties: return "shadowStyleBooleanProperties"; break;
-        case DrawingObject::groupShapeBooleanProperties: return "groupShapeBooleanProperties"; break;
-    }
-    return "Unknown";
-}
-
-// read a OfficeArtRecordHeader struct.
-void DrawingObject::readHeader(const unsigned char* data, unsigned *recVer, unsigned *recInstance, unsigned *recType, unsigned long *recLen)
-{
-    const unsigned recVerAndInstance = readU16(data); // 4 bits version and 12 bits number of differentiate atoms in this record
-    if(recVer) {
-        const unsigned rv = recVerAndInstance;
-        *recVer = rv >> 12;
-    }
-    if(recInstance) {
-        const unsigned ri = recVerAndInstance;
-        *recInstance = ri >> 4;
-    }
-    if(recType) {
-        *recType = readU16(data + 2);
-    }
-    if(recLen) {
-        *recLen = readU32(data + 4);
-    }
-}
-
-// read a drawing object (container or atom) and handle/dispatch according to the recType.
-unsigned long DrawingObject::handleObject(unsigned size, const unsigned char* data, bool* recordHandled)
-{
-    unsigned recVer = 0;
-    unsigned recInstance = 0;
-    unsigned recType = 0;
-    unsigned long recLen = 0;
-    if(recordHandled) *recordHandled = true;
-    readHeader(data, &recVer, &recInstance, &recType, &recLen);
-    switch(recType) {
-        case 0x0: break; // NOPE
-        case 0xF003: // OfficeArtSpgrContainer
-        case 0xF004: { // OfficeArtSpContainer
-            unsigned long offset = 8;
-            while(offset <= recLen) { // recursive
-                offset += handleObject(size, data + offset);
-            }
-        } break;
-        case 0xF008: { // OfficeArtFDG
-            unsigned long csp = readU32(data + 8);
-            unsigned long spid = readU32(data + 12); // MSOSPID, shape-identifier of the last shape in the drawing
-            std::cout << "OfficeArtFDG, number of shapes=" << csp << " shapeId of last shape=" << spid << std::endl;
-        } break;
-        case 0xF009: { // OfficeArtFSPGR
-            unsigned long xLeft = readU32(data + 8);
-            unsigned long yTop = readU32(data + 12);
-            unsigned long xRight = readU32(data + 16);
-            unsigned long yBottom = readU32(data + 20);
-            std::cout << "OfficeArtFSPGR xLeft=" << xLeft << " yTop=" << yTop << " xRight=" << xRight << " yBottom=" << yBottom << std::endl;
-        } break;
-        case 0xF00A: { // OfficeArtFSP
-            unsigned long spid = readU32(data + 8); // MSOSPID, shape-identifier of the last shape in the drawing
-            const unsigned long opts = readU16(data + 12);
-            const bool fGroup = opts & 0x01;
-            const bool fChild = opts & 0x02;
-            const bool fPatriarch = opts & 0x04;
-            const bool fDeleted = opts & 0x08;
-            const bool fOleShape = opts & 0x10;
-            const bool fHaveMaster = opts & 0x20;
-            const bool fFlipH = opts & 0x60;
-            const bool fFlipV = opts & 0xC0;
-            const bool fConnector = opts & 0x180;
-            const bool fHaveAnchor = opts & 0x300;
-            const bool fBackground = opts & 0x600;
-            const bool fHaveSpt = opts & 0xC00;
-            std::cout << "OfficeArtFSP, shape-identifier=" << spid << " fGroup=" << fGroup << " fChild=" << fChild << " fPatriarch=" << fPatriarch << " fDeleted=" << fDeleted << " fOleShape=" << fOleShape << " fHaveMaster=" << fHaveMaster << " fFlipH=" << fFlipH << " fFlipV=" << fFlipV << " fConnector=" << fConnector << " fHaveAnchor=" << fHaveAnchor << " fBackground=" << fBackground << " fHaveSpt=" << fHaveSpt << std::endl;
-        } break;
-        case 0xF11D: // OfficeArtFPSPL
-            //printf("OfficeArtFPSPL %i\n",recLen);
-            break;
-        case 0xF00B: { // OfficeArtFOPT
-            printf("OfficeArtFPSPL\n");
-            const unsigned char* startComplexData = data + 8 + recInstance * 6;
-            for(uint i = 0; i < recInstance; ++i) {
-                const unsigned long opidOpts = readU16(data + 8 + i * 6);
-                const unsigned long opid = opidOpts & 0x3FFF;
-                const bool fBid = opidOpts & 0x04000; // BLIP identifier?
-                const bool fComplex = opidOpts & 0x08000; // Complex property?
-                const unsigned long op = readS32(data + 10 + i * 6);
-                if(fComplex) { // op specifies the size of the property in the ComplexData
-                    //TODO
-                } else { // op specifies the value
-                    m_properties[opid] = op;
-                }
-                std::cout << "MsoDrawingRecord: opid=" << opid << " (" << DrawingObject::propertyName((DrawingObject::Property)opid) << ") fBid=" << fBid << " fComplex=" << fComplex << " op=" << op << std::endl;
-            }
-            std::cout << "MsoDrawingRecord: complexDataLength=" << recLen-(recInstance * 6) << std::endl;
-            //TODO read complexData
-        } break;
-        case 0xF121: // OfficeArtSecondaryFOPT
-            std::cout << "OfficeArtSecondaryFOPT" << std::endl;
-            break;
-        case 0xF122: // OfficeArtTertiaryFOPT
-            std::cout << "OfficeArtTertiaryFOPT" << std::endl;
-            break;
-        case 0xF00F: { // OfficeArtChildAnchor
-            unsigned long xLeft = readU32(data + 8);
-            unsigned long yTop = readU32(data + 12);
-            unsigned long xRight = readU32(data + 16);
-            unsigned long yBottom = readU32(data + 20);
-            std::cout << "OfficeArtChildAnchor xLeft=" << xLeft << " yTop=" << yTop << " xRight=" << xRight << " yBottom=" << yBottom << std::endl;
-        } break;
-        case 0xF010: // OfficeArtChildAnchorHF, OfficeArtChildAnchorSheet or OfficeArtChildAnchorChart
-            // If this record is in the Worksheet, Macro Sheet, or Dialog Sheet substream, the OfficeArtClientAnchor structure
-            // mentioned in [MS-ODRAW] refers to the OfficeArtClientAnchorSheet structure. If this record appears in the Chart
-            // Sheet substream, the OfficeArtClientAnchor structure refers to the OfficeArtClientAnchorChart structure.
-            switch(recLen) {
-                case 8:
-                    printf("TODO: OfficeArtChildAnchorHF\n");
-                    break;
-                case 18: {
-                    //const unsigned long opts = readU16(data + 8);
-                    //const bool fMove = opts & 0x01;
-                    //const bool fSize = opts & 0x02;
-                    
-                    /*
-                    colL (2 bytes): A Col256U that specifies the column of the cell under the top left corner of the bounding rectangle of the shape.
-                    dxL (2 bytes): A signed integer that specifies the x coordinate of the top left corner of the bounding rectangle relative to the corner of the underlying cell. The value is expressed as 1024th‘s of that cell‘s width.
-                    rwT (2 bytes): A RwU that specifies the row of the cell under the top left corner of the bounding rectangle of the shape.
-                    dyT (2 bytes): A signed integer that specifies the y coordinate of the top left corner of the bounding rectangle relative to the corner of the underlying cell. The value is expressed as 1024th‘s of that cell‘s height.
-                    colR (2 bytes): A Col256U that specifies the column of the cell under the bottom right corner of the bounding rectangle of the shape.
-                    dxR (2 bytes): A signed integer that specifies the x coordinate of the bottom right corner of the bounding rectangle relative to the corner of the underlying cell. The value is expressed as 1024th‘s of that cell‘s width.
-                    rwB (2 bytes): A RwU that specifies the row of the cell under the bottom right corner of the bounding rectangle of the shape.
-                    dyB (2 bytes): A signed integer that specifies the y coordinate of the bottom right corner of the bounding rectangle relative to the corner of the underlying cell. The value is expressed as 1024th‘s of that cell‘s height.
-                    */
-                    m_colL = readU16(data + 10);
-                    m_dxL = readU16(data + 12);
-                    m_rwT = readU16(data + 14);
-                    m_dyT = readU16(data + 16);
-                    m_colR = readU16(data + 18);
-                    m_dxR = readU16(data + 20);
-                    m_rwB = readU16(data + 22);
-                    m_dyB = readU16(data + 24);
-                    std::cout << "OfficeArtChildAnchorSheet or OfficeArtChildAnchorChart colL=" << m_colL << " dxL=" << m_dxL << " rwT=" << m_rwT << " dyT=" << m_dyT << " colR=" << m_colR << " dxR=" << m_dxR << " rwB=" << m_rwB << " dyB=" << m_dyB << " recLen=" << recLen << std::endl;
-                } break;
-                default:
-                    std::cout << "Unhandled OfficeArtChildAnchor type=" << recLen << std::endl;
-                    break;
-            }
-            break;
-        case 0xF011: // OfficeArtClientData
-            printf("OfficeArtClientData\n");
-            break;
-        case 0xF11E: // OfficeArtSplitMenuColorContainer
-            printf("OfficeArtSplitMenuColorContainer\n");
-            break;
-        default:
-            std::cout << "DrawingObject: Unhandled record type=" << recType << " size=" << recLen << std::endl;
-            if(recordHandled) *recordHandled = false;
-            break;
-    }
-    return 8 + recLen;
 }
 
 // ========== MsoDrawing ==========
@@ -1965,7 +1767,7 @@ void MsoDrawingGroupRecord::dump(std::ostream& out) const
 void MsoDrawingGroupRecord::setData(unsigned size, const unsigned char* data, const unsigned* continuePositions)
 {
     //printf("MsoDrawingGroupRecord::setData size=%i data=%i continuePositions=%i\n",size,*data, *continuePositions);
-    if(size < 8 || !m_workbook->store()) {
+    if(size < 32 || !m_workbook->store()) {
         setIsValid(false);
         return;
     }
@@ -1997,17 +1799,23 @@ void MsoDrawingGroupRecord::setData(unsigned size, const unsigned char* data, co
     
     // blipStore
     const unsigned char* blipStoreOffset = data + 16 + recLen;
+    if(blipStoreOffset-data-size < 8) {
+        setIsValid(false);
+        return;
+    }
     readHeader(blipStoreOffset, &recVer, &recInstance, &recType, &recLen);
     if(recType == 0xF001) {
         blipStoreOffset += 8;
         for(uint i = 0; i < recInstance; ++i) {
+            if(blipStoreOffset-data-size < 8) return;
             unsigned long blibRecLen = 0;
             readHeader(blipStoreOffset, &recVer, &recInstance, &recType, &blibRecLen);
             const unsigned char* blipItemOffset = blipStoreOffset + 8;
             if(recType == 0xF007) { // OfficeArtFBSE
+                if(blipItemOffset+44-data-size < 0) return;
                 std::cout << "MsoDrawingGroupRecord: OfficeArtFBSE" << std::endl;
                 const unsigned btWin32 = readU8(blipItemOffset);
-                const unsigned btMacOS = readU8(blipItemOffset + 1);
+                //const unsigned btMacOS = readU8(blipItemOffset + 1);
                 switch(btWin32) {
                     case 0x00: printf("MsoDrawingGroupRecord: There was an error reading the file.\n"); break;
                     case 0x01: printf("MsoDrawingGroupRecord: Unknown BLIP type.\n"); break;
@@ -2022,7 +1830,7 @@ void MsoDrawingGroupRecord::setData(unsigned size, const unsigned char* data, co
                 }
                 //char rgbUid[16];
                 //for(int i = 0; i < 16; ++i) rgbUid[i] = readU8(blipItemOffset + 2 + i);
-                unsigned tag = readU16(blipItemOffset + 18);
+                //unsigned tag = readU16(blipItemOffset + 18);
                 unsigned long size = readU32(blipItemOffset + 20);
                 unsigned long cRef = readU32(blipItemOffset + 24);
                 unsigned long foDelay = readU32(blipItemOffset + 28);
@@ -2047,6 +1855,7 @@ void MsoDrawingGroupRecord::setData(unsigned size, const unsigned char* data, co
             }
 
             // OfficeArtBlip
+            if(blipItemOffset-data-size < 16*8) return;
 
             char rgbUid[16]; // every OfficeArtBlip starts with the unique rgbUid
             for(int i = 0; i < 16; ++i)
@@ -2115,8 +1924,11 @@ void MsoDrawingGroupRecord::setData(unsigned size, const unsigned char* data, co
     }
 
     // drawingPrimaryOptions
+    if(blipStoreOffset-data-size < 8) return;
     blipStoreOffset += handleObject(size, blipStoreOffset);
+
     // drawingTertiaryOptions
+    if(blipStoreOffset-data-size < 8) return;
     blipStoreOffset += handleObject(size, blipStoreOffset);
 
     // colorMRU
@@ -2987,7 +2799,9 @@ bool ExcelReader::load(Workbook* workbook, const char* filename)
     d->handlerStack.clear();
 
     while (stream->tell() < stream_size) {
-
+        const int percent = int(stream->tell() / double(stream_size) * 100.0 + 0.5);
+        workbook->emitProgress(percent);
+        
         // this is set by FILEPASS record
         // subsequent records will need to be decrypted
         // since we do not support it yet, we have to bail out
@@ -3074,14 +2888,14 @@ bool ExcelReader::load(Workbook* workbook, const char* filename)
         Record* record = Record::create(type, workbook);
 
         if (!record) {
-#ifdef SWINDER_XLS2RAW
+//#ifdef SWINDER_XLS2RAW
             std::cout << "Unhandled Record 0x";
             std::cout << std::setfill('0') << std::setw(4) << std::hex << type;
             std::cout << std::dec;
             std::cout << " (" << type << ")";
             std::cout << std::endl;
             std::cout << std::endl;
-#endif
+//#endif
         } else {
             // setup the record and invoke handler
             record->setVersion(d->globals->version());
@@ -3142,7 +2956,8 @@ void ExcelReader::handleBOF(BOFRecord* record)
         if (sheet) d->activeSheet = sheet;
         d->handlerStack.push_back(new WorksheetSubStreamHandler(sheet, d->globals));
     } else if (record->type() == BOFRecord::Chart) {
-        d->handlerStack.push_back(new ChartSubStreamHandler(d->globals));
+        SubStreamHandler* parentHandler = d->handlerStack.empty() ? 0 : d->handlerStack.back();
+        d->handlerStack.push_back(new Swinder::ChartSubStreamHandler(d->globals, parentHandler));
     } else {
         std::cout << "ExcelReader::handleBOF Unhandled type=" << record->type() << std::endl;
     }

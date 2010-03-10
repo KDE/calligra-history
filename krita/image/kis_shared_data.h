@@ -26,14 +26,23 @@
  */
 class KisSharedData
 {
-#if QT_VERSION < 0x040400
-private:
-    typedef QAtomic QAtomicInt;
-#endif
+    KisSharedData(const KisSharedData& );
+    KisSharedData& operator=(const KisSharedData& );
 public:
     KisSharedData() : valid(true) { }
-    QAtomicInt ref;
     bool valid;
+    int refCount() {
+        return _ref;
+    }
+    bool ref() {
+        return _ref.ref();
+    }
+    bool deref() {
+        Q_ASSERT(_ref > 0);
+        return _ref.deref();
+    }
+private:
+    QAtomicInt _ref;
 };
 
 

@@ -21,7 +21,7 @@
 
 #include <QWidget>
 
-#include "kis_abstract_canvas_widget.h"
+#include "kis_canvas_widget_base.h"
 #include "kis_prescaled_projection.h"
 
 class QMouseEvent;
@@ -42,7 +42,7 @@ class KoToolProxy;
  *
  * @author Boudewijn Rempt <boud@valdyas.org>
 */
-class KisQPainterCanvas : public QWidget, public KisAbstractCanvasWidget
+class KisQPainterCanvas : public QWidget, public KisCanvasWidgetBase
 {
 
     Q_OBJECT
@@ -103,28 +103,13 @@ public: // QWidget
     /// reimplemented method from superclass
     virtual void inputMethodEvent(QInputMethodEvent *event);
 
-protected:
-    /// these methods take origin coordinate into account, basically it means (point - origin)
-    QPoint widgetToView(const QPoint& p) const;
-    QRect widgetToView(const QRect& r) const;
-    QPoint viewToWidget(const QPoint& p) const;
-    QRect viewToWidget(const QRect& r) const;
-
-    /// document size in widget pixels
-    QSize documentSize();
-
 public: // KisAbstractCanvasWidget
 
     QWidget * widget() {
         return this;
     }
 
-    KoToolProxy * toolProxy();
-
     void documentOffsetMoved(const QPoint &);
-
-    QPoint documentOrigin();
-    void adjustOrigin();
 
 signals:
 
@@ -136,6 +121,10 @@ signals:
      */
     void documentOriginChanged(const QPoint &origin);
 
+protected: // KisCanvasWidgetBase
+
+    virtual void emitDocumentOriginChangedSignal();
+    virtual bool callFocusNextPrevChild(bool next);
 
 private slots:
     void slotConfigChanged();

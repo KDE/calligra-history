@@ -21,12 +21,14 @@
 #include "KoTextDebug.h"
 
 #include <QTextDocument>
+#include <QTextDocumentFragment>
 #include <QTextFrame>
 #include <QTextBlock>
 #include <QTextTable>
 #include <QTextFragment>
 #include <QTextList>
 #include <QDebug>
+
 #include "styles/KoParagraphStyle.h"
 #include "styles/KoCharacterStyle.h"
 #include "styles/KoListStyle.h"
@@ -140,7 +142,7 @@ QString KoTextDebug::inlineObjectAttributes(const QTextCharFormat &textFormat)
                 attrs.append(" type=\"endnote\"");
             }
             attrs.append(QString(" label=\"%1\"").arg(note->label()));
-            attrs.append(QString(" text=\"%1\"").arg(note->text()));
+            attrs.append(QString(" text=\"%1\"").arg(note->text().toPlainText()));
         } else {
             attrs.append(" type=\"inlineobject\">");
         }
@@ -344,14 +346,6 @@ QString KoTextDebug::paraAttributes(const QTextBlockFormat &blockFormat)
         case KoParagraphStyle::MasterPageName:
         case KoParagraphStyle::OutlineLevel:
             break;
-        case KoParagraphStyle::BreakBefore:
-            key = "breakBefore";
-            value = properties[id].toBool() ? "true" : "false" ;
-            break;
-        case KoParagraphStyle::BreakAfter:
-            key = "breakAfter";
-            value = properties[id].toBool() ? "true" : "false" ;
-            break;
         case KoParagraphStyle::AutoTextIndent:
             key = "autotextindent";
             value = properties[id].toBool() ? "true" : "false" ;
@@ -452,7 +446,7 @@ QString KoTextDebug::paraAttributes(const QTextBlockFormat &blockFormat)
             break;
         case KoParagraphStyle::IsListHeader:
             key = "list-header";
-            value = "1";
+            value = '1';
             break;
         case KoParagraphStyle::ListLevel:
             key = "list-level";

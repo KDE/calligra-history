@@ -108,7 +108,8 @@ class DocumentConverter:
 
         inputUrl = self._toFileUrl(inputFile)
         outputUrl = self._toFileUrl(outputFile)
-        
+
+        print inputUrl        
         document = self.desktop.loadComponentFromURL(inputUrl, "_blank", 0, self._toProperties(Hidden=True))
         try:
           document.refresh()

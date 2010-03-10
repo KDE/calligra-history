@@ -93,8 +93,6 @@ Region::Region(const QString& string, const Map* map, Sheet* fallbackSheet)
             return;
         if (!sheet)
             sheet = fallbackSheet;
-        if (!sheet)
-            continue;
 
         int delimiterPos = sRegion.indexOf(':');
         if (delimiterPos > -1) {
@@ -104,21 +102,21 @@ Region::Region(const QString& string, const Map* map, Sheet* fallbackSheet)
 
             if (ul.isValid() && lr.isValid()) {
                 Range* range = createRange(sRegion);
-                range->setSheet(sheet);
+                if(sheet) range->setSheet(sheet);
                 d->cells.append(range);
             } else if (ul.isValid()) {
                 Point* point = createPoint(sRegion.left(delimiterPos));
-                point->setSheet(sheet);
+                if(sheet) point->setSheet(sheet);
                 d->cells.append(point);
             } else { // lr.isValid()
                 Point* point = createPoint(sRegion.right(delimiterPos + 1));
-                point->setSheet(sheet);
+                if(sheet) point->setSheet(sheet);
                 d->cells.append(point);
             }
         } else {
             // single cell
             Point* point = createPoint(sRegion);
-            point->setSheet(sheet);
+            if(sheet) point->setSheet(sheet);
             d->cells.append(point);
         }
     }
@@ -257,9 +255,6 @@ QString Region::name(Sheet* originSheet) const
 
 Region::Element* Region::add(const QPoint& point, Sheet* sheet)
 {
-    if (!isValid(point)) {
-        return 0;
-    }
     return insert(d->cells.count(), point, sheet, false);
 }
 
@@ -331,6 +326,30 @@ void Region::sub(const Region& region)
             sub(Region(element->rect()));
         }
     }
+}
+
+Region Region::intersected(const Region& region)
+{
+    Region result;
+    ConstIterator end(region.constEnd());
+    for (ConstIterator it = region.constBegin(); it != end; ++it) {
+        Element *element = *it;
+        if (element->type() == Element::Point) {
+            Point* point = static_cast<Point*>(element);
+            if(contains(point->pos(), element->sheet()))
+                result.add(point->pos(), element->sheet());
+        } else {
+            QRect rect = element->rect();
+            for(int c = rect.top(); c <= rect.bottom(); ++c) {
+                for(int r = rect.left(); r <= rect.right(); ++r) {
+                    QPoint p(r,c);
+                    if(contains(p, element->sheet()))
+                        result.add(p, element->sheet());
+                }
+            }
+        }
+    }
+    return result;
 }
 
 Region::Element* Region::eor(const QPoint& point, Sheet* sheet)
@@ -688,6 +707,12 @@ QRect Region::normalized(const QRect& rect)
         normalizedRect.setTop(rect.bottom());
         normalizedRect.setBottom(rect.top());
     }
+    if (rect.right() > KS_colMax) {
+        normalizedRect.setRight(KS_colMax);
+    }
+    if (rect.bottom() > KS_rowMax) {
+        normalizedRect.setBottom(KS_rowMax);
+    }
     return normalizedRect;
 }
 
@@ -959,6 +984,10 @@ Region::Point::Point(const QPoint& point)
         , m_fixedColumn(false)
         , m_fixedRow(false)
 {
+    if (m_point.y() > KS_colMax)
+        m_point.setY(KS_colMax);
+    if (m_point.x() > KS_rowMax)
+        m_point.setX(KS_rowMax);
 }
 
 Region::Point::Point(const QString& string)
@@ -997,9 +1026,12 @@ Region::Point::Point(const QString& string)
         return;
     p = result;
 
-    //limit is KS_colMax
-    if (x > KS_colMax)
+    //limit the x-value
+    //Q_ASSERT(x >= 1 && x <= KS_colMax);
+    if (x < 1)
         return;
+    if (x > KS_colMax)
+        x = KS_colMax;
 
     // Malformed ?
     if (p == length)
@@ -1022,8 +1054,13 @@ Region::Point::Point(const QString& string)
 
     bool ok;
     int y = string.mid(p2, p - p2).toInt(&ok);
-    if (!ok || y < 1 || y > KS_rowMax)
+
+    //limit the y-value
+    //Q_ASSERT(y >= 1 && y <= KS_rowMax);
+    if (!ok || y < 1)
         return;
+    if (y > KS_rowMax)
+        y = KS_rowMax;
 
     m_point = QPoint(x, y);
 }
@@ -1078,6 +1115,10 @@ Region::Range::Range(const QRect& rect)
         , m_fixedBottom(false)
         , m_fixedRight(false)
 {
+    if (m_range.right() > KS_colMax)
+        m_range.setRight(KS_colMax);
+    if (m_range.bottom() > KS_rowMax)
+        m_range.setBottom(KS_rowMax);
 }
 
 Region::Range::Range(const QString& sRange)

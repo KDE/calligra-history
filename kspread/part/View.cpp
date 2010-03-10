@@ -657,18 +657,11 @@ View::View(QWidget *_parent, Doc *_doc)
 
 View::~View()
 {
-    KoToolManager::instance()->removeCanvasController(d->canvasController);
-
     //  ElapsedTime el( "~View" );
     if (doc()->isReadWrite())   // make sure we're not embedded in Konq
         selection()->emitCloseEditor(true); // save changes
-    /*if (d->calcLabel)
-    {
-        disconnect(d->calcLabel,SIGNAL(pressed( int )),this,SLOT(statusBarClicked(int)));
 
-        }*/
-
-    qDeleteAll(d->sheetViews);
+    // if (d->calcLabel) disconnect(d->calcLabel,SIGNAL(pressed( int )),this,SLOT(statusBarClicked(int)));
 
     d->selection->emitCloseEditor(false);
     d->selection->endReferenceSelection(false);
@@ -678,12 +671,26 @@ View::~View()
     // which leads to an regionInvalidated() signal emission in KoView, which calls
     // repaint, etc.etc. :-) (Simon)
 
+    // delete the sheetView's after calling d->selection->emitCloseEditor cause the
+    // emitCloseEditor may trigger over the Selection::emitChanged a Canvas::scrollToCell
+    // which in turn needs the sheetview's to access the sheet itself.
+    qDeleteAll(d->sheetViews);
+
     delete d->selection;
-
     delete d->calcLabel;
-
     delete d->actions;
     delete d->zoomHandler;
+    
+    // NOTE sebsauer: first unregister the event-handler, then delete the canvas and then we are save to
+    // call removeCanvasController without crashing.
+    //d->canvasController->canvas()->canvasWidget()->removeEventFilter(d->canvasController);
+    //delete d->canvasController->canvas();
+    // NOTE sebsauer: We need to remove the canvasController right before deleting it and
+    // nothing needs to be done in between cause flake does first delete the TableTool
+    // on removeCanvasController and the proxytool which points to that TableTool later
+    // while the canvasController is destroyed. That means, that we will have a dangling
+    // pointer in the KoToolProxy that points to the KoToolBase the time in between.
+    KoToolManager::instance()->removeCanvasController(d->canvasController);
     // NOTE Stefan: Delete the Canvas explicitly, even if it has this view as
     //              parent. Otherwise, it leads to crashes, because it tries to
     //              access this View in some events (Bug #126492).
@@ -744,21 +751,18 @@ void View::initView()
     // Load the KSpread Tools
     ToolRegistry::instance();
 
-    // Setup the tool dock widget.
-    KoToolManager::instance()->addController(d->canvasController);
-    KoToolManager::instance()->registerTools(actionCollection(), d->canvasController);
-    KoToolBoxFactory toolBoxFactory(d->canvasController, i18n("Tools"));
-    createDockWidget(&toolBoxFactory);
+    if (shell())
+    {
+        // Setup the tool dock widget.
+        KoToolManager::instance()->addController(d->canvasController);
+        KoToolManager::instance()->registerTools(actionCollection(), d->canvasController);
+        KoToolBoxFactory toolBoxFactory(d->canvasController, i18n("Tools"));
+        shell()->createDockWidget(&toolBoxFactory);
 
-    // Setup the tool options dock widget manager.
-    KoDockerManager *dockerMng = dockerManager();
-    if (!dockerMng) {
-        dockerMng = new KoDockerManager(this);
-        setDockerManager(dockerMng);
+        // Setup the tool options dock widget manager.
+        connect(d->canvasController, SIGNAL(toolOptionWidgetsChanged(const QMap<QString, QWidget *> &, QWidget*)),
+                shell()->dockerManager(), SLOT(newOptionWidgets(const  QMap<QString, QWidget *> &, QWidget*)));
     }
-    connect(d->canvasController, SIGNAL(toolOptionWidgetsChanged(const QMap<QString, QWidget *> &, QWidget*)),
-            dockerMng, SLOT(newOptionWidgets(const  QMap<QString, QWidget *> &, QWidget*)));
-
     // Setup the zoom controller.
     d->zoomHandler = new KoZoomHandler();
     d->zoomController = new KoZoomController(d->canvasController, d->zoomHandler, actionCollection(), 0, this);
@@ -1115,7 +1119,7 @@ void View::initialPosition()
     Sheet* sheet = loadingInfo->initialActiveSheet();
     if (!sheet) {
         //activate first table which is not hiding
-        sheet = doc()->map()->findSheet(doc()->map()->visibleSheets().first());
+        sheet = doc()->map()->visibleSheets().isEmpty() ? 0 : doc()->map()->findSheet(doc()->map()->visibleSheets().first());
         if (!sheet) {
             sheet = doc()->map()->sheet(0);
             if (sheet) {
@@ -2230,7 +2234,7 @@ void View::calcStatusBarOp()
     ValueCalc* calc = doc()->map()->calc();
     Value val;
     MethodOfCalc tmpMethod = doc()->map()->settings()->getTypeOfCalc();
-    if (tmpMethod != NoneCalc) {
+    if (sheet && tmpMethod != NoneCalc) {
         Value range = sheet->cellStorage()->valueRegion(*d->selection);
         switch (tmpMethod) {
         case SumOfNumber:
@@ -2424,10 +2428,12 @@ QColor View::borderColor() const
 
 void View::updateShowSheetMenu()
 {
-    if (d->activeSheet->isProtected())
-        d->actions->showSheet->setEnabled(false);
-    else
-        d->actions->showSheet->setEnabled(doc()->map()->hiddenSheets().count() > 0);
+    if (d->activeSheet) {
+        if (d->activeSheet->isProtected())
+            d->actions->showSheet->setEnabled(false);
+        else
+            d->actions->showSheet->setEnabled(doc()->map()->hiddenSheets().count() > 0);
+    }
 }
 
 void View::markSelectionAsDirty()

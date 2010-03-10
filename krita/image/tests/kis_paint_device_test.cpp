@@ -52,7 +52,7 @@ void KisPaintDeviceTest::testCreation()
     QVERIFY(dev->channelCount() == cs->channelCount());
     QVERIFY(dev->dataManager() != 0);
 
-    KisImageWSP image = new KisImage(0, 1000, 1000, cs, "merge test");
+    KisImageSP image = new KisImage(0, 1000, 1000, cs, "merge test");
     KisPaintLayerSP layer = new KisPaintLayer(image, "bla", 125);
 
     dev = new KisPaintDevice(layer.data(), cs);
@@ -136,16 +136,16 @@ void KisPaintDeviceTest::testGeometry()
 
     dev->clear(QRect(50, 50, 50, 50));
     dev->pixel(80, 80, &c);
-    QVERIFY(c.alpha() == OPACITY_TRANSPARENT);
+    QVERIFY(c.alpha() == OPACITY_TRANSPARENT_U8);
 
     dev->fill(0, 0, 512, 512, pixel);
     dev->pixel(80, 80, &c);
     QVERIFY(c == Qt::white);
-    QVERIFY(c.alpha() == OPACITY_OPAQUE);
+    QVERIFY(c.alpha() == OPACITY_OPAQUE_U8);
 
     dev->clear();
     dev->pixel(80, 80, &c);
-    QVERIFY(c.alpha() == OPACITY_TRANSPARENT);
+    QVERIFY(c.alpha() == OPACITY_TRANSPARENT_U8);
 
     // XXX: No idea why we get this extent and bounds after a clear --
     // but I want to know as soon as possible if this behaviour
@@ -397,6 +397,58 @@ void KisPaintDeviceTest::testBltPerformance()
 
 }
 
+void KisPaintDeviceTest::testDeviceDuplication()
+{
+    QRect fillRect(0,0,64,64);
+    quint8 fillPixel[4]={255,255,255,255};
+    QRect clearRect(10,10,20,20);
+    QImage referenceImage;
+    QImage resultImage;
+
+    const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisPaintDeviceSP device = new KisPaintDevice(cs);
+
+//    qDebug()<<"FILLING";
+    device->fill(fillRect.left(), fillRect.top(),
+                 fillRect.width(), fillRect.height(),fillPixel);
+
+    referenceImage = device->convertToQImage(0);
+
+
+    KisTransaction transaction1("", device);
+//    qDebug()<<"CLEARING";
+    device->clear(clearRect);
+    transaction1.undo();
+    resultImage = device->convertToQImage(0);
+    QVERIFY(resultImage == referenceImage);
+
+    KisPaintDeviceSP clone =  new KisPaintDevice(*device);
+
+    KisTransaction transaction("", clone);
+//    qDebug()<<"CLEARING";
+    clone->clear(clearRect);
+    transaction.undo();
+    resultImage = clone->convertToQImage(0);
+    QVERIFY(resultImage == referenceImage);
+
+}
+
+void KisPaintDeviceTest::testTranslate()
+{
+    QRect fillRect(0,0,64,64);
+    quint8 fillPixel[4]={255,255,255,255};
+
+    const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisPaintDeviceSP device = new KisPaintDevice(cs);
+
+    device->fill(fillRect.left(), fillRect.top(),
+                 fillRect.width(), fillRect.height(),fillPixel);
+
+    device->setX(-10);
+    device->setY(10);
+    QCOMPARE(device->exactBounds(), QRect(-10,10,64,64));
+    QCOMPARE(device->extent(), QRect(-10,10,64,64));
+}
 
 QTEST_KDEMAIN(KisPaintDeviceTest, GUI)
 #include "kis_paint_device_test.moc"

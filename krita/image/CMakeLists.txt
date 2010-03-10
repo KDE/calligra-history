@@ -13,16 +13,16 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config-tiles.h.cmake ${CMAKE_CURRENT_
 
 if(USE_TILESYSTEM EQUAL 1)
 set(libkritatile_SRCS
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tiled_random_accessor.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tiledvlineiterator.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tiledhlineiterator.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tileddatamanager.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tile.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tilediterator.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tiledrectiterator.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_memento.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tilemanager.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tile_compressor.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tiled_random_accessor.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tiledvlineiterator.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tiledhlineiterator.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tileddatamanager.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tile.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tilediterator.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tiledrectiterator.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_memento.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tilemanager.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles/kis_tile_compressor.cc
 )
 add_subdirectory( tiles )
 elseif(USE_TILESYSTEM EQUAL 3)
@@ -31,21 +31,33 @@ set(libkritatile_SRCS
     ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tile_data.cc
     ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tile_data_store.cc
     ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tile_data_pooler.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiled_data_manager.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_memento_manager.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tilediterator.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiledrectiterator.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiledvlineiterator.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiledhlineiterator.cc
-	${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiled_random_accessor.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiled_data_manager.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_memento_manager.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tilediterator.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiledrectiterator.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiledvlineiterator.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiledhlineiterator.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_hline_iterator.cpp
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_vline_iterator.cpp
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_rect_iterator.cpp
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_tiled_random_accessor.cc
+    ${CMAKE_SOURCE_DIR}/krita/image/tiles3/kis_random_accessor.cc
 )
 add_subdirectory( tiles3 )
 endif(USE_TILESYSTEM EQUAL 1)
 
+option(HAVE_MEMORY_LEAK_TRACKER "Enable memory leak tracker (always disabled in release build)" ON)
+option(HAVE_BACKTRACE_SUPPORT "Enable recording of backtrace in memory leak tracker" OFF)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config-memory-leak-tracker.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-memory-leak-tracker.h) ### WRONG PLACE???
+
+macro_optional_find_package(FFTW3)
+macro_log_feature(FFTW3_FOUND "FFTW3" "A fast, free C FFT library" "http://www.fftw.org/" FALSE "" "Required by the Krita for fast convolution operators")
+macro_bool_to_01(FFTW3_FOUND HAVE_FFTW3)
+configure_file(config_convolution.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config_convolution.h)
+
 include_directories( ${KDE4_INCLUDE_DIR}/threadweaver/
                      ${CMAKE_SOURCE_DIR}/krita/image/metadata
                      ${KOMAIN_INCLUDES}
-                     ${KOBASE_INCLUDES}
 )
 
 set(kritaimage_LIB_SRCS
@@ -59,7 +71,6 @@ set(kritaimage_LIB_SRCS
    brushengine/kis_paintop_registry.cc
    brushengine/kis_paintop_settings.cpp
    commands/kis_deselect_global_selection_command.cpp
-   commands/kis_deselect_local_selection_command.cpp
    commands/kis_image_change_layers_command.cpp
    commands/kis_image_command.cpp
    commands/kis_image_convert_type_command.cpp
@@ -81,7 +92,6 @@ set(kritaimage_LIB_SRCS
    commands/kis_node_move_command.cpp
    commands/kis_node_property_list_command.cpp
    commands/kis_reselect_global_selection_command.cpp
-   commands/kis_reselect_local_selection_command.cpp
    commands/kis_set_global_selection_command.cpp
    filter/kis_filter.cc
    filter/kis_filter_configuration.cc
@@ -94,6 +104,7 @@ set(kritaimage_LIB_SRCS
    kis_adjustment_layer.cc
    kis_selection_based_layer.cpp
    kis_background.cpp
+   kis_base_accessor.cpp
    kis_base_node.cpp
    kis_base_processor.cpp
    kis_basic_math_toolbox.cpp
@@ -104,12 +115,16 @@ set(kritaimage_LIB_SRCS
    kis_convolution_kernel.cc
    kis_convolution_painter.cc
    kis_cubic_curve.cpp
+   kis_default_bounds.cpp
    kis_effect_mask.cc
+   kis_fast_math.cpp
    kis_fill_painter.cc
    kis_filter_mask.cpp
    kis_filter_strategy.cc
    kis_gradient_painter.cc
    kis_gradient_job.cpp
+   kis_iterator_ng.cpp
+   kis_merge_walker.cc
    kis_group_layer.cc
    kis_count_visitor.cpp
    kis_histogram.cc
@@ -121,7 +136,7 @@ set(kritaimage_LIB_SRCS
    kis_rect_mask_generator.cpp
    kis_circle_mask_generator.cpp
    kis_math_toolbox.cpp
-   kis_merge_visitor.cpp
+   kis_memory_leak_tracker.cpp
    kis_name_server.cpp
    kis_node.cpp
    kis_node_facade.cpp
@@ -138,6 +153,7 @@ set(kritaimage_LIB_SRCS
    kis_projection.cc
    kis_properties_configuration.cc
    kis_random_accessor.cpp
+   kis_random_accessor_ng.cpp
    kis_random_generator.cc
    kis_random_sub_accessor.cpp
    kis_shear_visitor.cpp
@@ -153,6 +169,7 @@ set(kritaimage_LIB_SRCS
    kis_transformation_mask.cpp
    kis_transparency_mask.cc
    kis_undo_adapter.cc
+   kis_outline_generator.cpp
    metadata/kis_meta_data_entry.cc
    metadata/kis_meta_data_filter.cc
    metadata/kis_meta_data_filter_p.cc
@@ -175,21 +192,28 @@ set(kritaimage_LIB_SRCS
    recorder/kis_play_info.cc
    recorder/kis_recorded_action.cc
    recorder/kis_recorded_action_factory_registry.cc
-   recorder/kis_recorded_bezier_curve_paint_action.cpp
+   recorder/kis_recorded_action_load_context.cpp
+   recorder/kis_recorded_action_save_context.cpp
    recorder/kis_recorded_filter_action.cpp
+   recorder/kis_recorded_fill_paint_action.cpp
    recorder/kis_recorded_paint_action.cpp
-   recorder/kis_recorded_polyline_paint_action.cpp
+   recorder/kis_recorded_path_paint_action.cpp
+   recorder/kis_recorded_shape_paint_action.cpp
 )
 
 
 kde4_add_library(kritaimage SHARED ${kritaimage_LIB_SRCS})
 
-target_link_libraries(kritaimage ${KDE4_KPARTS_LIBS} ${KDE4_KDE3SUPPORT_LIBS} kobase komain pigmentcms ${KDE4_THREADWEAVER_LIBRARIES} )
-target_link_libraries(kritaimage LINK_INTERFACE_LIBRARIES kobase pigmentcms komain ${KDE4_KPARTS_LIBS} ${QT_QT3SUPPORT_LIBRARY} )
+target_link_libraries(kritaimage ${KDE4_KPARTS_LIBS} ${KDE4_KDE3SUPPORT_LIBS} komain pigmentcms ${KDE4_THREADWEAVER_LIBRARIES} )
+target_link_libraries(kritaimage LINK_INTERFACE_LIBRARIES pigmentcms komain ${KDE4_KPARTS_LIBS} ${QT_QT3SUPPORT_LIBRARY} )
 
 if(OPENEXR_FOUND)
   target_link_libraries(kritaimage  ${OPENEXR_LIBRARIES})
 endif(OPENEXR_FOUND)
+
+if(FFTW3_FOUND)
+  target_link_libraries(kritaimage  ${FFTW3_LIBRARIES})
+endif(FFTW3_FOUND)
 
 
 set_target_properties(kritaimage PROPERTIES
@@ -216,6 +240,7 @@ install( FILES
     kis_config_widget.h
     kis_convolution_kernel.h
     kis_convolution_painter.h
+    kis_convolution_worker.h
     kis_debug.h
     kis_filter_strategy.h
     kis_generic_colorspace.h

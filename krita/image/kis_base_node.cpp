@@ -47,7 +47,7 @@ KisBaseNode::KisBaseNode()
 
 KisBaseNode::KisBaseNode(const KisBaseNode & rhs)
     : QObject()
-    , KisShared(rhs)
+    , KisShared()
     ,  m_d(new Private())
 {
     QMapIterator<QString, QVariant> iter = rhs.m_d->properties.propertyIterator();
@@ -81,7 +81,7 @@ KisPaintDeviceSP KisBaseNode::projection() const
 
 quint8 KisBaseNode::opacity() const
 {
-    return nodeProperties().intProperty("opacity", OPACITY_OPAQUE);
+    return nodeProperties().intProperty("opacity", OPACITY_OPAQUE_U8);
 }
 
 void KisBaseNode::setOpacity(quint8 val)

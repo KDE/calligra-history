@@ -422,6 +422,7 @@ void HTMLExport::detectFilledCells(Sheet *sheet, int &rows, int &columns)
 {
     int iMaxColumn = sheet->cellStorage()->columns();
     int iMaxRow = sheet->cellStorage()->rows();
+
     rows = 0;
     columns = 0;
 

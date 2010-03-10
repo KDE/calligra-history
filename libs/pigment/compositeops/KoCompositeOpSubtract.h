@@ -27,14 +27,14 @@
  * A template version of the subtract composite operation to use in colorspaces.
  */
 template<class _CSTraits>
-class KoCompositeOpSubtract : public KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpSubtract<_CSTraits> >
+class KoCompositeOpSubtract : public KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpSubtract<_CSTraits>, true >
 {
     typedef typename _CSTraits::channels_type channels_type;
     typedef typename KoColorSpaceMathsTraits<typename _CSTraits::channels_type>::compositetype compositetype;
 public:
 
     KoCompositeOpSubtract(const KoColorSpace * cs)
-            : KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpSubtract<_CSTraits> >(cs, COMPOSITE_SUBTRACT, i18n("Subtract"), KoCompositeOp::categoryArithmetic()) {
+            : KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpSubtract<_CSTraits>, true >(cs, COMPOSITE_SUBTRACT, i18n("Subtract"), KoCompositeOp::categoryArithmetic()) {
     }
 
 public:
@@ -46,10 +46,11 @@ public:
                                             const channels_type* src,
                                             channels_type* dst,
                                             qint32 pixelSize,
+                                            bool allChannelFlags,
                                             const QBitArray & channelFlags) {
         Q_UNUSED(pixelSize);
         for (uint i = 0; i < _CSTraits::channels_nb; i++) {
-            if ((int)i != _CSTraits::alpha_pos && (channelFlags.isEmpty() ||  channelFlags.testBit(i))) {
+            if ((int)i != _CSTraits::alpha_pos && (allChannelFlags ||  channelFlags.testBit(i))) {
                 compositetype srcColor = src[i];
                 compositetype dstColor = dst[i];
 

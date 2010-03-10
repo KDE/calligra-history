@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright 2009 Vera Lukman <shichan.karachu@gmail.com>
+   Copyright 2009 Vera Lukman <shicmap@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -32,8 +32,7 @@ KisColorDataList::KisColorDataList()
 KisColorDataList::~KisColorDataList()
 {
     delete m_priorityList;
-    this->m_priorityList = 0 ;
-
+    m_priorityList = 0 ;
 //    delete m_guiList;
 }
 
@@ -80,12 +79,10 @@ const KoColor& KisColorDataList::guiColor(int pos)
 
 void KisColorDataList::printGuiList()
 {
-    qDebug() << "Printing guiList: ";
     QColor* color = new QColor();
     for (int pos = 0; pos < size() ; pos++)
     {
         m_guiList.at(pos)->data.toQColor(color);
-        qDebug() << "pos: " << pos << " | data " << *color;
     }
 }
 

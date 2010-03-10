@@ -27,6 +27,7 @@
 
 #include "kis_image.h"
 #include "kis_painter.h"
+#include "kis_default_bounds.h"
 
 #include "kis_selection.h"
 #include "kis_pixel_selection.h"
@@ -47,7 +48,7 @@ public:
 KisSelectionBasedLayer::KisSelectionBasedLayer(KisImageWSP image,
         const QString &name,
         KisSelectionSP selection)
-        : KisLayer(image.data(), name, OPACITY_OPAQUE),
+        : KisLayer(image.data(), name, OPACITY_OPAQUE_U8),
         m_d(new Private())
 {
     if (!selection)
@@ -57,12 +58,12 @@ KisSelectionBasedLayer::KisSelectionBasedLayer(KisImageWSP image,
 
     setShowSelection(true);
 
-    m_d->paintDevice = new KisPaintDevice(image->colorSpace());
+    m_d->paintDevice = new KisPaintDevice(this, image->colorSpace(), KisDefaultBounds(image));
 }
 
 KisSelectionBasedLayer::KisSelectionBasedLayer(const KisSelectionBasedLayer& rhs)
         : KisLayer(rhs)
-        , KisIndirectPaintingSupport(rhs)
+        , KisIndirectPaintingSupport()
         , KisNodeFilterInterface(rhs)
         , m_d(new Private())
 {
@@ -90,6 +91,12 @@ void KisSelectionBasedLayer::initSelection()
     m_d->selection->setInterestedInDirtyness(true);
 }
 
+void KisSelectionBasedLayer::setImage(KisImageWSP image)
+{
+    m_d->paintDevice->setDefaultBounds(KisDefaultBounds(image));
+    KisLayer::setImage(image);
+}
+
 bool KisSelectionBasedLayer::allowAsChild(KisNodeSP node) const
 {
     return node->inherits("KisMask");
@@ -105,13 +112,6 @@ KisPaintDeviceSP KisSelectionBasedLayer::paintDevice() const
     return m_d->selection->getOrCreatePixelSelection();
 }
 
-
-QRect KisSelectionBasedLayer::repaintOriginal(KisPaintDeviceSP original,
-        const QRect& rect)
-{
-    Q_UNUSED(original);
-    return rect;
-}
 
 bool KisSelectionBasedLayer::needProjection() const
 {
@@ -160,8 +160,9 @@ QRect KisSelectionBasedLayer::changeRect(const QRect &rect) const
            rect;
 }
 
-QRect KisSelectionBasedLayer::needRect(const QRect &rect) const
+QRect KisSelectionBasedLayer::needRect(const QRect &rect, PositionToFilthy pos) const
 {
+    Q_UNUSED(pos);
     return rect;
 }
 

@@ -23,12 +23,11 @@
 #ifndef KIS_BRUSHOP_SETTINGS_WIDGET_H_
 #define KIS_BRUSHOP_SETTINGS_WIDGET_H_
 
-#include <kis_paintop_options_widget.h>
-#include <kis_image.h>
+#include <kis_brush_based_paintop_options_widget.h>
 
 class KisBrushOptionWidget;
 
-class KisBrushOpSettingsWidget : public KisPaintOpOptionsWidget
+class KisBrushOpSettingsWidget : public KisBrushBasedPaintopOptionWidget
 {
 
     Q_OBJECT
@@ -40,12 +39,6 @@ public:
     virtual ~KisBrushOpSettingsWidget();
 
     KisPropertiesConfiguration* configuration() const;
-    
-    void changePaintOpSize(qreal x, qreal y);
-    
-public:
-
-    KisBrushOptionWidget * m_brushOption;
 };
 
 

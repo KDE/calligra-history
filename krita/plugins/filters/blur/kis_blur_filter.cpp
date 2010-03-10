@@ -94,17 +94,26 @@ void KisBlurFilter::process(KisConstProcessingInformation srcInfo,
     dbgKrita << width << "" << height << "" << hFade << "" << vFade;
     switch (shape) {
     case 1:
-        kas = new KisRectangleMaskGenerator(width, height , hFade, vFade);
+        kas = new KisRectangleMaskGenerator(width, width / height , hFade, vFade, 2);
         break;
     case 0:
     default:
-        kas = new KisCircleMaskGenerator(width, height, hFade, vFade);
+        kas = new KisCircleMaskGenerator(width, width / height, hFade, vFade, 2);
         break;
+    }
+
+    QBitArray channelFlags;
+    if (config) {
+        channelFlags = config->channelFlags();
+    } 
+    if (channelFlags.isEmpty() || !config) {
+        channelFlags = QBitArray(src->colorSpace()->channelCount(), true);
     }
 
     KisConvolutionKernelSP kernel = KisConvolutionKernel::fromMaskGenerator(kas, rotate * M_PI / 180.0);
     delete kas;
     KisConvolutionPainter painter(dst, dstInfo.selection());
+    painter.setChannelFlags(channelFlags);
     painter.setProgress(progressUpdater);
     painter.applyMatrix(kernel, src, srcTopLeft, dstTopLeft, size, BORDER_REPEAT);
 

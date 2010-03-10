@@ -28,6 +28,10 @@
 #error Please include MsooXmlReader_p.h after defining MSOOXML_CURRENT_CLASS and MSOOXML_CURRENT_NS!
 #endif
 
+#ifndef MSOOXML_CALL_STACK
+#define MSOOXML_CALL_STACK m_calls
+#endif
+
 #define TRY_READ_WITH_ARGS_INTERNAL(name, args) \
     args \
     RETURN_IF_ERROR( read_ ## name () )
@@ -72,7 +76,7 @@
 #endif
 
 #define READ_PROLOGUE \
-    m_calls.push(PASTE(&MSOOXML_CURRENT_CLASS::read_, CURRENT_EL)); \
+    MSOOXML_CALL_STACK.push(PASTE(&MSOOXML_CURRENT_CLASS::read_, CURRENT_EL)); \
     PUSH_NAME \
     /*kDebug() << *this;*/ \
     if (!expectEl(QUALIFIED_NAME(CURRENT_EL))) { \
@@ -80,7 +84,7 @@
     }
 
 #define READ_EPILOGUE_WITHOUT_RETURN \
-    m_calls.pop(); \
+    MSOOXML_CALL_STACK.pop(); \
     POP_NAME \
     kDebug() << "READ_EPILOGUE_WITHOUT_RETURN"; \
     if (!expectElEnd(QUALIFIED_NAME(CURRENT_EL))) { \
@@ -107,25 +111,42 @@
 #define QUALIFIED_NAME_IS(name) \
     (/*aaaa(STRINGIFY(name)) &&*/ qualifiedName() == QLatin1String(QUALIFIED_NAME(name)))
 
-#define TRY_READ_IF(name) \
+#define TRY_READ_IF_INTERNAL(name) \
     if (QUALIFIED_NAME_IS(name)) { \
         kDebug() << "TRY_READ_IF " STRINGIFY(name) " started"; \
         TRY_READ(name); \
         kDebug() << "TRY_READ_IF " STRINGIFY(name) " finished"; \
     }
 
-#define ELSE_TRY_READ_IF(name) \
-    else TRY_READ_IF(name)
+//! Tries to read element @a name by entering into read_{name} function.
+//! Must be enclosed within if (isStartElement()), otherwise error will be returned.
+#define TRY_READ_IF(name) \
+    if (!isStartElement()) { /* sanity check */ \
+        raiseError(i18n("Start element \"%1\" expected, found \"%2\"", QLatin1String(STRINGIFY(name)), tokenString())); \
+        return KoFilter::WrongFormat; \
+    } \
+    TRY_READ_IF_INTERNAL(name)
 
-#define TRY_READ_IF_NS(ns, name) \
+#define ELSE_TRY_READ_IF(name) \
+    else TRY_READ_IF_INTERNAL(name)
+
+#define TRY_READ_IF_NS_INTERNAL(ns, name) \
     if (qualifiedName() == QLatin1String(JOIN(STRINGIFY(ns) ":", name))) { \
         kDebug() << "TRY_READ_IF_NS " JOIN(STRINGIFY(ns) ":", name) " started"; \
         TRY_READ(name); \
         kDebug() << "TRY_READ_IF_NS " JOIN(STRINGIFY(ns) ":", name) " finished"; \
     }
 
+//! Like TRY_READ_IF() but namespace for explicit namespace @a ns.
+#define TRY_READ_IF_NS(ns, name) \
+    if (!isStartElement()) { /* sanity check */ \
+        raiseError(i18n("Start element \"%1\" expected, found \"%2\"", QLatin1String(JOIN(STRINGIFY(ns) ":", name)), tokenString())); \
+        return KoFilter::WrongFormat; \
+    } \
+    else TRY_READ_IF_NS_INTERNAL(ns, name)
+
 #define ELSE_TRY_READ_IF_NS(ns, name) \
-    else TRY_READ_IF_NS(ns, name)
+    else TRY_READ_IF_NS_INTERNAL(ns, name)
 
 #define ELSE_WRONG_FORMAT \
     else { \

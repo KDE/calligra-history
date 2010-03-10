@@ -32,8 +32,9 @@
 #include <wv2/src/lists.h>
 #include <QString>
 #include <QObject>
-#include <qdom.h>
+#include <QDomElement>
 #include <QBuffer>
+#include <QStack>
 
 #include <KoXmlWriter.h>
 #include <KoGenStyles.h>
@@ -74,8 +75,12 @@ public:
     virtual void sectionStart(wvWare::SharedPtr<const wvWare::Word97::SEP> sep);
     virtual void sectionEnd();
     virtual void headersFound(const wvWare::HeaderFunctor& parseHeaders);
-    virtual void footnoteFound(wvWare::FootnoteData::Type type, wvWare::UChar character,
-                               wvWare::SharedPtr<const wvWare::Word97::CHP> chp, const wvWare::FootnoteFunctor& parseFootnote);
+    virtual void footnoteFound(wvWare::FootnoteData::Type type, wvWare::UString characters,
+                               wvWare::SharedPtr<const wvWare::Word97::CHP> chp,
+                               const wvWare::FootnoteFunctor& parseFootnote);
+    virtual void annotationFound(wvWare::UString characters,
+                                 wvWare::SharedPtr<const wvWare::Word97::CHP> chp,
+                                 const wvWare::AnnotationFunctor& parseAnnotation);
 
     virtual void paragraphStart(wvWare::SharedPtr<const wvWare::ParagraphProperties> paragraphProperties);
     virtual void paragraphEnd();
@@ -123,6 +128,7 @@ signals:
     void sectionEnd(wvWare::SharedPtr<const wvWare::Word97::SEP>);
     void subDocFound(const wvWare::FunctorBase* parsingFunctor, int data);
     void footnoteFound(const wvWare::FunctorBase* parsingFunctor, int data);
+    void annotationFound(const wvWare::FunctorBase* parsingFunctor, int data);
     void headersFound(const wvWare::FunctorBase* parsingFunctor, int data);
     void tableFound(KWord::Table* table);
     void pictureFound(const QString& frameName, const QString& pictureName, KoXmlWriter* writer,
@@ -168,6 +174,7 @@ private:
     void saveState();
     void restoreState();
 
+    QStack <KoXmlWriter*> m_usedListWriters;
 
     // Current paragraph
     wvWare::SharedPtr<const wvWare::Word97::SEP> m_sep; //store section info for section end
@@ -185,9 +192,15 @@ private:
     bool m_fieldAfterSeparator;
     int m_fieldType; //0 if we're not in a field, -1 for a field we can't handle,
     //anything else is the type of the field
+
     bool m_insideFootnote;
     KoXmlWriter* m_footnoteWriter; //write the footnote data, then add it to bodyWriter
     QBuffer* m_footnoteBuffer; //buffer for the footnote data
+
+    bool m_insideAnnotation;
+    KoXmlWriter* m_annotationWriter; //write the annotation data, then add it to bodyWriter
+    QBuffer* m_annotationBuffer; //buffer for the annotation data
+
     int m_maxColumns;//max number of columns in a table
 
     bool writeListInfo(KoXmlWriter* writer, const wvWare::Word97::PAP& pap, const wvWare::ListInfo* listInfo);

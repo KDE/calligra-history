@@ -63,7 +63,7 @@ public:
     /// reimplemented
     virtual void mouseDoubleClickEvent(KoPointerEvent *event);
     /// reimplemented
-    virtual void activate(bool temporary = false);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
     /// reimplemented
     virtual void deactivate();
 
@@ -104,6 +104,7 @@ private slots:
     void updateActions();
     void pointToLine();
     void pointToCurve();
+    void activate();
 
 private:
 

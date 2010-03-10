@@ -1,5 +1,6 @@
 /* This file is part of the KDE libraries
  * Copyright (c) 2003 thierry lorthiois (lorthioist@wanadoo.fr)
+ *               2009-2010 Inge Wallin <inge@lysator.liu.se>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -90,7 +91,7 @@ private:
      * others wmf files doesn't call setWindow* at all
      * negative width and height are possible
      */
-    void  setWindowOrg(int left, int top);
+    void  setWindowOrg(int orgX, int orgY);
     void  setWindowExt(int width, int height);
 
     // Clipping
@@ -116,6 +117,7 @@ private:
      */
     void  drawPolyPolygon(QList<QPolygon>& listPa, bool winding = false);
     void  drawImage(int x, int y, const QImage &, int sx = 0, int sy = 0, int sw = -1, int sh = -1);
+    void  patBlt(int x, int y, int width, int height, quint32 rasterOperation);
 
     // Text drawing functions
     // rotation = the degrees of rotation in counterclockwise
@@ -135,6 +137,11 @@ protected:
     QMatrix  mInternalWorldMatrix;
     QPoint mLastPos;
 
+    // For debug;
+    int  mOrgX;
+    int  mOrgY;
+    int  mExtWidth;
+    int  mExtHeight;
 };
 
 #endif

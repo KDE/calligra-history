@@ -52,24 +52,37 @@ KoGenStyle::~KoGenStyle()
 {
 }
 
-void KoGenStyle::writeStyleProperties(KoXmlWriter* writer, PropertyType i,
-                                      const char* elementName, const KoGenStyle* parentStyle) const
-{
-    if (!m_properties[i].isEmpty()) {
-        writer->startElement(elementName);
-        QMap<QString, QString>::const_iterator it = m_properties[i].begin();
-        const QMap<QString, QString>::const_iterator end = m_properties[i].end();
-        for (; it != end; ++it) {
-            if (!parentStyle || parentStyle->property(it.key(), i) != it.value())
-                writer->addAttribute(it.key().toUtf8(), it.value().toUtf8());
-        }
-        writer->endElement();
-    }
-}
+/*
+ * The order of this list is important; e.g. a graphic-properties must
+ * precede a text-properties always. See the Relax NG to check the order.
+ */
+static KoGenStyle::PropertyType s_propertyTypes[] = {
+    KoGenStyle::DefaultType,
+    KoGenStyle::SectionType,
+    KoGenStyle::RubyType,
+    KoGenStyle::TableColumnType,
+    KoGenStyle::TableRowType,
+    KoGenStyle::TableCellType,
+    KoGenStyle::DrawingPageType,
+    KoGenStyle::ChartType,
+    KoGenStyle::GraphicType,
+    KoGenStyle::ParagraphType,
+    KoGenStyle::TextType,
+};
 
-static KoGenStyle::PropertyType s_propertyTypes[] = { KoGenStyle::DefaultType, KoGenStyle::TextType, KoGenStyle::ParagraphType, KoGenStyle::GraphicType };
-
-static const char* s_propertyNames[] = { 0, "style:text-properties", "style:paragraph-properties", "style:graphic-properties" };
+static const char* s_propertyNames[] = {
+    0,
+    "style:section-properties",
+    "style:ruby-properties",
+    "style:table-column-properties",
+    "style:table-row-properties",
+    "style:table-cell-properties",
+    "style:drawing-page-properties",
+    "style:chart-properties",
+    "style:graphic-properties",
+    "style:paragraph-properties",
+    "style:text-properties"
+};
 
 static const int s_propertyNamesCount = sizeof(s_propertyNames) / sizeof(*s_propertyNames);
 
@@ -83,7 +96,28 @@ static KoGenStyle::PropertyType propertyTypeByElementName(const char* properties
     return KoGenStyle::DefaultType;
 }
 
-
+void KoGenStyle::writeStyleProperties(KoXmlWriter* writer, PropertyType type,
+                                      const KoGenStyle* parentStyle) const
+{
+    const char* elementName = 0;
+    for (int i=0; i<s_propertyNamesCount; ++i) {
+        if (s_propertyTypes[i] == type) {
+            elementName = s_propertyNames[i];
+        }
+    }
+    Q_ASSERT(elementName);
+    const StyleMap& map = m_properties[type];
+    if (!map.isEmpty()) {
+        writer->startElement(elementName);
+        QMap<QString, QString>::const_iterator it = map.begin();
+        const QMap<QString, QString>::const_iterator end = map.end();
+        for (; it != end; ++it) {
+            if (!parentStyle || parentStyle->property(it.key(), type) != it.value())
+                writer->addAttribute(it.key().toUtf8(), it.value().toUtf8());
+        }
+        writer->endElement();
+    }
+}
 
 void KoGenStyle::writeStyle(KoXmlWriter* writer, const KoGenStyles& styles, const char* elementName, const QString& name, const char* propertiesElementName, bool closeElement, bool drawElement) const
 {
@@ -181,8 +215,8 @@ void KoGenStyle::writeStyle(KoXmlWriter* writer, const KoGenStyles& styles, cons
     //start with i=1 to skip the defaultType that we already took care of
     for (int i = 1; i < s_propertyNamesCount; ++i) {
         //skip any properties that are the same as the defaultType
-        if (i != defaultPropertyType) {
-            writeStyleProperties(writer, s_propertyTypes[i], s_propertyNames[i], parentStyle);
+        if (s_propertyTypes[i] != defaultPropertyType) {
+            writeStyleProperties(writer, s_propertyTypes[i], parentStyle);
         }
     }
 

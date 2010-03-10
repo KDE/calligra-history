@@ -46,6 +46,8 @@
 #include <QTextCursor>
 #include <KDebug>
 
+#include <rdf/KoDocumentRdfBase.h>
+
 KWOdfLoader::KWOdfLoader(KWDocument *document)
         : QObject(document),
         m_document(document)
@@ -57,13 +59,13 @@ KWOdfLoader::~KWOdfLoader()
 {
 }
 
-KWDocument* KWOdfLoader::document() const
+KWDocument *KWOdfLoader::document() const
 {
     return m_document;
 }
 
 //1.6: KWDocument::loadOasis
-bool KWOdfLoader::load(KoOdfReadStore & odfStore)
+bool KWOdfLoader::load(KoOdfReadStore &odfStore)
 {
     emit progressUpdate(0);
     //kDebug(32001) << "========================> KWOdfLoader::load START";
@@ -112,13 +114,13 @@ bool KWOdfLoader::load(KoOdfReadStore & odfStore)
     KoShapeLoadingContext sc(odfContext, m_document->resourceManager());
 
     // Load all styles before the corresponding paragraphs try to use them!
-    KWOdfSharedLoadingData * sharedData = new KWOdfSharedLoadingData(this);
+    KWOdfSharedLoadingData *sharedData = new KWOdfSharedLoadingData(this);
     KoStyleManager *styleManager = m_document->resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
     Q_ASSERT(styleManager);
-    sharedData->loadOdfStyles(odfContext, styleManager);
+    sharedData->loadOdfStyles(sc, styleManager);
     sc.addSharedData(KOTEXT_SHARED_LOADING_ID, sharedData);
 
-    KoTextLoader * loader = new KoTextLoader(sc);
+    KoTextLoader *loader = new KoTextLoader(sc);
     Q_UNUSED(loader);
     KoOdfLoadingContext context(odfStore.styles(), odfStore.store(), m_document->componentData());
 
@@ -130,7 +132,7 @@ bool KWOdfLoader::load(KoOdfReadStore & odfStore)
     m_processingType = (!KoXml::namedItemNS(body, KoXmlNS::text, "page-sequence").isNull()) ? DTP : WP;
     m_hasTOC = false;
     m_tabStop = MM_TO_POINT(15);
-    const KoXmlElement* defaultParagStyle = styles.defaultStyle("paragraph");
+    const KoXmlElement *defaultParagStyle = styles.defaultStyle("paragraph");
     if (defaultParagStyle) {
         KoStyleStack stack;
         stack.push(*defaultParagStyle);
@@ -162,15 +164,15 @@ bool KWOdfLoader::load(KoOdfReadStore & odfStore)
     /*
     // We always needs at least one valid default paragraph style
     KoParagraphStyle *defaultParagraphStyle = m_document->styleManager()->defaultParagraphStyle();
-    //const KoXmlElement* defaultParagraphStyle = context.stylesReader().defaultStyle("paragraph");
-    //if( ! defaultParagraphStyle ) {
+    //const KoXmlElement *defaultParagraphStyle = context.stylesReader().defaultStyle("paragraph");
+    //if(! defaultParagraphStyle) {
     KoParagraphStyle *parastyle = new KoParagraphStyle();
     parastyle->setName("Standard");
     m_document->styleManager()->add(parastyle);
-    context.styleStack().setTypeProperties( "paragraph" ); // load all style attributes from "style:paragraph-properties"
+    context.styleStack().setTypeProperties("paragraph"); // load all style attributes from "style:paragraph-properties"
     parastyle->loadOasis(context.styleStack()); // load the KoParagraphStyle from the stylestack
     KoCharacterStyle *charstyle = parastyle->characterStyle();
-    context.styleStack().setTypeProperties( "text" ); // load all style attributes from "style:text-properties"
+    context.styleStack().setTypeProperties("text"); // load all style attributes from "style:text-properties"
     charstyle->loadOasis(context.styleStack()); // load the KoCharacterStyle from the stylestack
     //}
     */
@@ -193,11 +195,17 @@ bool KWOdfLoader::load(KoOdfReadStore & odfStore)
     if (hasMainText) {
         KWTextFrameSet *mainFs = new KWTextFrameSet(m_document, KWord::MainTextFrameSet);
         mainFs->setAllowLayout(false);
+        mainFs->setPageStyle(m_document->pageManager()->pageStyle("Standard"));
         m_document->addFrameSet(mainFs);
         textShapeData.setDocument(mainFs->document(), false);
     }
     // Let the TextShape handle loading the body element.
     textShapeData.loadOdf(body, sc);
+
+    // Grab weak references to all the Rdf stuff that was loaded
+    if (KoDocumentRdfBase *rdf = m_document->documentRdfBase()) {
+        rdf->updateInlineRdfStatements(textShapeData.document());
+    }
 
     loadSettings(odfStore.settingsDoc());
 
@@ -206,7 +214,7 @@ bool KWOdfLoader::load(KoOdfReadStore & odfStore)
     return true;
 }
 
-void KWOdfLoader::loadSettings(const KoXmlDocument& settingsDoc)
+void KWOdfLoader::loadSettings(const KoXmlDocument &settingsDoc)
 {
     if (settingsDoc.isNull())
         return;
@@ -222,19 +230,19 @@ void KWOdfLoader::loadSettings(const KoXmlDocument& settingsDoc)
     if (!configurationSettings.isNull()) {
         const QString ignorelist = configurationSettings.parseConfigItemString("SpellCheckerIgnoreList");
         kDebug(32001) << "Ignorelist:" << ignorelist;
-        //1.6: m_document->setSpellCheckIgnoreList( QStringList::split( ',', ignorelist ) );
+        //1.6: m_document->setSpellCheckIgnoreList(QStringList::split(',', ignorelist));
     }
-    //1.6: m_document->variableCollection()->variableSetting()->loadOasis( settings );
+    //1.6: m_document->variableCollection()->variableSetting()->loadOasis(settings);
 }
 
-void KWOdfLoader::loadMasterPageStyles(KoOdfLoadingContext& context, bool hasMainText)
+void KWOdfLoader::loadMasterPageStyles(KoOdfLoadingContext &context, bool hasMainText)
 {
     kDebug(32001) << " !!!!!!!!!!!!!! loadMasterPageStyles called !!!!!!!!!!!!!!";
     kDebug(32001) << "Number of items :" << context.stylesReader().masterPages().size();
 
     //TODO probably we should introduce more logic to handle the "standard" even
     //in faulty documents. See also bugreport #129585 as example.
-    const KoOdfStylesReader& styles = context.stylesReader();
+    const KoOdfStylesReader &styles = context.stylesReader();
     QHashIterator<QString, KoXmlElement *> it(styles.masterPages());
     while (it.hasNext()) {
         it.next();
@@ -247,8 +255,8 @@ void KWOdfLoader::loadMasterPageStyles(KoOdfLoadingContext& context, bool hasMai
         const KoXmlElement *masterPageStyle = masterNode ? styles.findStyle(masterNode->attributeNS(KoXmlNS::style, "page-layout-name", QString())) : 0;
         if (masterPageStyle) {
             masterPage.loadOdf(*masterPageStyle);
-            loadHeaderFooter(context, masterPage, *masterNode, *masterPageStyle, LoadHeader);
-            loadHeaderFooter(context, masterPage, *masterNode, *masterPageStyle, LoadFooter);
+            loadHeaderFooter(context, masterPage, *masterNode, LoadHeader);
+            loadHeaderFooter(context, masterPage, *masterNode, LoadFooter);
         }
         masterPage.setHasMainTextFrame(hasMainText);
         if (!alreadyExists)
@@ -257,7 +265,7 @@ void KWOdfLoader::loadMasterPageStyles(KoOdfLoadingContext& context, bool hasMai
 }
 
 // helper function to create a KWTextFrameSet for a header/footer.
-void KWOdfLoader::loadHeaderFooterFrame(KoOdfLoadingContext& context, const KWPageStyle &pageStyle, const KoXmlElement& elem, KWord::HeaderFooterType hfType, KWord::TextFrameSetType fsType)
+void KWOdfLoader::loadHeaderFooterFrame(KoOdfLoadingContext &context, const KWPageStyle &pageStyle, const KoXmlElement &elem, KWord::TextFrameSetType fsType)
 {
     KWTextFrameSet *fs = new KWTextFrameSet(m_document, fsType);
     fs->setPageStyle(pageStyle);
@@ -279,7 +287,7 @@ void KWOdfLoader::loadHeaderFooterFrame(KoOdfLoadingContext& context, const KWPa
 }
 
 //1.6: KWOasisLoader::loadOasisHeaderFooter
-void KWOdfLoader::loadHeaderFooter(KoOdfLoadingContext& context, KWPageStyle &pageStyle, const KoXmlElement& masterPage, const KoXmlElement& masterPageStyle, HFLoadType headerFooter)
+void KWOdfLoader::loadHeaderFooter(KoOdfLoadingContext &context, KWPageStyle &pageStyle, const KoXmlElement &masterPage, HFLoadType headerFooter)
 {
     // The actual content of the header/footer.
     KoXmlElement elem = KoXml::namedItemNS(masterPage, KoXmlNS::style, headerFooter == LoadHeader ? "header" : "footer");
@@ -290,11 +298,11 @@ void KWOdfLoader::loadHeaderFooter(KoOdfLoadingContext& context, KWPageStyle &pa
     KWord::HeaderFooterType hfType = elem.isNull() ? KWord::HFTypeNone : leftElem.isNull() ? KWord::HFTypeUniform : KWord::HFTypeEvenOdd;
 
     if (! leftElem.isNull()) {   // header-left and footer-left
-        loadHeaderFooterFrame(context, pageStyle, leftElem, hfType, headerFooter == LoadHeader ? KWord::EvenPagesHeaderTextFrameSet : KWord::EvenPagesFooterTextFrameSet);
+        loadHeaderFooterFrame(context, pageStyle, leftElem, headerFooter == LoadHeader ? KWord::EvenPagesHeaderTextFrameSet : KWord::EvenPagesFooterTextFrameSet);
     }
 
     if (! elem.isNull()) {   // header and footer
-        loadHeaderFooterFrame(context, pageStyle, elem, hfType, headerFooter == LoadHeader ? KWord::OddPagesHeaderTextFrameSet : KWord::OddPagesFooterTextFrameSet);
+        loadHeaderFooterFrame(context, pageStyle, elem, headerFooter == LoadHeader ? KWord::OddPagesHeaderTextFrameSet : KWord::OddPagesFooterTextFrameSet);
     }
 
     if (headerFooter == LoadHeader) {

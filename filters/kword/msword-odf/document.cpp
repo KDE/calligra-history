@@ -92,6 +92,8 @@ Document::Document(const std::string& fileName, KoFilterChain* chain, KoXmlWrite
                 this, SLOT(slotSubDocFound(const wvWare::FunctorBase*, int)));
         connect(m_textHandler, SIGNAL(footnoteFound(const wvWare::FunctorBase*, int)),
                 this, SLOT(slotFootnoteFound(const wvWare::FunctorBase*, int)));
+        connect(m_textHandler, SIGNAL(annotationFound(const wvWare::FunctorBase*,int)),
+                this, SLOT(slotAnnotationFound(const wvWare::FunctorBase*, int)));
         connect(m_textHandler, SIGNAL(headersFound(const wvWare::FunctorBase*, int)),
                 this, SLOT(slotHeadersFound(const wvWare::FunctorBase*, int)));
         connect(m_textHandler, SIGNAL(tableFound(KWord::Table*)),
@@ -592,13 +594,23 @@ void Document::headerEnd()
 
 void Document::footnoteStart()
 {
-    kDebug(30513) ;
+    kDebug(30513);
 }
 
 void Document::footnoteEnd()
 {
     kDebug(30513);
 }
+
+
+void Document::annotationStart()
+{
+}
+
+void Document::annotationEnd()
+{
+}
+
 
 //disable this for now - we should be able to do everything in TableHandler
 //create frame for the table cell?
@@ -701,6 +713,14 @@ void Document::slotSubDocFound(const wvWare::FunctorBase* functor, int data)
 }
 
 void Document::slotFootnoteFound(const wvWare::FunctorBase* functor, int data)
+{
+    kDebug(30513) ;
+    SubDocument subdoc(functor, data, QString(), QString());
+    (*subdoc.functorPtr)();
+    delete subdoc.functorPtr;
+}
+
+void Document::slotAnnotationFound(const wvWare::FunctorBase* functor, int data)
 {
     kDebug(30513) ;
     SubDocument subdoc(functor, data, QString(), QString());

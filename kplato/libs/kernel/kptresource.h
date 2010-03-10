@@ -44,6 +44,7 @@ class QTime;
 namespace KPlato
 {
 
+class Account;
 class Risk;
 class Effort;
 class Appointment;
@@ -390,6 +391,8 @@ public:
 
     Appointment appointmentIntervals( long id ) const;
     Appointment appointmentIntervals() const;
+    
+    EffortCostMap plannedEffortCostPrDay(const QDate &start, const QDate &end, long id);
     Duration plannedEffort( const QDate &date ) const;
 
     void setCurrentSchedulePtr( Schedule *schedule ) { m_currentSchedule = schedule; }
@@ -397,7 +400,7 @@ public:
     Schedule *currentSchedule() const { return m_currentSchedule; }
 
     bool isScheduled() const;
-    QHash<long, Schedule*> &schedules() { return m_schedules; }
+    QHash<long, Schedule*> schedules() const { return m_schedules; }
     /**
      * Return schedule with @id
      * If @id == -1, return m_currentSchedule
@@ -444,6 +447,11 @@ public:
     /// to translate resource ids to resources
     void resolveRequiredResources( Project &project );
 
+    /// Return the account
+    Account *account() const { return cost.account; }
+    /// Set the @p account
+    void setAccount( Account *account );
+
 signals:
     void externalAppointmentToBeAdded( Resource *r, int row );
     void externalAppointmentAdded( Resource*, Appointment* );
@@ -477,6 +485,7 @@ private:
         double normalRate;
         double overtimeRate;
         double fixed ;
+        Account *account;
     }
     cost;
     
@@ -581,7 +590,7 @@ public:
     /// Return a measure of how suitable the resource is for allocation
     long allocationSuitability( const DateTime &time, const Duration &duration, Schedule *ns, bool backward );
 
-    const QList<Resource*> &requiredResources() const { return m_required; }
+    const QList<Resource*> requiredResources() const { return m_required; }
     void setRequiredResources( const QList<Resource*> &lst ) { m_required = lst; }
 
 protected:
@@ -615,7 +624,7 @@ public:
     ResourceGroup *group() const { return m_group; }
     void setGroup( ResourceGroup *group ) { m_group = group; }
     void unregister( const ResourceGroup *group ) { if ( group == m_group ) m_group = 0; }
-    QList<ResourceRequest*> &resourceRequests() { return m_resourceRequests; }
+    QList<ResourceRequest*> resourceRequests() { return m_resourceRequests; }
     void addResourceRequest( ResourceRequest *request );
     void deleteResourceRequest( ResourceRequest *request );
     int count() const { return m_resourceRequests.count(); }
@@ -698,7 +707,7 @@ public:
     explicit ResourceRequestCollection( Task *task = 0 );
     ~ResourceRequestCollection();
 
-    const QList<ResourceGroupRequest*> &requests() const { return m_requests; }
+    QList<ResourceGroupRequest*> requests() const { return m_requests; }
     void addRequest( ResourceGroupRequest *request );
     void deleteRequest( ResourceGroupRequest *request )
     {

@@ -123,17 +123,9 @@ bool KoDocumentSectionDelegate::editorEvent(QEvent *e, QAbstractItemModel *model
             }
             return true;
         }
-        else if (tr.isValid() && tr.contains(me->pos()) && (option.state & QStyle::State_HasFocus)) {
-            d->view->edit(index);
-            return true;
-        }
         if (me->button() != Qt::LeftButton) {
             d->view->setCurrentIndex(index);
             return false;
-        }
-
-        if (!(me->modifiers() & Qt::ControlModifier) && !(me->modifiers() & Qt::ShiftModifier)) {
-            d->view->setCurrentIndex(index);
         }
     }
     else if (e->type() == QEvent::ToolTip) {

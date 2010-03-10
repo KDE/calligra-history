@@ -84,6 +84,7 @@ TextShape::TextShape(KoInlineTextObjectManager *inlineTextObjectManager)
         , m_footnotes(0)
         , m_demoText(false)
         ,m_pageProvider(0)
+        ,m_imageCollection(0)
 {
     setShapeId(TextShape_SHAPEID);
     m_textShapeData = new KoTextShapeData();
@@ -131,6 +132,8 @@ void TextShape::paintComponent(QPainter &painter, const KoViewConverter &convert
     Q_ASSERT(doc);
     KoTextDocumentLayout *lay = qobject_cast<KoTextDocumentLayout*>(doc->documentLayout());
 
+    //lay->state()->setImageCollection(m_imageCollection);
+
     if (m_textShapeData->endPosition() < 0) { // not layouted yet.
         if (lay == 0) {
             kWarning(32500) << "Painting shape that doesn't have a kotext doc-layout, which can't work";
@@ -151,14 +154,14 @@ void TextShape::paintComponent(QPainter &painter, const KoViewConverter &convert
             // this is used to not trigger repaints if layout during the painting is done
             // this enbales to use the same shapes on different pages showing different page numbers
             m_paintRegion = painter.clipRegion();
-            if (!m_textShapeData->page() || page->pageNumber() != m_textShapeData->page()->pageNumber() ) {
+            if (!m_textShapeData->page() || page->pageNumber() != m_textShapeData->page()->pageNumber()) {
                 m_textShapeData->setPage(page);
                 m_textShapeData->foul();
                 lay->interruptLayout();
                 m_textShapeData->fireResizeEvent();
             }
 
-            if ( lay ) {
+            if (lay) {
                 while (m_textShapeData->isDirty()){
                     lay->layout();
                 }
@@ -170,6 +173,7 @@ void TextShape::paintComponent(QPainter &painter, const KoViewConverter &convert
     KoTextDocumentLayout::PaintContext context;
     context.textContext = pc;
     context.viewConverter = &converter;
+    context.imageCollection = m_imageCollection;
 
     QRectF rect(0, 0, size().width(), size().height());
     rect.adjust(-5, 0, 5, 0);
@@ -242,7 +246,7 @@ void TextShape::paintDecorations(QPainter &painter, const KoViewConverter &conve
     if (m_textShapeData->endPosition() < 0) return;
     KoTextDocumentLayout *lay = qobject_cast<KoTextDocumentLayout*>(m_textShapeData->document()->documentLayout());
     if (showTextFrames && lay) {
-        QList< KoShape * > shapes = lay->shapes();
+        QList<KoShape *> shapes = lay->shapes();
         // Get the bottom of the text.
         bool moreText = false;
         qreal max = m_textShapeData->documentOffset() + size().height();
@@ -339,7 +343,6 @@ bool TextShape::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &cont
         if (!style) {
             kDebug(32500) << "graphic style not found:" << element.attributeNS(KoXmlNS::draw, "style-name");
         }
-        Q_ASSERT(style);
     }
     else if (element.hasAttributeNS(KoXmlNS::presentation, "style-name")) {
         style = context.odfLoadingContext().stylesReader().findStyle(
@@ -418,7 +421,7 @@ void TextShape::waitUntilReady(const KoViewConverter &, bool asynchronous) const
     }
     else {
         KoTextDocumentLayout *lay = qobject_cast<KoTextDocumentLayout*>(m_textShapeData->document()->documentLayout());
-        if ( lay ) {
+        if (lay) {
             while (m_textShapeData->isDirty()){
                 lay->layout();
             }

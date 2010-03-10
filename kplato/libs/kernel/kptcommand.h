@@ -543,7 +543,6 @@ class KPLATOKERNEL_EXPORT NodeMoveCmd : public NamedCommand
 {
 public:
     NodeMoveCmd( Project *project, Node *node, Node *newParent, int newPos, const QString& name = QString() );
-    ~NodeMoveCmd();
     void execute();
     void unexecute();
 
@@ -555,7 +554,7 @@ private:
     int m_newpos;
     int m_oldpos;
     bool m_moved;
-    MacroCommand *m_cmd;
+    MacroCommand m_cmd;
 };
 
 class KPLATOKERNEL_EXPORT AddRelationCmd : public NamedCommand
@@ -834,6 +833,7 @@ public:
 private:
     QList<ResourceRequest*> m_requests;
     QList<Appointment*> m_appointments;
+    MacroCommand m_cmd;
 };
 
 class KPLATOKERNEL_EXPORT MoveResourceCmd : public NamedCommand
@@ -987,6 +987,18 @@ private:
     Resource *m_resource;
     QList<Resource*> m_newvalue;
     QList<Resource*> m_oldvalue;
+};
+class KPLATOKERNEL_EXPORT ModifyResourceAccountCmd : public NamedCommand
+{
+public:
+    ModifyResourceAccountCmd( Resource *resource, Account *account, const QString& name = QString() );
+    void execute();
+    void unexecute();
+
+private:
+    Resource *m_resource;
+    Account *m_newvalue;
+    Account *m_oldvalue;
 };
 
 class KPLATOKERNEL_EXPORT RemoveResourceGroupCmd : public NamedCommand
@@ -1364,6 +1376,19 @@ public:
 
 private:
     Accounts &m_accounts;
+    Account *m_oldvalue;
+    Account *m_newvalue;
+};
+
+class KPLATOKERNEL_EXPORT ResourceModifyAccountCmd : public NamedCommand
+{
+public:
+    ResourceModifyAccountCmd( Resource &resource, Account *oldvalue, Account *newvalue, const QString& name = QString() );
+    void execute();
+    void unexecute();
+
+private:
+    Resource &m_resource;
     Account *m_oldvalue;
     Account *m_newvalue;
 };

@@ -106,29 +106,32 @@ CellRegion::CellRegion( const QString& region )
     // the same way.
     // See ODF specs $8.3.1 "Referencing Table Cells"
     QString searchStr = QString( region ).remove( "$" );
-    QString pointRegEx = "(.*)\\.([A-Z]+)([0-9]+)";
     QRegExp regEx;
 
     const bool isPoint = !region.contains( ':' );
     if ( isPoint )
-        regEx = QRegExp( pointRegEx );
-    else
-        regEx = QRegExp ( pointRegEx + ":" + pointRegEx );
+        regEx = QRegExp( "(|.*\\.)([A-Z]+)([0-9]+)" );
+    else // support range-notations like Sheet1.D2:Sheet1.F2 Sheet1.D2:F2 D2:F2
+        regEx = QRegExp ( "(|.*\\.)([A-Z]+)([0-9]+)\\:(|.*\\.)([A-Z]+)([0-9]+)" );
 
     // Check if region string is valid (e.g. not empty)
     if ( regEx.indexIn( searchStr ) >= 0 ) {
         // It is possible for a cell-range-address as defined in ODF to contain
         // refernces to cells of more than one sheet. This, however, we ignore
         // here. We do not support more than one table in a cell region.
+        // Also we do not support regions spanned over different sheets. For us
+        // everything is either on no sheet or on the same sheet.
         d->sheetName = regEx.cap( 1 );
+        if ( d->sheetName.endsWith( "." ) )
+            d->sheetName = d->sheetName.left( d->sheetName.length() - 1 );
 
-        QPoint topLeft( rangeStringToInt( regEx.cap( 2 ) ), regEx.cap(3).toInt() );
-        QPoint bottomRight( rangeStringToInt( regEx.cap( 5 ) ), regEx.cap(6).toInt() );
-
-        if ( isPoint )
+        QPoint topLeft( rangeStringToInt( regEx.cap(2) ), regEx.cap(3).toInt() );
+        if ( isPoint ) {
             d->rects.append( QRect( topLeft, QSize( 1, 1 ) ) );
-        else
+        } else {
+            QPoint bottomRight( rangeStringToInt( regEx.cap(5) ), regEx.cap(6).toInt() );
             d->rects.append( QRect( topLeft, bottomRight ) );
+        }
     }
 
     d->origString = region;
@@ -169,6 +172,9 @@ CellRegion& CellRegion::operator = ( const CellRegion& region )
 {
     d->rects        = region.d->rects;
     d->boundingRect = region.d->boundingRect;
+    d->origString = region.d->origString;
+    d->origStringValid = region.d->origStringValid;
+    d->sheetName = region.d->sheetName;
 
     return *this;
 }
@@ -204,7 +210,8 @@ QString CellRegion::Private::pointToString( const QPoint &point ) const
 {
     QString result;
 
-    result.append( '$' + sheetName + '.' );
+    if(!sheetName.isEmpty())
+        result.append( '$' + sheetName + '.' );
     result.append( '$' + columnName( point.x() ) );
     result.append( '$' + QString::number( point.y() ) );
 
@@ -449,12 +456,12 @@ int CellRegion::indexAtPoint( const QPoint &point ) const
     return found ? indicesLeftToPoint : -1;
 }
 
+#if 0 // Unused?
 static int rangeCharToInt( char c )
 {
     return (c >= 'A' && c <= 'Z') ? (c - 'A' + 1) : -1;
 }
 
-#if 0 // Unused?
 static int rangeStringToInt( const QString &string )
 {
     int result = 0;

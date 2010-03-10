@@ -40,6 +40,7 @@
 #include <QHeaderView>
 #include <QApplication>
 #include <QClipboard>
+#include <QKeyEvent>
 
 #include <kaction.h>
 #include <kicon.h>
@@ -47,7 +48,7 @@
 #include <klocale.h>
 #include <kxmlguifactory.h>
 #include <kactioncollection.h>
-#include <QKeyEvent>
+#include <KTabWidget>
 
 #include <kdebug.h>
 
@@ -196,16 +197,22 @@ void ScheduleEditor::updateActionsEnabled( const QModelIndex &index )
 
 void ScheduleEditor::slotEnableActions( const ScheduleManager *sm )
 {
-    actionAddSchedule->setEnabled( isReadWrite() );
-
+    if ( sm == 0 || sm->parentManager() == 0 ) {
+        actionAddSchedule->setEnabled( isReadWrite() );
+    } else if ( sm && sm->parentManager() && sm->parentManager()->isScheduled() ) {
+        actionAddSchedule->setEnabled( isReadWrite() );
+    } else {
+        actionAddSchedule->setEnabled( false );
+    }
+    
     bool on = isReadWrite() && sm != 0;
-    actionAddSubSchedule->setEnabled( on );
     
     actionBaselineSchedule->setIcon( KIcon( ( sm && sm->isBaselined() ? "view-time-schedule-baselined-remove" : "view-time-schedule-baselined-add" ) ) );
     if ( on && ( sm->isBaselined() || sm->isChildBaselined() ) ) {
         actionBaselineSchedule->setEnabled( sm->isBaselined() );
         actionCalculateSchedule->setEnabled( false );
         actionDeleteSelection->setEnabled( false );
+        actionAddSubSchedule->setEnabled( on );
     } else {
         actionBaselineSchedule->setEnabled( on && sm->isScheduled() && ! m_view->project()->isBaselined() );
         actionDeleteSelection->setEnabled( on && ! sm->scheduling() );
@@ -218,7 +225,12 @@ void ScheduleEditor::slotEnableActions( const ScheduleManager *sm )
                 }
             }
         }
-        actionCalculateSchedule->setEnabled( on && ! scheduling );
+        on = on && ! scheduling;
+        if ( on && sm->parentManager() ) {
+            on = on && sm->parentManager()->isScheduled();
+        }
+        actionCalculateSchedule->setEnabled( on );
+        actionAddSubSchedule->setEnabled( on && sm->isScheduled() );
     }
 }
 
@@ -273,9 +285,10 @@ void ScheduleEditor::slotOptions()
 {
     kDebug();
     ItemViewSettupDialog *dlg = new ItemViewSettupDialog( m_view, true, this );
-    dlg->exec();
-    delete dlg;
-
+    connect(dlg, SIGNAL(finished(int)), SLOT(slotOptionsFinished(int)));
+    dlg->show();
+    dlg->raise();
+    dlg->activateWindow();
 }
 
 void ScheduleEditor::slotCalculateSchedule()
@@ -593,6 +606,10 @@ ScheduleHandlerView::ScheduleHandlerView( KoDocument *part, QWidget *parent )
     v->setObjectName( "ScheduleLogView" );
     addView( v, tab, i18n( "Scheduling Log" ) );
     connect( m_scheduleEditor, SIGNAL( scheduleSelectionChanged( ScheduleManager* ) ), v, SLOT( slotScheduleSelectionChanged( ScheduleManager* ) ) );
+}
+
+void ScheduleHandlerView::currentTabChanged( int )
+{
 }
 
 ViewBase *ScheduleHandlerView::hitView( const QPoint &glpos )

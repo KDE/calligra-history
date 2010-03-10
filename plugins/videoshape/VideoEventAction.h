@@ -22,12 +22,7 @@
 #include <KoEventAction.h>
 
 class VideoShape;
-namespace Phonon
-{
-    class MediaObject;
-    class VideoWidget;
-    class AudioOutput;
-};
+class FullScreenPlayer;
 
 /**
  * This class represents the click event action that starts the playing of the video.
@@ -48,9 +43,7 @@ public:
 
 protected:
     VideoShape *m_shape;
-    Phonon::MediaObject *m_mediaObject;
-    Phonon::VideoWidget *m_videoWidget;
-    Phonon::AudioOutput *m_audioOutput;
+    FullScreenPlayer *m_player;
 };
 
 #endif

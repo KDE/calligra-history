@@ -23,7 +23,7 @@
 #ifndef KIS_FILTEROP_SETTINGS_H_
 #define KIS_FILTEROP_SETTINGS_H_
 
-#include <kis_paintop_settings.h>
+#include <kis_brush_based_paintop_settings.h>
 #include <kis_types.h>
 
 #include "kis_filterop_settings_widget.h"
@@ -31,7 +31,7 @@
 class QDomElement;
 class KisFilterConfiguration;
 
-class KisFilterOpSettings : public KisPaintOpSettings
+class KisFilterOpSettings : public KisBrushBasedPaintOpSettings
 {
 
 public:
@@ -44,13 +44,13 @@ public:
 
     void setImage(KisImageWSP image);
 
-    KisFilterSP filter() const;
     KisFilterConfiguration* filterConfig() const;
-    bool ignoreAlpha() const;
-
-public:
-
-    KisFilterOpSettingsWidget *m_options;
+        
+    ///Reimplemented
+    void toXML(QDomDocument& doc, QDomElement& root) const;
+    
+    ///Reimplemented
+    void fromXML(const QDomElement& e);
 
 };
 

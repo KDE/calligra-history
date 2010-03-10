@@ -53,9 +53,6 @@ public:
 
     const KoColorSpace * colorSpace() const;
 
-    QRect repaintOriginal(KisPaintDeviceSP original,
-                          const QRect& rect);
-
     bool needProjection() const;
 
     void copyOriginalToProjection(const KisPaintDeviceSP original,
@@ -63,6 +60,7 @@ public:
                                   const QRect& rect) const;
 
     QIcon icon() const;
+    void setImage(KisImageWSP image);
 
     KoDocumentSectionModel::PropertyList sectionModelProperties() const;
     void setSectionModelProperties(const KoDocumentSectionModel::PropertyList &properties);

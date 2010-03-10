@@ -26,6 +26,9 @@
 // Qt
 #include <QPen>
 
+//KDChart
+#include <KDChartPieAttributes>
+
 // KChart
 #include "ChartShape.h"
 #include "CellRegion.h"
@@ -44,7 +47,8 @@ class KDChartModel;
  * on a data series.
  * 
  * To change properties of a single data point inside a data series,
- * use the DataPointAttributes class. (To be implemented)
+ * use section's like for example \a brush( int section ) where the
+ * section refers to the data-point number.
  */
 
 class CHARTSHAPELIB_EXPORT DataSet
@@ -69,8 +73,10 @@ public:
     // Graphics properties for the visualization of this dataset.
     QPen   pen() const;
     QBrush brush() const;
+    KDChart::PieAttributes pieAttributes() const;
     QPen   pen( int section ) const;
     QBrush brush( int section ) const;
+    KDChart::PieAttributes pieAttributes( int section ) const;
     QColor color() const;
     int    number() const;
 
@@ -102,6 +108,9 @@ public:
     void setBrush( int section, const QBrush &brush );
     void setColor( const QColor &color );
     void setNumber( int num );
+
+    void setPieExplodeFactor( int factor );
+    void setPieExplodeFactor( int section, int factor );
 
     void setShowMeanValue( bool b );
     void setMeanValuePen( const QPen &pen );

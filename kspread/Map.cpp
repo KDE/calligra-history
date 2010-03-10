@@ -392,7 +392,8 @@ void Map::saveOdfSettings(KoXmlWriter &settingsWriter)
         // save current sheet selection before to save marker, otherwise current pos is not saved
         view->saveCurrentSheetSelection();
         //<config:config-item config:name="ActiveTable" config:type="string">Feuille1</config:config-item>
-        settingsWriter.addConfigItem("ActiveTable",  view->activeSheet()->sheetName());
+        if(Sheet* sheet = view->activeSheet())
+            settingsWriter.addConfigItem("ActiveTable",  sheet->sheetName());
     }
 
     //<config:config-item-map-named config:name="Tables">
@@ -513,7 +514,7 @@ bool Map::loadOdf(const KoXmlElement& body, KoOdfLoadingContext& odfContext)
     KoShapeLoadingContext shapeContext(odfContext, 0); // TODO find a proper documentResourceManager somewhere.
     tableContext.shapeContext = &shapeContext;
     KoTextSharedLoadingData * sharedData = new KoTextSharedLoadingData();
-    sharedData->loadOdfStyles(odfContext, textStyleManager());
+    sharedData->loadOdfStyles(shapeContext, textStyleManager());
     textStyleManager()->defaultParagraphStyle()->characterStyle()->removeHardCodedDefaults();
     shapeContext.addSharedData(KOTEXT_SHARED_LOADING_ID, sharedData);
 

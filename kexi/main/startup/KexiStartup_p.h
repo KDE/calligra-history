@@ -23,7 +23,8 @@
 #include <qobject.h>
 #include <qstring.h>
 
-#include <sys/stat.h>
+//#include <sys/stat.h>
+#include <kde_file.h>
 
 #include <kexiutils/tristate.h>
 
@@ -50,8 +51,8 @@ protected:
     KProgressDialog* m_dlg;
 
     struct stat m_st;
-    bool m_restoreStat : 1;
-    bool m_run : 1;
+    bool m_restoreStat;
+    bool m_run;
 
     tristate result;
 };

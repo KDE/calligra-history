@@ -42,7 +42,7 @@ public:
     explicit KPrPresentationTool( KPrViewModePresentation & viewMode );
     ~KPrPresentationTool();
 
-    bool wantsAutoScroll();
+    bool wantsAutoScroll() const;
 
     void paint( QPainter &painter, const KoViewConverter &converter );
 
@@ -55,7 +55,7 @@ public:
     void wheelEvent( KoPointerEvent * event );
 
 public slots:
-    void activate( bool temporary = false );
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
     void deactivate();
     void highLightPresentation();
     void drawOnPresentation();

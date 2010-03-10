@@ -58,13 +58,74 @@ TODO: use KRichTextWidget or KRichTextEdit instead of KTextEdit
 TODO: text editor: autofill disabled because this makes the widget disappear entirely; now fix the background color because it is getting transparent on mouse out in design mode
 Main Window TODO
 *View menu still disabled as showing hiding would be implemented as side bars; use this view for something else
-*implemented dock hiding as side bars
 TableView TODO
-*mouse move over large ables scrolls the table!
+*mouse move over large tables scrolls the table!
 Security:
-*Set SECURE DELETE on by default http://sqlite.org/compile.html#secure_delete - should be also possible to disable it in the config
+*SECURE DELETE http://sqlite.org/compile.html#secure_delete - should be also possible to disable it in the config
+KexiDB
+*edited table orders by adding pkey....message popped up saying 'queries are open based on table, do you want to close them' i clicked 'close windows' ....boom http://pastebin.ca/1773394
+Reports
+*batch mode: generates output from data and design or shows report in data mode with minimal gui; add appropriate startup options and alter main window
 
 ~~~~~~~~~~~~~~~~ 2.2 alpha 1 ~~~~~~~~~~~~~~~~
+2010-03-07
+Utils
+*Simplified build of the transliteration table. Backported from libpredicate.
+
+2010-03-06
+Buildsystem
+*add SHOULD_BUILD_KOREPORT for completness
+*do not touch BUILD_koreport, it's set by macro_optional_add_subdirectory()
+*make kexi reports depend on BUILD_koreport and SHOULD_BUILD_KOREPORT, not on their dependencies
+*define dependencies of koreport (i.e. kchart) at toplevel
+
+2010-02-26
+*KexiDB
+**SQLite version handling improvements: added private copy of FindSqlite (kdelibs do not provide new enough, kde 4.4.1 probably will)
+**system SQLite is used for now
+TODO: look for features and WARN at the build time and runtime if someting is missing
+TODO: provide an sqlite patch in 3rdparty
+TODO: disable progress bar for compacting when sqlite is not patched
+TODO: fix sqlite includes and libs lookup for Windows
+
+2010-02-25
+KoProperty
+*moved to KOffice libs
+
+2010-02-20
+Reports
+*add constness
+*replace boolean attribute with enums in KRPos and KRSize
+*remove warnings
+*add missing translation to properties
+*'''old 1.x reports code removed'''
+*make projects created when "uk.co.piggz.report" class was used still work and use the new class name
+
+2010-02-16
+Reports
+*fixed crash when clicking report tools but report window is not the current one
+*harmonize the look and name of data source tab with form designer
+
+2010-02-12
+Reports
+*Font properties are saved to ODF-like attributes instead of single qtFont value
+
+2010-02-02
+Forms
+*fixed disappearing properties of renamed widgets (regression in 2.x)
+*update header of the data source pane when widget is renamed
+*renamed reportspgz to reports, it's now official reports implementation in Kexi
+
+2010-01-30
+*KexiDB
+**SQLite version handling improvements (FindSqlite macro)
+*kexisql updated to 3.6.22
+**we're still embedding sqlite in Kexi because of many options that are not set in distros, e.g. SECURE DELETE should be on by default http://sqlite.org/compile.html#secure_delete
+**moved to amalgamation version for efficiency http://sqlite.org/amalgamation.html - makes it run faster
+**moved directly to sqlite driver - even more efficiency
+**SQLite: make readonly flag work again
+**SQlite: "use database" operation no longer attempts to create new database if missing
+** (Predicate updated)
 
 2010-01-27
 KexiDB

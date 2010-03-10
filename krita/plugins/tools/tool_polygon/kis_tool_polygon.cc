@@ -3,6 +3,7 @@
  *
  *  Copyright (c) 2004 Michael Thaler <michael.thaler@physik.tu-muenchen.de>
  *  Copyright (c) 2009 Lukáš Tvrdý <lukast.dev@gmail.com>
+ *  Copyright (c) 2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,8 +42,13 @@
 #include <kis_selection.h>
 #include "kis_painter.h"
 #include <kis_paint_device.h>
+#include "kis_paint_information.h"
 #include "kis_paintop_registry.h"
 #include "kis_cursor.h"
+
+#include <recorder/kis_action_recorder.h>
+#include <recorder/kis_recorded_path_paint_action.h>
+#include <recorder/kis_node_query_path.h>
 
 KisToolPolygon::KisToolPolygon(KoCanvasBase *canvas)
         : KisToolPolylineBase(canvas, KisCursor::load("tool_polygon_cursor.png", 6, 6))
@@ -56,6 +62,13 @@ KisToolPolygon::~KisToolPolygon()
 
 void KisToolPolygon::finishPolyline(const QVector<QPointF>& points)
 {
+    if (image()) {
+        KisRecordedPathPaintAction linePaintAction(KisNodeQueryPath::absolutePath(currentNode()), currentPaintOpPreset());
+        setupPaintAction(&linePaintAction);
+        linePaintAction.addPolyLine(points.toList());
+        linePaintAction.addLine(KisPaintInformation(points.last()), KisPaintInformation(points.first()));
+        image()->actionRecorder()->addAction(linePaintAction);
+    }
     if (!currentNode()->inherits("KisShapeLayer")) {
         KisPaintDeviceSP device = currentNode()->paintDevice();
 

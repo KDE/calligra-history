@@ -34,8 +34,10 @@
 #include "FilterResourceServerProvider.h"
 #include "FilterStackSetCommand.h"
 #include "FilterRegionChangeCommand.h"
+#include "FilterRegionEditStrategy.h"
 #include "KoResourceServerAdapter.h"
 #include "KoResourceSelector.h"
+#include <KoPointerEvent.h>
 
 #include <KComboBox>
 #include <KLocale>
@@ -120,24 +122,64 @@ public:
         if (currentPanel)
             currentPanel->editFilterEffect(filterEffect);
 
-        QRectF region = filterEffect ? filterEffect->filterRect() : QRectF(0, 0, 0, 0);
+        updateFilterRegion();
+    }
+
+    void updateFilterRegion()
+    {
+        QRectF region = currentEffect ? currentEffect->filterRect() : QRectF(0, 0, 0, 0);
 
         posX->blockSignals(true);
         posX->setValue(100.0*region.x());
         posX->blockSignals(false);
-        posX->setEnabled(filterEffect != 0);
+        posX->setEnabled(currentEffect != 0);
         posY->blockSignals(true);
         posY->setValue(100.0*region.y());
         posY->blockSignals(false);
-        posY->setEnabled(filterEffect != 0);
+        posY->setEnabled(currentEffect != 0);
         posW->blockSignals(true);
         posW->setValue(100.0*region.width());
         posW->blockSignals(false);
-        posW->setEnabled(filterEffect != 0);
+        posW->setEnabled(currentEffect != 0);
         posH->blockSignals(true);
         posH->setValue(100.0*region.height());
         posH->blockSignals(false);
-        posH->setEnabled(filterEffect != 0);
+        posH->setEnabled(currentEffect != 0);
+    }
+
+    EditMode editModeFromMousePosition(const QPointF &mousePosition, KarbonFilterEffectsTool * tool)
+    {
+        if (currentShape && currentShape->filterEffectStack() && currentEffect) {
+            // get the size rect of the shape
+            QRectF sizeRect(QPointF(), currentShape->size());
+            // get the filter rectangle in shape coordinates
+            QRectF filterRect = currentEffect->filterRectForBoundingRect(sizeRect);
+            // get the transformation from document to shape coordinates
+            QMatrix transform = currentShape->absoluteTransformation(0).inverted();
+            // adjust filter rectangle by grab sensitivity
+            int grabSensitivity = tool->canvas()->resourceManager()->grabSensitivity();
+            QPointF border = tool->canvas()->viewConverter()->viewToDocument(QPointF(grabSensitivity, grabSensitivity));
+            filterRect.adjust(-border.x(), -border.y(), border.x(), border.y());
+            // map event point from document to shape coordinates
+            QPointF shapePoint = transform.map(mousePosition);
+            // check if the mouse is inside/near our filter rect
+            if (filterRect.contains(shapePoint)) {
+                if (qAbs(shapePoint.x() - filterRect.left()) <= border.x()) {
+                    return MoveLeft;
+                } else if (qAbs(shapePoint.x() - filterRect.right()) <= border.x()) {
+                    return MoveRight;
+                } else if (qAbs(shapePoint.y() - filterRect.top()) <= border.y()) {
+                   return MoveTop;
+                } else if (qAbs(shapePoint.y() - filterRect.bottom()) <= border.y()) {
+                    return MoveBottom;
+                } else {
+                    return MoveAll;
+                }
+            } else {
+                return None;
+            }
+        }
+        return None;
     }
 
     KoResourceSelector * filterSelector;
@@ -153,9 +195,11 @@ public:
 };
 
 KarbonFilterEffectsTool::KarbonFilterEffectsTool(KoCanvasBase *canvas)
-        : KoToolBase(canvas), d(new Private())
+        : KoInteractionTool(canvas), d(new Private())
 {
     connect(canvas->shapeManager(), SIGNAL(selectionChanged()),
+            this, SLOT(selectionChanged()));
+    connect(canvas->shapeManager(), SIGNAL(selectionContentChanged()),
             this, SLOT(selectionChanged()));
 }
 
@@ -183,7 +227,9 @@ void KarbonFilterEffectsTool::paint(QPainter &painter, const KoViewConverter &co
         painter.setPen(Qt::blue);
         painter.drawRect(clipRect);
 
-        if (d->currentEffect) {
+        if (currentStrategy()) {
+            currentStrategy()->paint(painter, converter);
+        } else if (d->currentEffect) {
             QRectF filterRect = d->currentEffect->filterRectForBoundingRect(sizeRect);
             // paint the filter subregion rect
             painter.setBrush(Qt::NoBrush);
@@ -204,10 +250,10 @@ void KarbonFilterEffectsTool::repaintDecorations()
     }
 }
 
-void KarbonFilterEffectsTool::activate(bool temporary)
+void KarbonFilterEffectsTool::activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes)
 {
-    Q_UNUSED(temporary);
-    if (! canvas()->shapeManager()->selection()->count()) {
+    Q_UNUSED(toolActivation);
+    if (shapes.isEmpty()) {
         emit done();
         return;
     }
@@ -216,19 +262,38 @@ void KarbonFilterEffectsTool::activate(bool temporary)
     d->fillConfigSelector(d->currentShape, this);
 }
 
-void KarbonFilterEffectsTool::mousePressEvent(KoPointerEvent *event)
-{
-    Q_UNUSED(event);
-}
-
 void KarbonFilterEffectsTool::mouseMoveEvent(KoPointerEvent *event)
 {
-    Q_UNUSED(event);
+    if (currentStrategy()) {
+        KoInteractionTool::mouseMoveEvent(event);
+    } else {
+        EditMode mode = d->editModeFromMousePosition(event->point, this);
+        switch(mode) {
+            case MoveAll:
+                useCursor(Qt::SizeAllCursor);
+                break;
+            case MoveLeft:
+            case MoveRight:
+                useCursor(Qt::SizeHorCursor);
+                break;
+            case MoveTop:
+            case MoveBottom:
+                useCursor(Qt::SizeVerCursor);
+                break;
+            case None:
+                useCursor(Qt::ArrowCursor);
+                break;
+        }
+    }
 }
 
-void KarbonFilterEffectsTool::mouseReleaseEvent(KoPointerEvent *event)
+KoInteractionStrategy *KarbonFilterEffectsTool::createStrategy(KoPointerEvent *event)
 {
-    Q_UNUSED(event);
+    EditMode mode = d->editModeFromMousePosition(event->point, this);
+    if (mode == None)
+        return 0;
+
+    return new FilterRegionEditStrategy(this, d->currentShape, d->currentEffect, mode);
 }
 
 void KarbonFilterEffectsTool::presetSelected(KoResource *resource)

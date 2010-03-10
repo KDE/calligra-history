@@ -21,6 +21,7 @@
 
 #include <pole.h>
 #include <KoStore.h>
+#include "generated/simpleParser.h"
 
 struct PictureReference {
     QString name;
@@ -38,5 +39,8 @@ struct PictureReference {
  *         an error occurred.
  **/
 PictureReference savePicture(POLE::Stream& stream, KoStore* store);
+
+PictureReference savePicture(const MSO::OfficeArtBStoreContainerFileBlock& a,
+                             KoStore* store);
 
 #endif

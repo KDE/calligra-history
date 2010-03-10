@@ -1,53 +1,54 @@
-/* This file is part of the KDE project
-   Copyright (C) 2004 Lucijan Busch <lucijan@kde.org>
-   Copyright (C) 2004 Cedric Pasteur <cedric.pasteur@free.fr>
+/*
+ * Kexi Report Plugin
+ * Copyright (C) 2007-2008 by Adam Pigg (adam@piggz.co.uk)
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
 
-   This library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-
-   You should have received a copy of the GNU Library General Public License
-   along with this library; see the file COPYING.LIB.  If not, write to
-   the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA 02110-1301, USA.
-*/
-
-#include <kdebug.h>
-
-#include <KexiView.h>
-#include <KexiMainWindowIface.h>
-#include "kexiproject.h"
-#include <kexipartitem.h>
-#include <KexiWindow.h>
-
-#include <kexidb/connection.h>
-#include <kexidb/fieldlist.h>
-#include <kexidb/field.h>
-
-#include <form.h>
-#include <formIO.h>
-#include <widgetlibrary.h>
-
-#include <kexiformmanager.h>
-#include <kexiformpart.h>
-
-#include "kexireportview.h"
 #include "kexireportpart.h"
-//Added by qt3to4:
-#include <Q3CString>
 
-KFormDesigner::WidgetLibrary* KexiReportPart::static_reportsLibrary = 0L;
+#include <qlabel.h>
 
-KexiReportPart::KexiReportPart(QObject *parent, const QStringList &l)
-        : KexiPart::Part((int)KexiPart::ReportObjectType, parent, l)
+#include <kmainwindow.h>
+#include <klocale.h>
+#include <kdebug.h>
+#include <core/KexiWindow.h>
+#include "kexireportview.h"
+#include "kexireportdesignview.h"
+#include <core/KexiMainWindowIface.h>
+#include <ktabwidget.h>
+
+#include "kexisourceselector.h"
+
+//! @internal
+class KexiReportPart::Private
 {
-    kDebug() << "KexiReportPart::KexiReportPart()";
+public:
+    Private() {
+        ksrc = 0;
+    }
+    ~Private() {
+    }
+    KexiSourceSelector *ksrc;
+};
+
+KexiReportPart::KexiReportPart(QObject *parent, const QVariantList &l)
+        : KexiPart::Part(parent, l)
+        , d(new Private())
+{
+    kDebug();
     setInternalPropertyValue("instanceName",
                              i18nc("Translate this word using only lowercase alphanumeric characters (a..z, 0..9). "
                                    "Use '_' character instead of spaces. First character should be a..z character. "
@@ -58,85 +59,131 @@ KexiReportPart::KexiReportPart(QObject *parent, const QStringList &l)
     setInternalPropertyValue("instanceWhatsThis", i18nc("what's this", "Creates new report."));
     setSupportedViewModes(Kexi::DataViewMode | Kexi::DesignViewMode);
     setInternalPropertyValue("newObjectsAreDirty", true);
-
-    // Only create form manager if it's not yet created.
-    // KexiFormPart could have created is already.
-    KFormDesigner::FormManager *formManager = KFormDesigner::FormManager::self();
-    if (!formManager)
-        formManager = new KexiFormManager(this, "kexi_form_and_report_manager");
-
-    // Create and store a handle to report' library. Forms will have their own library too.
-    /* @todo add configuration for supported factory groups */
-    QStringList supportedFactoryGroups;
-    supportedFactoryGroups += "kexi-report";
-    static_reportsLibrary = KFormDesigner::FormManager::createWidgetLibrary(
-                                formManager, supportedFactoryGroups);
-    static_reportsLibrary->setAdvancedPropertiesVisible(false);
 }
 
 KexiReportPart::~KexiReportPart()
 {
 }
 
-KFormDesigner::WidgetLibrary* KexiReportPart::library()
+KexiView* KexiReportPart::createView(QWidget *parent, KexiWindow* window,
+                                     KexiPart::Item &item, Kexi::ViewMode viewMode, QMap<QString, QVariant>*)
 {
-    return static_reportsLibrary;
-}
+    Q_UNUSED(window);
+    Q_UNUSED(item);
 
-void
-KexiReportPart::initPartActions()
-{
-}
+    KexiView* view = 0;
 
-void
-KexiReportPart::initInstanceActions()
-{
-    KFormDesigner::FormManager::self()->createActions(
-        library(), actionCollectionForMode(Kexi::DesignViewMode), guiClient());
-}
+    if (viewMode == Kexi::DataViewMode) {
+        view = new KexiReportView(parent);
 
-KexiWindowData*
-KexiReportPart::createWindowData(KexiWindow* window)
-{
-    return new KexiReportPart::TempData(window);
-}
-
-KexiView*
-KexiReportPart::createView(QWidget *parent, KexiWindow* window,
-                           KexiPart::Item &item, Kexi::ViewMode mode, QMap<QString, QVariant>*)
-{
-    kDebug() << "KexiReportPart::createView()";
-    KexiMainWindow *win = KexiMainWindowIface::global();
-    if (!win || !win->project() || !win->project()->dbConnection())
-        return 0;
-
-    KexiReportView *view = new KexiReportView(win, parent, item.name().toLatin1(),
-            win->project()->dbConnection());
-
+    } else if (viewMode == Kexi::DesignViewMode) {
+        view = new KexiReportDesignView(parent, d->ksrc);
+        connect(d->ksrc, SIGNAL(setData(KoReportData*)), view, SLOT(slotSetData(KoReportData*)));
+    }
     return view;
 }
 
-KLocalizedString KexiReportPart::i18nMessage(
-    const QString& englishMessage, KexiWindow* window) const
+void KexiReportPart::initPartActions()
 {
-    Q_UNUSED(window);
-    if (englishMessage == "Design of object \"%1\" has been modified.")
-        return ki18n(I18N_NOOP("Design of report \"%1\" has been modified."));
-    if (englishMessage == "Object \"%1\" already exists.")
-        return ki18n(I18N_NOOP("Report \"%1\" already exists."));
-    return Part::i18nMessage(englishMessage, window);
+    KexiMainWindowIface *win = KexiMainWindowIface::global();
+    QList<QAction*> reportActions = KoReportDesigner::actions();
+
+    foreach(QAction* action, reportActions) {
+        connect(action, SIGNAL(triggered()), this, SLOT(slotActionTriggered()));
+        win->addToolBarAction("report", action);
+    }
 }
 
-//---------------
+QString KexiReportPart::loadReport(const QString& name)
+{
+    //_internal->_reportName = pReportName;
+
+    KexiMainWindowIface *win = KexiMainWindowIface::global();
+    KexiDB::Connection *conn;
+    if (!win || !win->project() || !((conn = win->project()->dbConnection()))) {
+        kDebug() << "failed sanity check: !win || !win->project() || !((conn = win->project()->dbConnection()))";
+        return QString();
+    }
+    QString src, did;
+    KexiDB::SchemaData sd;
+
+    if (conn->loadObjectSchemaData(win->project()->idForClass("org.kexi-project.report"), name, sd) != true
+        && conn->loadObjectSchemaData(win->project()->idForClass("uk.co.piggz.report"), name, sd) != true /* compat. */)
+    {
+        kWarning() << "failed to load schema data";
+        return QString();
+    }
+
+    kDebug() << "***Object ID:" << sd.id();
+
+    if (   win->project()->dbConnection()->loadDataBlock(sd.id(), src, "layout") == true
+        || win->project()->dbConnection()->loadDataBlock(sd.id(), src, "pgzreport_layout") == true /* compat */)
+    {
+        return src;
+    }
+
+    kWarning() << "Unable to load document";
+    return QString();
+}
+
+KexiWindowData* KexiReportPart::createWindowData(KexiWindow* window)
+{
+    kDebug();
+    const QString document(loadReport(window->partItem()->name()));
+    KexiReportPart::TempData *td = new KexiReportPart::TempData(window);
+    
+    QDomDocument doc;
+    doc.setContent(document);
+    
+    kDebug() << doc.toString();
+    
+    QDomElement root = doc.documentElement();
+    QDomElement korep = root.firstChildElement("report:content");
+    QDomElement conn = root.firstChildElement("connection");
+
+    td->reportDefinition = korep;
+    td->connectionDefinition = conn;
+
+    td->name = window->partItem()->name();
+    return td;
+}
 
 KexiReportPart::TempData::TempData(QObject* parent)
         : KexiWindowData(parent)
+        , reportSchemaChangedInPreviousView(true /*to force reloading on startup*/)
 {
 }
 
-KexiReportPart::TempData::~TempData()
+void KexiReportPart::setupCustomPropertyPanelTabs(KTabWidget *tab)
 {
+    if (!d->ksrc)
+        d->ksrc = new KexiSourceSelector(tab, KexiMainWindowIface::global()->project()->dbConnection());
+    tab->addTab(d->ksrc, KIcon("server-database"), QString());
+    tab->setTabToolTip(tab->indexOf(d->ksrc), i18n("Data Source"));
+}
+
+void KexiReportPart::slotActionTriggered()
+{
+    QObject *theSender = sender();
+    if (!theSender)
+        return;
+
+    QString senderName = sender()->objectName();
+    KexiMainWindowIface *mainwin = KexiMainWindowIface::global();
+
+    KexiWindow *win = mainwin->currentWindow();
+
+    if (!win)
+        return;
+
+    KexiView *designView = win->viewForMode(Kexi::DesignViewMode);
+
+    if (designView) {
+        KexiReportDesignView *dv = dynamic_cast<KexiReportDesignView*>(designView);
+        if (!dv)
+            return;
+        dv->triggerAction(senderName);
+    }
 }
 
 #include "kexireportpart.moc"
-

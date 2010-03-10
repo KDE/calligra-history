@@ -30,7 +30,8 @@
 class KoDocument;
 
 class QSplitter;
-class QTabWidget;
+
+class KTabWidget;
 
 /// The main namespace
 namespace KPlato
@@ -87,15 +88,13 @@ public:
     virtual void getContext( Context &/*context*/ ) const {}
     
     /// Add a KTabWidget to the splitter
-    QTabWidget *addTabWidget();
+    KTabWidget *addTabWidget();
     /// Add the @p view to the splitter
     void addView( ViewBase *view );
     /// Add the @p view to the @p tab. Set the tabs label to @p label
     void addView( ViewBase *view, QTabWidget *tab, const QString &label );
     /// Return the active view at @p pos
     ViewBase *findView( const QPoint &pos ) const;
-    /// Return the hit view at global position @p glpos
-    virtual ViewBase *hitView( const QPoint &glpos );
 
     /// Loads context info into this view. Reimplement.
     virtual bool loadContext( const KoXmlElement &/*context*/ );
@@ -115,10 +114,12 @@ public:
 public slots:
     /// Activate/deactivate the gui (also of subviews)
     virtual void setGuiActive( bool activate );
+    virtual void setScheduleManager( ScheduleManager *sm );
     virtual void slotEditCopy();
 
 protected slots:
     virtual void slotGuiActivated( ViewBase *v, bool active );
+    virtual void currentTabChanged( int i );
     
 protected:
     QSplitter *m_splitter;

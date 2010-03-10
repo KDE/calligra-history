@@ -1,7 +1,7 @@
 /*
  * This file is part of Office 2007 Filters for KOffice
  *
- * Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
+ * Copyright (C) 2009-2010 Nokia Corporation and/or its subsidiary(-ies).
  *
  * Contact: Suresh Chande suresh.chande@nokia.com
  *
@@ -24,7 +24,6 @@
 #include "MsooXmlRelationships.h"
 #include "MsooXmlRelationshipsReader.h"
 #include "MsooXmlImport.h"
-#include "MsooXmlCommentsReader.h"
 #include <KoOdfExporter.h>
 #include <QSet>
 #include <KDebug>
@@ -34,19 +33,18 @@ using namespace MSOOXML;
 class MsooXmlRelationships::Private
 {
 public:
-    Private() {
+    Private()
+    {
     }
     ~Private() {
     }
     KoFilter::ConversionStatus loadRels(const QString& path, const QString& file);
+
     MsooXmlImport* importer;
     KoOdfWriters* writers;
     QString *errorMessage;
     QMap<QString, QString> rels;
     QSet<QString> loadedFiles;
-    
-    KoFilter::ConversionStatus loadComments();
-    QMap<QString, QStringList> comments;    
 };
 
 KoFilter::ConversionStatus MsooXmlRelationships::Private::loadRels(const QString& path, const QString& file)
@@ -61,14 +59,6 @@ KoFilter::ConversionStatus MsooXmlRelationships::Private::loadRels(const QString
                &reader, realPath, *errorMessage, &context);
 }
 
-KoFilter::ConversionStatus MsooXmlRelationships::Private::loadComments()
-{       
-    MsooXmlCommentsReaderContext context(comments);
-    MsooXmlCommentsReader reader(writers);        
-    return importer->loadAndParseDocument(&reader, "word/comments.xml", *errorMessage, &context);;
-}
-
-
 MsooXmlRelationships::MsooXmlRelationships(MsooXmlImport& importer, KoOdfWriters *writers, QString& errorMessage)
         : d(new Private)
 {
@@ -82,36 +72,21 @@ MsooXmlRelationships::~MsooXmlRelationships()
     delete d;
 }
 
-
-bool MsooXmlRelationships::get_comment(const QString id, QString &author, QString &date, QString &text) {
-    if (d->comments.count() == 0)
-        d->loadComments();
-    
-    if (d->comments.contains(id)) {
-        QStringList list = d->comments[id];
-        author = list[0];
-        date   = list[1];
-        text   = list[2];
-    }
-   
-    return true;
-}
-
-
-QString MsooXmlRelationships::link_target(const QString& id)
+QString MsooXmlRelationships::linkTarget(const QString& id)
 {
     if (!d->loadedFiles.contains("word/document.xml"))
         d->loadRels("word", "document.xml");
 
     // try to find link target from rels. Only data at right side of target is needed.
-    foreach(QString key, d->rels.keys()) {
-        if (key.endsWith(id)) {
-            int from_right = d->rels[key].length() - 5;
-            return d->rels[key].right(from_right);
+    for (QMap<QString, QString>::ConstIterator it(d->rels.constBegin()); it!=d->rels.constEnd(); ++it) {
+        if (it.key().endsWith(id)) {
+//! @todo is this hardcoded offset?
+            const int from_right = it.value().length() - 5;
+            return it.value().right(from_right);
         }
     }
 
-    return "";
+    return QString();
 }
 
 QString MsooXmlRelationships::target(const QString& path, const QString& file, const QString& id)

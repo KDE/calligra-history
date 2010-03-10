@@ -22,13 +22,21 @@
 #include "KoTextDocumentLayout.h"
 #include "KoShapeSavingContext.h"
 #include "KoInlineTextObjectManager.h"
+#include "KoTextInlineRdf.h"
 
+#include <kdebug.h>
 #include <QDebug>
 
 QDebug KoInlineObjectPrivate::printDebug(QDebug dbg) const
 {
     dbg.nospace() << "KoInlineObject ManagerId: " << id;
     return dbg.space();
+}
+
+
+KoInlineObjectPrivate::~KoInlineObjectPrivate()
+{
+    delete rdf;
 }
 
 KoInlineObject::KoInlineObject(bool propertyChangeListener)
@@ -107,5 +115,17 @@ KoShape * KoInlineObject::shapeForPosition(const QTextDocument *document, int po
 QDebug operator<<(QDebug dbg, const KoInlineObject *o)
 {
     return o->d_func()->printDebug(dbg);
+}
+
+void KoInlineObject::setInlineRdf(KoTextInlineRdf* rdf)
+{
+    Q_D(KoInlineObject);
+    d->rdf = rdf;
+}
+
+KoTextInlineRdf* KoInlineObject::inlineRdf() const
+{
+    Q_D(const KoInlineObject);
+    return d->rdf;
 }
 

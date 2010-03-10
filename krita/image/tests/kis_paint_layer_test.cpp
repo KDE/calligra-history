@@ -40,10 +40,10 @@ void KisPaintLayerTest::testProjection()
 
     QImage qimage(QString(FILES_DATA_DIR) + QDir::separator() + "hakonepa.png");
     const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
-    KisImageWSP image = new KisImage(0, qimage.width(), qimage.height(), cs, "merge test");
+    KisImageSP image = new KisImage(0, qimage.width(), qimage.height(), cs, "merge test");
     image->lock(); // We'll call for recomposition ourselves
 
-    KisPaintLayerSP layer = new KisPaintLayer(image, "test", OPACITY_OPAQUE);
+    KisPaintLayerSP layer = new KisPaintLayer(image, "test", OPACITY_OPAQUE_U8);
     layer->paintDevice()->convertFromQImage(qimage, 0, 0, 0);
     image->addNode(layer.data());
 
@@ -82,7 +82,7 @@ void KisPaintLayerTest::testProjection()
     // By default a new transparency mask blanks out the entire layer (photoshop mode "hide all")
     KisRectConstIterator it = layer->projection()->createRectConstIterator(0, 0, qimage.width(), qimage.height());
     while (!it.isDone()) {
-        QVERIFY(cs->alpha(it.rawData()) == OPACITY_OPAQUE);
+        QVERIFY(cs->opacityU8(it.rawData()) == OPACITY_OPAQUE_U8);
         ++it;
     }
 

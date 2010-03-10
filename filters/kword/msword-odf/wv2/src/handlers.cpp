@@ -20,6 +20,7 @@
 #include "parser9x.h"
 #include "paragraphproperties.h"
 #include "functor.h"
+#include "wvlog.h"
 
 using namespace wvWare;
 
@@ -78,6 +79,16 @@ void SubDocumentHandler::footnoteEnd()
 {
 }
 
+
+void SubDocumentHandler::annotationStart()
+{
+}
+
+void SubDocumentHandler::annotationEnd()
+{
+}
+
+
 void SubDocumentHandler::headersStart()
 {
 }
@@ -93,7 +104,6 @@ void SubDocumentHandler::headerStart( HeaderData::Type /*type*/ )
 void SubDocumentHandler::headerEnd()
 {
 }
-
 
 TableHandler::~TableHandler()
 {
@@ -124,11 +134,11 @@ void PictureHandler::bitmapData( OLEImageReader& /*reader*/, SharedPtr<const Wor
 {
 }
 
-void PictureHandler::escherData( OLEImageReader& /*reader*/, SharedPtr<const Word97::PICF> /*picf*/, int type )
+void PictureHandler::escherData( OLEImageReader& /*reader*/, SharedPtr<const Word97::PICF> /*picf*/, int /*type*/ )
 {
 }
 
-void PictureHandler::escherData( std::vector<U8>, SharedPtr<const Word97::PICF> /*picf*/, int type )
+void PictureHandler::escherData( std::vector<U8>, SharedPtr<const Word97::PICF> /*picf*/, int /*type*/ )
 {
 }
 
@@ -140,6 +150,9 @@ void PictureHandler::externalImage( const UString& /*name*/, SharedPtr<const Wor
 {
 }
 
+void PictureHandler::officeArt(wvWare::OfficeArtProperties *artProperties)
+{
+}
 
 TextHandler::~TextHandler()
 {
@@ -178,13 +191,28 @@ void TextHandler::specialCharacter( SpecialCharacter /*character*/, SharedPtr<co
 {
 }
 
-void TextHandler::footnoteFound( FootnoteData::Type /*type*/, UChar character,
-                                 SharedPtr<const Word97::CHP> chp, const FootnoteFunctor& parseFootnote )
+void TextHandler::footnoteFound( FootnoteData::Type /*type*/, UString characters,
+                                 SharedPtr<const Word97::CHP> chp, const FootnoteFunctor& parseFootnote)
 {
-    if ( character.unicode() != 2 )
-        runOfText( UString( character ), chp ); // The character shouldn't get lost unless it's the auto-number
+    if ( characters[0].unicode() != 2 )
+        runOfText( characters, chp ); // The character shouldn't get lost unless it's the auto-number
     parseFootnote();
 }
+
+void TextHandler::annotationFound( UString characters,
+                                   SharedPtr<const Word97::CHP> chp, const AnnotationFunctor& parseAnnotation)
+{
+#ifdef WV_DEBUG_ANNOTATIONS
+    wvlog << "TextHandler::annotationFound: ";
+    for (int i = 0; i < characters.length(); ++i) {
+        wvlog << characters[i].unicode();
+    }
+    wvlog << std::endl;
+#endif
+    runOfText(characters, chp);
+    parseAnnotation();
+}
+
 
 void TextHandler::footnoteAutoNumber( SharedPtr<const Word97::CHP> /*chp*/ )
 {

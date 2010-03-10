@@ -105,7 +105,7 @@ void KoPathShape::saveOdf(KoShapeSavingContext & context) const
     context.xmlWriter().startElement("draw:path");
     saveOdfAttributes(context, OdfAllAttributes | OdfViewbox);
 
-    context.xmlWriter().addAttribute("svg:d", toString(QMatrix()));
+    context.xmlWriter().addAttribute("svg:d", toString());
     context.xmlWriter().addAttribute("koffice:nodeTypes", d->nodeTypes());
 
     saveOdfCommonChildElements(context);
@@ -823,8 +823,12 @@ KoPathPoint * KoPathShape::removePoint(const KoPathPointIndex &pointIndex)
 
     KoPathPoint * point = subpath->takeAt(pointIndex.second);
 
+    //don't do anything (not even crash), if there was only one point
+    if (pointCount()==0) {
+        return point;
+    }
     // check if we removed the first point
-    if (pointIndex.second == 0) {
+    else if (pointIndex.second == 0) {
         // first point removed, set new StartSubpath
         subpath->first()->setProperty(KoPathPoint::StartSubpath);
         // check if path was closed

@@ -33,6 +33,7 @@
 
 struct KisPropertiesConfiguration::Private {
     QMap<QString, QVariant> properties;
+    QStringList notSavedProperties;
 };
 
 KisPropertiesConfiguration::KisPropertiesConfiguration() : d(new Private)
@@ -78,14 +79,20 @@ void KisPropertiesConfiguration::toXML(QDomDocument& doc, QDomElement& root) con
 {
     QMap<QString, QVariant>::Iterator it;
     for (it = d->properties.begin(); it != d->properties.end(); ++it) {
+        if(d->notSavedProperties.contains(it.key())) {
+            continue;
+        }
+            
         QDomElement e = doc.createElement("param");
         e.setAttribute("name", QString(it.key().toLatin1()));
         QVariant v = it.value();
         QDomText text;
         if (v.type() == QVariant::UserType && v.userType() == qMetaTypeId<KisCubicCurve>()) {
             text = doc.createCDATASection(v.value<KisCubicCurve>().toString());
-        } else {
+        } else if(v.type() == QVariant::String ) {
             text = doc.createCDATASection(v.toString());  // XXX: Unittest this!
+        } else {
+            text = doc.createTextNode(v.toString());
         }
         e.appendChild(text);
         root.appendChild(e);
@@ -102,7 +109,7 @@ QString KisPropertiesConfiguration::toXML() const
 }
 
 
-bool KisPropertiesConfiguration::hasProperty(const QString& name)
+bool KisPropertiesConfiguration::hasProperty(const QString& name) const
 {
     return d->properties.contains(name);
 }
@@ -210,6 +217,11 @@ void KisPropertiesConfiguration::dump() const
 void KisPropertiesConfiguration::clearProperties()
 {
     d->properties.clear();
+}
+
+void KisPropertiesConfiguration::setPropertyNotSaved(const QString& name)
+{
+    d->notSavedProperties.append(name);
 }
 
 QMap<QString, QVariant> KisPropertiesConfiguration::getProperties() const

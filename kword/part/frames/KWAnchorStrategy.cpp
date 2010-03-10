@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2007, 2009 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2007, 2009, 2010 Thomas Zander <zander@kde.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -21,7 +21,6 @@
 
 #include <KoShapeContainer.h>
 #include <KoTextShapeData.h>
-#include <KoTextAnchor.h>
 
 #include <QTextBlock>
 #include <QTextLine>
@@ -33,46 +32,11 @@ KWAnchorStrategy::KWAnchorStrategy(KoTextAnchor *anchor)
         m_finished(false),
         m_currentLineY(0),
         m_pass(0),
-        m_lastknownPosInDoc(-1)
+        m_lastknownPosInDoc(-1),
+        m_lastVerticalAnchorAlignment(KoTextAnchor::TopOfFrame),
+        m_lastHorizontalAnchorAlignment(KoTextAnchor::Left)
 {
-    // figure out until what cursor position we need to layout to get all the info we need
-    switch (m_anchor->horizontalAlignment()) {
-    case KoTextAnchor::ClosestToBinding:
-    case KoTextAnchor::Left:
-    case KoTextAnchor::FurtherFromBinding:
-    case KoTextAnchor::Right:
-    case KoTextAnchor::Center: {
-        KoTextShapeData *data = qobject_cast<KoTextShapeData*>(anchor->shape()->parent()->userData());
-        Q_ASSERT(data);
-        m_knowledgePoint = data->position();
-        break;
-    }
-    case KoTextAnchor::HorizontalOffset:
-        m_knowledgePoint = anchor->positionInDocument();
-    }
-    switch (m_anchor->verticalAlignment()) {
-    case KoTextAnchor::TopOfParagraph:
-        m_knowledgePoint = qMax(m_knowledgePoint,
-                                anchor->document()->findBlock(anchor->positionInDocument()).position() + 1);
-        break;
-    case KoTextAnchor::VerticalOffset:
-    case KoTextAnchor::AboveCurrentLine:
-    case KoTextAnchor::BelowCurrentLine:
-        m_knowledgePoint = qMax(m_knowledgePoint, anchor->positionInDocument());
-        break;
-    case KoTextAnchor::TopOfFrame:
-    case KoTextAnchor::BottomOfFrame: {
-        KoTextShapeData *data = qobject_cast<KoTextShapeData*>(anchor->shape()->parent()->userData());
-        Q_ASSERT(data);
-        m_knowledgePoint = qMax(m_knowledgePoint, data->position() + 1);
-        break;
-    }
-    case KoTextAnchor::BottomOfParagraph: {
-        QTextBlock block = anchor->document()->findBlock(anchor->positionInDocument());
-        m_knowledgePoint = qMax(m_knowledgePoint, block.position() + block.length() - 2);
-        break;
-    }
-    }
+    calculateKnowledgePoint();
 }
 
 KWAnchorStrategy::~KWAnchorStrategy()
@@ -81,21 +45,6 @@ KWAnchorStrategy::~KWAnchorStrategy()
 
 bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state)
 {
-    if (m_lastknownPosInDoc != m_anchor->positionInDocument()) { // different layout run
-        m_finished = false;
-        m_lastknownPosInDoc = m_anchor->positionInDocument();
-    }
-    // kDebug() << m_anchor->positionInDocument() << "pass:" << m_pass <<"pos:" << state->cursorPosition() <<"/" << m_knowledgePoint << (m_finished?" Already finished!":"");
-    if (m_finished || m_knowledgePoint > state->cursorPosition())
-        return false;
-
-    // *** alter 'state' to relayout the part we want.
-    QTextBlock block = m_anchor->document()->findBlock(m_anchor->positionInDocument());
-    QTextLayout *layout = block.layout();
-    int recalcFrom = state->cursorPosition(); // the position from which we will restart layout.
-
-// TODO rewrite the below to account for rotation etc.
-    QRectF boundingRect = m_anchor->shape()->boundingRect();
     if (m_anchor->shape()->parent() == 0) { // it should be parented to our current shape
         KoShapeContainer *sc = dynamic_cast<KoShapeContainer*>(state->shape);
         if (sc == 0) {
@@ -103,7 +52,35 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state)
             return false;
         }
         sc->addChild(m_anchor->shape());
+        calculateKnowledgePoint();
     }
+    if (m_knowledgePoint < 0)
+        return false;
+
+    if (m_lastknownPosInDoc != m_anchor->positionInDocument()
+            || m_lastOffset != m_anchor->offset()
+            || m_lastVerticalAnchorAlignment != m_anchor->verticalAlignment()
+            || m_lastHorizontalAnchorAlignment != m_anchor->horizontalAlignment()) { // different layout run
+        m_finished = false;
+        m_lastknownPosInDoc = m_anchor->positionInDocument();
+        m_lastOffset = m_anchor->offset();
+        m_lastVerticalAnchorAlignment = m_anchor->verticalAlignment();
+        m_lastHorizontalAnchorAlignment = m_anchor->horizontalAlignment();
+        m_pass = 0;
+    }
+    QTextBlock block = m_anchor->document()->findBlock(m_anchor->positionInDocument());
+    // kDebug() << m_anchor->positionInDocument() << "pass:" << m_pass <<"pos:" << state->cursorPosition() <<"/" << m_knowledgePoint << (m_finished?" Already finished!":"");
+    // exit when finished or when we can expect another call with a higher cursor position
+    if (m_finished || (m_knowledgePoint > state->cursorPosition()
+                && m_knowledgePoint > block.length() + block.position() - 1))
+        return false;
+
+    // *** alter 'state' to relayout the part we want.
+    QTextLayout *layout = block.layout();
+    int recalcFrom = state->cursorPosition(); // the position from which we will restart layout.
+
+// TODO rewrite the below to account for rotation etc.
+    QRectF boundingRect = m_anchor->shape()->boundingRect();
     QRectF containerBoundingRect = m_anchor->shape()->parent()->boundingRect();
     QPointF newPosition;
     switch (m_anchor->horizontalAlignment()) {
@@ -147,7 +124,8 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state)
         recalcFrom = qMax(recalcFrom, data->position());
         break;
     case KoTextAnchor::TopOfParagraph: {
-        Q_ASSERT(layout->lineCount());
+        if (layout->lineCount() == 0)
+            return false;
         qreal topOfParagraph = layout->lineAt(0).y();
         newPosition.setY(topOfParagraph - data->documentOffset());
         recalcFrom = qMax(recalcFrom, block.position());
@@ -235,3 +213,49 @@ KoShape * KWAnchorStrategy::anchoredShape() const
     return m_anchor->shape();
 }
 
+void KWAnchorStrategy::calculateKnowledgePoint()
+{
+    m_knowledgePoint = -1;
+    // figure out until what cursor position we need to layout to get all the info we need
+    switch (m_anchor->horizontalAlignment()) {
+    case KoTextAnchor::ClosestToBinding:
+    case KoTextAnchor::Left:
+    case KoTextAnchor::FurtherFromBinding:
+    case KoTextAnchor::Right:
+    case KoTextAnchor::Center: {
+        if (m_anchor->shape()->parent() == 0) // not enough info yet.
+            return;
+        KoTextShapeData *data = qobject_cast<KoTextShapeData*>(m_anchor->shape()->parent()->userData());
+        Q_ASSERT(data);
+        m_knowledgePoint = data->position();
+        break;
+    }
+    case KoTextAnchor::HorizontalOffset:
+        m_knowledgePoint = m_anchor->positionInDocument();
+    }
+    switch (m_anchor->verticalAlignment()) {
+    case KoTextAnchor::TopOfParagraph:
+        m_knowledgePoint = qMax(m_knowledgePoint,
+                                m_anchor->document()->findBlock(m_anchor->positionInDocument()).position() + 1);
+        break;
+    case KoTextAnchor::VerticalOffset:
+    case KoTextAnchor::AboveCurrentLine:
+    case KoTextAnchor::BelowCurrentLine:
+        m_knowledgePoint = qMax(m_knowledgePoint, m_anchor->positionInDocument());
+        break;
+    case KoTextAnchor::TopOfFrame:
+    case KoTextAnchor::BottomOfFrame: {
+        if (m_anchor->shape()->parent() == 0) // not enough info yet.
+            return;
+        KoTextShapeData *data = qobject_cast<KoTextShapeData*>(m_anchor->shape()->parent()->userData());
+        Q_ASSERT(data);
+        m_knowledgePoint = qMax(m_knowledgePoint, data->position() + 1);
+        break;
+    }
+    case KoTextAnchor::BottomOfParagraph: {
+        QTextBlock block = m_anchor->document()->findBlock(m_anchor->positionInDocument());
+        m_knowledgePoint = qMax(m_knowledgePoint, block.position() + block.length() - 2);
+        break;
+    }
+    }
+}

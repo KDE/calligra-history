@@ -23,13 +23,11 @@
 #ifndef KIS_COMPLEXOP_SETTINGS_WIDGET_H_
 #define KIS_COMPLEXOP_SETTINGS_WIDGET_H_
 
-#include <kis_paintop_options_widget.h>
-#include <kis_image.h>
+#include <kis_brush_based_paintop_options_widget.h>
 
-class KisBrushOptionWidget;
-class KisBidirectionalMixingOption;
+class KisBidirectionalMixingOptionWidget;
 
-class KisComplexOpSettingsWidget : public KisPaintOpOptionsWidget
+class KisComplexOpSettingsWidget : public KisBrushBasedPaintopOptionWidget
 {
 
     Q_OBJECT
@@ -43,9 +41,7 @@ public:
     KisPropertiesConfiguration* configuration() const;
 
 public:
-
-    KisBrushOptionWidget * m_brushOption;
-    KisBidirectionalMixingOption * m_bidiOption;
+    KisBidirectionalMixingOptionWidget * m_bidiOption;
 
 };
 

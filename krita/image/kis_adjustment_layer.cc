@@ -43,14 +43,15 @@ KisAdjustmentLayer::KisAdjustmentLayer(KisImageWSP image,
         : KisSelectionBasedLayer(image.data(), name, selection),
         m_d(new Private())
 {
-    m_d->filterConfig = kfc;
+    if(kfc)
+        m_d->filterConfig = KisFilterRegistry::instance()->cloneConfiguration(kfc);
 }
 
 KisAdjustmentLayer::KisAdjustmentLayer(const KisAdjustmentLayer& rhs)
         : KisSelectionBasedLayer(rhs),
         m_d(new Private())
 {
-    m_d->filterConfig = new KisFilterConfiguration(*rhs.m_d->filterConfig);
+    m_d->filterConfig = KisFilterRegistry::instance()->cloneConfiguration(rhs.m_d->filterConfig);
 }
 
 
@@ -68,7 +69,44 @@ KisFilterConfiguration * KisAdjustmentLayer::filter() const
 
 void KisAdjustmentLayer::setFilter(KisFilterConfiguration * filterConfig)
 {
-    m_d->filterConfig = filterConfig;
+    delete m_d->filterConfig;
+    m_d->filterConfig = KisFilterRegistry::instance()->cloneConfiguration(filterConfig);
+}
+
+QRect KisAdjustmentLayer::changeRect(const QRect& rect) const
+{
+    QRect filteredRect = rect;
+
+    if (m_d->filterConfig) {
+        KisFilterSP filter = KisFilterRegistry::instance()->value(m_d->filterConfig->name());
+        filteredRect = filter->changedRect(rect, m_d->filterConfig);
+    }
+
+    /**
+     * We can't paint outside a selection, that is why we call
+     * KisSelectionBasedLayer::changeRect to crop actual change
+     * area in the end
+     */
+    filteredRect = KisSelectionBasedLayer::changeRect(filteredRect);
+
+    return rect | filteredRect;
+}
+
+QRect KisAdjustmentLayer::needRect(const QRect& rect, PositionToFilthy pos) const
+{
+    Q_UNUSED(pos);
+    if (!m_d->filterConfig) return rect;
+    KisFilterSP filter = KisFilterRegistry::instance()->value(m_d->filterConfig->name());
+
+    /**
+     * If we need some additional pixels even outside of a selection
+     * for accurate layer filtering, we'll get them!
+     * And no KisSelectionBasedLayer::needRect will prevent us
+     * from doing this! ;)
+     * That's why simply we do not call
+     * KisSelectionBasedLayer::needRect here :)
+     */
+    return filter->neededRect(rect, m_d->filterConfig);
 }
 
 bool KisAdjustmentLayer::accept(KisNodeVisitor & v)

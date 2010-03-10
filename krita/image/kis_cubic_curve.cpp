@@ -217,12 +217,13 @@ protected:
                 return i;
             x0 += m_h[i];
         }
-        if (x >= m_end) {
+        if (x >= x0) {
             x0 -= m_h[m_intervals-1];
             return m_intervals - 1;
         }
 
         qDebug("X value: %f\n", x);
+        qDebug("m_begin: %f\n", m_begin);
         qDebug("m_end  : %f\n", m_end);
         Q_ASSERT_X(0, "findRegion", "X value is outside regions");
         /* **never reached** */
@@ -336,6 +337,11 @@ KisCubicCurve::KisCubicCurve(const QList<QPointF>& points) : d(new Private)
 
 KisCubicCurve::KisCubicCurve(const KisCubicCurve& curve) : d(new Private(*curve.d))
 {
+}
+
+KisCubicCurve::~KisCubicCurve()
+{
+    delete d;
 }
 
 KisCubicCurve& KisCubicCurve::operator=(const KisCubicCurve & curve)

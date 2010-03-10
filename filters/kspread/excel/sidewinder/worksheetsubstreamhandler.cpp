@@ -111,10 +111,13 @@ public:
 
         if (hlstmfHasMonikor) {
             if (hlstmfMonikerSavedAsStr) {  // moniker
-                length = readU32(startHyperlinkObject);
-                UString moniker = readUnicodeChars(startHyperlinkObject + 4, length, -1, 0, &sizeReaded);
-                std::cout << "HLinkRecord: Unhandled moniker=" << moniker.ascii() << std::endl;
-                startHyperlinkObject += 4 + sizeReaded;
+                //TODO: seems following code leads to a crash on readUnicodeChars...
+                //length = readU32(startHyperlinkObject);
+                //UString moniker = readUnicodeChars(startHyperlinkObject + 4, length, -1, 0, &sizeReaded);
+                //startHyperlinkObject += 4 + sizeReaded;
+                std::cerr << "HLinkRecord: Unhandled hlstmfMonikerSavedAsStr moniker" << std::endl;
+                setIsValid(false);
+                return;
             } else { // oleMoniker
                 const unsigned long clsid = readU32(startHyperlinkObject);
                 startHyperlinkObject += 16; // the clsid is actually 16 byte long but we only need the first 4 to differ
@@ -151,9 +154,15 @@ public:
 
         if (hlstmfHasLocationStr) {
             length = readU32(startHyperlinkObject);
-            m_location = readUnicodeChars(startHyperlinkObject + 4, length, -1, 0, &sizeReaded);
+            startHyperlinkObject += 4;
+            if(startHyperlinkObject+length > data+size) {
+                std::cerr << "HLinkRecord: expected location but got invalid size=" << length << std::endl;
+                setIsValid(false);
+                return;
+            }
+            m_location = readUnicodeChars(startHyperlinkObject, length, -1, 0, &sizeReaded);
             std::cout << "HLinkRecord: m_displayName=" << m_displayName << " m_targetFrameName=" << m_targetFrameName << " location=" << m_location.ascii() << std::endl;
-            startHyperlinkObject += 4 + sizeReaded;
+            startHyperlinkObject += sizeReaded;
         }
 
         // ignore (16 bytes) guid and fileTime (8 bytes)
@@ -190,6 +199,12 @@ public:
     
     // list of textobjects as received via TxO records
     std::vector<UString> textObjects;
+
+    // The last drawing object we got.
+    DrawingObject* lastDrawingObject;
+
+    // list of id's with ChartObject's.
+    std::vector<unsigned long> charts;
 };
 
 WorksheetSubStreamHandler::WorksheetSubStreamHandler(Sheet* sheet, const GlobalsSubStreamHandler* globals)
@@ -200,6 +215,7 @@ WorksheetSubStreamHandler::WorksheetSubStreamHandler(Sheet* sheet, const Globals
     d->lastFormulaCell = 0;
     d->formulaStringCell = 0;
     d->noteCount = 0;
+    d->lastDrawingObject = 0;
 
     RecordRegistry::registerRecordClass(HLinkRecord::id, HLinkRecord::createRecord);
 }
@@ -208,9 +224,27 @@ WorksheetSubStreamHandler::~WorksheetSubStreamHandler()
 {
     for(std::map<std::pair<unsigned, unsigned>, DataTableRecord*>::iterator it = d->dataTables.begin(); it != d->dataTables.end(); ++it)
         delete (*it).second;
+    //for(std::map<unsigned long, Object*>::iterator it = d->sharedObjects.begin(); it != d->sharedObjects.end(); ++it)
+    //    delete (*it).second;
     //for(std::map<std::pair<unsigned, unsigned>, FormulaTokens*>::iterator it = d->sharedFormulas.begin(); it != d->sharedFormulas.end(); ++it)
     //    delete it.second.second;
+    delete d->lastDrawingObject;
     delete d;
+}
+
+Sheet* WorksheetSubStreamHandler::sheet() const
+{
+    return d->sheet;
+}
+
+std::map<unsigned long, Object*>& WorksheetSubStreamHandler::sharedObjects() const
+{
+    return d->sharedObjects;
+}
+
+std::vector<unsigned long>& WorksheetSubStreamHandler::charts() const
+{
+    return d->charts;
 }
 
 const std::vector<UString>& WorksheetSubStreamHandler::externSheets() const
@@ -644,21 +678,42 @@ void WorksheetSubStreamHandler::handleMulRK(MulRKRecord* record)
     if (!record) return;
     if (!d->sheet) return;
 
-    unsigned firstColumn = record->firstColumn();
-    unsigned lastColumn = record->lastColumn();
-    unsigned row = record->row();
+    const int firstColumn = record->firstColumn();
+    const int lastColumn = record->lastColumn();
+    const int row = record->row();
 
-    for (unsigned column = firstColumn; column <= lastColumn; column++) {
+    Cell *prevCell = 0;
+    int repeat = 1;
+    int column = lastColumn;
+
+    while(column >= firstColumn) {
         Cell* cell = d->sheet->cell(column, row, true);
-        if (cell) {
-            unsigned i = column - firstColumn;
-            Value value;
-            if (record->isInteger(i))
-                value.setValue(record->asInteger(i));
-            else
-                value.setValue(record->asFloat(i));
-            cell->setValue(value);
-            cell->setFormat(d->globals->convertedFormat(record->xfIndex(column - firstColumn)));
+        const int i = column - firstColumn;
+        Value value;
+        if (record->isInteger(i))
+            value.setValue(record->asInteger(i));
+        else
+            value.setValue(record->asFloat(i));
+        cell->setValue(value);
+        cell->setFormat(d->globals->convertedFormat(record->xfIndex(column - firstColumn)));
+        
+        if(prevCell) {
+            if(*prevCell == *cell) {
+                ++repeat;
+            } else {
+                if(repeat > 1) {
+                    prevCell->setColumnRepeat(repeat);
+                    repeat = 1;
+                }
+            }
+        }
+        prevCell = cell;
+        --column;
+        if(column < firstColumn) {
+            if(repeat > 1) {
+                prevCell->setColumnRepeat(repeat);
+            }
+            break;
         }
     }
 }
@@ -813,7 +868,7 @@ void WorksheetSubStreamHandler::handleNote(NoteRecord* record)
         NoteObject *obj = static_cast<NoteObject*>(d->sharedObjects[id]);
         if (obj) {
             int offset = d->noteMap[id] - 1;
-            Q_ASSERT(offset>=0 && offset<d->textObjects.size());
+            Q_ASSERT(offset>=0 && uint(offset)<d->textObjects.size());
             cell->setNote(d->textObjects[offset]);
             //cell->setNote(obj->note());
         }
@@ -833,6 +888,9 @@ void WorksheetSubStreamHandler::handleObj(ObjRecord* record)
         //    PictureObject *r = static_cast<PictureObject*>(record->m_object);
         //    std::cout << "PICTURE embeddedStorage=" << r->embeddedStorage().c_str() << std::endl;
         //    break;
+        case Object::Chart:
+            d->charts.push_back(id);
+            break;
         case Object::Note:
             d->noteMap[id] = ++d->noteCount;
             break;
@@ -840,7 +898,14 @@ void WorksheetSubStreamHandler::handleObj(ObjRecord* record)
             break;
     }
 
+    // look if there is a DrawingObject defined that is waiting for us to be picked up.
+    if(d->lastDrawingObject) {
+        record->m_object->setDrawingObject(d->lastDrawingObject); // will take over ownership
+        d->lastDrawingObject = 0;
+    }
+
     d->sharedObjects[id] = record->m_object;
+    record->m_object = 0; // take over ownership
 }
 
 void WorksheetSubStreamHandler::handleDefaultRowHeight(DefaultRowHeightRecord* record)
@@ -909,6 +974,14 @@ void WorksheetSubStreamHandler::handleMsoDrawing(MsoDrawingRecord* record)
         //Q_ASSERT(false);
         
         return;
+    }
+
+    //FIXME probably move that up and use it for noites and pictures too? Needs more investigation...
+    if(record->m_gotClientData) {
+        // If the DrawingObject got a OfficeArtClientData then a ObjRecord will follow that picks
+        // this DrawingObject up and uses it for future actions.
+        delete d->lastDrawingObject; // remove old DrawingObject if it was not picked up
+        d->lastDrawingObject = new DrawingObject(*record);
     }
 
     std::cerr << "WorksheetSubStreamHandler::handleMsoDrawing No pid" << std::endl;

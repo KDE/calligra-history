@@ -36,11 +36,12 @@ public:
     UString name;
 
     // hash to store cell, FIXME replace with quad-tree
-    std::map<unsigned, Cell*> cells;
+    QHash<unsigned, Cell*> cells;
     unsigned maxRow;
     unsigned maxColumn;
-    std::map<unsigned, Column*> columns;
-    std::map<unsigned, Row*> rows;
+    QHash<unsigned, unsigned> maxCellsInRow;
+    QHash<unsigned, Column*> columns;
+    QHash<unsigned, Row*> rows;
 
     bool visible;
     bool protect;
@@ -78,24 +79,7 @@ Sheet::Sheet(Workbook* wb)
 {
     d = new Sheet::Private();
     d->workbook = wb;
-    d->name = "Sheet"; // FIXME better name ?
-    d->maxRow = 0;
-    d->maxColumn = 0;
-    d->visible      = true;
-    d->protect      = false;
-    d->leftMargin   = 54;  // 0.75 inch
-    d->rightMargin  = 54;  // 0.75 inch
-    d->topMargin    = 72;  // 1 inch
-    d->bottomMargin = 72;  // 1 inch
-    d->autoCalc = true;
-    d->defaultRowHeight = -1;
-    d->defaultColWidth = -1;
-    d->zoomLevel = 1.0; // 100%
-    d->showGrid = true;
-    d->showZeroValues = true;
-    d->firstVisibleCell = QPoint(0,0); // A1
-    d->isPageBreakViewEnabled = false;
-    d->passwd = 0; // password protection disabled
+    clear();
 }
 
 Sheet::~Sheet()
@@ -122,19 +106,34 @@ void Sheet::setAutoCalc(bool a)
 void Sheet::clear()
 {
     // delete all cells
-    std::map<unsigned, Cell*>::iterator cell_it;
-    for (cell_it = d->cells.begin(); cell_it != d->cells.end(); ++cell_it)
-        delete cell_it->second;
-
+    qDeleteAll(d->cells);
+    d->cells.clear();
     // delete all columns
-    std::map<unsigned, Column*>::iterator col_it;
-    for (col_it = d->columns.begin(); col_it != d->columns.end(); ++col_it)
-        delete col_it->second;
-
+    qDeleteAll(d->columns);
+    d->columns.clear();
     // delete all rows
-    std::map<unsigned, Row*>::iterator row_it;
-    for (row_it = d->rows.begin(); row_it != d->rows.end(); ++row_it)
-        delete row_it->second;
+    qDeleteAll(d->rows);
+    d->rows.clear();
+    
+    d->name = "Sheet"; // FIXME better name ?
+    d->maxRow = 0;
+    d->maxColumn = 0;
+    d->maxCellsInRow.clear();
+    d->visible      = true;
+    d->protect      = false;
+    d->leftMargin   = 54;  // 0.75 inch
+    d->rightMargin  = 54;  // 0.75 inch
+    d->topMargin    = 72;  // 1 inch
+    d->bottomMargin = 72;  // 1 inch
+    d->autoCalc = true;
+    d->defaultRowHeight = -1;
+    d->defaultColWidth = -1;
+    d->zoomLevel = 1.0; // 100%
+    d->showGrid = true;
+    d->showZeroValues = true;
+    d->firstVisibleCell = QPoint(0,0); // A1
+    d->isPageBreakViewEnabled = false;
+    d->passwd = 0; // password protection disabled
 }
 
 UString Sheet::name() const
@@ -163,6 +162,9 @@ Cell* Sheet::cell(unsigned columnIndex, unsigned rowIndex, bool autoCreate)
 
         if (rowIndex > d->maxRow) d->maxRow = rowIndex;
         if (columnIndex > d->maxColumn) d->maxColumn = columnIndex;
+        
+        if(!d->maxCellsInRow.contains(rowIndex) || columnIndex > d->maxCellsInRow[rowIndex])
+            d->maxCellsInRow[rowIndex] = columnIndex;
     }
 
     return c;
@@ -216,6 +218,13 @@ void Sheet::setMaxColumn(unsigned column)
 {
     if (column > d->maxColumn)
         d->maxColumn = column;
+}
+
+unsigned Sheet::maxCellsInRow(int rowIndex) const
+{
+    if(d->maxCellsInRow.contains(rowIndex))
+        return d->maxCellsInRow[rowIndex];
+    return 0;
 }
 
 bool Sheet::visible() const
@@ -482,6 +491,18 @@ void Column::setVisible(bool b)
     d->visible = b;
 }
 
+bool Column::operator==(const Column &other) const
+{
+    return width() == other.width() &&
+           visible() == other.visible() &&
+           format() == other.format();
+}
+
+bool Column::operator!=(const Column &other) const
+{
+    return ! (*this == other);
+}
+
 class Row::Private
 {
 public:
@@ -544,4 +565,16 @@ bool Row::visible() const
 void Row::setVisible(bool b)
 {
     d->visible = b;
+}
+
+bool Row::operator==(const Row &other) const
+{
+    return height() == other.height() &&
+           visible() == other.visible() &&
+           format() == other.format();
+}
+
+bool Row::operator!=(const Row &other) const
+{
+    return ! (*this == other);
 }

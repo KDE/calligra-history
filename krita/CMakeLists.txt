@@ -65,7 +65,6 @@ set(KRITA_INCLUDES
     ${CMAKE_BINARY_DIR}/krita/ui
     
     ${PIGMENT_INCLUDES}
-    ${KOBASE_INCLUDES}
     ${KOTEXT_INCLUDES}
     ${KOMAIN_INCLUDES}
     ${CMAKE_SOURCE_DIR}/libs/widgets/resources
@@ -88,7 +87,6 @@ endif(HAVE_OPENGL)
 
 add_subdirectory( image )
 add_subdirectory( ui )
-add_subdirectory( shape )
 add_subdirectory( dtd )
 add_subdirectory( plugins )
 add_subdirectory( data )

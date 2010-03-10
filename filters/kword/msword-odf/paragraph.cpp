@@ -353,7 +353,8 @@ void Paragraph::applyParagraphProperties(const wvWare::ParagraphProperties& prop
             //
             // Get the proportion & turn it into a percentage for the
             // attribute.
-            QString proportionalLineSpacing(QString::number(((double)pap.lspd.dyaLine / 240.0)*100.0));
+            QString proportionalLineSpacing(QString::number(((qreal)pap.lspd.dyaLine
+                                                  / (qreal)240.0)*(qreal)120.0));
             style->addProperty("fo:line-height", proportionalLineSpacing.append("%"), KoGenStyle::ParagraphType);
         } else if (pap.lspd.fMultLinespace == 0) {
             // Magnitude of lspd.dyaLine specifies the amount of space
@@ -601,5 +602,20 @@ void Paragraph::applyCharacterProperties(const wvWare::Word97::CHP* chp, KoGenSt
             style->addProperty("style:font-relief", "engraved", KoGenStyle::TextType);
     }
 
+    //fOutline = text is outline if 1
+    if (!refChp || refChp->fOutline != chp->fOutline) {
+        if (chp->fOutline)
+            style->addProperty("style:text-outline", "true", KoGenStyle::TextType);
+        else
+            style->addProperty("style:text-outline", "false", KoGenStyle::TextType);
+    }
+
+
+    //dxaSpace = letterspacing in twips
+    if (!refChp || refChp->dxaSpace != chp->dxaSpace) {
+        double value =  chp->dxaSpace / 20.0; // twips -> pt
+        style->addPropertyPt("fo:letter-spacing", value, KoGenStyle::TextType);
+    }
+    //pctCharwidth = pct stretch doesn't seem to have an ODF ccounterpart but Qt could support it
 }
 

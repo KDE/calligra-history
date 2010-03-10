@@ -189,16 +189,16 @@ void KisCustomImageWidget::buttonClicked()
             layer->setOpacity(backgroundOpacity());
         }
         // Hack: with a semi-transparent background color, the projection isn't composited right if we just set the default pixel
-        if (layer && backgroundOpacity() < OPACITY_OPAQUE) {
+        if (layer && backgroundOpacity() < OPACITY_OPAQUE_U8) {
             KisFillPainter painter;
             painter.begin(layer->paintDevice());
             painter.beginTransaction("");
-            painter.fillRect(0, 0, width, height, bgColor, OPACITY_OPAQUE);
+            painter.fillRect(0, 0, width, height, bgColor, OPACITY_OPAQUE_U8);
             painter.end();
 
         }
         if (chkFromClipboard->isChecked()) {
-            KisPaintDeviceSP clip = KisClipboard::instance()->clip();
+            KisPaintDeviceSP clip = KisClipboard::instance()->clip(QPoint(0,0));
             if (clip) {
                 QRect r = clip->exactBounds();
                 KisPainter gc;

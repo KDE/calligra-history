@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2007 Boudewijn Rempt boud@valdyas.org
+ *  Copyright (c) 2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,8 +26,19 @@ class KisIteratorsPixelTest : public QObject
     Q_OBJECT
 private slots:
 
-    void testCreation();
-
+    void testHLineAlignedOnTile();
+    void testHLineUnalignedOnTile();
+    void testVLineAlignedOnTile();
+    void testVLineUnalignedOnTile();
+    void testRectAlignedOnTile();
+    void testRectUnalignedOnTile();
+    void testRandomAccessorAlignedOnTile();
+    void testRandomAccessorUnalignedOnTile();
+private:
+    void testHLine(int width, int height);
+    void testVLine(int width, int height);
+    void testRect(int width, int height);
+    void testRandomAccessor(int width, int height);
 };
 
 #endif

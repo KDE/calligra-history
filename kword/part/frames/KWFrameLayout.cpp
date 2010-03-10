@@ -30,6 +30,9 @@
 #include <KoShapeRegistry.h>
 #include <KoShapeFactoryBase.h>
 
+#include <QTextLayout>
+#include <QTextDocument>
+#include <QTextBlock>
 #include <klocale.h>
 #include <kdebug.h>
 #include <limits.h>
@@ -92,7 +95,7 @@ void KWFrameLayout::createNewFramesForPage(int pageNumber)
                 m_parent = parent;
             }
             void create(const KWPage &page, KWTextFrameSet *fs) {
-                KWFrame* frame;
+                KWFrame *frame;
                 if (fs->textFrameSetType() == KWord::MainTextFrameSet)
                     frame = new KWTextFrame(m_parent->createTextShape(page), fs);
                 else
@@ -290,6 +293,12 @@ void KWFrameLayout::layoutFramesOnPage(int pageNumber)
             }
             main[--columnsCount] = static_cast<KWTextFrame *>(frame);
             minimumHeight[3] = 10;
+            // make at least one line fit lest we add endless pages.
+            QTextLayout *layout = textFrameSet->document()->begin().layout();
+            if (layout && layout->lineCount() > 0) {
+                minimumHeight[3] = qMax((qreal) 10, layout->lineAt(0).height());
+            }
+
             requestedHeight[3] = -1; // rest
             break;
         }
@@ -423,7 +432,7 @@ bool KWFrameLayout::shouldHaveHeaderOrFooter(int pageNumber, bool header, KWord:
     return true;
 }
 
-QList<KWFrame *> KWFrameLayout::framesInPage(QRectF page)
+QList<KWFrame *> KWFrameLayout::framesInPage(const QRectF &page)
 {
     // hopefully replaced with a tree
     QList<KWFrame*> answer;
@@ -664,7 +673,7 @@ void KWFrameLayout::createNewFrameForPage(KWTextFrameSet *fs, int pageNumber)
     }
 }
 
-KWFrame* KWFrameLayout::createCopyFrame(KWFrameSet *fs, const KWPage &page)
+KWFrame *KWFrameLayout::createCopyFrame(KWFrameSet *fs, const KWPage &page)
 {
     Q_ASSERT(page.isValid());
     if (fs->frameCount() == 0) { // special case for the headers. Just return a new textframe.

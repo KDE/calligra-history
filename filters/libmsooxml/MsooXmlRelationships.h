@@ -1,7 +1,7 @@
 /*
  * This file is part of Office 2007 Filters for KOffice
  *
- * Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
+ * Copyright (C) 2009-2010 Nokia Corporation and/or its subsidiary(-ies).
  *
  * Contact: Suresh Chande suresh.chande@nokia.com
  *
@@ -31,7 +31,6 @@ struct KoOdfWriters;
 namespace MSOOXML
 {
 class MsooXmlImport;
-//class QStringList;
 
 //! Global document relationships handler.
 /*! It supports delayed loading of any *.xml.rels file. */
@@ -45,10 +44,7 @@ public:
 
     QString target(const QString& path, const QString& file, const QString& id);
 
-    QString link_target(const QString& id);
-    
-    bool get_comment(const QString id, QString &author, QString &date, QString &text);
-
+    QString linkTarget(const QString& id);
 private:
     class Private;
     Private* const d;

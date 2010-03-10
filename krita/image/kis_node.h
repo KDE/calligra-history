@@ -42,6 +42,13 @@ class KRITAIMAGE_EXPORT KisNode : public KisBaseNode
     Q_OBJECT
 
 public:
+    /**
+     * FIXME: Find better names
+     */
+    enum PositionToFilthy {
+        NORMAL,
+        BELOW_FILTHY
+    };
 
     /**
      * Create an empty node without a parent.
@@ -77,7 +84,7 @@ public:
      * nodes all the way to the root node. By default this is the
      * empty rect (through KisBaseNode::extent())
      */
-    virtual void setDirty() {}
+    virtual void setDirty();
 
     /**
      * Add the given rect to the set of dirty rects for this node;
@@ -93,9 +100,7 @@ public:
      * this percolates up to parent nodes all the way to the root
      * node, if propagate is true;
      */
-    virtual void setDirty(const QRegion & region) {
-        Q_UNUSED(region);
-    }
+    virtual void setDirty(const QRegion & region);
 
     /**
      * Some filters will cause a change of pixels those are outside
@@ -112,7 +117,7 @@ public:
      * compute the new value (for instance, convolution filters)
      * See \ref changeRect
      */
-    virtual QRect needRect(const QRect &rect) const;
+    virtual QRect needRect(const QRect &rect, PositionToFilthy pos = NORMAL) const;
 
 public: // Graph methods
 
@@ -243,7 +248,7 @@ private:
     /**
      * Set the parent of this node.
      */
-    void setParent(KisNodeSP parent);
+    void setParent(KisNodeWSP parent);
 
     /**
      * Add the specified node above the specified node. If aboveThis

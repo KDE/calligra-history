@@ -98,6 +98,9 @@ public slots:
     bool firstRowIsLabel() const;
     bool firstColumnIsLabel() const;
     Qt::Orientation dataDirection();
+    
+    QString categoryDataRegion() const;
+    void setCategoryDataRegion(const QString& region);
 
     QList<DataSet*> dataSets() const;
 
@@ -110,6 +113,9 @@ public slots:
 
 signals:
     void dataChanged();
+
+protected slots:
+    void slotModelReset();
 
 protected:
     // TODO: Remove once we depend on Qt 4.6

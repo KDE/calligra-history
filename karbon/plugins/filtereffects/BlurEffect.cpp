@@ -19,6 +19,7 @@
 
 #include "BlurEffect.h"
 #include "KoFilterEffectRenderContext.h"
+#include "KoFilterEffectLoadingContext.h"
 #include "KoViewConverter.h"
 #include "KoXmlWriter.h"
 #include "KoXmlReader.h"
@@ -296,7 +297,7 @@ QImage BlurEffect::processImage(const QImage &image, const KoFilterEffectRenderC
     // TODO: take filter region into account
     // TODO: blur with different kernels in x and y
     // convert from bounding box coordinates
-    QPointF dev = context.coordinateTransformation().map(m_deviation);
+    QPointF dev = context.toUserSpace(m_deviation);
     // transform to view coordinates
     dev = context.viewConverter()->documentToView(dev);
 
@@ -306,13 +307,13 @@ QImage BlurEffect::processImage(const QImage &image, const KoFilterEffectRenderC
     return result;
 }
 
-bool BlurEffect::load(const KoXmlElement &element, const QMatrix &matrix)
+bool BlurEffect::load(const KoXmlElement &element, const KoFilterEffectLoadingContext &context)
 {
     if (element.tagName() != id())
         return false;
 
     QString deviationStr = element.attribute("stdDeviation");
-    QStringList params = deviationStr.trimmed().split(',');
+    QStringList params = deviationStr.replace(',', ' ').simplified().split(' ');
 
     switch (params.count()) {
     case 1:
@@ -327,7 +328,7 @@ bool BlurEffect::load(const KoXmlElement &element, const QMatrix &matrix)
         return false;
     }
 
-    m_deviation = matrix.map(m_deviation);
+    m_deviation = context.convertFilterPrimitiveUnits(m_deviation);
 
     return true;
 }

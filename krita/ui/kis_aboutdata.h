@@ -40,7 +40,7 @@ KAboutData * newKritaAboutData()
     aboutData->addAuthor(ki18n("Adam Celarek"), KLocalizedString(), "tuobaatirk@xibo.at");
     aboutData->addAuthor(ki18n("Alan Horkan"), KLocalizedString(), "", "http://www.openclipart.org");
     aboutData->addAuthor(ki18n("Bart Coppens"), KLocalizedString(), "kde@bartcoppens.be");
-    aboutData->addAuthor(ki18n("Boudewijn Rempt"), KLocalizedString(), "boud@valdyas.org", "http://www.valdyas.org/fading/index.cgi");
+    aboutData->addAuthor(ki18n("Boudewijn Rempt"), ki18n("Maintainer"), "boud@valdyas.org", "http://www.valdyas.org/fading/index.cgi");
     aboutData->addAuthor(ki18n("Carsten Pfeiffer"), KLocalizedString(), "carpdjih@cetus.zrz.tu-berlin.de");
     aboutData->addAuthor(ki18n("Casper Boemann"), KLocalizedString(), "cbr@boemann.dk");
     aboutData->addAuthor(ki18n("Clarence Dang"), KLocalizedString(), "dang@kde.org");
@@ -53,6 +53,7 @@ KAboutData * newKritaAboutData()
     aboutData->addAuthor(ki18n("Emanuele Tamponi"), KLocalizedString(), "emanuele@valinor.it");
     aboutData->addAuthor(ki18n("Gábor Lehel"), KLocalizedString(), "<illissius@gmail.com>");
     aboutData->addAuthor(ki18n("John Califf"), KLocalizedString(), "jcaliff@compuzone.net");
+    aboutData->addAuthor(ki18n("Justin Noel"), ki18n("Slider widget"), "justin@ics.com");
     aboutData->addAuthor(ki18n("Laurent Montel"), KLocalizedString(), "lmontel@mandrakesoft.com");
     aboutData->addAuthor(ki18n("Lukáš Tvrdý"), KLocalizedString(), "lukast.dev@gmail.com");
     aboutData->addAuthor(ki18n("Marc Pegon"), KLocalizedString(), "pe.marc@free.fr");
@@ -60,14 +61,16 @@ KAboutData * newKritaAboutData()
     aboutData->addAuthor(ki18n("Melchior Franz"), KLocalizedString(), "mfranz@kde.org");
     aboutData->addAuthor(ki18n("Michael Koch"), KLocalizedString(), "koch@kde.org");
     aboutData->addAuthor(ki18n("Michael Thaler"), KLocalizedString(), "michael.thaler@physik.tu-muenchen.de");
+    aboutData->addAuthor(ki18n("Øyvind Kolås"), ki18n("Wiseguy"), "pippin@gimp.org", "http://codecave.org/");
     aboutData->addAuthor(ki18n("Patrick Julien"), KLocalizedString(), "freak@codepimps.org");
+    aboutData->addAuthor(ki18n("Peter Sikking"), ki18n("Vision master"), "");
     aboutData->addAuthor(ki18n("Roger Larsson"), KLocalizedString(), "roger.larsson@norran.net");
     aboutData->addAuthor(ki18n("Samy Lange"), KLocalizedString(), "enkithan@free.fr");
     aboutData->addAuthor(ki18n("Sven Langkamp"), KLocalizedString(), "sven.langkamp@gmail.com");
     aboutData->addAuthor(ki18n("Toshitaka Fujioka"), KLocalizedString(), "fujioka@kde.org");
     aboutData->addAuthor(ki18n("Thomas Zander"), KLocalizedString(), "zander@kde.org");
     aboutData->addAuthor(ki18n("Tom Burdick"), KLocalizedString(), "tburdi1@uic.edu");
-    aboutData->addAuthor(ki18n("Vera Lukman"), KLocalizedString(), "shichan.karachu@gmail.com");
+    aboutData->addAuthor(ki18n("Vera Lukman"), KLocalizedString(), "shicmap@gmail.com");
     aboutData->addAuthor(ki18n("Sander Koning"), KLocalizedString(), "sanderkoning@kde.nl");
     aboutData->addAuthor(ki18n("Andreas Lundin"), KLocalizedString(), "adde@update.uu.se");
     return aboutData;

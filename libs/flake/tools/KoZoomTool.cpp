@@ -40,7 +40,7 @@ KoZoomTool::KoZoomTool(KoCanvasBase *canvas)
     m_outCursor = QCursor(outPixmap, 4, 4);
 }
 
-void KoZoomTool::wheelEvent(KoPointerEvent * event)
+void KoZoomTool::wheelEvent(KoPointerEvent *event)
 {
     // Let KoCanvasController handle this
     event->ignore();
@@ -79,9 +79,9 @@ void KoZoomTool::keyReleaseEvent(QKeyEvent *event)
     KoInteractionTool::keyReleaseEvent(event);
 }
 
-void KoZoomTool::activate(bool temporary)
+void KoZoomTool::activate(ToolActivation toolActivation, const QSet<KoShape*> &)
 {
-    m_temporary = temporary;
+    m_temporary = toolActivation == TemporaryActivation;
     updateCursor(false);
 }
 
@@ -109,10 +109,9 @@ KoInteractionStrategy *KoZoomTool::createStrategy(KoPointerEvent *event)
     return zs;
 }
 
-QWidget* KoZoomTool::createOptionWidget()
+QWidget *KoZoomTool::createOptionWidget()
 {
     return new KoZoomToolWidget(this);
-    //return 0;
 }
 
 void KoZoomTool::setZoomInMode(bool zoomIn)

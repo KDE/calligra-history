@@ -56,7 +56,8 @@ ChangeTrackingTool::ChangeTrackingTool(KoCanvasBase* canvas): KoToolBase(canvas)
     m_textShape(0),
     m_model(0),
     m_trackedChangeManager(0),
-    m_changesTreeView(0)
+    m_changesTreeView(0),
+    m_canvas(canvas)
 {
     KAction *action;
     action = new KAction(i18n("Tracked change manager"), this);
@@ -243,11 +244,11 @@ void ChangeTrackingTool::keyPressEvent(QKeyEvent* event)
     KoToolBase::keyPressEvent(event);
 }
 
-void ChangeTrackingTool::activate(bool temporary)
+void ChangeTrackingTool::activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes)
 {
-    Q_UNUSED(temporary);
+    Q_UNUSED(toolActivation);
     KoSelection *selection = canvas()->shapeManager()->selection();
-    foreach(KoShape *shape, selection->selectedShapes()) {
+    foreach(KoShape *shape, shapes) {
         m_textShape = dynamic_cast<TextShape*>(shape);
         if (m_textShape)
             break;
@@ -279,7 +280,7 @@ void ChangeTrackingTool::setShapeData(KoTextShapeData *data)
     }
     if (!data) {
         if (m_disableShowChangesOnExit) {
-            ShowChangesCommand *command = new ShowChangesCommand(false, m_textShapeData->document());
+            ShowChangesCommand *command = new ShowChangesCommand(false, m_textShapeData->document(), m_canvas);
             m_textEditor->addCommand(command);
         }
     }
@@ -302,7 +303,7 @@ void ChangeTrackingTool::setShapeData(KoTextShapeData *data)
     m_textEditor->updateDefaultTextDirection(m_textShapeData->pageDirection());
     if (!KoTextDocument(m_textShapeData->document()).changeTracker()->displayChanges()) {
         m_disableShowChangesOnExit = true;
-        ShowChangesCommand *command = new ShowChangesCommand(true, m_textShapeData->document());
+        ShowChangesCommand *command = new ShowChangesCommand(true, m_textShapeData->document(), m_canvas);
         m_textEditor->addCommand(command);
     }
     if (m_model) {

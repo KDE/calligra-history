@@ -16,12 +16,9 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 #include "kis_soft_paintop_settings.h"
-#include "kis_soft_paintop_settings_widget.h"
 #include "kis_softop_option.h"
-
+#include "kis_brush_size_option.h"
 #include <kis_paint_action_type_option.h>
-
-#include <KoViewConverter.h>
 
 
 bool KisSoftPaintOpSettings::paintIncremental()
@@ -30,63 +27,36 @@ bool KisSoftPaintOpSettings::paintIncremental()
 }
 
 
-void KisSoftPaintOpSettings::paintOutline ( const QPointF& pos, KisImageWSP image, QPainter& painter, const KoViewConverter& converter, KisPaintOpSettings::OutlineMode _mode ) const
+void KisSoftPaintOpSettings::paintOutline ( const QPointF& pos, KisImageWSP image, QPainter& painter, KisPaintOpSettings::OutlineMode _mode ) const
 {
     if (_mode != CURSOR_IS_OUTLINE) return;
-    qreal size = diameter();
-    QRectF ellipseRect = converter.documentToView(image->pixelToDocument(QRectF(0, 0, size, size).translated(- QPoint(size * 0.5, size * 0.5))).translated(pos));
-    QPen pen = painter.pen();
-    // temporary solution til i find out the bug with RasterOp_XOR in OpenGL canvas
-    pen.setColor(Qt::white);
-    pen.setWidth(2);
-    painter.setPen(pen);
-    painter.drawEllipse(ellipseRect);
-    painter.setPen(QColor(0,0,0,150));
-    pen.setWidth(1);
-    painter.drawEllipse(ellipseRect);
+    qreal width = getDouble(BRUSH_DIAMETER)  * getDouble(BRUSH_SCALE);
+    qreal height = getDouble(BRUSH_DIAMETER) * getDouble(BRUSH_ASPECT)  * getDouble(BRUSH_SCALE);
+
+    QRectF brush(0,0,width,height);
+    brush.translate(-brush.center());
+    painter.save();
+    painter.translate( pos);
+    painter.rotate( -getDouble(BRUSH_ROTATION));
+    painter.setPen(Qt::black);
+    painter.drawEllipse(image->pixelToDocument(brush));
+    painter.restore();
 }
 
 
 QRectF KisSoftPaintOpSettings::paintOutlineRect ( const QPointF& pos, KisImageWSP image, KisPaintOpSettings::OutlineMode _mode ) const
 {
     if (_mode != CURSOR_IS_OUTLINE) return QRectF();
-    qreal size = diameter();
-    size += 10;
-    return image->pixelToDocument(QRectF(0, 0, size, size).translated(- QPoint(size * 0.5, size * 0.5))).translated(pos);
+    qreal width = getDouble(BRUSH_DIAMETER)  * getDouble(BRUSH_SCALE);
+    qreal height = getDouble(BRUSH_DIAMETER) * getDouble(BRUSH_ASPECT)  * getDouble(BRUSH_SCALE);
+    QRectF brush(0,0,width,height);
+    brush.translate(-brush.center());
+    QTransform m;
+    m.reset();
+    m.rotate( -getDouble(BRUSH_ROTATION) );
+    brush = m.mapRect(brush);
+    brush.adjust(-1,-1,1,1);
+    return image->pixelToDocument(brush).translated(pos);
 }
 
 
-int KisSoftPaintOpSettings::diameter() const
-{
-    return getInt("Soft/diameter");
-}
-
-
-qreal KisSoftPaintOpSettings::spacing() const
-{
-    return getDouble("Soft/spacing");
-}
-
-
-qreal KisSoftPaintOpSettings::end() const
-{
-    return getDouble("Soft/end");
-}
-
-
-qreal KisSoftPaintOpSettings::start() const
-{
-    return getDouble("Soft/start");
-}
-
-
-qreal KisSoftPaintOpSettings::sigma() const
-{
-    return getDouble("Soft/sigma");
-}
-
-
-quint8 KisSoftPaintOpSettings::flow() const
-{
-    return getInt("Soft/flow");
-}

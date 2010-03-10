@@ -22,11 +22,13 @@
 
 #include <QUndoStack>
 #include "TextCommandBase.h"
+#include <QTextCharFormat>
 #include <QList>
 
 class TextTool;
 class QTextCursor;
-class KoChangeTrackerElement;
+class KoInlineObject;
+class KoShape;
 
 class DeleteCommand : public TextCommandBase
 {
@@ -43,20 +45,26 @@ public:
     virtual void redo();
 
     virtual int id() const;
-    virtual bool mergeWith ( const QUndoCommand *command);
+    virtual bool mergeWith(const QUndoCommand *command);
 
 private:
     TextTool *m_tool;
+    QList<QUndoCommand *> m_shapeDeleteCommands;
+    QList<KoInlineObject *> m_invalidInlineObjects;
     bool m_first;
     bool m_undone;
     DeleteMode m_mode;
-    QList<int> m_removedElements;
-    int m_addedChangeElement;
+    int m_position;
+    int m_length;
+    QTextCharFormat m_format;
+    bool m_multipleFormatDeletion;
 
     virtual void deleteChar();
     virtual void deletePreviousChar();
     virtual void deleteSelection(QTextCursor &selection);
-    virtual void removeChangeElement(int changeId);
+    virtual void deleteInlineObjects(QTextCursor &selection);
+    virtual void deleteTextAnchor(KoInlineObject *object);
+    virtual bool checkMerge(const QUndoCommand *command);
 };
 
 #endif // DELTECOMMAND_H

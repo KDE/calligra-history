@@ -27,17 +27,19 @@
 #include <KoCanvasBase.h>
 #include <krita_export.h>
 #include <kis_types.h>
+#include <KoPointerEvent.h>
 
 class KoToolProxy;
 class KoColorProfile;
 
 class KisCanvasDecoration;
 class KisView2;
+class KisPaintopBox;
+class KoFavoriteResourceManager;
 
 enum KisCanvasType {
     QPAINTER,
-    OPENGL,
-    MITSHM
+    OPENGL
 };
 
 class KoViewConverter;
@@ -142,6 +144,8 @@ signals:
 
     void canvasDestroyed(QWidget *);
 
+    void favoritePaletteCalled(const QPoint&);
+
 public slots:
 
     /// Update the entire canvas area
@@ -179,6 +183,8 @@ private slots:
      */
     void slotSetDisplayProfile(const KoColorProfile * profile);
 
+    void slotCanvasDestroyed(QWidget* w);
+
 public:
 
     friend class KisView2;
@@ -190,6 +196,10 @@ public:
     void createCanvas();
     void createQPainterCanvas();
     void createOpenGLCanvas();
+    void createFavoriteResourceManager(KisPaintopBox*);
+
+    KoFavoriteResourceManager* favoriteResourceManager();
+    bool handlePopupPaletteIsVisible(KoPointerEvent *);
 
     /**
      * Returns a rect in widget pixels that is translated for document

@@ -51,7 +51,7 @@
 
 
 KisToolSelectElliptical::KisToolSelectElliptical(KoCanvasBase * canvas)
-        : KisToolSelectBase(canvas, KisCursor::load("tool_elliptical_selection_cursor.png", 6, 6)), m_lokalTool(canvas, this)
+        : KisToolSelectBase(canvas, KisCursor::load("tool_elliptical_selection_cursor.png", 6, 6)), m_localTool(canvas, this)
 {
 }
 
@@ -66,7 +66,7 @@ QWidget* KisToolSelectElliptical::createOptionWidget()
     return m_optWidget;
 }
 
-void KisToolSelectElliptical::LokalTool::finishEllipse(const QRectF &rect)
+void KisToolSelectElliptical::LocalTool::finishEllipse(const QRectF &rect)
 {
     if(rect.isNull()) return;
 
@@ -87,7 +87,7 @@ void KisToolSelectElliptical::LokalTool::finishEllipse(const QRectF &rect)
         painter.setFillStyle(KisPainter::FillStyleForegroundColor);
         painter.setStrokeStyle(KisPainter::StrokeStyleNone);
         painter.setAntiAliasPolygonFill(m_selectingTool->m_optWidget->antiAliasSelection());
-        painter.setOpacity(OPACITY_OPAQUE);
+        painter.setOpacity(OPACITY_OPAQUE_U8);
         painter.setPaintOpPreset(m_selectingTool->currentPaintOpPreset(), currentImage()); // And now the painter owns the op and will destroy it.
         painter.setCompositeOp(tmpSel->colorSpace()->compositeOp(COMPOSITE_OVER));
 
@@ -96,8 +96,8 @@ void KisToolSelectElliptical::LokalTool::finishEllipse(const QRectF &rect)
         QUndoCommand* cmd = helper.selectPixelSelection(tmpSel, m_selectingTool->m_selectAction);
         canvas()->addCommand(cmd);
     } else {
-        QRectF rect = convertToPt(rect);
-        KoShape* shape = KisShapeToolHelper::createEllipseShape(rect);
+        QRectF ptRect = convertToPt(rect);
+        KoShape* shape = KisShapeToolHelper::createEllipseShape(ptRect);
 
         helper.addSelectionShape(shape);
     }

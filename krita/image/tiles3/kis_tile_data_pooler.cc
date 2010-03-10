@@ -49,10 +49,12 @@ const qint32 KisTileDataPooler::TIMEOUT_FACTOR = 2;
         }                                                               \
     } while(0)                                                          \
 
+#define DEBUG_TILE_STATISTICS() debugTileStatistics()
 #else
 #define DEBUG_CLONE_ACTION(td, numClones)
 #define DEBUG_SIMPLE_ACTION(action)
 #define RUNTIME_SANITY_CHECK(td)
+#define DEBUG_TILE_STATISTICS()
 #endif
 
 KisTileDataPooler::KisTileDataPooler(KisTileDataStore *store)
@@ -104,8 +106,11 @@ void KisTileDataPooler::cloneTileData(KisTileData *td, qint32 numClones) const
              * a temporary "solution".
              * FIXME: Implement a lockless list (or stack) for this.
              */
-            if(!td->m_clonesList.isEmpty())
-                td->m_clonesList.removeFirst();
+            if(!td->m_clonesList.isEmpty()) {
+                KisTileData *clone;
+                clone = td->m_clonesList.takeFirst();
+                delete clone;
+            }
         }
     }
 
@@ -177,8 +182,30 @@ void KisTileDataPooler::run()
                 }
             }
         }
+
+        DEBUG_TILE_STATISTICS();
+
         m_store->m_listRWLock.unlock();
 
         DEBUG_SIMPLE_ACTION("cycle finished");
     }
+}
+
+void KisTileDataPooler::debugTileStatistics()
+{
+    /**
+     * Assume we are called from the inside of the loop.
+     * This means m_store is already locked
+     */
+
+    qint64 totalTiles=0;
+    qint64 preallocatedTiles=0;
+    KisTileData *iter;
+
+    tileListForEach(iter, tileListHead(), tileListTail()) {
+        totalTiles++;
+        preallocatedTiles += iter->m_clonesList.size();
+    }
+
+    printf("Tiles statistics:\t total: %ld\t preallocated: %ld\n", totalTiles, preallocatedTiles);
 }

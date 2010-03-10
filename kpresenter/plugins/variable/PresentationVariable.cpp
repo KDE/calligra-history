@@ -53,6 +53,9 @@ void PresentationVariable::setProperties(const KoProperties *props)
     case 2:
         m_type = KPrDeclarations::Footer;
         break;
+    case 3:
+        m_type = KPrDeclarations::DateTime;
+        break;
     default:
         Q_ASSERT(false);
         break;
@@ -75,8 +78,21 @@ void PresentationVariable::variableMoved(const KoShape *shape, const QTextDocume
 
 void PresentationVariable::saveOdf(KoShapeSavingContext & context)
 {
-    Q_UNUSED(context);
-    // I have to implement this.
+    KoXmlWriter *writer = &context.xmlWriter();
+    const char * type = "";
+    switch (m_type) {
+    case KPrDeclarations::Footer:
+        type = "presentation:footer";
+        break;
+    case KPrDeclarations::Header:
+        type = "presentation:header";
+        break;
+    case KPrDeclarations::DateTime:
+        type = "presentation:date-time";
+        break;
+    }
+    writer->startElement(type);
+    writer->endElement();
 }
 
 bool PresentationVariable::loadOdf(const KoXmlElement & element, KoShapeLoadingContext & context)
@@ -89,6 +105,9 @@ bool PresentationVariable::loadOdf(const KoXmlElement & element, KoShapeLoadingC
     }
     else if (localName == "header") {
         m_type = KPrDeclarations::Header;
+    }
+    else if (localName == "date-time") {
+        m_type = KPrDeclarations::DateTime;
     }
     return true;
 }

@@ -38,8 +38,8 @@
 KisSelectionDecoration::KisSelectionDecoration(KisView2* view)
     : KisCanvasDecoration("selection", i18n("Selection decoration"), view), m_mode(Ants)
 {
-    offset = 0;
-    timer = new QTimer(this);
+    m_offset = 0;
+    m_timer = new QTimer(this);
 
     QRgb white = QColor(Qt::white).rgb();
     QRgb black = QColor(Qt::black).rgb();
@@ -54,17 +54,13 @@ KisSelectionDecoration::KisSelectionDecoration(KisView2* view)
         }
         QBrush brush;
         brush.setTextureImage(texture);
-        brushes << brush;
+        m_brushes << brush;
     }
-
-    int width = KisSelectionDecoration::view()->image()->bounds().width();
-    int height = KisSelectionDecoration::view()->image()->bounds().height();
-    m_image = QImage(width, height, QImage::Format_ARGB32);
 
     // XXX: Make sure no timers are running all the time! We need to
     // provide a signal to tell the selection manager that we've got a
     // current selection now (global or local).
-    connect(timer, SIGNAL(timeout()), this, SLOT(selectionTimerEvent()));
+    connect(m_timer, SIGNAL(timeout()), this, SLOT(selectionTimerEvent()));
 
     KoResourceManager *resourceManager = view->canvasBase()->resourceManager();
     connect(resourceManager, SIGNAL(resourceChanged(int, const QVariant &)),
@@ -97,22 +93,25 @@ void KisSelectionDecoration::selectionChanged()
     KisSelectionSP selection = view()->selection();
 
     if (m_mode == Ants) {
-        outline.clear();
+        m_outline.clear();
 
         if (selection && !selection->isDeselected()) {
             if (selection->hasPixelSelection() || selection->hasShapeSelection()) {
-                if (!timer->isActive())
-                    timer->start(300);
+                if (!m_timer->isActive())
+                    m_timer->start(300);
             }
             if (selection->hasPixelSelection()) {
                 KisPixelSelectionSP getOrCreatePixelSelection = selection->getOrCreatePixelSelection();
-                outline = getOrCreatePixelSelection->outline();
+                m_outline = getOrCreatePixelSelection->outline();
                 updateSimpleOutline();
             }
-        } else
-            timer->stop();
-    } else // TODO: optimize this
+        } else {
+            m_timer->stop();
+        }
+    } else {
+        // TODO: optimize this
         updateMaskVisualisation(view()->image()->bounds());
+    }
 
     view()->canvasBase()->updateCanvas();
 }
@@ -125,10 +124,10 @@ void KisSelectionDecoration::selectionTimerEvent()
     if (selectionIsActive()) {
         KisPaintDeviceSP dev = view()->activeDevice();
         if (dev) {
-            offset++;
-            if (offset > 7) offset = 0;
+            m_offset++;
+            if (m_offset > 7) m_offset = 0;
 
-            dbgKrita << "offset is: " << offset;
+            dbgKrita << "offset is: " << m_offset;
             QRect bound = selection->selectedRect();
             double xRes = view()->image()->xRes();
             double yRes = view()->image()->yRes();
@@ -141,8 +140,8 @@ void KisSelectionDecoration::selectionTimerEvent()
 
 void KisSelectionDecoration::updateSimpleOutline()
 {
-    simpleOutline.clear();
-    foreach(const QPolygon & polygon, outline) {
+    m_simpleOutline.clear();
+    foreach(const QPolygon & polygon, m_outline) {
         QPolygon simplePolygon;
 
         simplePolygon << polygon.at(0);
@@ -150,7 +149,6 @@ void KisSelectionDecoration::updateSimpleOutline()
         QPoint currentDelta;
         int pointsSinceLastRemoval = 3;
         for (int i = 1; i < polygon.size() - 1; ++i) {
-
             //check for left turns and turn them into diagonals
             currentDelta = polygon.at(i + 1) - polygon.at(i);
             if ((previousDelta.y() == 1 && currentDelta.x() == 1) || (previousDelta.x() == -1 && currentDelta.y() == 1) ||
@@ -161,15 +159,16 @@ void KisSelectionDecoration::updateSimpleOutline()
                     simplePolygon.pop_back();
                 pointsSinceLastRemoval = 0;
 
-            } else
+            } else {
                 simplePolygon << polygon.at(i);
+            }
 
             previousDelta = currentDelta;
             pointsSinceLastRemoval++;
         }
         simplePolygon << polygon.at(polygon.size() - 1);
 
-        simpleOutline.push_back(simplePolygon);
+        m_simpleOutline.push_back(simplePolygon);
     }
 }
 
@@ -179,18 +178,14 @@ void KisSelectionDecoration::drawDecoration(QPainter& painter, const QPoint& doc
     Q_UNUSED(documentOffset)
     Q_UNUSED(area);
     KisSelectionSP selection = view()->selection();
-
-    if (!selection || selection->isDeselected())
+    if (!selection || selection->isDeselected() || !selection->isVisible())
         return;
 
     qreal sx, sy;
     converter.zoom(&sx, &sy);
 
     if (m_mode == Mask) {
-        painter.save();
-        painter.scale(sx / view()->image()->xRes(), sy / view()->image()->yRes());
-        painter.drawImage(0, 0, m_image);
-        painter.restore();
+        Q_ASSERT_X(0, "KisSelectionDecoration.cc", "MASK MODE NOT SUPPORTED YET!");
     }
     if (m_mode == Ants && selection && selection->hasPixelSelection()) {
 
@@ -204,18 +199,19 @@ void KisSelectionDecoration::drawDecoration(QPainter& painter, const QPoint& doc
         t.start();
         painter.setRenderHints(0);
 
-        QPen pen(brushes[offset], 0);
+        QPen pen(m_brushes[m_offset], 0);
 
         int i = 0;
         painter.setPen(pen);
         if (1 / view()->image()->xRes()*sx < 3)
-            foreach(const QPolygon & polygon, simpleOutline) {
+            foreach(const QPolygon & polygon, m_simpleOutline) {
             painter.drawPolygon(polygon);
             i++;
-        } else
-            foreach(const QPolygon & polygon, outline) {
-            painter.drawPolygon(polygon);
-            i++;
+        } else {
+            foreach(const QPolygon & polygon, m_outline) {
+                painter.drawPolygon(polygon);
+                i++;
+            }
         }
 
         dbgRender << "Polygons :" << i;
@@ -233,7 +229,7 @@ void KisSelectionDecoration::drawDecoration(QPainter& painter, const QPoint& doc
         QPainterPathStroker stroker;
         stroker.setWidth(0);
         stroker.setDashPattern(dashes);
-        stroker.setDashOffset(offset - 4);
+        stroker.setDashOffset(m_offset - 4);
 
         painter.setRenderHint(QPainter::Antialiasing);
         QColor outlineColor = Qt::black;
@@ -252,37 +248,14 @@ void KisSelectionDecoration::drawDecoration(QPainter& painter, const QPoint& doc
 
 void KisSelectionDecoration::updateMaskVisualisation(const QRect & r)
 {
-    if (m_image.isNull() || !view()->selection()) {
-        return;
-    }
-
-    qint32 width = r.width();
-    qint32 height = r.height();
-
-    QVarLengthArray<quint8> buffer(width*height);
-    view()->selection()->readBytes(&buffer[0], r.x(), r.y(), width, height);
-
-    for (qint32 y = 0; y < height; y++) {
-
-        QRgb *imagePixel = reinterpret_cast<QRgb *>(m_image.scanLine(y));
-        for (qint32 x = 0; x < width; x++) {
-            *imagePixel = qRgba(128, 128, 165, 0.5 * (MAX_SELECTED - buffer[y*width+x]));
-            imagePixel++;
-        }
-    }
+    Q_UNUSED(r);
+    Q_ASSERT_X(0, "KisSelectionDecoration.cc", "MASK MODE NOT SUPPORTED YET!");
 }
 
 void KisSelectionDecoration::resourceChanged(int key, const QVariant & v)
 {
     Q_UNUSED(v);
-    if (key == KoCanvasResource::PageSize) {
-        int width = KisSelectionDecoration::view()->image()->bounds().width();
-        int height = KisSelectionDecoration::view()->image()->bounds().height();
-        m_image = QImage(width, height, QImage::Format_ARGB32);
-
-        updateMaskVisualisation(view()->image()->bounds());
-        view()->canvasBase()->updateCanvas();
-    }
+    warnKrita << "Mask mode not supported yet";
 }
 
 #include "kis_selection_decoration.moc"

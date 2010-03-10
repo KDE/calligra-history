@@ -134,7 +134,7 @@ bool KoPADocument::loadOdf( KoOdfReadStore & odfStore )
     KoTextSharedLoadingData * sharedData = new KoTextSharedLoadingData();
     KoStyleManager *styleManager = resourceManager()->resource(KoText::StyleManager).value<KoStyleManager*>();
 
-    sharedData->loadOdfStyles(loadingContext, styleManager);
+    sharedData->loadOdfStyles(paContext, styleManager);
     paContext.addSharedData( KOTEXT_SHARED_LOADING_ID, sharedData );
 
     d->masterPages = loadOdfMasterPages( odfStore.styles().masterPages(), paContext );
@@ -182,6 +182,10 @@ bool KoPADocument::saveOdf( SavingContext & documentContext )
 
     bodyWriter->startElement( "office:body" );
     bodyWriter->startElement( odfTagName( true ) );
+
+    if ( !saveOdfProlog( paContext ) ) {
+        return false;
+    }
 
     if ( !saveOdfPages( paContext, d->pages, d->masterPages ) ) {
         return false;
@@ -295,6 +299,12 @@ bool KoPADocument::saveOdfPages( KoPASavingContext &paContext, QList<KoPAPageBas
         paContext.incrementPage();
     }
 
+    return true;
+}
+
+bool KoPADocument::saveOdfProlog( KoPASavingContext & paContext )
+{
+    Q_UNUSED( paContext );
     return true;
 }
 

@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright 2009 Vera Lukman <shichan.karachu@gmail.com>
+   Copyright 2009 Vera Lukman <shicmap@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -54,12 +54,15 @@ KoFavoriteResourceManager::KoFavoriteResourceManager(KisPaintopBox *paintopBox, 
 
     for (int pos = 0; pos < favoriteList.size(); pos++)
     {
-        KisPaintOpPresetSP newBrush = m_paintopBox->paintOpPresetSP(new KoID(favoriteList[pos], favoriteList[pos]));
-        m_favoriteBrushesList.append(newBrush);
+        KoID id(favoriteList[pos], favoriteList[pos]);
+        if (KisPaintOpRegistry::instance()->contains(id.id())) {
+            KisPaintOpPresetSP newBrush = m_paintopBox->paintOpPresetSP(&id);
+            m_favoriteBrushesList.append(newBrush);
+        }
     }
 
     m_popupPalette = new KisPopupPalette(this, popupParent);
-    m_popupPalette->setVisible(false);
+    m_popupPalette->showPopupPalette(false);
     m_colorList = new KisColorDataList();
 }
 
@@ -108,7 +111,6 @@ void KoFavoriteResourceManager::resetPopupPaletteParent(QWidget* w)
 {
     if (m_popupPalette)
     {
-        qDebug() << "[KoFavoriteResourceManager] m_popupPalette exists and parent is being reset";
         m_popupPalette->setParent(w);
     }
 }
@@ -136,7 +138,9 @@ void KoFavoriteResourceManager::slotChangeActivePaintop(int pos)
     m_paintopBox->setCurrentPaintop(m_favoriteBrushesList.at(pos)->paintOp());
 
     if (m_popupPalette)
-        m_popupPalette->setVisible(false); //automatically close the palette after a button is clicked.
+    {
+        m_popupPalette->showPopupPalette(false); //automatically close the palette after a button is clicked.
+    }
 }
 
 bool KoFavoriteResourceManager::isPopupPaletteVisible()
@@ -241,7 +245,6 @@ void KoFavoriteResourceManager::saveFavoriteBrushes()
         (favoriteList.append(m_favoriteBrushesList.at(pos)->paintOp().id())).append(",");
     }
 
-    qDebug() << "[KoFavoriteResourceManager] Saving list: " << favoriteList;
     KConfigGroup group(KGlobal::config(), "favoriteList");
     group.writeEntry("favoriteBrushes", favoriteList);
     group.config()->sync();
@@ -257,28 +260,26 @@ void KoFavoriteResourceManager::slotUpdateRecentColor(int pos)
     addRecentColorUpdate(pos);
 
     if (m_popupPalette)
-        m_popupPalette->setVisible(false); //automatically close the palette after a button is clicked.
+        m_popupPalette->showPopupPalette(false); //automatically close the palette after a button is clicked.
 }
 
-void KoFavoriteResourceManager::slotAddRecentColor(KoColor color)
+void KoFavoriteResourceManager::slotAddRecentColor(const KoColor& color)
 {
     addRecentColor(color);
 }
 
-void KoFavoriteResourceManager::addRecentColorNew(const KoColor& color)
+void KoFavoriteResourceManager::slotChangeFGColorSelector(KoColor c)
 {
-    m_colorList->appendNew(color);
-    int pos = m_colorList->findPos(color);
-    if (m_popupPalette)
-    {
-        m_popupPalette->setSelectedColor(pos);
-        m_popupPalette->update();
-    }
-    printColors();
+    QColor color;
+    color = c.toQColor();
+
+    emit sigChangeFGColorSelector(color);
 }
 
 void KoFavoriteResourceManager::addRecentColorUpdate(int guipos)
 {
+    // Do not update the key, the colour might be selected but it is not used yet. So we are not supposed
+    // to update the colour priority when we select it.
     m_colorList->updateKey(guipos);
     if (m_popupPalette)
     {
@@ -300,8 +301,6 @@ void KoFavoriteResourceManager::addRecentColor(const KoColor& color)
         m_popupPalette->update();
     }
 
-     //later user can select color from the pop up palette, so it is necessary to send a signal
-    emit sigSetFGColor(color);
     printColors();
 }
 

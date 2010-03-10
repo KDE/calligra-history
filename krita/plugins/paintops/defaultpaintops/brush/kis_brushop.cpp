@@ -22,42 +22,23 @@
 
 #include "kis_brushop.h"
 
-#include <string.h>
-
 #include <QRect>
-#include <QWidget>
-#include <QLayout>
-#include <QLabel>
-#include <QCheckBox>
-#include <QDomElement>
-#include <QHBoxLayout>
-#include <qtoolbutton.h>
 
 #include <kis_image.h>
 #include <kis_debug.h>
 
 #include <KoColorTransformation.h>
 #include <KoColor.h>
-#include <KoInputDevice.h>
 
 #include <kis_brush.h>
-#include <kis_datamanager.h>
 #include <kis_global.h>
 #include <kis_paint_device.h>
 #include <kis_painter.h>
-#include <kis_paintop.h>
-#include <kis_properties_configuration.h>
-#include <kis_selection.h>
-#include <kis_brush_option_widget.h>
-#include <kis_paintop_options_widget.h>
-
-#include <kis_brushop_settings.h>
-#include <kis_brushop_settings_widget.h>
+#include <kis_brush_based_paintop_settings.h>
 #include <kis_color_source.h>
 
-KisBrushOp::KisBrushOp(const KisBrushOpSettings *settings, KisPainter *painter, KisImageWSP image)
+KisBrushOp::KisBrushOp(const KisBrushBasedPaintOpSettings *settings, KisPainter *painter, KisImageWSP image)
         : KisBrushBasedPaintOp(settings, painter)
-        , settings(settings)
 {
     Q_UNUSED(image);
     Q_ASSERT(settings);
@@ -81,20 +62,20 @@ KisBrushOp::~KisBrushOp()
     delete m_colorSource;
 }
 
-void KisBrushOp::paintAt(const KisPaintInformation& info)
+double KisBrushOp::paintAt(const KisPaintInformation& info)
 {
-    if (!painter()->device()) return;
+    if (!painter()->device()) return 1.0;
 
     KisBrushSP brush = m_brush;
     Q_ASSERT(brush);
     if (!brush)
-        return;
+        return 1.0;
     
     if (!brush->canPaintFor(info))
-        return;
+        return 1.0;
 
     double scale = KisPaintOp::scaleForPressure(m_sizeOption.apply(info));
-    if ((scale * brush->width()) <= 0.01 || (scale * brush->height()) <= 0.01) return;
+    if ((scale * brush->width()) <= 0.01 || (scale * brush->height()) <= 0.01) return spacing(scale);
 
     KisPaintDeviceSP device = painter()->device();
 
@@ -133,4 +114,5 @@ void KisBrushOp::paintAt(const KisPaintInformation& info)
     painter()->setOpacity(origOpacity);
     painter()->setPaintColor(origColor);
 
+    return spacing(scale);
 }

@@ -46,6 +46,7 @@ namespace KPlato
 {
 
 class Project;
+class ScheduleManager;
 
 /// Namespace for item delegate specific enums
 namespace Delegate
@@ -253,6 +254,7 @@ public:
     virtual const QMetaEnum columnMap() const { return QMetaEnum(); }
     Project *project() const { return m_project; }
     virtual void setProject( Project *project );
+    ScheduleManager *scheduleManager() const { return m_manager; }
     virtual void setReadWrite( bool rw ) { m_readWrite = rw; }
     bool isReadWrite() { return m_readWrite; }
     void setReadOnly( int column, bool ro ) { m_columnROMap[ column ] = ro; }
@@ -271,18 +273,26 @@ public:
     /// If default should be used, return 0.
     virtual QAbstractItemDelegate *createDelegate( int column, QWidget *parent ) const { Q_UNUSED(column); Q_UNUSED(parent); return 0; }
 
+    QVariant data( const QModelIndex &index, int role = Qt::DisplayRole ) const;
     bool setData( const QModelIndex &index, const QVariant &value, int role );
+    QVariant headerData( int section, Qt::Orientation orientation, int role = Qt::DisplayRole ) const;
 
 signals:
     /// Connect to this signal if your model modifies data using undo commands.
     void executeCommand( QUndoCommand* );
     
+public slots:
+    virtual void setScheduleManager( ScheduleManager *sm );
+    /// Reimplement if your model can be refreshed
+    virtual void refresh() {}
+
 protected slots:
     virtual void slotLayoutToBeChanged();
     virtual void slotLayoutChanged();
 
 protected:
     Project *m_project;
+    ScheduleManager *m_manager;
     bool m_readWrite;
     QMap<int, bool> m_columnROMap;
 };

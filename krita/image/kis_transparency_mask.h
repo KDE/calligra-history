@@ -54,8 +54,11 @@ public:
     QIcon icon() const;
     bool accept(KisNodeVisitor &v);
 
+    QRect extent() const;
+    QRect exactBounds() const;
+
     QRect changeRect(const QRect &rect) const;
-    QRect needRect(const QRect &rect) const;
+    QRect needRect(const QRect &rect, PositionToFilthy pos = NORMAL) const;
 };
 
 #endif //_KIS_TRANSPARENCY_MASK_

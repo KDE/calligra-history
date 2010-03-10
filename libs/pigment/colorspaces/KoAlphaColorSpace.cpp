@@ -78,7 +78,7 @@ public:
             d = dst;
             while (rows-- > 0) {
 
-                memset(d, OPACITY_TRANSPARENT, linesize);
+                memset(d, OPACITY_TRANSPARENT_U8, linesize);
                 d += dststride;
             }
         } else {
@@ -92,7 +92,7 @@ public:
                     // If the mask tells us to completely not
                     // blend this pixel, continue.
                     if (mask != 0) {
-                        if (mask[0] == OPACITY_TRANSPARENT) {
+                        if (mask[0] == OPACITY_TRANSPARENT_U8) {
                             mask++;
                             continue;
                         }
@@ -156,7 +156,7 @@ public:
                 // If the mask tells us to completely not
                 // blend this pixel, continue.
                 if (mask != 0) {
-                    if (mask[0] == OPACITY_TRANSPARENT) {
+                    if (mask[0] == OPACITY_TRANSPARENT_U8) {
                         mask++;
                         continue;
                     }
@@ -164,7 +164,7 @@ public:
                 }
 
                 if (d[PIXEL_MASK] <= s[PIXEL_MASK]) {
-                    d[PIXEL_MASK] = OPACITY_TRANSPARENT;
+                    d[PIXEL_MASK] = OPACITY_TRANSPARENT_U8;
                 } else {
                     d[PIXEL_MASK] -= s[PIXEL_MASK];
                 }
@@ -269,13 +269,16 @@ QImage KoAlphaColorSpace::convertToQImage(const quint8 *data, qint32 width, qint
 {
     QImage img(width, height, QImage::Format_Indexed8);
     QVector<QRgb> table;
-    for (int i = 0; i < 255; ++i) table.append(qRgb(i, i, i));
+    for (int i = 0; i < 256; ++i) table.append(qRgb(i, i, i));
     img.setColorTable(table);
 
-    quint8* data_img = img.bits();
-    for (int i = 0; i < width * height; ++i) {
-        data_img[i] = data[i];
+    quint8* data_img;
+    for (int i = 0; i < height; ++i) {
+        data_img=img.scanLine(i);
+        for (int j = 0; j < width; j++)
+            data_img[j]=*(data++);
     }
+
     return img;
 }
 

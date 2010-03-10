@@ -64,6 +64,13 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_pic()
     m_hasPosOffsetV = false;
     m_posOffsetH = 0;
     m_posOffsetV = 0;
+    m_cNvPrId.clear();
+    m_cNvPrName.clear();
+    m_cNvPrDescr.clear();
+    m_fillImageRenderingStyleStretch = false;
+    m_flipH = false;
+    m_flipV = false;
+    m_rot = 0;
 
     MSOOXML::Utils::XmlWriteBuffer drawFrameBuf;
     body = drawFrameBuf.setWriter(body);
@@ -94,8 +101,11 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_pic()
 #endif
 //todo        body->addAttribute("presentation:style-name", styleName);
 //! @todo for pptx: maybe use KoGenStyle::StylePresentationAuto?
+        if (m_noFill)
+            m_currentDrawStyle.addAttribute("style:fill", constNone);
+
 #ifdef DOCXXMLDOCREADER_H
-        QString currentDrawStyleName(mainStyles->lookup(m_currentDrawStyle));
+        QString currentDrawStyleName(mainStyles->lookup(m_currentDrawStyle, "gr"));
 #endif
 #ifdef HARDCODED_PRESENTATIONSTYLENAME
 //! @todo hardcoded draw:style-name = gr1
@@ -143,14 +153,31 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_pic()
 #endif
             body->endElement(); //draw:image
 #ifdef DOCXXMLDOCREADER_H
-            if (!m_cNvPrName.isEmpty()) {
+            if (!m_cNvPrName.isEmpty() || !m_cNvPrDescr.isEmpty()) {
                 body->startElement("svg:title");
-                body->addTextSpan(m_cNvPrName);
+                body->addTextSpan(m_cNvPrDescr.isEmpty() ? m_cNvPrName : m_cNvPrDescr);
                 body->endElement(); //svg:title
             }
 #endif
             m_xlinkHref.clear();
         }
+
+        // Add style information
+        QString  mirror;
+        if (m_flipH || m_flipV) {
+            if (m_flipH && m_flipV)
+                mirror = "horizontal vertical";
+            else if (m_flipH)
+                mirror = "horizontal";
+            else if (m_flipV)
+                mirror = "vertical";
+            else
+                mirror = "none";
+        }
+        //! @todo: horizontal-on-{odd,even}?
+        m_currentDrawStyle.addAttribute("style:mirror", mirror);
+
+        //! @todo: m_rot
 
         (void)drawFrameBuf.releaseWriter();
 //        body->addCompleteElement(&drawFrameBuf);
@@ -265,6 +292,9 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_cNvPr()
     ReadMethod caller = m_calls.top();
     READ_PROLOGUE
 
+    m_cNvPrId.clear();
+    m_cNvPrName.clear();
+    m_cNvPrDescr.clear();
     const QXmlStreamAttributes attrs(attributes());
     if (CALLER_IS(nvSpPr) || CALLER_IS(nvPicPr)) { // for sanity, p:nvGrpSpPr can be also the caller
         READ_ATTR_WITHOUT_NS_INTO(id, m_cNvPrId)
@@ -403,6 +433,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_sp()
 #endif
     m_cNvPrId.clear();
     m_cNvPrName.clear();
+    m_cNvPrDescr.clear();
 
     MSOOXML::Utils::XmlWriteBuffer drawFrameBuf; // buffer this draw:frame, because we have
     // to write after the child elements are generated
@@ -504,7 +535,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_sp()
     - gradFill (Gradient Fill) §20.1.8.33
     - grpFill (Group Fill) §20.1.8.35
     - ln (Outline) §20.1.2.2.24
-    - noFill (No Fill) §20.1.8.44
+    - [done] noFill (No Fill) §20.1.8.44
     - pattFill (Pattern Fill) §20.1.8.47
     - prstGeom (Preset geometry) §20.1.9.18
     - scene3d (3D Scene Properties) §20.1.4.1.26
@@ -519,6 +550,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_spPr()
 {
     READ_PROLOGUE
     bool xfrm_read = false;
+    m_noFill = false;
     while (!atEnd()) {
         readNext();
         kDebug() << *this;
@@ -526,6 +558,15 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_spPr()
             if (qualifiedName() == QLatin1String("a:xfrm")) {
                 TRY_READ(xfrm)
                 xfrm_read = true;
+            }
+#ifdef PPTXXMLSLIDEREADER_H
+            if ( qualifiedName() == QLatin1String("a:ln") ) {
+                TRY_READ(ln)
+            }
+#endif
+            else if (qualifiedName() == QLatin1String("a:noFill")) {
+                SKIP_EVERYTHING // safely skip
+                m_noFill = true;
             }
 //! @todo a:prstGeom...
 //! @todo add ELSE_WRONG_FORMAT
@@ -592,8 +633,17 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_spPr()
 KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_xfrm()
 {
     READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
 
-    bool off_read = false, ext_read = false;
+    // Read attributes.
+    m_flipH = readBooleanAttr("flipH", false);
+    m_flipV = readBooleanAttr("flipV", false);
+    m_rot = 0;
+    TRY_READ_ATTR_WITHOUT_NS(rot)
+    STRING_TO_INT(rot, m_rot, "xfrm@rot")
+    
+    bool off_read = false;
+    bool ext_read = false;
     while (true) {
         BREAK_IF_END_OF(CURRENT_EL);
         readNext();

@@ -20,6 +20,7 @@
 
 #include <QObject>
 #include <QThread>
+#include <QMutex>
 
 #include "kis_shared.h"
 #include "kis_types.h"
@@ -56,13 +57,16 @@ public:
      * for KisImageUpdater to catch. KisImageUpdater belongs to this thread.
      */
     void updateProjection(KisNodeSP node, const QRect& rc);
+    void fullRefresh(KisNodeSP root);
+
     void setRegionOfInterest(const QRect & roi);
     void updateSettings();
     void stop();
 
 signals:
 
-    void sigUpdateProjection(KisNodeSP node, const QRect& rc);
+    void sigUpdateProjection(KisNodeSP node, const QRect& rc, const QRect& cropRect);
+    void sigFullRefresh(KisNodeSP node, const QRect& rc);
 
 private:
 
@@ -82,9 +86,16 @@ class KisImageUpdater : public QObject
 {
     Q_OBJECT
 
+public:
+    KisImageUpdater();
+
+    void lock();
+    void unlock();
+
 public slots:
 
-    void startUpdate(KisNodeSP node, const QRect& rc);
+    void startUpdate(KisNodeSP node, const QRect& rc, const QRect& cropRect);
+    void startFullRefresh(KisNodeSP node, const QRect& rc);
 
 signals:
 
@@ -94,6 +105,8 @@ private:
 
     void update(KisNodeSP node, KisNodeSP child, const QRect& rc);
 
+private:
+    QMutex m_mutex;
 };
 
 

@@ -710,8 +710,7 @@ Container* Form::toplevelContainer() const
     return d->toplevel;
 }
 
-void
-Form::createToplevel(QWidget *container, FormWidget *formWidget, const QByteArray &)
+void Form::createToplevel(QWidget *container, FormWidget *formWidget, const QByteArray &)
 {
     kDebug() << "container= " << (container ? container->objectName() : "<NULL>")
         << " formWidget=" << formWidget;
@@ -747,8 +746,7 @@ Form::createToplevel(QWidget *container, FormWidget *formWidget, const QByteArra
     }
 }
 
-Container*
-Form::activeContainer()
+Container* Form::activeContainer()
 {
     if (d->selected.isEmpty())
         return d->toplevel;
@@ -767,8 +765,7 @@ Form::activeContainer()
         return it->parent()->container();
 }
 
-ObjectTreeItem*
-Form::commonParentContainer(const QWidgetList& wlist)
+ObjectTreeItem* Form::commonParentContainer(const QWidgetList& wlist)
 {
     // create a list of all widget parents
     QSet<QWidget*> parents;
@@ -791,8 +788,7 @@ Form::commonParentContainer(const QWidgetList& wlist)
     return item;
 }
 
-Container*
-Form::parentContainer(QWidget *w) const
+Container* Form::parentContainer(QWidget *w) const
 {
     if (!w)
         return 0;
@@ -945,8 +941,7 @@ bool Form::isTopLevelWidget(QWidget *w) const
 //    return w == formWidget();
 }
 
-ResizeHandleSet*
-Form::resizeHandlesForWidget(QWidget* w)
+ResizeHandleSet* Form::resizeHandlesForWidget(QWidget* w)
 {
     return d->resizeHandles.value(w->objectName());
 }
@@ -1242,8 +1237,7 @@ void Form::disableWidgetActions()
 }
 
 ///////////////////////////  Various slots and signals /////////////////////
-void
-Form::formDeleted()
+void Form::formDeleted()
 {
 // clearSelection();
     d->selected.clear();
@@ -1258,12 +1252,19 @@ Form::formDeleted()
     deleteLater();
 }
 
-void
-Form::changeName(const QByteArray &oldname, const QByteArray &newname)
+void Form::changeName(const QByteArray &oldname, const QByteArray &newname)
 {
     if (oldname == newname)
         return;
-    if (!d->topTree->rename(oldname, newname)) { // rename failed
+
+    if (d->topTree->rename(oldname, newname)) {
+#ifdef KFD_SIGSLOTS
+        d->connBuffer->fixName(oldname, newname);
+#endif
+        ResizeHandleSet *temp = d->resizeHandles.take(oldname);
+        d->resizeHandles.insert(newname, temp);
+    }
+    else { // rename failed
         KMessageBox::sorry(widget()->topLevelWidget(),
                            i18n("Renaming widget \"%1\" to \"%2\" failed.",
                                 QString(oldname), QString(newname)));
@@ -1271,15 +1272,8 @@ Form::changeName(const QByteArray &oldname, const QByteArray &newname)
 //  KMessageBox::sorry(widget()->topLevelWidget(),
 //  i18n("A widget with this name already exists. "
 //   "Please choose another name or rename existing widget."));
-        kWarning() << "widget named " << newname << " already exists";
+        kWarning() << "widget" << newname << "already exists, reverting rename";
         d->propertySet.changeProperty("objectName", oldname);
-    }
-    else {
-#ifdef KFD_SIGSLOTS
-        d->connBuffer->fixName(oldname, newname);
-#endif
-        ResizeHandleSet *temp = d->resizeHandles.take(oldname);
-        d->resizeHandles.insert(newname, temp);
     }
 }
 
@@ -1387,8 +1381,7 @@ void Form::addWidgetToTabStops(ObjectTreeItem *it)
     }
 }
 
-void
-Form::updateTabStopsOrder()
+void Form::updateTabStopsOrder()
 {
     ObjectTreeList newList(d->tabstops);
     foreach (ObjectTreeItem *item, d->tabstops) {
@@ -1785,8 +1778,10 @@ void Form::slotPropertyChanged(KoProperty::Set& set, KoProperty::Property& p)
 
     // check if the name is valid (ie is correct identifier) and there is no name conflict
     if (property == "objectName") {
-        if (d->selected.count() != 1)
+        if (d->selected.count() != 1) {
+            kWarning() << "changing objectName property only allowed for single selection";
             return;
+        }
         if (!isNameValid(value.toString()))
             return;
     }
@@ -1838,6 +1833,7 @@ void Form::slotPropertyChanged(KoProperty::Set& set, KoProperty::Property& p)
         /*}*/
 
         if (property == "objectName") {
+            changeName(d->selected.first()->objectName().toLatin1(), p.value().toByteArray());
             emit widgetNameChanged(d->selected.first()->objectName().toLatin1(), p.value().toByteArray());
         }
         d->selected.first()->setProperty(property, value);

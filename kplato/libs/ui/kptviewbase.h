@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-  Copyright (C) 2006 Dag Andersen <danders@get2net.dk>
+  Copyright (C) 2006 -2010 Dag Andersen <danders@get2net.dk>
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Library General Public
@@ -195,9 +195,9 @@ public:
     bool isActive() const;
     
     /// Set the project this view shall handle.
-    virtual void setProject( Project * /*project*/ ) {}
+    virtual void setProject( Project *project ) { m_proj = project; }
     /// Return the project
-    virtual Project *project() const { return 0; }
+    virtual Project *project() const { return m_proj; }
     /// Draw data from current part / project
     virtual void draw() {}
     /// Draw data from project.
@@ -225,8 +225,6 @@ public:
     virtual bool loadContext( const KoXmlElement &/*context*/ ) { return false; }
     /// Save context info from this view. Reimplement.
     virtual void saveContext( QDomElement &/*context*/ ) const {}
-    
-    virtual ViewBase *hitView( const QPoint &pos );
 
     virtual KoPrintJob *createPrintJob();
     PrintingOptions printingOptions() const { return m_printingOptions; }
@@ -237,7 +235,7 @@ public:
 public slots:
     /// Activate/deactivate the gui
     virtual void setGuiActive( bool activate );
-
+    virtual void setScheduleManager( ScheduleManager *sm ) { m_schedulemanager = sm; }
     void slotUpdateReadWrite( bool );
     virtual void slotHeaderContextMenuRequested( const QPoint &pos );
 
@@ -254,12 +252,16 @@ signals:
     
 protected slots:
     virtual void slotOptions() {}
+    virtual void slotOptionsFinished( int result );
 
 protected:
     void createOptionAction();
     
     bool m_readWrite;
     PrintingOptions m_printingOptions;
+    
+    Project *m_proj;
+    ScheduleManager *m_schedulemanager;
 };
 
 //------------------

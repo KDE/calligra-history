@@ -41,7 +41,7 @@ public:
     explicit KoPanTool(KoCanvasBase *canvas);
 
     /// reimplemented from superclass
-    virtual bool wantsAutoScroll();
+    virtual bool wantsAutoScroll() const;
     /// reimplemented from superclass
     virtual void mousePressEvent(KoPointerEvent *event);
     /// reimplemented from superclass
@@ -53,7 +53,7 @@ public:
     /// reimplemented from superclass
     virtual void paint(QPainter &, const KoViewConverter &) {}
     /// reimplemented from superclass
-    virtual void activate(bool temporary = false);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
     /// reimplemented method
     virtual void customMoveEvent(KoPointerEvent *event);
 

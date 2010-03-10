@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2008 Lukas Tvrdy <lukast.dev@gmail.com>
+ *  Copyright (c) 2008, 2010 Lukáš Tvrdý <lukast.dev@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,15 +19,141 @@
 #ifndef _DEFORM_BRUSH_H_
 #define _DEFORM_BRUSH_H_
 
-#include <QVector>
-#include <QList>
-
-#include <KoColor.h>
-
 #include <kis_paint_device.h>
 #include <kis_paint_information.h>
-#include <kis_random_accessor.h>
-#include <kis_image.h>
+
+#include <kis_brush_size_option.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+#define srand48 srand
+inline double drand48()
+{
+    return double(rand()) / RAND_MAX;
+}
+#endif
+
+class DeformProperties
+{
+public:
+    int action;
+    qreal deformAmount;
+    bool useBilinear;
+    bool useCounter;
+    bool useOldData;
+};
+
+
+class DeformBase{
+    public:
+        DeformBase(){}
+        virtual ~DeformBase(){}
+        virtual void transform(qreal * x, qreal * y, qreal distance){
+        };
+};
+
+/// Inverse weighted inverse scaling - grow&shrink
+class DeformScale : public DeformBase {
+
+public:
+    void setFactor(qreal factor){ m_factor = factor; }
+    qreal factor(){ return m_factor; }
+    virtual void transform(qreal* x, qreal* y, qreal distance){
+        qreal scaleFactor = (1.0 - distance) * m_factor + distance;
+        *x = *x / scaleFactor;
+        *y = *y / scaleFactor;
+    }
+
+private:
+    qreal m_factor;
+};
+
+/// Inverse weighted rotation - swirlCW&&swirlCWW
+class DeformRotation : public DeformBase {
+
+public:
+    void setAlpha(qreal alpha){ m_alpha = alpha; }
+    virtual void transform(qreal* maskX, qreal* maskY, qreal distance){
+            distance = 1.0 - distance;
+            qreal rotX = cos(-m_alpha * distance) * (*maskX) - sin(-m_alpha * distance) * (*maskY);
+            qreal rotY = sin(-m_alpha * distance) * (*maskX) + cos(-m_alpha * distance) * (*maskY);
+            
+            *maskX = rotX;
+            *maskY = rotY;
+    }
+
+private:
+    qreal m_alpha;
+};
+
+/// Inverse move
+class DeformMove : public DeformBase {
+public:
+    void setFactor(qreal factor){ m_factor = factor; }
+    void setDistance(qreal dx, qreal dy){ m_dx = dx; m_dy = dy; }
+    virtual void transform(qreal* maskX, qreal* maskY, qreal distance){
+            *maskX -= m_dx * m_factor * (1.0 - distance);
+            *maskY -= m_dy * m_factor * (1.0 - distance);
+    }
+
+private:
+    qreal m_dx;
+    qreal m_dy;
+    qreal m_factor;
+};
+
+/// Inverse lens distortion
+class DeformLens : public DeformBase {
+public:
+    void setLensFactor(qreal k1, qreal k2){ m_k1 = k1; m_k2 = k2; }
+    void setMaxDistance(qreal maxX, qreal maxY){ m_maxX = maxX; m_maxY = maxY;}
+    void setMode(bool out){ m_out = out; }
+    
+    virtual void transform(qreal* maskX, qreal* maskY, qreal distance){
+            //normalize
+            qreal normX = *maskX / m_maxX;
+            qreal normY = *maskY / m_maxY;
+
+            qreal radius_2 = normX * normX  + normY * normY;
+            qreal radius_4 = radius_2 * radius_2;
+
+            if (m_out) {
+                *maskX = normX * (1.0 + m_k1 * radius_2 + m_k2 * radius_4);
+                *maskY = normY * (1.0 + m_k1 * radius_2 + m_k2 * radius_4);
+            } else {
+                *maskX = normX / (1.0 + m_k1 * radius_2 + m_k2 * radius_4);
+                *maskY = normY / (1.0 + m_k1 * radius_2 + m_k2 * radius_4);
+            }
+
+            *maskX = m_maxX * (*maskX);
+            *maskY = m_maxY * (*maskY);
+    }
+
+private:
+    qreal m_k1,m_k2;
+    qreal m_maxX, m_maxY;
+    bool m_out;
+};
+
+/// Randomly disturb the pixels
+class DeformColor : public DeformBase {
+public:
+    DeformColor(){ srand48(time(0)); }
+    
+    void setFactor(qreal factor){ m_factor = factor; }
+    virtual void transform(qreal* x, qreal* y, qreal distance){
+        qreal randomX = m_factor * ((drand48() * 2.0) - 1.0);
+        qreal randomY = m_factor * ((drand48() * 2.0) - 1.0);
+        *x += randomX;
+        *y += randomY;
+    }
+
+private:
+    qreal m_factor;
+};
+
+
+
+
 
 class DeformBrush
 {
@@ -35,102 +161,57 @@ class DeformBrush
 public:
     DeformBrush();
     ~DeformBrush();
-    void paint(KisPaintDeviceSP dev, KisPaintDeviceSP layer, const KisPaintInformation &info);
-
-    void bilinear_interpolation(double x, double y , quint8 *dst);
-    void bilinear_interpolation_old(double x, double y , quint8 *dst);
-
-    void scale(qreal cursorX, qreal cursorY, qreal factor);
-    void swirl(qreal cursorX, qreal cursorY, qreal alpha);
-    void move(qreal cursorX, qreal cursorY, qreal dx, qreal dy);
-
-    void fastMove(qreal cursorX, qreal cursorY, qreal dx, qreal dy);
-    void fastSwirl(qreal cursorX, qreal cursorY, qreal alpha);
-    void fastDeformColor(qreal cursorX, qreal cursorY, qreal amount);
-    void fastLensDistortion(qreal cursorX, qreal cursorY, qreal k1, qreal k2);
-
-    void lensDistortion(qreal cursorX, qreal cursorY, qreal k1, qreal k2);
-    void deformColor(qreal cursorX, qreal cursorY, qreal amount);
-
-    void setRadius(int deformRadius) {
-        m_radius = deformRadius;
-
-        m_maxdist = sqrt(pow(m_radius, 2));
-        precomputeDistances(m_radius);
-    }
-
-    void setDeformAmount(qreal deformAmount) {
-        m_amount = deformAmount;
-    }
-
-    void setInterpolation(bool useBilinear) {
-        m_useBilinear = useBilinear;
-    }
-
-    void setAction(int deformAction) {
-        m_action = deformAction;
-    }
-
-    void setImage(KisImageWSP image) {
-        m_image = image;
-    }
-
-    void setCounter(int value) {
-        m_counter = value;
-    }
-
-    void setUseCounter(bool useCounter) {
-        m_useCounter = useCounter;
-    }
-
-    void setUseOldData(bool useOldData) {
-        m_useOldData = useOldData;
-    }
+    
+    void paintMask(KisFixedPaintDeviceSP dab, KisPaintDeviceSP layer,
+                   qreal scale,qreal rotation,QPointF pos,
+                   qreal subPixelX,qreal subPixelY);
+                   
+    void oldDeform(KisPaintDeviceSP dab,KisPaintDeviceSP layer,QPointF pos);
+    void setSizeProperties(KisBrushSizeProperties * properties){ m_sizeProperties = properties; }
+    void setProperties(DeformProperties * properties){ m_properties = properties; }
+    void initDeformAction();
+    QPointF hotSpot(qreal scale, qreal rotation);
 
 private:
-    qreal distanceFromCenter(int x, int y) {
-        return m_distanceTable[y*(m_radius+1)+x];
-    }
-
+    // return true if can paint
+    bool setupAction(QPointF pos);
     /// move pixel from new computed coords newX, newY to x,y (inverse mapping)
     void movePixel(qreal newX, qreal newY, quint8 *dst);
-    void myMovePixel(qreal newX, qreal newY, quint8 *dst);
+    void debugColor(const quint8* data, KoColorSpace * cs);
 
-    bool point_interpolation(qreal* x, qreal* y, KisImageWSP image);
-    void debugColor(const quint8* data);
-    void precomputeDistances(int radius);
-    void fastScale(qreal cursorX, qreal cursorY, qreal factor);
+    qreal maskWidth(qreal scale){
+        return m_sizeProperties->diameter * scale;
+    }
+    
+    qreal maskHeight(qreal scale){
+        return m_sizeProperties->diameter * m_sizeProperties->aspect  * scale;
+    }
 
-    // width and height for interpolation
-    KisImageWSP m_image;
+    inline qreal norme(qreal x,qreal y){
+        return x*x + y*y; 
+    }
 
-    // temporary device
-    KisPaintDeviceSP m_dev;
-    KisPaintDeviceSP m_dab;
 
-    KisRandomConstAccessor * m_readAccessor;
-    KisRandomAccessor * m_writeAccessor;
+private:
+    KisRandomSubAccessorPixel * m_srcAcc;
+    bool m_firstPaint;
+    qreal m_prevX, m_prevY;
+    int m_counter;
     quint32 m_pixelSize;
 
-    KisRandomSubAccessorPixel * m_srcAcc;
+    qreal m_centerX;
+    qreal m_centerY;
+    qreal m_majorAxis;
+    qreal m_minorAxis;
+    qreal m_inverseScale;
+    qreal m_maskRadius;
+    QRectF m_maskRect;
 
-    //temporary KoColor for optimalization in bilinear interpolation
-    KoColor * m_tempColor;
-
-    qreal* m_distanceTable;
-
-    int m_radius;
-    qreal m_maxdist;
-    qreal m_amount;
-    bool m_useBilinear;
-    int m_action;
-
-    int m_counter;
-
-    bool m_firstPaint;
-    bool m_useCounter;
-    bool m_useOldData;
-    qreal m_prevX, m_prevY;
+    DeformBase * m_deformAction;
+    
+    DeformProperties * m_properties;
+    KisBrushSizeProperties * m_sizeProperties;
 };
+
 
 #endif

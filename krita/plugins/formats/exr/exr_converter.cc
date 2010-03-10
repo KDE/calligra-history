@@ -25,6 +25,7 @@
 #include <ImfAttribute.h>
 #include <ImfChannelList.h>
 #include <ImfInputFile.h>
+#include <ImfOutputFile.h>
 
 #include <kapplication.h>
 
@@ -184,7 +185,7 @@ void decodeData4(Imf::InputFile& file, ExrPaintLayerInfo& info, KisPaintLayerSP 
 {
     typedef Rgba<_T_> Rgba;
 
-    QVector<Rgba> pixels(width*height);
+    QVector<Rgba> pixels(width);
 
     bool hasAlpha = info.channelMap.contains("A");
 
@@ -441,7 +442,7 @@ KisImageBuilder_Result exrConverter::decode(const KUrl& uri)
         ExrGroupLayerInfo& info = groups[i];
         Q_ASSERT(info.parent == 0 || info.parent->groupLayer);
         KisGroupLayerSP groupLayerParent = (info.parent) ? info.parent->groupLayer : m_image->rootLayer();
-        info.groupLayer = new KisGroupLayer(m_image, info.name, OPACITY_OPAQUE);
+        info.groupLayer = new KisGroupLayer(m_image, info.name, OPACITY_OPAQUE_U8);
         m_image->addNode(info.groupLayer, groupLayerParent);
     }
 
@@ -450,7 +451,7 @@ KisImageBuilder_Result exrConverter::decode(const KUrl& uri)
         ExrPaintLayerInfo& info = infos[i];
         if (info.colorSpace) {
             dbgFile << "Decoding " << info.name << " with " << info.channelMap.size() << " channels, and color space " << info.colorSpace->id();
-            KisPaintLayerSP layer = new KisPaintLayer(m_image, info.name, OPACITY_OPAQUE, info.colorSpace);
+            KisPaintLayerSP layer = new KisPaintLayer(m_image, info.name, OPACITY_OPAQUE_U8, info.colorSpace);
             KisTransaction("", layer->paintDevice());
 
             layer->setCompositeOp(COMPOSITE_OVER);
@@ -515,8 +516,6 @@ KisImageBuilder_Result exrConverter::decode(const KUrl& uri)
     return KisImageBuilder_RESULT_OK;
 }
 
-
-
 KisImageBuilder_Result exrConverter::buildImage(const KUrl& uri)
 {
     if (uri.isEmpty())
@@ -546,6 +545,143 @@ KisImageWSP exrConverter::image()
     return m_image;
 }
 
+struct ExrPaintLayerSaveInfo {
+    QString name; ///< name of the layer with a "." at the end (ie "group1.group2.layer1.")
+    KisPaintLayerSP layer;
+    QList<QString> channels;
+    Imf::PixelType pixelType;
+};
+
+template<typename _T_, int size>
+struct ExrPixel_ {
+    _T_ data[size];
+};
+
+class Encoder
+{
+public:
+    virtual ~Encoder() {}
+    virtual void prepareFrameBuffer(Imf::FrameBuffer*, int line) = 0;
+    virtual void encodeData(int line) = 0;
+
+};
+
+template<typename _T_, int size, int alphaPos>
+class EncoderImpl : public Encoder
+{
+public:
+    EncoderImpl(Imf::OutputFile* _file, const ExrPaintLayerSaveInfo* _info, int width) : file(_file), info(_info), pixels(width), m_width(width) {}
+    virtual ~EncoderImpl() {}
+    virtual void prepareFrameBuffer(Imf::FrameBuffer*, int line);
+    virtual void encodeData(int line);
+private:
+    typedef ExrPixel_<_T_, size> ExrPixel;
+    Imf::OutputFile* file;
+    const ExrPaintLayerSaveInfo* info;
+    QVector<ExrPixel> pixels;
+    int m_width;
+};
+
+template<typename _T_, int size, int alphaPos>
+void EncoderImpl<_T_, size, alphaPos>::prepareFrameBuffer(Imf::FrameBuffer* frameBuffer, int line)
+{
+    int xstart = 0;
+    int ystart = 0;
+    ExrPixel* frameBufferData = (pixels.data()) - xstart - (ystart + line) * m_width;
+    for (int k = 0; k < size; ++k) {
+        frameBuffer->insert(info->channels[k].toUtf8(),
+                            Imf::Slice(info->pixelType, (char *) &frameBufferData->data[k],
+                                       sizeof(ExrPixel) * 1,
+                                       sizeof(ExrPixel) * m_width));
+    }
+}
+
+template<typename _T_, int size, int alphaPos>
+void EncoderImpl<_T_, size, alphaPos>::encodeData(int line)
+{
+    ExrPixel *rgba = pixels.data();
+    KisHLineIterator it = info->layer->paintDevice()->createHLineIterator(0, line, m_width);
+    while (!it.isDone()) {
+
+        const _T_* dst = reinterpret_cast < const _T_* >(it.oldRawData());
+
+        if (alphaPos == -1) {
+            for (int i = 0; i < size; ++i) {
+                rgba->data[i] = dst[i];
+            }
+        } else {
+            _T_ alpha = dst[alphaPos];
+            for (int i = 0; i < size; ++i) {
+                if (i != alphaPos) {
+                    rgba->data[i] = dst[i] * alpha;
+                }
+            }
+            rgba->data[alphaPos] = alpha;
+        }
+
+        ++it;
+        ++rgba;
+    }
+}
+
+Encoder* encoder(Imf::OutputFile& file, const ExrPaintLayerSaveInfo& info, int width)
+{
+//     bool hasAlpha = info.layer->colorSpace()->channelCount() != info.layer->colorSpace()->colorChannelCount();
+    switch (info.layer->colorSpace()->channelCount()) {
+    case 1: {
+        if (info.layer->colorSpace()->colorDepthId() == Float16BitsColorDepthID) {
+            Q_ASSERT(info.pixelType == Imf::HALF);
+            return new EncoderImpl < half, 1, -1 > (&file, &info, width);
+        } else if (info.layer->colorSpace()->colorDepthId() == Float32BitsColorDepthID) {
+            Q_ASSERT(info.pixelType == Imf::FLOAT);
+            return new EncoderImpl < float, 1, -1 > (&file, &info, width);
+        }
+        break;
+    }
+    case 2: {
+        if (info.layer->colorSpace()->colorDepthId() == Float16BitsColorDepthID) {
+            Q_ASSERT(info.pixelType == Imf::HALF);
+            return new EncoderImpl<half, 2, 1>(&file, &info, width);
+        } else if (info.layer->colorSpace()->colorDepthId() == Float32BitsColorDepthID) {
+            Q_ASSERT(info.pixelType == Imf::FLOAT);
+            return new EncoderImpl<float, 2, 1>(&file, &info, width);
+        }
+        break;
+    }
+    case 4: {
+        if (info.layer->colorSpace()->colorDepthId() == Float16BitsColorDepthID) {
+            Q_ASSERT(info.pixelType == Imf::HALF);
+            return new EncoderImpl<half, 4, 3>(&file, &info, width);
+        } else if (info.layer->colorSpace()->colorDepthId() == Float32BitsColorDepthID) {
+            Q_ASSERT(info.pixelType == Imf::FLOAT);
+            return new EncoderImpl<float, 4, 3>(&file, &info, width);
+        }
+        break;
+    }
+    }
+    return 0;
+}
+
+void encodeData(Imf::OutputFile& file, const QList<ExrPaintLayerSaveInfo>& infos, int width, int height)
+{
+    QList<Encoder*> encoders;
+    foreach(const ExrPaintLayerSaveInfo& info, infos) {
+        encoders.push_back(encoder(file, info, width));
+    }
+
+    for (int y = 0; y < height; ++y) {
+        Imf::FrameBuffer frameBuffer;
+        foreach(Encoder* encoder, encoders) {
+            encoder->prepareFrameBuffer(&frameBuffer, y);
+        }
+        file.setFrameBuffer(frameBuffer);
+        foreach(Encoder* encoder, encoders) {
+            encoder->encodeData(y);
+        }
+        file.writePixels(1);
+    }
+    qDeleteAll(encoders);
+}
 
 KisImageBuilder_Result exrConverter::buildFile(const KUrl& uri, KisPaintLayerSP layer)
 {
@@ -561,19 +697,134 @@ KisImageBuilder_Result exrConverter::buildFile(const KUrl& uri, KisPaintLayerSP 
 
     if (!uri.isLocalFile())
         return KisImageBuilder_RESULT_NOT_LOCAL;
+
+    // Make the header
+    qint32 height = image->height();
+    qint32 width = image->width();
+    Imf::Header header(width, height);
+
+    Imf::PixelType pixelType = (layer->colorSpace()->colorDepthId() == Float16BitsColorDepthID) ? Imf::HALF : Imf::FLOAT;
+
+    header.channels().insert("R", Imf::Channel(pixelType));
+    header.channels().insert("G", Imf::Channel(pixelType));
+    header.channels().insert("B", Imf::Channel(pixelType));
+    header.channels().insert("A", Imf::Channel(pixelType));
+
+    ExrPaintLayerSaveInfo info;
+    info.layer = layer;
+    info.channels.push_back("B");
+    info.channels.push_back("G");
+    info.channels.push_back("R");
+    info.channels.push_back("A");
+    info.pixelType = pixelType;
+
     // Open file for writing
-#if 0
-    FILE *fp = fopen(QFile::encodeName(uri.path()), "wb");
-    if (!fp) {
-        return (KisImageBuilder_RESULT_FAILURE);
-    }
-    uint height = image->height();
-    uint width = image->width();
-#endif
+    Imf::OutputFile file(QFile::encodeName(uri.path()), header);
+
+    QList<ExrPaintLayerSaveInfo> infos;
+    infos.push_back(info);
+
+    encodeData(file, infos, width, height);
 
     return KisImageBuilder_RESULT_OK;
 }
 
+QString remap(const QMap<QString, QString>& current2original, const QString& current)
+{
+    if (current2original.contains(current)) {
+        return current2original[current];
+    }
+    return current;
+}
+
+void recBuildPaintLayerSaveInfo(QList<ExrPaintLayerSaveInfo>& infos, const QString& name, KisGroupLayerSP parent)
+{
+    for (uint i = 0; i < parent->childCount(); ++i) {
+        KisNodeSP node = parent->at(i);
+        if (KisPaintLayerSP paintLayer = dynamic_cast<KisPaintLayer*>(node.data())) {
+            QMap<QString, QString> current2original;
+            if (paintLayer->metaData()->containsEntry(KisMetaData::SchemaRegistry::instance()->create("http://krita.org/exrchannels/1.0/" , "exrchannels"), "channelsmap")) {
+                const KisMetaData::Entry& entry = paintLayer->metaData()->getEntry(KisMetaData::SchemaRegistry::instance()->create("http://krita.org/exrchannels/1.0/" , "exrchannels"), "channelsmap");
+                QList< KisMetaData::Value> values = entry.value().asArray();
+                foreach(const KisMetaData::Value& value, values) {
+                    QMap<QString, KisMetaData::Value> map = value.asStructure();
+                    if (map.contains("original") && map.contains("current")) {
+                        current2original[map["current"].toString()] = map["original"].toString();
+                    }
+                }
+            }
+            ExrPaintLayerSaveInfo info;
+            info.name = name + paintLayer->name() + ".";
+            info.layer = paintLayer;
+            if (paintLayer->colorSpace()->colorModelId() == RGBAColorModelID) {
+                info.channels.push_back(info.name + remap(current2original, "B"));
+                info.channels.push_back(info.name + remap(current2original, "G"));
+                info.channels.push_back(info.name + remap(current2original, "R"));
+                info.channels.push_back(info.name + remap(current2original, "A"));
+            } else if (paintLayer->colorSpace()->colorModelId() == GrayAColorModelID) {
+                info.channels.push_back(info.name + remap(current2original, "G"));
+                info.channels.push_back(info.name + remap(current2original, "A"));
+            } else if (paintLayer->colorSpace()->colorModelId() == GrayColorModelID) {
+                info.channels.push_back(info.name + remap(current2original, "G"));
+            } else if (paintLayer->colorSpace()->colorModelId() == XYZAColorModelID) {
+                info.channels.push_back(info.name + remap(current2original, "X"));
+                info.channels.push_back(info.name + remap(current2original, "Y"));
+                info.channels.push_back(info.name + remap(current2original, "Z"));
+                info.channels.push_back(info.name + remap(current2original, "A"));
+            }
+            if (paintLayer->colorSpace()->colorDepthId() == Float16BitsColorDepthID) {
+                info.pixelType = Imf::HALF;
+            } else if (paintLayer->colorSpace()->colorDepthId() == Float32BitsColorDepthID) {
+                info.pixelType = Imf::FLOAT;
+            } else {
+                info.pixelType = Imf::NUM_PIXELTYPES;
+            }
+            infos.push_back(info);
+        } else if (KisGroupLayerSP groupLayer = dynamic_cast<KisGroupLayer*>(node.data())) {
+            recBuildPaintLayerSaveInfo(infos, name + groupLayer->name() + ".", groupLayer);
+        }
+    }
+}
+
+KisImageBuilder_Result exrConverter::buildFile(const KUrl& uri, KisGroupLayerSP layer)
+{
+    if (!layer)
+        return KisImageBuilder_RESULT_INVALID_ARG;
+
+    KisImageWSP image = layer->image();
+    if (!image)
+        return KisImageBuilder_RESULT_EMPTY;
+
+    if (uri.isEmpty())
+        return KisImageBuilder_RESULT_NO_URI;
+
+    if (!uri.isLocalFile())
+        return KisImageBuilder_RESULT_NOT_LOCAL;
+
+    qint32 height = image->height();
+    qint32 width = image->width();
+    Imf::Header header(width, height);
+
+    QList<ExrPaintLayerSaveInfo> infos;
+    recBuildPaintLayerSaveInfo(infos, "", layer);
+
+    dbgFile << infos.size() << " layers to save";
+
+    foreach(const ExrPaintLayerSaveInfo& info, infos) {
+        if (info.pixelType < Imf::NUM_PIXELTYPES) {
+            foreach(const QString& channel, info.channels) {
+                dbgFile << channel << " " << info.pixelType;
+                header.channels().insert(channel.toUtf8().data(), Imf::Channel(info.pixelType));
+            }
+        }
+    }
+
+    // Open file for writing
+    Imf::OutputFile file(QFile::encodeName(uri.path()), header);
+
+    encodeData(file, infos, width, height);
+    return KisImageBuilder_RESULT_OK;
+}
 
 void exrConverter::cancel()
 {

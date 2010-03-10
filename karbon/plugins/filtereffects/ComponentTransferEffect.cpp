@@ -18,9 +18,10 @@
  */
 
 #include "ComponentTransferEffect.h"
-#include "KoFilterEffectRenderContext.h"
-#include "KoXmlWriter.h"
-#include "KoXmlReader.h"
+#include "ColorChannelConversion.h"
+#include <KoFilterEffectRenderContext.h>
+#include <KoXmlWriter.h>
+#include <KoXmlReader.h>
 #include <KLocale>
 #include <QtCore/QRect>
 #include <math.h>
@@ -112,16 +113,21 @@ QImage ComponentTransferEffect::processImage(const QImage &image, const KoFilter
     qreal da, dr, dg, db;
     int pixel;
 
-    QRect roi = context.filterRegion().toRect();
-    for (int row = roi.top(); row < roi.bottom(); ++row) {
-        for (int col = roi.left(); col < roi.right(); ++col) {
+    const QRect roi = context.filterRegion().toRect();
+    const int minRow = roi.top();
+    const int maxRow = roi.bottom();
+    const int minCol = roi.left();
+    const int maxCol = roi.right();
+
+    for (int row = minRow; row <= maxRow; ++row) {
+        for (int col = minCol; col <= maxCol; ++col) {
             pixel = row * w + col;
             const QRgb &s = src[pixel];
 
-            sa = qAlpha(s) / 255.0;
-            sr = qRed(s) / 255.0;
-            sb = qBlue(s) / 255.0;
-            sg = qGreen(s) / 255.0;
+            sa = fromIntColor[qAlpha(s)];
+            sr = fromIntColor[qRed(s)];
+            sg = fromIntColor[qGreen(s)];
+            sb = fromIntColor[qBlue(s)];
             // the matrix is applied to non-premultiplied color values
             // so we have to convert colors by dividing by alpha value
             if (sa > 0.0 && sa < 1.0) {
@@ -157,6 +163,8 @@ qreal ComponentTransferEffect::transferChannel(Channel channel, qreal value) con
         return value;
     case Table: {
         qreal valueCount = d.tableValues.count() - 1;
+        if (valueCount < 0.0)
+            return value;
         qreal k1 = static_cast<int>(value * valueCount);
         qreal k2 = qMin(k1 + 1, valueCount);
         qreal vk1 = d.tableValues[k1];
@@ -165,6 +173,8 @@ qreal ComponentTransferEffect::transferChannel(Channel channel, qreal value) con
     }
     case Discrete: {
         qreal valueCount = d.tableValues.count() - 1;
+        if (valueCount < 0.0)
+            return value;
         return d.tableValues[static_cast<int>(value*valueCount)];
     }
     case Linear:
@@ -176,10 +186,8 @@ qreal ComponentTransferEffect::transferChannel(Channel channel, qreal value) con
     return value;
 }
 
-bool ComponentTransferEffect::load(const KoXmlElement &element, const QMatrix &matrix)
+bool ComponentTransferEffect::load(const KoXmlElement &element, const KoFilterEffectLoadingContext &)
 {
-    Q_UNUSED(matrix);
-
     if (element.tagName() != id())
         return false;
 

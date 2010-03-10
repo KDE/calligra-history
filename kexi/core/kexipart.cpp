@@ -98,9 +98,9 @@ public:
     int registeredPartID;
 #endif
 
-    bool newObjectsAreDirty : 1;
+    bool newObjectsAreDirty;
 
-    bool instanceActionsInitialized : 1;
+    bool instanceActionsInitialized;
 };
 }
 
@@ -555,3 +555,4 @@ GUIClient::GUIClient(Part* part, bool partInstanceClient, const char* nameSuffix
 }
 
 #include "kexipart.moc"
+#include "kexipartguiclient.moc"

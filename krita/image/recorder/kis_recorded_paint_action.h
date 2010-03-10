@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2007 Cyrille Berger <cberger@cberger.net>
+ *  Copyright (c) 2007,2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #include "recorder/kis_recorded_action.h"
 #include "kis_types.h"
+#include "kis_painter.h"
 
 class KisPaintInformation;
 class KisPainter;
@@ -39,34 +40,49 @@ public:
     KisRecordedPaintAction(const QString & id,
                            const QString & name,
                            const KisNodeQueryPath& path,
-                           const KisPaintOpPresetSP paintOpPreset,
-                           KoColor foregroundColor,
-                           KoColor backgroundColor,
-                           int opacity,
-                           bool paintIncremental,
-                           const QString& compositeOp);
+                           KisPaintOpPresetSP paintOpPreset);
 
     KisRecordedPaintAction(const KisRecordedPaintAction&);
 
     ~KisRecordedPaintAction();
 
-    virtual void toXML(QDomDocument& doc, QDomElement& elt) const;
+    virtual void toXML(QDomDocument& doc, QDomElement& elt, KisRecordedActionSaveContext* ) const;
 
     virtual void play(KisNodeSP node, const KisPlayInfo&) const;
 
 protected:
-
+    /**
+     * This function will create a painter for the given device. The default
+     * implementation creates a KisPainter, subclass can reimplement it if
+     * they want to use one of the subclass of KisPainter.
+     */
+    virtual KisPainter* createPainter(KisPaintDeviceSP device) const;
+    /**
+     * Reimplement this function in a subclass to play the painting.
+     */
     virtual void playPaint(const KisPlayInfo&, KisPainter* painter) const = 0;
 
 public:
     KisPaintOpPresetSP paintOpPreset() const;
     void setPaintOpPreset(KisPaintOpPresetSP preset);
-    int opacity() const;
-    void setOpacity(int );
+    /**
+     * @return the opacity in the range 0.0->1.0
+     */
+    qreal opacity() const;
+    void setOpacity(qreal );
     KoColor paintColor() const;
     void setPaintColor(const KoColor& color);
     KoColor backgroundColor() const;
     void setBackgroundColor(const KoColor& color);
+    QString compositeOp();
+    void setCompositeOp(const QString& );
+    void setPaintIncremental(bool );
+    void setStrokeStyle(KisPainter::StrokeStyle );
+    void setFillStyle(KisPainter::FillStyle );
+    KisPainter::FillStyle fillStyle() const;
+    void setPattern(const KisPattern* );
+    void setGradient(const KoAbstractGradient* gradient);
+    void setGenerator(const KisFilterConfiguration * generator);
 private:
 
     struct Private;
@@ -80,7 +96,15 @@ public:
     virtual ~KisRecordedPaintActionFactory() {}
 protected:
 
+    void setupPaintAction(KisRecordedPaintAction* action, const QDomElement& elt, const KisRecordedActionLoadContext*);
     KisPaintOpPresetSP paintOpPresetFromXML(const QDomElement& elt);
+    KoColor paintColorFromXML(const QDomElement& elt);
+    KoColor backgroundColorFromXML(const QDomElement& elt);
+    KoColor colorFromXML(const QDomElement& elt, const QString& elementName);
+    qreal opacityFromXML(const QDomElement& elt);
+    bool paintIncrementalFromXML(const QDomElement& elt);
+    QString compositeOpFromXML(const QDomElement& elt);
+    KisNodeQueryPath nodeQueryPathFromXML(const QDomElement& elt);
 };
 
 

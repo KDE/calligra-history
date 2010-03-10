@@ -19,18 +19,34 @@
 #ifndef KIS_SOFT_PAINTOP_H_
 #define KIS_SOFT_PAINTOP_H_
 
-//#define BENCHMARK
-
 #include <kis_paintop.h>
 #include <kis_types.h>
+#include <kis_pressure_rotation_option.h>
 
 #include "kis_soft_paintop_settings.h"
 
 #include <KoColor.h>
 
 #include "kis_alpha_mask.h"
+#include "kis_curve_mask.h"
+
+#include "kis_hsv_option.h"
+#include <kis_pressure_size_option.h>
+#include <kis_pressure_opacity_option.h>
 
 class KisPainter;
+class KisCubicCurve;
+class KisBrushSizeProperties;
+
+struct KisGaussSoftBrush{
+    KisCircleAlphaMask * distMask;
+
+};
+
+enum SoftBrushType{
+    CURVE,
+    GAUSS
+};
 
 
 class KisSoftPaintOp : public KisPaintOp
@@ -40,15 +56,12 @@ public:
     KisSoftPaintOp(const KisSoftPaintOpSettings *settings, KisPainter * painter, KisImageWSP image);
     virtual ~KisSoftPaintOp();
 
-    void paintAt(const KisPaintInformation& info);
+    double paintAt(const KisPaintInformation& info);
 
     virtual bool incremental() const {
-        return false;
+        return true;
     }
-
-
     double spacing(double & xSpacing, double & ySpacing, double pressure1, double pressure2) const;
-
 
 private:
     const KisSoftPaintOpSettings* m_settings;
@@ -56,16 +69,25 @@ private:
     KisPaintDeviceSP m_dab;
     int m_radius;
     KoColor m_color;
-    KisCircleAlphaMask * m_distMask;
+
     
+    KisGaussSoftBrush m_gaussBrush;
+    SoftBrushType m_brushType;
+    
+    KisBrushSizeProperties m_sizeProperties;
+    KisCurveProperties m_curveMaskProperties;
+    KisCurveMask m_curveMask;
+
     qreal m_xSpacing;
     qreal m_ySpacing;
     qreal m_spacing;
 
-#ifdef BENCHMARK
-    int m_total;
-    int m_count;
-#endif
+    KisPressureSizeOption m_sizeOption;
+    KisPressureOpacityOption m_opacityOption;
+    KisPressureRotationOption m_rotationOption;    
+    
+    qreal m_amount;
+    HsvProperties m_hsvProperties;
     
 };
 

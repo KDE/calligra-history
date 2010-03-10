@@ -27,6 +27,7 @@
 
 #include "flake_export.h"
 
+class KoShape;
 class KoCanvasBase;
 class KoPointerEvent;
 class KoViewConverter;
@@ -53,6 +54,12 @@ class FLAKE_EXPORT KoToolBase : public QObject
 {
     Q_OBJECT
 public:
+    /// Option for activate()
+    enum ToolActivation {
+        TemporaryActivation, ///< The tool is activated temporarily and works 'in-place' of another one.
+        DefaultActivation   ///< The tool is activated normally and emitting 'done' goes to the defaultTool
+    };
+
     /**
      * Constructor, normally only called by the factory (see KoToolFactoryBase)
      * @param canvas the canvas interface this tool will work for.
@@ -66,13 +73,12 @@ public:
      */
     virtual void repaintDecorations();
 
-public:
     /**
      * Return if dragging (moving with the mouse down) to the edge of a canvas should scroll the
      * canvas (default is true).
      * @return if this tool wants mouse events to cause scrolling of canvas.
      */
-    virtual bool wantsAutoScroll();
+    virtual bool wantsAutoScroll() const;
 
     /**
      * Called by the canvas to paint any decorations that the tool deems needed.
@@ -265,6 +271,7 @@ public:
     KoCanvasBase *canvas() const;
 
 public slots:
+
     /**
      * This method is called when this tool instance is activated.
      * For any main window there is only one tool active at a time, which then gets all
@@ -278,11 +285,14 @@ public slots:
      * it should emit done() when the state that activated it is ended.
      * <p>One of the important tasks of activate is to call useCursor()
      *
-     * @param temporary if true, this tool is only temporarily actived
+     * @param shapes the set of shapes that are selected or suggested for editing by a
+     *      selected shape for the tool to work on.  Not all shapes will be meant for this
+     *      tool.
+     * @param ToolActivation if TemporaryActivation, this tool is only temporarily actived
      *                  and should emit done when it is done.
      * @see deactivate()
      */
-    virtual void activate(bool temporary = false);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes) = 0;
 
     /**
      * This method is called whenever this tool is no longer the
@@ -389,7 +399,7 @@ protected:
     *
     * @return the handle rectangle in document coordinates
     */
-    QRectF handleGrabRect(const QPointF &position);
+    QRectF handleGrabRect(const QPointF &position) const;
 
     /**
     * Returns a handle paint rect at the given position.
@@ -399,7 +409,7 @@ protected:
     *
     * @return the handle rectangle in document coordinates
     */
-    QRectF handlePaintRect(const QPointF &position);
+    QRectF handlePaintRect(const QPointF &position) const;
 
 protected:
     KoToolBase(KoToolBasePrivate &dd);

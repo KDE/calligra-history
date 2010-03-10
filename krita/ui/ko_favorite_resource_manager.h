@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright 2009 Vera Lukman <shichan.karachu@gmail.com>
+   Copyright 2009 Vera Lukman <shicmap@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -78,7 +78,16 @@ public:
 
 signals:
     void sigSetFGColor(const KoColor& c);
-    
+
+    // This is a flag to handle a bug:
+    // If pop up palette is visible and a new colour is selected, the new colour
+    // will be added when the user clicks on the canvas to hide the palette
+    // In general, we want to be able to store recent colours if the pop up palette
+    // is not visible
+    void sigEnableChangeColor(bool b);
+
+    void sigChangeFGColorSelector(const QColor&);
+
 public slots:
     void slotChangePaintopLabel(KisPaintOpPresetSP paintop);
     void slotShowPopupPalette(const QPoint& = QPoint(0,0));
@@ -87,8 +96,10 @@ public slots:
     /*update the priority of a colour in m_colorList, used only by m_popupPalette*/
     void slotUpdateRecentColor(int);
 
-    /*add a colour to m_colorList, used by KisCanvasResourceProvider and m_popupPalette (later)*/
-    void slotAddRecentColor(KoColor);
+    /*add a colour to m_colorList, used by KisCanvasResourceProvider*/
+    void slotAddRecentColor(const KoColor&);
+
+    void slotChangeFGColorSelector(KoColor c);
 
 private:
     KisPaletteManager *m_favoriteBrushManager;
@@ -105,9 +116,9 @@ private:
 
     void printColors() { m_colorList->printGuiList(); /*m_colorList->printPriorityList();*/ };
 
-    void addRecentColorNew(const KoColor& color);
     void addRecentColorUpdate(int guipos);
     void addRecentColor(const KoColor& color);
+
 };
 
 #endif // KIS_FAVORITE_BRUSH_DATA_H

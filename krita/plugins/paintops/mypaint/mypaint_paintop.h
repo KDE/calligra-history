@@ -30,6 +30,7 @@ class KisPainter;
 
 class MyPaintSettings;
 class MyPaintSurface;
+class MyPaintBrushResource;
 
 class MyPaint : public KisPaintOp
 {
@@ -40,9 +41,9 @@ public:
 
     virtual bool incremental() const { return true; }
 
-    void paintAt(const KisPaintInformation& info);
+    double paintAt(const KisPaintInformation& info);
     double spacing(double & xSpacing, double & ySpacing, double pressure1, double pressure2) const;
-    double paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, double savedDist);
+    KisDistanceInformation paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, const KisDistanceInformation& savedDist);
 
 private:
 
@@ -50,6 +51,7 @@ private:
     bool m_mypaintThinksStrokeHasEnded;
     MyPaintSurface* m_surface;
     const MyPaintSettings* m_settings;
+    MyPaintBrushResource *m_brush;
 };
 
 #endif // KIS_MYPAINTPAINTOP_H_

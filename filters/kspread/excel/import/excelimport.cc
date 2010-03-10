@@ -27,7 +27,7 @@
 #include <QDate>
 #include <QBuffer>
 #include <QFontMetricsF>
-
+#include <QPair>
 #include <kdebug.h>
 #include <KoFilterChain.h>
 #include <KoGlobal.h>
@@ -40,6 +40,8 @@
 #include <KoGenStyle.h>
 #include <KoOdfNumberStyles.h>
 
+#include <Charting.h>
+#include <ChartExport.h>
 #include <NumberFormatParser.h>
 
 #include "swinder.h"
@@ -52,18 +54,20 @@ K_EXPORT_COMPONENT_FACTORY(libexcelimport, ExcelImportFactory("kofficefilters"))
 #define UNICODE_GBP 0x00A3
 #define UNICODE_JPY 0x00A5
 
-static const int minimumColumnCount = 1024;
-static const int minimumRowCount = 32768;
+// The minimal number of rows and columns. This is used to fill remaming rows and columns with the
+// default style what is needed cause Excel does always define the default for all rows and columns
+// while ODF does only for those that are explicit defined.
+static const uint minimumColumnCount = 1024;
+static const uint minimumRowCount = 32768;
 
-// UString -> QConstString conversion. Use  to get the QString.
-// Always store the QConstString into a variable first, to avoid a deep copy.
-inline QString string(const Swinder::UString& str)
-{
-    // Let's hope there's no copying of the QConstString happening...
-    return QString::fromRawData(reinterpret_cast<const QChar*>(str.data()), str.length());
-}
+// The maximal number of rows and columns. This allows us to cut rows and columns away that would
+// not be handled by the consumer application anyway cause they reached the applications limited.
+static const uint maximalColumnCount = 32768;
+static const uint maximalRowCount = 32768; //65536
 
 namespace Swinder {
+
+// qHash function to support hashing by Swinder::FormatFont instances.
 static inline uint qHash(const Swinder::FormatFont& font)
 {
     // TODO: make this a better hash
@@ -111,23 +115,30 @@ public:
     QString inputFile;
     QString outputFile;
 
+    KoStore* storeout;
     Workbook *workbook;
 
     KoGenStyles *styles;
     KoGenStyles *mainStyles;
     QList<QString> cellStyles;
     QList<QString> rowStyles;
-    QList<QString> rowCellStyles;
     QList<QString> colStyles;
     QList<QString> colCellStyles;
     QList<QString> sheetStyles;
     QHash<FormatFont, QString> fontStyles;
     QString subScriptStyle, superScriptStyle;
 
-    bool createStyles(KoOdfWriteStore* store, KoXmlWriter* manifestWriter);
+    QList<ChartExport*> charts;
+    
+    QHash<int,int> rowsRepeatedHash;
+    int rowsRepeated(Row* row, int rowIndex);
+
+    int rowsCountTotal, rowsCountDone;
+    void addProgress(int addValue);
+
+    bool createStyles(KoStore* store, KoXmlWriter* manifestWriter, KoGenStyles* mainStyles);
     bool createContent(KoOdfWriteStore* store);
     bool createMeta(KoOdfWriteStore* store);
-    bool createManifest(KoOdfWriteStore* store, KoXmlWriter* manifestWriter);
     bool createSettings(KoOdfWriteStore* store);
 
     int sheetFormatIndex;
@@ -135,24 +146,25 @@ public:
     int rowFormatIndex;
     int cellFormatIndex;
 
-    void processWorkbookForBody(Workbook* workbook, KoXmlWriter* xmlWriter);
+    void processWorkbookForBody(KoOdfWriteStore* store, Workbook* workbook, KoXmlWriter* xmlWriter);
     void processWorkbookForStyle(Workbook* workbook, KoXmlWriter* xmlWriter);
-    void processSheetForBody(Sheet* sheet, KoXmlWriter* xmlWriter);
+    void processSheetForBody(KoOdfWriteStore* store, Sheet* sheet, KoXmlWriter* xmlWriter);
     void processSheetForStyle(Sheet* sheet, KoXmlWriter* xmlWriter);
     void processSheetForHeaderFooter ( Sheet* sheet, KoXmlWriter* writer);
     void processHeaderFooterStyle (UString text, KoXmlWriter* xmlWriter);
-    void processColumnForBody(Column* column, int repeat, KoXmlWriter* xmlWriter);
-    void processColumnForStyle(Column* column, int repeat, KoXmlWriter* xmlWriter);
-    void processRowForBody(Row* row, int repeat, KoXmlWriter* xmlWriter);
-    void processRowForStyle(Row* row, int repeat, KoXmlWriter* xmlWriter);
-    void processCellForBody(Cell* cell, KoXmlWriter* xmlWriter);
+    void processColumnForBody(Sheet* sheet, int columnIndex, KoXmlWriter* xmlWriter);
+    void processColumnForStyle(Sheet* sheet, int columnIndex, KoXmlWriter* xmlWriter);
+    int processRowForBody(KoOdfWriteStore* store, Sheet* sheet, int rowIndex, KoXmlWriter* xmlWriter);
+    int processRowForStyle(Sheet* sheet, int rowIndex, KoXmlWriter* xmlWriter);
+    void processCellForBody(KoOdfWriteStore* store, Cell* cell, int rowsRepeat, KoXmlWriter* xmlWriter);
     void processCellForStyle(Cell* cell, KoXmlWriter* xmlWriter);
     QString processCellFormat(Format* format, const QString& formula = QString());
+    QString processRowFormat(Format* format, const QString& breakBefore = QString(), int rowRepeat = 1, int rowHeight = -1);
     void processFormat(Format* format, KoGenStyle& style);
     QString processValueFormat(const QString& valueFormat);
     void processFontFormat(const FormatFont& font, KoGenStyle& style);
+    void processCharts(KoXmlWriter* manifestWriter);
 };
-
 
 ExcelImport::ExcelImport(QObject* parent, const QStringList&)
         : KoFilter(parent)
@@ -188,21 +200,23 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     d->outputFile = m_chain->outputFile();
 
     // create output store
-    KoStore* storeout;
-    storeout = KoStore::createStore(d->outputFile, KoStore::Write,
+    d->storeout = KoStore::createStore(d->outputFile, KoStore::Write,
                                     "application/vnd.oasis.opendocument.spreadsheet", KoStore::Zip);
-    if (!storeout) {
+    if (!d->storeout) {
         kWarning() << "Couldn't open the requested file.";
         delete d->workbook;
         return KoFilter::FileNotFound;
     }
 
+    emit sigProgress(0);
+
     // Tell KoStore not to touch the file names
-    storeout->disallowNameExpansion();
+    d->storeout->disallowNameExpansion();
 
     // open inputFile
-    StoreImpl *storeimpl = new StoreImpl(storeout);
+    StoreImpl *storeimpl = new StoreImpl(d->storeout);
     d->workbook = new Swinder::Workbook(storeimpl);
+    connect(d->workbook, SIGNAL(sigProgress(int)), this, SIGNAL(sigProgress(int)));
     if (!d->workbook->load(d->inputFile.toLocal8Bit())) {
         delete d->workbook;
         d->workbook = 0;
@@ -215,10 +229,13 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
         return KoFilter::PasswordProtected;
     }
 
+    emit sigProgress(-1);
+    emit sigProgress(0);
+
     d->styles = new KoGenStyles();
     d->mainStyles = new KoGenStyles();
 
-    KoOdfWriteStore oasisStore(storeout);
+    KoOdfWriteStore oasisStore(d->storeout);
     KoXmlWriter* manifestWriter = oasisStore.manifestWriter("application/vnd.oasis.opendocument.spreadsheet");
 
     // header and footer are read from each sheet and saved in styles
@@ -228,16 +245,16 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     {
         kWarning() << "Couldn't open the file 'content.xml'.";
         delete d->workbook;
-        delete storeout;
+        delete d->storeout;
         return KoFilter::CreationError;
     }
 
     // store document styles
-    if ( !d->createStyles( &oasisStore, manifestWriter ) )
+    if ( !d->createStyles( d->storeout, manifestWriter, d->mainStyles ) )
     {
         kWarning() << "Couldn't open the file 'styles.xml'.";
         delete d->workbook;
-        delete storeout;
+        delete d->storeout;
         return KoFilter::CreationError;
     }
 
@@ -245,44 +262,85 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     if (!d->createMeta(&oasisStore)) {
         kWarning() << "Couldn't open the file 'meta.xml'.";
         delete d->workbook;
-        delete storeout;
+        delete d->storeout;
         return KoFilter::CreationError;
     }
-    
+
     // store settings
     if (!d->createSettings(&oasisStore)) {
         kWarning() << "Couldn't open the file 'settings.xml'.";
         delete d->workbook;
-        delete storeout;
+        delete d->storeout;
         return KoFilter::CreationError;
     }
 
-    // store document manifest
-    if (!d->createManifest(&oasisStore, manifestWriter)) {
-        kWarning() << "Couldn't open the file 'META-INF/manifest.xml'.";
-        delete d->workbook;
-        delete storeout;
-        return KoFilter::CreationError;
-    }
+    manifestWriter->addManifestEntry("meta.xml", "text/xml");
+    manifestWriter->addManifestEntry("styles.xml", "text/xml");
+    manifestWriter->addManifestEntry("content.xml", "text/xml");
+    manifestWriter->addManifestEntry("settings.xml", "text/xml");
+
+    d->processCharts(manifestWriter);
+    oasisStore.closeManifestWriter();
 
     // we are done!
     delete d->workbook;
     delete d->styles;
-    delete storeout;
+    delete d->storeout;
     d->inputFile.clear();
     d->outputFile.clear();
     d->workbook = 0;
     d->styles = 0;
     d->cellStyles.clear();
     d->rowStyles.clear();
-    d->rowCellStyles.clear();
     d->colStyles.clear();
     d->colCellStyles.clear();
     d->sheetStyles.clear();
 
+    emit sigProgress(100);
     return KoFilter::OK;
 }
 
+// Updates the displayed progress information
+void ExcelImport::Private::addProgress(int addValue)
+{
+    rowsCountDone += addValue;
+    const int progress = int(rowsCountDone / double(rowsCountTotal) * 100.0 + 0.5);
+    workbook->emitProgress(progress);
+}
+
+int ExcelImport::Private::rowsRepeated(Row* row, int rowIndex)
+{
+    if(rowsRepeatedHash.contains(rowIndex))
+        return rowsRepeatedHash[rowIndex];
+    // a row does usually at least repeat itself
+    int repeat = 1;
+    // find the column of the rightmost cell (if any)
+    int lastCol = row->sheet()->maxCellsInRow(rowIndex);
+    // find repeating rows by forward searching
+    const unsigned rowCount = qMin(maximalRowCount, row->sheet()->maxRow());
+    for (unsigned i = rowIndex + 1; i <= rowCount; ++i) {
+        Row *nextRow = row->sheet()->row(i, false);
+        if(!nextRow) break;
+        if (*row != *nextRow) break; // do the rows have the same properties?
+        const int nextLastCol = row->sheet()->maxCellsInRow(i);
+        if (lastCol != nextLastCol) break;
+        bool cellsAreSame = true;
+        for(int c = 0; c <= lastCol; ++c) {
+            Cell* c1 = row->sheet()->cell(c, row->index(), false);
+            Cell* c2 = nextRow->sheet()->cell(c, nextRow->index(), false);
+            if (!c1 != !c2 || (c1 && *c1 != *c2)) {
+                cellsAreSame = false;
+                break; // job done, abort loop
+            }
+        }
+        if (!cellsAreSame) break;
+        ++repeat;
+    }
+    rowsRepeatedHash[rowIndex] = repeat; // cache the result
+    return repeat;
+}
+
+// Writes the spreadsheet content into the content.xml
 bool ExcelImport::Private::createContent(KoOdfWriteStore* store)
 {
     KoXmlWriter* bodyWriter = store->bodyWriter();
@@ -319,20 +377,23 @@ bool ExcelImport::Private::createContent(KoOdfWriteStore* store)
 
     // office:body
     bodyWriter->startElement("office:body");
-    processWorkbookForBody(workbook, bodyWriter);
+    processWorkbookForBody(store, workbook, bodyWriter);
     bodyWriter->endElement();  // office:body
 
     return store->closeContentWriter();
 }
 
-bool ExcelImport::Private::createStyles(KoOdfWriteStore* store, KoXmlWriter* manifestWriter)
+
+
+// Writes the styles.xml
+bool ExcelImport::Private::createStyles(KoStore* store, KoXmlWriter* manifestWriter, KoGenStyles* mainStyles)
 {
-    if (!store->store()->open("styles.xml"))
+    Q_UNUSED(manifestWriter);
+    if (!store->open("styles.xml"))
         return false;
-    KoStoreDevice dev(store->store());
+    KoStoreDevice dev(store);
     KoXmlWriter* stylesWriter = new KoXmlWriter(&dev);
 
-    // FIXME this is dummy default, replace if necessary
     stylesWriter->startDocument("office:document-styles");
     stylesWriter->startElement("office:document-styles");
     stylesWriter->addAttribute("xmlns:office", "urn:oasis:names:tc:opendocument:xmlns:office:1.0");
@@ -342,34 +403,15 @@ bool ExcelImport::Private::createStyles(KoOdfWriteStore* store, KoXmlWriter* man
     stylesWriter->addAttribute("xmlns:draw", "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0");
     stylesWriter->addAttribute("xmlns:fo", "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0");
     stylesWriter->addAttribute("xmlns:svg", "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0");
-    stylesWriter->addAttribute("office:version", "1.0");
-#if 0
-    stylesWriter->startElement("office:styles");
-    stylesWriter->startElement("style:default-style");
-    stylesWriter->addAttribute("style:family", "table-cell");
-    stylesWriter->startElement("style:table-cell-properties");
-    stylesWriter->addAttribute("style:decimal-places", "2");
-    stylesWriter->endElement(); // style:table-cell-properties
-    stylesWriter->startElement("style:paragraph-properties");
-    stylesWriter->addAttribute("style:tab-stop-distance", "0.5in");
-    stylesWriter->endElement(); // style:paragraph-properties
-    stylesWriter->startElement("style:text-properties");
-    stylesWriter->addAttribute("style:font-name", "Albany AMT");
-    stylesWriter->addAttribute("fo:language", "en");
-    stylesWriter->addAttribute("fo:country", "US");
-    stylesWriter->addAttribute("style:font-name-asian", "Albany AMT1");
-    stylesWriter->addAttribute("style:country-asian", "none");
-    stylesWriter->addAttribute("style:font-name-complex", "Lucidasans");
-    stylesWriter->addAttribute("style:language-complex", "none");
-    stylesWriter->addAttribute("style:country-complex", "none");
-    stylesWriter->endElement(); // style:text-properties
-    stylesWriter->endElement(); // style:default-style
-    stylesWriter->startElement("style:style");
-    stylesWriter->addAttribute("style:name", "Default");
-    stylesWriter->addAttribute("style:family", "table-cell");
-    stylesWriter->endElement(); // style:style
-    stylesWriter->endElement(); // office:styles
-#endif
+    stylesWriter->addAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+    stylesWriter->addAttribute("xmlns:chart", "urn:oasis:names:tc:opendocument:xmlns:chart:1.0");
+    stylesWriter->addAttribute("xmlns:dc", "http://purl.org/dc/elements/1.1/");
+    stylesWriter->addAttribute("xmlns:meta", "urn:oasis:names:tc:opendocument:xmlns:meta:1.0");
+    stylesWriter->addAttribute("xmlns:number", "urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0");
+    //stylesWriter->addAttribute("xmlns:dr3d", "urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0");
+    stylesWriter->addAttribute("xmlns:math", "http://www.w3.org/1998/Math/MathML");
+    stylesWriter->addAttribute("xmlns:of", "urn:oasis:names:tc:opendocument:xmlns:of:1.2");
+    stylesWriter->addAttribute("office:version", "1.2");
 
     mainStyles->saveOdfMasterStyles(stylesWriter);
     mainStyles->saveOdfDocumentStyles(stylesWriter); // office:style
@@ -379,10 +421,10 @@ bool ExcelImport::Private::createStyles(KoOdfWriteStore* store, KoXmlWriter* man
     stylesWriter->endDocument();
 
     delete stylesWriter;
-
-    return store->store()->close();
+    return store->close();
 }
 
+// Writes meta-informations into the meta.xml
 bool ExcelImport::Private::createMeta(KoOdfWriteStore* store)
 {
     if (!store->store()->open("meta.xml"))
@@ -456,6 +498,7 @@ bool ExcelImport::Private::createMeta(KoOdfWriteStore* store)
     return store->store()->close();
 }
 
+// Writes configuration-settings into the settings.xml
 bool ExcelImport::Private::createSettings(KoOdfWriteStore* store)
 {
     if (!store->store()->open("settings.xml"))
@@ -479,7 +522,7 @@ bool ExcelImport::Private::createSettings(KoOdfWriteStore* store)
 
     settingsWriter->startElement("config:config-item-map-named");
     settingsWriter->addAttribute("config:name", "Tables");
-    for(int i = 0; i < workbook->sheetCount(); ++i) {
+    for(uint i = 0; i < workbook->sheetCount(); ++i) {
         Sheet* sheet = workbook->sheet(i);
         settingsWriter->startElement("config:config-item-map-entry");
         settingsWriter->addAttribute("config:name", string(sheet->name()));
@@ -512,25 +555,25 @@ bool ExcelImport::Private::createSettings(KoOdfWriteStore* store)
     return store->store()->close();
 }
 
-bool ExcelImport::Private::createManifest(KoOdfWriteStore* store, KoXmlWriter* manifestWriter)
-{
-    manifestWriter->addManifestEntry("meta.xml", "text/xml");
-    manifestWriter->addManifestEntry("styles.xml", "text/xml");
-    manifestWriter->addManifestEntry("content.xml", "text/xml");
-
-    return store->closeManifestWriter();
-}
-
-void ExcelImport::Private::processWorkbookForBody(Workbook* workbook, KoXmlWriter* xmlWriter)
+// Processes the workbook content. The workbook is the top-level element for content.
+void ExcelImport::Private::processWorkbookForBody(KoOdfWriteStore* store, Workbook* workbook, KoXmlWriter* xmlWriter)
 {
     if (!workbook) return;
     if (!xmlWriter) return;
 
     xmlWriter->startElement("office:spreadsheet");
 
+    // count the number of rows in total to provide a good progress value
+    rowsCountTotal = rowsCountDone = 0;
     for (unsigned i = 0; i < workbook->sheetCount(); i++) {
         Sheet* sheet = workbook->sheet(i);
-        processSheetForBody(sheet, xmlWriter);
+        rowsCountTotal += qMin(maximalRowCount, sheet->maxRow()) * 2; // double cause we will count them 2 times, once for styles and once for content
+    }
+    
+    // now start the whole work
+    for (unsigned i = 0; i < workbook->sheetCount(); i++) {
+        Sheet* sheet = workbook->sheet(i);
+        processSheetForBody(store, sheet, xmlWriter);
     }
     
     std::map<UString, UString> &namedAreas = workbook->namedAreas();
@@ -539,12 +582,9 @@ void ExcelImport::Private::processWorkbookForBody(Workbook* workbook, KoXmlWrite
         for(std::map<UString, UString>::iterator it = namedAreas.begin(); it != namedAreas.end(); it++) {
             xmlWriter->startElement("table:named-range");
             xmlWriter->addAttribute("table:name", string((*it).first) ); // e.g. "My Named Range"
-            
             QString range = string((*it).second);
-            if(range.startsWith('[') && range.endsWith(']')) {
-                range = range.mid(1,range.length()-2);
-            }
-                
+            if(range.startsWith('[') && range.endsWith(']'))
+                range = range.mid(1, range.length() - 2);
             xmlWriter->addAttribute("table:cell-range-address", range); // e.g. "$Sheet1.$B$2:.$B$3"
             xmlWriter->endElement();//[Sheet1.$B$2:$B$3]
         }
@@ -554,6 +594,7 @@ void ExcelImport::Private::processWorkbookForBody(Workbook* workbook, KoXmlWrite
     xmlWriter->endElement();  // office:spreadsheet
 }
 
+// Processes the workbook styles. The workbook is the top-level element for content.
 void ExcelImport::Private::processWorkbookForStyle(Workbook* workbook, KoXmlWriter* xmlWriter)
 {
     if (!workbook) return;
@@ -614,7 +655,8 @@ void ExcelImport::Private::processWorkbookForStyle(Workbook* workbook, KoXmlWrit
     }
 }
 
-void ExcelImport::Private::processSheetForBody(Sheet* sheet, KoXmlWriter* xmlWriter)
+// Processes a sheet.
+void ExcelImport::Private::processSheetForBody(KoOdfWriteStore* store, Sheet* sheet, KoXmlWriter* xmlWriter)
 {
     if (!sheet) return;
     if (!xmlWriter) return;
@@ -627,60 +669,42 @@ void ExcelImport::Private::processSheetForBody(Sheet* sheet, KoXmlWriter* xmlWri
     sheetFormatIndex++;
     
     if(sheet->password() != 0) {
-       xmlWriter->addAttribute("table:protected-excel", "true");
-       xmlWriter->addAttribute("table:protection-key-excel", uint(sheet->password()));
+        //TODO
+       //xmlWriter->addAttribute("table:protected", "true");
+       //xmlWriter->addAttribute("table:protection-key", uint(sheet->password()));
     }
 
-    unsigned ci = 0;
-    while (ci <= sheet->maxColumn()) {
-        Column* column = sheet->column(ci, false);
-        if (column) {
-            // forward search for columns with same properties
-            unsigned cj = ci + 1;
-            while (cj <= sheet->maxColumn()) {
-                const Column* nextColumn = sheet->column(cj, false);
-                if (!nextColumn) break;
-                if (column->width() != nextColumn->width()) break;
-                if (column->visible() != nextColumn->visible()) break;
-                if (column->format() != nextColumn->format()) break;
-                cj++;
-            }
-
-            int repeated = cj - ci;
-            processColumnForBody(column, repeated, xmlWriter);
-            ci += repeated;
-        } else {
-            ci++;
-            xmlWriter->startElement("table:table-column");
-            xmlWriter->endElement();
-        }
+    const unsigned columnCount = qMin(maximalColumnCount, sheet->maxColumn());
+    for (unsigned i = 0; i <= columnCount; ++i) {
+        processColumnForBody(sheet, i, xmlWriter);
     }
 
     // in odf default-cell-style's only apply to cells/rows/columns that are present in the file while in Excel
     // row/column styles should apply to all cells in that row/column. So, try to fake that behavior by writting
     // a number-columns-repeated to apply the styles/formattings to "all" columns.
-    if (sheet->maxColumn() < minimumColumnCount-1) {
+    if (columnCount < minimumColumnCount-1) {
         xmlWriter->startElement("table:table-column");
-        xmlWriter->addAttribute("table:number-columns-repeated", minimumColumnCount - 1 - sheet->maxColumn());
+        xmlWriter->addAttribute("table:number-columns-repeated", minimumColumnCount - 1 - columnCount);
         xmlWriter->endElement();
     }
 
     // add rows
-    for (unsigned i = 0; i <= sheet->maxRow(); i++) {
-        // FIXME optimized this when operator== in Swinder::Format is implemented
-        processRowForBody(sheet->row(i, false), 1, xmlWriter);
+    const unsigned rowCount = qMin(maximalRowCount, sheet->maxRow());
+    for (unsigned i = 0; i <= rowCount;) {
+        i += processRowForBody(store, sheet, i, xmlWriter);
     }
 
     // same we did above with columns is also needed for rows.
-    if(sheet->maxRow() < minimumRowCount-1) {
+    if(rowCount < minimumRowCount-1) {
         xmlWriter->startElement("table:table-row");
-        xmlWriter->addAttribute("table:number-rows-repeated", minimumRowCount - 1 - sheet->maxRow());
+        xmlWriter->addAttribute("table:number-rows-repeated", minimumRowCount - 1 - rowCount);
         xmlWriter->endElement();
     }
 
     xmlWriter->endElement();  // table:table
 }
 
+// Processes styles for a sheet.
 void ExcelImport::Private::processSheetForStyle(Sheet* sheet, KoXmlWriter* xmlWriter)
 {
     if (!sheet) return;
@@ -695,35 +719,18 @@ void ExcelImport::Private::processSheetForStyle(Sheet* sheet, KoXmlWriter* xmlWr
     QString styleName = styles->lookup(style, "ta");
     sheetStyles.append(styleName);
 
-    unsigned ci = 0;
-    while (ci <= sheet->maxColumn()) {
-        Column* column = sheet->column(ci, false);
-        if (column) {
-            // forward search for similar column
-            unsigned cj = ci + 1;
-            while (cj <= sheet->maxColumn()) {
-                Column* nextColumn = sheet->column(cj, false);
-                if (!nextColumn) break;
-                if (column->width() != nextColumn->width()) break;
-                if (column->visible() != nextColumn->visible()) break;
-                if (column->format() != nextColumn->format()) break;
-                cj++;
-            }
-
-            int repeated = cj - ci;
-            processColumnForStyle(column, repeated, xmlWriter);
-            ci += repeated;
-        } else
-            ci++;
+    const unsigned columnCount = qMin(maximalColumnCount, sheet->maxColumn());
+    for (unsigned i = 0; i <= columnCount; ++i) {
+        processColumnForStyle(sheet, i, xmlWriter);
     }
 
-    for (unsigned i = 0; i <= sheet->maxRow(); i++) {
-        Row* row = sheet->row(i, false);
-        // FIXME optimized this when operator== in Swinder::Format is implemented
-        processRowForStyle(row, 1, xmlWriter);
+    const unsigned rowCount = qMin(maximalRowCount, sheet->maxRow());
+    for (unsigned i = 0; i <= rowCount;) {
+        i += processRowForStyle(sheet, i, xmlWriter);
     }
 }
 
+// Processes headers and footers for a sheet.
 void ExcelImport::Private::processSheetForHeaderFooter ( Sheet* sheet, KoXmlWriter* xmlWriter )
 {
     if ( !sheet ) return;
@@ -778,6 +785,7 @@ void ExcelImport::Private::processSheetForHeaderFooter ( Sheet* sheet, KoXmlWrit
     xmlWriter->endElement();
 }
 
+// Processes the styles of a headers and footers for a sheet.
 void ExcelImport::Private::processHeaderFooterStyle (UString text, KoXmlWriter* xmlWriter)
 {
     QString content;
@@ -836,28 +844,39 @@ void ExcelImport::Private::processHeaderFooterStyle (UString text, KoXmlWriter* 
         else
             skipUnsupported = false;
     }
-
 }
 
-void ExcelImport::Private::processColumnForBody(Column* column, int repeat, KoXmlWriter* xmlWriter)
+// Processes a column in a sheet.
+void ExcelImport::Private::processColumnForBody(Sheet* sheet, int columnIndex, KoXmlWriter* xmlWriter)
 {
-    if (!column) return;
-    if (!xmlWriter) return;
+    Column* column = sheet->column(columnIndex, false);    
 
-    xmlWriter->startElement("table:table-column");
-    xmlWriter->addAttribute("table:default-cell-style-name", colCellStyles[columnFormatIndex]);
-    xmlWriter->addAttribute("table:visibility", column->visible() ? "visible" : "collapse");
-    if (repeat > 1) xmlWriter->addAttribute("table:number-columns-repeated", repeat);
-    xmlWriter->addAttribute("table:style-name", colStyles[columnFormatIndex]);
+    if (!xmlWriter) return;
+    if (!column) {
+        xmlWriter->startElement("table:table-column");
+        xmlWriter->endElement();
+        return;
+    }
+    
+    const QString styleName = colStyles[columnFormatIndex];
+    const QString defaultStyleName = colCellStyles[columnFormatIndex];
     columnFormatIndex++;
 
+    xmlWriter->startElement("table:table-column");
+    xmlWriter->addAttribute("table:default-cell-style-name", defaultStyleName);
+    xmlWriter->addAttribute("table:visibility", column->visible() ? "visible" : "collapse");
+    //xmlWriter->addAttribute("table:number-columns-repeated", );
+    xmlWriter->addAttribute("table:style-name", styleName);
     xmlWriter->endElement();  // table:table-column
 }
 
-void ExcelImport::Private::processColumnForStyle(Column* column, int /*repeat*/, KoXmlWriter* xmlWriter)
+// Processes the style of a column in a sheet.
+void ExcelImport::Private::processColumnForStyle(Sheet* sheet, int columnIndex, KoXmlWriter* xmlWriter)
 {
-    if (!column) return;
+    Column* column = sheet->column(columnIndex, false);    
+
     if (!xmlWriter) return;
+    if (!column) return;
 
     KoGenStyle style(KoGenStyle::StyleAutoTableColumn, "table-column");
     style.addProperty("fo:break-before", "auto");
@@ -871,70 +890,81 @@ void ExcelImport::Private::processColumnForStyle(Column* column, int /*repeat*/,
     colCellStyles.append(cellStyleName);
 }
 
-void ExcelImport::Private::processRowForBody(Row* row, int /*repeat*/, KoXmlWriter* xmlWriter)
+// Processes a row in a sheet.
+int ExcelImport::Private::processRowForBody(KoOdfWriteStore* store, Sheet* sheet, int rowIndex, KoXmlWriter* xmlWriter)
 {
-    if (!xmlWriter) return;
+    int repeat = 1;
+
+    if (!xmlWriter) return repeat;
+    Row *row = sheet->row(rowIndex, false);
     if (!row) {
         xmlWriter->startElement("table:table-row");
         xmlWriter->endElement();
-        return;
+        return repeat;
     }
-    if (!row->sheet()) return;
+    if (!row->sheet()) return repeat;
 
-    // find the column of the rightmost cell (if any)
-    int lastCol = -1;
-    for (unsigned i = 0; i <= row->sheet()->maxColumn(); i++)
-        if (row->sheet()->cell(i, row->index(), false)) lastCol = i;
+    const QString styleName = rowStyles[rowFormatIndex];
+    rowFormatIndex++;
+
+    repeat = rowsRepeated(row, rowIndex);
 
     xmlWriter->startElement("table:table-row");
     xmlWriter->addAttribute("table:visibility", row->visible() ? "visible" : "collapse");
-    xmlWriter->addAttribute("table:style-name", rowStyles[rowFormatIndex]);
-    xmlWriter->addAttribute("table:default-cell-style-name", rowCellStyles[rowFormatIndex]);
-    rowFormatIndex++;
+    xmlWriter->addAttribute("table:style-name", styleName);
+    
+    if(repeat > 1)
+        xmlWriter->addAttribute("table:number-rows-repeated", repeat);
 
-    for (int i = 0; i <= lastCol; i++) {
+    // find the column of the rightmost cell (if any)
+    const int lastCol = row->sheet()->maxCellsInRow(rowIndex);
+    int i = 0;
+    while(i <= lastCol) {
         Cell* cell = row->sheet()->cell(i, row->index(), false);
-        if (cell)
-            processCellForBody(cell, xmlWriter);
-        else {
-            // empty cell
+        if (cell) {
+            processCellForBody(store, cell, repeat, xmlWriter);
+            i += cell->columnRepeat() * repeat;
+        } else { // empty cell
             xmlWriter->startElement("table:table-cell");
             xmlWriter->endElement();
+            ++i;
+        }
+    }
+    
+    xmlWriter->endElement();  // table:table-row
+    addProgress(repeat);
+    return repeat;
+}
+
+// Processes the style of a row in a sheet.
+int ExcelImport::Private::processRowForStyle(Sheet* sheet, int rowIndex, KoXmlWriter* xmlWriter)
+{
+    int repeat = 1;
+    Row* row = sheet->row(rowIndex, false);
+
+    if (!row) return repeat;
+    if (!row->sheet()) return repeat;
+    if (!xmlWriter) return repeat;
+
+    repeat = rowsRepeated(row, rowIndex);
+
+    Format format = row->format();
+    QString cellStyleName = processRowFormat(&format, "auto", repeat, row->height());
+    rowStyles.append(cellStyleName);
+
+    const int lastCol = row->sheet()->maxCellsInRow(rowIndex);
+    for (int i = 0; i <= lastCol;) {
+        Cell* cell = row->sheet()->cell(i, row->index(), false);
+        if (cell) {
+            processCellForStyle(cell, xmlWriter);
+            i += cell->columnRepeat() * repeat;
+        } else { // row has no style
+            ++i;
         }
     }
 
-    xmlWriter->endElement();  // table:table-row
-}
-
-void ExcelImport::Private::processRowForStyle(Row* row, int repeat, KoXmlWriter* xmlWriter)
-{
-    if (!row) return;
-    if (!row->sheet()) return;
-    if (!xmlWriter) return;
-
-    // find the column of the rightmost cell (if any)
-    int lastCol = -1;
-    for (unsigned i = 0; i <= row->sheet()->maxColumn(); i++)
-        if (row->sheet()->cell(i, row->index(), false)) lastCol = i;
-
-    KoGenStyle style(KoGenStyle::StyleAutoTableRow, "table-row");
-    if (repeat > 1) style.addAttribute("table:number-rows-repeated", repeat);
-
-    style.addProperty("fo:break-before", "auto");
-    style.addPropertyPt("style:row-height", row->height());
-
-    QString styleName = styles->lookup(style, "ro");
-    rowStyles.append(styleName);
-
-    Format format = row->format();
-    QString cellStyleName = processCellFormat(&format);
-    rowCellStyles.append(cellStyleName);
-
-    for (int i = 0; i <= lastCol; i++) {
-        Cell* cell = row->sheet()->cell(i, row->index(), false);
-        if (cell)
-            processCellForStyle(cell, xmlWriter);
-    }
+    addProgress(repeat);
+    return repeat;
 }
 
 static bool isPercentageFormat(const QString& valueFormat)
@@ -1056,6 +1086,7 @@ QString extractLocale(QString &time)
     return locale;
 }
 
+// Checks if the as argument passed formatstring defines a date-format or not.
 static bool isDateFormat(const Value &value, const QString& valueFormat)
 {
     if (value.type() != Value::Float)
@@ -1230,7 +1261,8 @@ QString currencyValue(const QString &value)
     return QString();
 }
 
-void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter)
+// Processes a cell within a sheet.
+void ExcelImport::Private::processCellForBody(KoOdfWriteStore* store, Cell* cell, int rowsRepeat, KoXmlWriter* xmlWriter)
 {
     if (!cell) return;
     if (!xmlWriter) return;
@@ -1240,6 +1272,7 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
     else
         xmlWriter->startElement("table:table-cell");
 
+    Q_ASSERT(cellFormatIndex < cellStyles.count());
     xmlWriter->addAttribute("table:style-name", cellStyles[cellFormatIndex]);
     cellFormatIndex++;
 
@@ -1247,7 +1280,9 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
         xmlWriter->addAttribute("table:number-columns-spanned", cell->columnSpan());
     if (cell->rowSpan() > 1)
         xmlWriter->addAttribute("table:number-rows-spanned", cell->rowSpan());
-
+    if (cell->columnRepeat() > 1)
+        xmlWriter->addAttribute("table:number-columns-repeated", cell->columnRepeat());
+    
     const QString formula = cellFormula(cell);
     if (!formula.isEmpty())
         xmlWriter->addAttribute("table:formula", formula);
@@ -1295,67 +1330,77 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
         }
     } else if (value.isText() || value.isError()) {
         QString str = string(value.asString());
-        xmlWriter->addAttribute("office:value-type", "string");
-        if (value.isString() && !(cell->format().font().subscript() || cell->format().font().superscript()))
+        QString linkName, linkLocation;
+        
+        if (cell->hasHyperlink()) {
+            linkLocation = string(cell->hyperlinkLocation());
+            if(!linkLocation.isEmpty()) {
+                linkName = string(cell->hyperlinkDisplayName()).trimmed();
+                if(linkName.isEmpty())
+                    linkName = str;
+                str.clear(); // at Excel cells with links don't have additional text content
+            }
+        }
+        if (linkLocation.isEmpty() && value.isString() && !(cell->format().font().subscript() || cell->format().font().superscript())) {
+            xmlWriter->addAttribute("office:value-type", "string");
             xmlWriter->addAttribute("office:string-value", str);
+        }
 
         xmlWriter->startElement("text:p", false);
 
-        if (cell->format().font().subscript() || cell->format().font().superscript()) {
-            xmlWriter->startElement("text:span");
-            if (cell->format().font().subscript())
-                xmlWriter->addAttribute("text:style-name", subScriptStyle);
-            else
-                xmlWriter->addAttribute("text:style-name", superScriptStyle);
-        }
+        if(!str.isEmpty()) {
+            if (cell->format().font().subscript() || cell->format().font().superscript()) {
+                xmlWriter->startElement("text:span");
+                if (cell->format().font().subscript())
+                    xmlWriter->addAttribute("text:style-name", subScriptStyle);
+                else
+                    xmlWriter->addAttribute("text:style-name", superScriptStyle);
+            }
 
-        if (value.isString())
-            xmlWriter->addTextNode(str);
-        else {
-            // rich text
-            std::map<unsigned, FormatFont> formatRuns = value.formatRuns();
+            if (value.isString()) {
+                xmlWriter->addTextNode(str);
+            } else {
+                // rich text
+                std::map<unsigned, FormatFont> formatRuns = value.formatRuns();
 
-            // add sentinel to list of format runs
-            formatRuns[str.length()] = cell->format().font();
+                // add sentinel to list of format runs
+                formatRuns[str.length()] = cell->format().font();
 
-            unsigned index = 0;
-            QString style;
-            for (std::map<unsigned, FormatFont>::iterator it = formatRuns.begin(); it != formatRuns.end(); ++it) {
-                if (!style.isEmpty() && it->first > index) {
-                    xmlWriter->startElement("text:span");
-                    xmlWriter->addAttribute("text:style-name", style);
-                }
-                if (it->first > index)
-                    xmlWriter->addTextNode(str.mid(index, it->first - index));
-                if (!style.isEmpty() && it->first > index) {
-                    xmlWriter->endElement(); // text:span
-                }
+                unsigned index = 0;
+                QString style;
+                for (std::map<unsigned, FormatFont>::iterator it = formatRuns.begin(); it != formatRuns.end(); ++it) {
+                    if (!style.isEmpty() && it->first > index) {
+                        xmlWriter->startElement("text:span");
+                        xmlWriter->addAttribute("text:style-name", style);
+                    }
+                    if (it->first > index)
+                        xmlWriter->addTextNode(str.mid(index, it->first - index));
+                    if (!style.isEmpty() && it->first > index) {
+                        xmlWriter->endElement(); // text:span
+                    }
 
-                index = it->first;
+                    index = it->first;
 
-                if (it->second == cell->format().font())
-                    style = "";
-                else {
-                    style = fontStyles.value(it->second);
+                    if (it->second == cell->format().font())
+                        style = "";
+                    else {
+                        style = fontStyles.value(it->second);
+                    }
                 }
             }
+
+            if (cell->format().font().subscript() || cell->format().font().superscript())
+                xmlWriter->endElement(); // text:span
         }
 
-        if (cell->hasHyperlink()) {
-            QString displayName = string(cell->hyperlinkDisplayName());
-            QString location = string(cell->hyperlinkLocation());
-            if (displayName.isEmpty())
-                displayName = str;
+        if (!linkName.isEmpty()) {
             xmlWriter->startElement("text:a");
-            xmlWriter->addAttribute("xlink:href", location);
+            xmlWriter->addAttribute("xlink:href", linkLocation);
             if (! cell->hyperlinkTargetFrameName().isEmpty())
                 xmlWriter->addAttribute("office:target-frame-name", string(cell->hyperlinkTargetFrameName()));
-            xmlWriter->addTextNode(displayName);
+            xmlWriter->addTextNode(linkName);
             xmlWriter->endElement(); // text:a
         }
-
-        if (cell->format().font().subscript() || cell->format().font().superscript())
-            xmlWriter->endElement(); // text:span
 
         xmlWriter->endElement(); //  text:p
     }
@@ -1363,22 +1408,21 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
     const UString note = cell->note();
     if (! note.isEmpty()) {
         const QString n = string(note);
-        const QString name = n.section('\n',0,0);
-        const QString text = n.section('\n',1,-1);
         xmlWriter->startElement("office:annotation");
-        xmlWriter->startElement("dc:creator");
-        xmlWriter->addTextNode(name);
-        xmlWriter->endElement(); // dc:creator
+        //xmlWriter->startElement("dc:creator");
+        //xmlWriter->addTextNode(authorName); //TODO
+        //xmlWriter->endElement(); // dc:creator
         xmlWriter->startElement("text:p");
-        xmlWriter->addTextNode(text);
+        xmlWriter->addTextNode(n);
         xmlWriter->endElement(); // text:p
         xmlWriter->endElement(); // office:annotation
     }
     
+    // handle pictures
     foreach(Picture *picture, cell->pictures()) {
         xmlWriter->startElement("draw:frame");
         //xmlWriter->addAttribute("draw:name", "Graphics 1");
-        xmlWriter->addAttribute("table:end-cell", columnName(picture->m_colR) + QString::number(picture->m_rwB));
+        xmlWriter->addAttribute("table:end-cell", string(cell->sheet()->name()) + "." + columnName(picture->m_colR) + QString::number(picture->m_rwB));
         xmlWriter->addAttribute("table:table:end-x", QString::number(picture->m_dxR));
         xmlWriter->addAttribute("table:table:end-y", QString::number(picture->m_dyB));
         xmlWriter->addAttribute("draw:z-index", "0");
@@ -1395,9 +1439,39 @@ void ExcelImport::Private::processCellForBody(Cell* cell, KoXmlWriter* xmlWriter
         xmlWriter->endElement(); // draw:frame
     }
 
+    // handle charts
+    foreach(ChartObject *chart, cell->charts()) {
+        DrawingObject* drawobj = chart->drawingObject();
+        if(!drawobj) continue;
+
+        ChartExport *c = new ChartExport(chart->m_chart);
+        c->m_href = QString("Chart%1").arg(this->charts.count()+1);
+        c->m_endCellAddress = string(cell->sheet()->name()) + "." + columnName(drawobj->m_colR) + QString::number(drawobj->m_rwB);
+        c->m_notifyOnUpdateOfRanges = "Sheet1.D2:Sheet1.F2";
+        c->m_x = QString::number(columnWidth(cell->sheet(),drawobj->m_colL,drawobj->m_dxL)) + "pt";
+        c->m_y = QString::number(rowHeight(cell->sheet(),drawobj->m_rwT,drawobj->m_dyT)) + "pt";
+        c->m_width = QString::number(columnWidth(cell->sheet(),drawobj->m_colR-drawobj->m_colL,drawobj->m_dxR)) + "pt";
+        c->m_height = QString::number(rowHeight(cell->sheet(),drawobj->m_rwB-drawobj->m_rwT,drawobj->m_dyB)) + "pt";
+
+        c->m_cellRangeAddress = string(cell->sheet()->name()) + "." + columnName(chart->m_chart->m_cellRangeAddress.left()) + QString::number(chart->m_chart->m_cellRangeAddress.top()) + ":" +
+        string(cell->sheet()->name()) + "." + columnName(chart->m_chart->m_cellRangeAddress.right()) + QString::number(chart->m_chart->m_cellRangeAddress.bottom());
+
+        this->charts << c;
+
+        c->saveIndex(xmlWriter);
+    }
+
     xmlWriter->endElement(); //  table:[covered-]table-cell
 }
 
+void ExcelImport::Private::processCharts(KoXmlWriter* manifestWriter)
+{
+    foreach(ChartExport *c, this->charts) {
+        c->saveContent(this->storeout, manifestWriter);
+    }
+}
+
+// Processes style for a cell within a sheet.
 void ExcelImport::Private::processCellForStyle(Cell* cell, KoXmlWriter* xmlWriter)
 {
     if (!cell) return;
@@ -1431,6 +1505,7 @@ void ExcelImport::Private::processCellForStyle(Cell* cell, KoXmlWriter* xmlWrite
     }
 }
 
+// Processes styles for a cell within a sheet.
 QString ExcelImport::Private::processCellFormat(Format* format, const QString& formula)
 {
     // handle data format, e.g. number style
@@ -1478,6 +1553,33 @@ QString ExcelImport::Private::processCellFormat(Format* format, const QString& f
 
     processFormat(format, style);
     QString styleName = styles->lookup(style, "ce");
+    return styleName;
+}
+
+// Processes styles for a row within a sheet.
+QString ExcelImport::Private::processRowFormat(Format* format, const QString& breakBefore, int rowRepeat, int rowHeight)
+{
+    QString refName;
+    QString valueFormat = string(format->valueFormat());
+    if (valueFormat != QString("General"))
+        refName = processValueFormat(valueFormat);
+
+    KoGenStyle style(KoGenStyle::StyleAutoTableRow, "table-row");
+    // now the real table-cell
+    if (!refName.isEmpty())
+        style.addAttribute("style:data-style-name", refName);
+    // set break-before
+    if(!breakBefore.isEmpty())
+        style.addProperty("fo:break-before", breakBefore);
+    // set how often the row should be repeated
+    if (rowRepeat > 1)
+        style.addAttribute("table:number-rows-repeated", rowRepeat);
+    // set the height of the row
+    if (rowHeight >= 0)
+        style.addPropertyPt("style:row-height", rowHeight);
+
+    processFormat(format, style);
+    QString styleName = styles->lookup(style, "ro");
     return styleName;
 }
 
@@ -1548,6 +1650,7 @@ void ExcelImport::Private::processFontFormat(const FormatFont& font, KoGenStyle&
     style.addProperty("fo:color", convertColor(font.color()), KoGenStyle::TextType);
 }
 
+// Processes a formatting.
 void ExcelImport::Private::processFormat(Format* format, KoGenStyle& style)
 {
     if (!format) return;

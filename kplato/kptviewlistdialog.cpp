@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright (C) 2007 Dag Andersen <danders@get2net.dk>
+   Copyright (C) 2007 - 2010 Dag Andersen <danders@get2net.dk>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -20,6 +20,7 @@
 #include "kptviewlistdialog.h"
 #include "kptviewlist.h"
 #include "kptview.h"
+#include "reports/reportview.h"
 
 #include <kiconloader.h>
 #include <klocale.h>
@@ -37,7 +38,7 @@ static inline QPixmap loadIcon( const char * name ) {
 ViewListDialog::ViewListDialog( View *view, ViewListWidget &viewlist, QWidget *parent )
     : KDialog(parent)
 {
-    setCaption( i18n("Add View") );
+    setCaption( i18nc( "@title:window", "Add View") );
     setButtons( KDialog::Ok | KDialog::Cancel );
     setDefaultButton( Ok );
 
@@ -49,8 +50,15 @@ ViewListDialog::ViewListDialog( View *view, ViewListWidget &viewlist, QWidget *p
 
     connect(this,SIGNAL(okClicked()),this,SLOT(slotOk()));
     connect( m_panel, SIGNAL( enableButtonOk( bool ) ), SLOT( enableButtonOk( bool ) ) );
+    connect( m_panel, SIGNAL( viewCreated( ViewBase* ) ), SIGNAL( viewCreated( ViewBase* ) ) );
+
+    connect(&viewlist, SIGNAL(viewListItemRemoved(ViewListItem*)), SLOT(slotViewListItemRemoved(ViewListItem*)));
 }
 
+void ViewListDialog::slotViewListItemRemoved( ViewListItem * )
+{
+    reject();
+}
 
 void ViewListDialog::slotOk() {
     if ( m_panel->ok() ) {
@@ -261,6 +269,7 @@ bool AddViewPanel::ok()
             kError()<<"Unknown view type!";
             break;
     }
+    emit viewCreated( v );
     return true;
 }
 
@@ -274,7 +283,7 @@ void AddViewPanel::changed()
 ViewListEditViewDialog::ViewListEditViewDialog( ViewListWidget &viewlist, ViewListItem *item, QWidget *parent )
     : KDialog(parent)
 {
-    setCaption( i18n("Configure View") );
+    setCaption( i18nc( "@title:window", "Configure View" ) );
     setButtons( KDialog::Ok | KDialog::Cancel );
     setDefaultButton( Ok );
 
@@ -286,8 +295,14 @@ ViewListEditViewDialog::ViewListEditViewDialog( ViewListWidget &viewlist, ViewLi
 
     connect(this,SIGNAL(okClicked()),this,SLOT(slotOk()));
     connect( m_panel, SIGNAL( enableButtonOk( bool ) ), SLOT( enableButtonOk( bool ) ) );
+
+    connect(&viewlist, SIGNAL(viewListItemRemoved(ViewListItem*)), SLOT(slotViewListItemRemoved(ViewListItem*)));
 }
 
+void ViewListEditViewDialog::slotViewListItemRemoved( ViewListItem * )
+{
+    reject();
+}
 
 void ViewListEditViewDialog::slotOk() {
     if ( m_panel->ok() ) {
@@ -381,7 +396,7 @@ void EditViewPanel::fillAfter( ViewListItem *cat )
 ViewListEditCategoryDialog::ViewListEditCategoryDialog( ViewListWidget &viewlist, ViewListItem *item, QWidget *parent )
     : KDialog(parent)
 {
-    setCaption( i18n("Configure Category") );
+    setCaption( i18nc( "@title:window", "Configure Category" ) );
     setButtons( KDialog::Ok | KDialog::Cancel );
     setDefaultButton( Ok );
 
@@ -393,8 +408,14 @@ ViewListEditCategoryDialog::ViewListEditCategoryDialog( ViewListWidget &viewlist
 
     connect(this,SIGNAL(okClicked()),this,SLOT(slotOk()));
     connect( m_panel, SIGNAL( enableButtonOk( bool ) ), SLOT( enableButtonOk( bool ) ) );
+
+    connect(&viewlist, SIGNAL(viewListItemRemoved(ViewListItem*)), SLOT(slotViewListItemRemoved(ViewListItem*)));
 }
 
+void ViewListEditCategoryDialog::slotViewListItemRemoved( ViewListItem * )
+{
+    reject();
+}
 
 void ViewListEditCategoryDialog::slotOk() {
     if ( m_panel->ok() ) {
@@ -456,6 +477,165 @@ void EditCategoryPanel::fillAfter()
         }
     }
     widget.insertAfter->setCurrentIndex( idx );
+}
+
+//------ Reports
+ViewListReportsDialog::ViewListReportsDialog( View *view, ViewListWidget &viewlist, QWidget *parent )
+    : KDialog(parent)
+{
+    setCaption( i18nc( "@title:window", "Add Report" ) );
+    setButtons( KDialog::Ok | KDialog::Cancel );
+    setDefaultButton( Ok );
+
+    m_panel = new AddReportsViewPanel( view, viewlist, this );
+
+    setMainWidget( m_panel );
+    
+    enableButtonOk(true);
+
+    connect(this,SIGNAL(okClicked()),this,SLOT(slotOk()));
+    connect( m_panel, SIGNAL( enableButtonOk( bool ) ), SLOT( enableButtonOk( bool ) ) );
+    connect( m_panel, SIGNAL( viewCreated( ViewBase* ) ), SIGNAL( viewCreated( ViewBase* ) ) );
+
+    connect(&viewlist, SIGNAL(viewListItemRemoved(ViewListItem*)), SLOT(slotViewListItemRemoved(ViewListItem*)));
+}
+
+void ViewListReportsDialog::slotViewListItemRemoved( ViewListItem * )
+{
+    reject();
+}
+
+void ViewListReportsDialog::slotOk() {
+    if ( m_panel->ok() ) {
+        accept();
+    }
+}
+
+//------------------------
+AddReportsViewPanel::AddReportsViewPanel( View *view, ViewListWidget &viewlist, QWidget *parent )
+    : QWidget( parent ),
+      m_view( view ),
+      m_viewlist( viewlist ),
+      m_viewnameChanged( false ),
+      m_viewtipChanged( false )
+{
+    widget.setupUi( this );
+    
+    // NOTE: these lists must match switch in ok() FIXME: refactor
+    m_viewtypes << "ReportView";
+    QStringList lst;
+    lst << i18n( "Report" );
+    widget.viewtype->addItems( lst );
+    
+    foreach ( ViewListItem *item, m_viewlist.categories() ) {
+        m_categories.insert( item->text( 0 ), item );
+    }
+    widget.category->addItems( m_categories.keys() );
+    ViewListItem *curr = m_viewlist.currentCategory();
+    if ( curr ) {
+        widget.category->setCurrentIndex( m_categories.values().indexOf( curr ) );
+    }
+    fillAfter( m_categories.value( widget.category->currentText() ) );
+
+    viewtypeChanged( widget.viewtype->currentIndex() );
+
+    connect( widget.viewname, SIGNAL( textChanged( const QString& ) ), SLOT( changed() ) );
+    connect( widget.tooltip, SIGNAL( textChanged( const QString& ) ), SLOT( changed() ) );
+    connect( widget.viewname, SIGNAL( textChanged( const QString& ) ), SLOT( viewnameChanged( const QString& ) ) );
+    connect( widget.tooltip, SIGNAL( textChanged( const QString& ) ), SLOT( viewtipChanged( const QString& ) ) );
+    connect( widget.insertAfter, SIGNAL( currentIndexChanged( int ) ), SLOT( changed() ) );
+    connect( widget.viewtype, SIGNAL( currentIndexChanged( int ) ), SLOT( viewtypeChanged( int ) ) );
+    connect( widget.category, SIGNAL( editTextChanged( const QString& ) ), SLOT( categoryChanged() ) );
+}
+
+void AddReportsViewPanel::viewnameChanged( const QString &text )
+{
+    m_viewnameChanged = ! text.isEmpty();
+    qDebug()<<"viewnameChanged:"<<m_viewnameChanged;
+}
+
+void AddReportsViewPanel::viewtipChanged( const QString &text )
+{
+    m_viewtipChanged = ! text.isEmpty();
+    qDebug()<<"viewtipChanged:"<<m_viewtipChanged;
+}
+
+void AddReportsViewPanel::viewtypeChanged( int idx )
+{
+    ViewInfo vi = m_view->defaultViewInfo( m_viewtypes.value( idx ) );
+    qDebug()<<"viewtypeChanged:"<<idx<<m_viewtypes.value( idx )<<vi.name<<vi.tip;
+    if ( widget.viewname->text().isEmpty() ) {
+        m_viewnameChanged = false;
+    }
+    if ( ! m_viewnameChanged ) {
+        widget.viewname->setText( vi.name );
+        m_viewnameChanged = false;
+    }
+    if ( widget.tooltip->text().isEmpty() ) {
+        m_viewtipChanged = false;
+    }
+    if ( ! m_viewtipChanged ) {
+        widget.tooltip->setText( vi.tip );
+        m_viewtipChanged = false;
+    }
+}
+
+void AddReportsViewPanel::categoryChanged()
+{
+    kDebug()<<widget.category->currentText();
+    fillAfter( m_categories.value( widget.category->currentText() ) );
+    changed();
+}
+
+void AddReportsViewPanel::fillAfter( ViewListItem *cat )
+{
+    kDebug()<<cat;
+    widget.insertAfter->clear();
+    if ( cat ) {
+        widget.insertAfter->addItem( i18n( "Top" ) );
+        int idx = 0;
+        for ( int i = 0; i < cat->childCount(); ++i ) {
+            ViewListItem *itm = static_cast<ViewListItem*>( cat->child( i ) );
+            widget.insertAfter->addItem( itm->text( 0 ), QVariant::fromValue( (void*)itm ) );
+        }
+        if ( cat == m_viewlist.currentCategory() ) {
+            ViewListItem *v = m_viewlist.currentItem();
+            if ( v && v->type() != ViewListItem::ItemType_Category ) {
+                widget.insertAfter->setCurrentIndex( cat->indexOfChild( v ) + 1 );
+            }
+        }
+    }
+}
+
+bool AddReportsViewPanel::ok()
+{
+    QString n = widget.category->currentText();
+    ViewListItem *curr = m_categories.value( n );
+    QString c = curr == 0 ? n : curr->tag();
+    
+    ViewListItem *cat = m_viewlist.addCategory( c, n );
+    if ( cat == 0 ) {
+        return false;
+    }
+    ViewBase *v = 0;
+    int index = widget.insertAfter->currentIndex();
+    int viewtype = widget.viewtype->currentIndex();
+    switch ( viewtype ) {
+        case 0: { // Report view
+            v = m_view->createReportView( cat, m_viewtypes.value( viewtype ), widget.viewname->text(), widget.tooltip->text(), index );
+            break; }
+        default:
+            kError()<<"Unknown view type!";
+            break;
+    }
+    emit viewCreated( v );
+    return true;
+}
+
+void AddReportsViewPanel::changed()
+{
+    bool disable = widget.viewname->text().isEmpty() | widget.viewtype->currentText().isEmpty() | widget.category->currentText().isEmpty();
+    emit enableButtonOk( ! disable );
 }
 
 

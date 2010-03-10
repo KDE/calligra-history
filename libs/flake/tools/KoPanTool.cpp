@@ -36,7 +36,7 @@ KoPanTool::KoPanTool(KoCanvasBase *canvas)
 {
 }
 
-bool KoPanTool::wantsAutoScroll()
+bool KoPanTool::wantsAutoScroll() const
 {
     return false;
 }
@@ -89,11 +89,13 @@ void KoPanTool::keyPressEvent(QKeyEvent *event)
     event->accept();
 }
 
-void KoPanTool::activate(bool temporary)
+void KoPanTool::activate(ToolActivation toolActivation, const QSet<KoShape*> &)
 {
-    if (m_controller == 0)
+    if (m_controller == 0) {
         emit done();
-    m_temporary = temporary;
+        return;
+    }
+    m_temporary = toolActivation == TemporaryActivation;
     useCursor(QCursor(Qt::OpenHandCursor));
 }
 

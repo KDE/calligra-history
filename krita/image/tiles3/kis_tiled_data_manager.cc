@@ -59,7 +59,7 @@ KisTiledDataManager::KisTiledDataManager(quint32 pixelSize,
 }
 
 KisTiledDataManager::KisTiledDataManager(const KisTiledDataManager &dm)
-        : KisShared(dm),
+        : KisShared(),
         m_lock(QReadWriteLock::NonRecursive)
 {
     /* See comment in destructor for details */
@@ -73,6 +73,7 @@ KisTiledDataManager::KisTiledDataManager(const KisTiledDataManager &dm)
      * has already been made shared in m_hashTable(dm->m_hashTable)
      */
     memcpy(m_defaultPixel, dm.m_defaultPixel, m_pixelSize);
+    m_defaultTile = new KisTile(-1,-1, m_hashTable->defaultTileData(), 0);
 
     m_extentMinX = dm.m_extentMinX;
     m_extentMinY = dm.m_extentMinY;
@@ -104,6 +105,7 @@ void KisTiledDataManager::setDefaultPixel(const quint8 *defaultPixel)
                       defaultPixel);
     m_hashTable->setDefaultTileData(td);
     m_mementoManager->setDefaultTileData(td);
+    m_defaultTile = new KisTile(-1,-1, td, 0);
 
     memcpy(m_defaultPixel, defaultPixel, pixelSize());
 }
@@ -452,7 +454,7 @@ KisTileDataWrapper KisTiledDataManager::pixelPtr(qint32 x, qint32 y,
           if(newTile)
           updateExtent(tile->col(), tile->row());
     */
-    KisTileSP tile = getTile(col, row);
+    KisTileSP tile = getTile(col, row, type == KisTileDataWrapper::WRITE);
 
     return KisTileDataWrapper(tile,
                               pixelIndex*pixelSize(),

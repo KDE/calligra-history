@@ -64,6 +64,7 @@ const char* const MSOOXML::ContentTypes::wordFootnotes =        "application/vnd
 const char* const MSOOXML::ContentTypes::wordEndnotes =         "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml";
 const char* const MSOOXML::ContentTypes::wordFontTable =        "application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml";
 const char* const MSOOXML::ContentTypes::wordWebSettings =      "application/vnd.openxmlformats-officedocument.wordprocessingml.webSettings+xml";
+const char* const MSOOXML::ContentTypes::wordTemplate =         "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml";
 
 // presentationml-specific content types
 const char* const MSOOXML::ContentTypes::presentationDocument =      "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml";
@@ -83,6 +84,7 @@ const char* const MSOOXML::ContentTypes::spreadsheetStyles =          "applicati
 const char* const MSOOXML::ContentTypes::spreadsheetWorksheet =       "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml";
 const char* const MSOOXML::ContentTypes::spreadsheetCalcChain =       "application/vnd.openxmlformats-officedocument.spreadsheetml.calcChain+xml";
 const char* const MSOOXML::ContentTypes::spreadsheetSharedStrings =   "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml";
+const char* const MSOOXML::ContentTypes::spreadsheetTemplate =        "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml";
 
 // common namespaces
 const char* const MSOOXML::Schemas::contentTypes =                               "http://schemas.openxmlformats.org/package/2006/content-types";
@@ -134,10 +136,8 @@ using namespace MSOOXML;
 KoFilter::ConversionStatus Utils::loadAndParse(QIODevice* io, KoXmlDocument& doc,
         QString& errorMessage, const QString & fileName)
 {
-    // Error variables for QDomDocument::setContent
     errorMessage.clear();
-    QString errorMsg;
-    int errorLine, errorColumn;
+
     // We need to be able to see the space in <text:span> </text:span>, this is why
     // we activate the "report-whitespace-only-CharData" feature.
     // Unfortunately this leads to lots of whitespace text nodes in between real
@@ -147,6 +147,8 @@ KoFilter::ConversionStatus Utils::loadAndParse(QIODevice* io, KoXmlDocument& doc
     QXmlSimpleReader reader;
     KoOdfReadStore::setupXmlReader(reader, true /*namespaceProcessing*/);
 
+    QString errorMsg;
+    int errorLine, errorColumn;
     bool ok = doc.setContent(&source, &reader, &errorMsg, &errorLine, &errorColumn);
     if (!ok) {
         kError() << "Parsing error in " << fileName << ", aborting!" << endl
@@ -163,6 +165,7 @@ KoFilter::ConversionStatus Utils::loadAndParse(QIODevice* io, KoXmlDocument& doc
 KoFilter::ConversionStatus Utils::loadAndParse(KoXmlDocument& doc, const KZip* zip,
         QString& errorMessage, const QString& fileName)
 {
+    errorMessage.clear();
     KoFilter::ConversionStatus status;
     std::auto_ptr<QIODevice> device(openDeviceForFile(zip, errorMessage, fileName, status));
     if (!device.get())
@@ -178,6 +181,7 @@ KoFilter::ConversionStatus Utils::loadAndParseDocument(MsooXmlReader* reader,
         MsooXmlReaderContext* context)
 {
     Q_UNUSED(writers)
+    errorMessage.clear();
     KoFilter::ConversionStatus status;
     std::auto_ptr<QIODevice> device(openDeviceForFile(zip, errorMessage, fileName, status));
     if (!device.get())
@@ -189,7 +193,6 @@ KoFilter::ConversionStatus Utils::loadAndParseDocument(MsooXmlReader* reader,
         errorMessage = reader->errorString();
         return status;
     }
-    errorMessage.clear();
     kDebug() << "File" << fileName << "loaded and parsed.";
     return KoFilter::OK;
 }
@@ -198,8 +201,8 @@ QIODevice* Utils::openDeviceForFile(const KZip* zip, QString& errorMessage, cons
                                     KoFilter::ConversionStatus& status)
 {
     kDebug() << "Trying to open" << fileName;
-    const KArchiveEntry* entry = zip->directory()->entry(fileName);
     errorMessage.clear();
+    const KArchiveEntry* entry = zip->directory()->entry(fileName);
     if (!entry) {
         errorMessage = i18n("Entry '%1' not found.", fileName);
         kDebug() << errorMessage;
@@ -240,7 +243,7 @@ KoFilter::ConversionStatus Utils::copyFile(const KZip* zip, QString& errorMessag
     while (true) {
         const qint64 in = inputDevice->read(block, BLOCK_SIZE);
 //        kDebug() << "in:" << in;
-        if (in == 0 || in == -1)
+        if (in <= 0)
             break;
         if (in != outputStore->write(block, in)) {
             errorMessage = i18n("Could not write block");
@@ -289,6 +292,7 @@ bool Utils::convertBooleanAttr(const QString& value, bool defaultValue)
     const QByteArray val(value.toLatin1());
     if (val.isEmpty())
         return defaultValue;
+kDebug() << val;
     return val != MsooXmlReader::constOff && val != MsooXmlReader::constFalse && val != MsooXmlReader::const0;
 }
 

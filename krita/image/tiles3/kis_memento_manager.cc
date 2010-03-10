@@ -48,9 +48,17 @@
 
 
 KisMementoManager::KisMementoManager()
-        : m_headsHashTable(0),
-        m_currentMemento(0)
+        : m_headsHashTable(0)
 {
+    /**
+     * Get an initial memento to show we want history for ALL the devices.
+     * If we don't do it, we won't be able to start history later,
+     * as we don't have any special api for this.
+     * It shouldn't create much overhead for unversioned devices as
+     * no tile-duplication accurs without calling a commit()
+     * method regularily.
+     */
+    (void) getMemento();
 }
 
 KisMementoManager::KisMementoManager(const KisMementoManager& rhs)
@@ -58,8 +66,11 @@ KisMementoManager::KisMementoManager(const KisMementoManager& rhs)
         m_revisions(rhs.m_revisions),
         m_cancelledRevisions(rhs.m_cancelledRevisions),
         m_headsHashTable(rhs.m_headsHashTable, 0),
-        m_currentMemento(0)
+        m_currentMemento(rhs.m_currentMemento)
 {
+    Q_ASSERT_X(m_currentMemento,
+               "KisMementoManager", "(impossible happened) "
+               "Seems like a device was created without history support");
 }
 
 KisMementoManager::~KisMementoManager()

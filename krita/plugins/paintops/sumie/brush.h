@@ -25,12 +25,16 @@
 
 #include <KoColor.h>
 
+#include "trajectory.h"
 #include "bristle.h"
 #include "brush_shape.h"
 
 #include <kis_paint_device.h>
 #include <kis_paint_information.h>
 #include <kis_random_accessor.h>
+
+
+class KoColorSpace;
 
 class KisSumiProperties{
 public:
@@ -44,6 +48,8 @@ public:
     bool useOpacity;
     bool useWeights;
 
+    bool useSoakInk;
+    
     quint8 pressureWeight;
     quint8 bristleLengthWeight;
     quint8 bristleInkAmountWeight;
@@ -52,6 +58,7 @@ public:
     qreal shearFactor;
     qreal randomFactor;
     qreal scaleFactor;
+    
 };
 
 class Brush
@@ -65,7 +72,6 @@ public:
     void repositionBristles(double angle, double slope);
     void rotateBristles(double angle);
     double computeMousePressure(double distance);
-    double getAngleDelta(const KisPaintInformation& info);
 
     void setInkColor(const KoColor &color);
     void setBrushShape(BrushShape brushShape);
@@ -73,28 +79,27 @@ public:
     
     /// paints single bristle
     void putBristle(Bristle *bristle, float wx, float wy, const KoColor &color);
-    void mixCMY(double x, double y, int cyan, int magenta, int yellow, double weight);
     void addBristleInk(Bristle *bristle, float wx, float wy, const KoColor &color);
     void oldAddBristleInk(Bristle *bristle, float wx, float wy, const KoColor &color);
 
+    /// similar to sample input color in spray
+    void colorifyBristles(KisRandomConstAccessor& acc, KoColorSpace * cs, QPointF point);
+    
 private:
     const KisSumiProperties * m_properties;
     
-    QVector<Bristle> m_bristles;
+    QVector<Bristle*> m_bristles;
     QTransform m_transform;
 
     BrushShape m_initialShape;
-    KoColor m_inkColor;
-
+   
+    // used for interpolation the path of bristles
+    Trajectory m_trajectory;
+    QHash<QString, QVariant> m_params;    
     // temporary device
     KisPaintDeviceSP m_dev;
     KisRandomAccessor * m_dabAccessor;
     quint32 m_pixelSize;
-
-    // painter()->device()
-    KisPaintDeviceSP m_layer;
-    KisRandomAccessor * m_layerAccessor;
-    quint32 m_layerPixelSize;
 
     int m_counter;
 

@@ -61,11 +61,10 @@ public:
      */
     bool allowAsChild(KisNodeSP node) const;
 
+    void setImage(KisImageWSP image);
+
     KisPaintDeviceSP original() const;
     KisPaintDeviceSP paintDevice() const;
-
-    QRect repaintOriginal(KisPaintDeviceSP original,
-                          const QRect& rect);
 
     bool needProjection() const;
     void copyOriginalToProjection(const KisPaintDeviceSP original,
@@ -74,7 +73,7 @@ public:
 
     // From KisNode
     QRect changeRect(const QRect &rect) const;
-    QRect needRect(const QRect &rect) const;
+    QRect needRect(const QRect &rect, PositionToFilthy pos = NORMAL) const;
 
     /**
      * resets cached projection of lower layer to a new device

@@ -68,26 +68,17 @@ KisGridPaintOp::KisGridPaintOp(const KisGridPaintOpSettings *settings, KisPainte
 
 KisGridPaintOp::~KisGridPaintOp()
 {
+    delete m_painter;
 }
 
-double KisGridPaintOp::spacing(double & xSpacing, double & ySpacing, double pressure1, double pressure2) const {
-        Q_UNUSED(pressure1);
-        Q_UNUSED(pressure2);
-        xSpacing = m_xSpacing;
-        ySpacing = m_ySpacing;
-
-        return m_spacing;
-}
-
-
-void KisGridPaintOp::paintAt(const KisPaintInformation& info)
+double KisGridPaintOp::paintAt(const KisPaintInformation& info)
 {
 #ifdef BENCHMARK
     QTime time;
     time.start();
 #endif
 
-    if (!painter()) return;
+    if (!painter()) return m_spacing;
     m_dab->clear();
 
     int gridWidth = m_properties.gridWidth * m_properties.scale;
@@ -179,9 +170,9 @@ void KisGridPaintOp::paintAt(const KisPaintInformation& info)
                 }
                 
                 if (m_colorProperties.useRandomOpacity){
-                    quint8 alpha = qRound(drand48() * OPACITY_OPAQUE);
+                    qreal alpha = drand48();
                     color.setOpacity( alpha );
-                    m_painter->setOpacity( alpha );
+                    m_painter->setOpacity( qRound(alpha * OPACITY_OPAQUE_U8) );
                 }
 
                 if ( !m_colorProperties.colorPerParticle ){
@@ -239,6 +230,7 @@ void KisGridPaintOp::paintAt(const KisPaintInformation& info)
     m_total += msec;
     m_count++;
 #endif
+    return m_spacing;
 }
 
 void KisGridProperties::fillProperties(const KisPropertiesConfiguration* setting)
@@ -248,9 +240,9 @@ void KisGridProperties::fillProperties(const KisPropertiesConfiguration* setting
     divisionLevel = setting->getInt(GRID_DIVISION_LEVEL);
     pressureDivision =  setting->getBool(GRID_PRESSURE_DIVISION);
     randomBorder = setting->getBool(GRID_RANDOM_BORDER);
-    scale = setting->getBool(GRID_SCALE);
-    vertBorder  = setting->getBool(GRID_VERTICAL_BORDER);
-    horizBorder = setting->getBool(GRID_HORIZONTAL_BORDER);
+    scale = setting->getDouble(GRID_SCALE);
+    vertBorder  = setting->getDouble(GRID_VERTICAL_BORDER);
+    horizBorder = setting->getDouble(GRID_HORIZONTAL_BORDER);
     
     shape = setting->getInt(GRIDSHAPE_SHAPE);
 }

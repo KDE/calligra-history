@@ -32,7 +32,7 @@ KisFixedPaintDevice::~KisFixedPaintDevice()
 }
 
 KisFixedPaintDevice::KisFixedPaintDevice(const KisFixedPaintDevice& rhs)
-        : KisShared(rhs)
+        : KisShared()
 {
     m_bounds = rhs.m_bounds;
     m_colorSpace = rhs.m_colorSpace;
@@ -160,7 +160,7 @@ void KisFixedPaintDevice::clear(const QRect & rc)
     KoColor c(Qt::black, m_colorSpace);
     quint8* black = m_colorSpace->allocPixelBuffer(1);
     memcpy(black, c.data(), m_colorSpace->pixelSize());
-    m_colorSpace->setAlpha(black, OPACITY_TRANSPARENT, 1);
+    m_colorSpace->setOpacity(black, OPACITY_TRANSPARENT_U8, 1);
     fill(rc.x(), rc.y(), rc.width(), rc.height(), black);
     delete[] black;
 }

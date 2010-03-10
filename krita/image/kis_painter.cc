@@ -82,12 +82,12 @@ struct KisPainter::Private {
     KoColor                     paintColor;
     KoColor                     backgroundColor;
     KoColor                     fillColor;
-    KisFilterConfiguration*     generator;
+    const KisFilterConfiguration* generator;
     KisPaintLayer*              sourceLayer;
     FillStyle                   fillStyle;
     StrokeStyle                 strokeStyle;
     bool                        antiAliasPolygonFill;
-    KisPattern*                 pattern;
+    const KisPattern*           pattern;
     QPointF                     duplicateOffset;
     quint8                      opacity;
     quint32                     pixelSize;
@@ -135,7 +135,7 @@ void KisPainter::init()
     d->transaction = 0;
     d->paintOp = 0;
     d->pattern = 0;
-    d->opacity = OPACITY_OPAQUE;
+    d->opacity = OPACITY_OPAQUE_U8;
     d->sourceLayer = 0;
     d->fillStyle = FillStyleNone;
     d->strokeStyle = StrokeStyleBrush;
@@ -155,7 +155,7 @@ void KisPainter::init()
 
 KisPainter::~KisPainter()
 {
-    end();
+    delete end();
     delete d->paintOp;
     delete d->maskPainter;
     delete d->fillPainter;
@@ -476,17 +476,77 @@ void KisPainter::bltFixed(qint32 dx, qint32 dy,
     addDirtyRect(QRect(dx, dy, sw, sh));
 }
 
+
+void KisPainter::bltFixed(qint32 dx, qint32 dy,
+                          const KisFixedPaintDeviceSP srcDev,
+                          const KisFixedPaintDeviceSP selection,
+                          qint32 sx, qint32 sy,
+                          qint32 sw, qint32 sh)
+{
+    if (sw == 0 || sh == 0) return;
+    if (srcDev.isNull()) return;
+    if (d->device.isNull()) return;
+    Q_ASSERT(srcDev->pixelSize() == d->pixelSize);
+    Q_ASSERT(selection->colorSpace() == KoColorSpaceRegistry::instance()->alpha8());
+
+    QRect srcRect = QRect(sx, sy, sw, sh);
+
+    if (srcRect.isEmpty()) {
+        return;
+    }
+
+    if (!srcRect.contains(srcDev->bounds())) {
+        srcRect = srcDev->bounds();
+    }
+
+    dx += srcRect.x() - sx;
+    dy += srcRect.y() - sy;
+
+    sx = srcRect.x();
+    sy = srcRect.y();
+    sw = srcRect.width();
+    sh = srcRect.height();
+
+    const KoColorSpace * srcCs = d->colorSpace;
+    quint8* dstBytes = new quint8[sw * sh * d->device->pixelSize()];
+    d->device->readBytes(dstBytes, dx, dy, sw, sh);
+
+    quint8* selBytes = selection->data();
+
+    d->colorSpace->bitBlt(dstBytes,
+                            sw * d->device->pixelSize(),
+                            srcCs,
+                            srcDev->data() + sx,
+                            srcDev->bounds().width() * srcDev->pixelSize(),
+                            selBytes,
+                            sw  * selection->pixelSize(),
+                            d->opacity,
+                            sh,
+                            sw,
+                            d->compositeOp,
+                            d->channelFlags);
+
+    delete[] selBytes;
+
+    d->device->writeBytes(dstBytes, dx, dy, sw, sh);
+
+    delete[] dstBytes;
+
+    addDirtyRect(QRect(dx, dy, sw, sh));
+}
+
+
 void KisPainter::bltFixed(const QPoint & pos, const KisFixedPaintDeviceSP src, const QRect & srcRect)
 {
     bltFixed(pos.x(), pos.y(), src, srcRect.x(), srcRect.y(), srcRect.width(), srcRect.height());
 }
 
-double KisPainter::paintLine(const KisPaintInformation &pi1,
+KisDistanceInformation KisPainter::paintLine(const KisPaintInformation &pi1,
                              const KisPaintInformation &pi2,
-                             double savedDist)
+                             const KisDistanceInformation& savedDist)
 {
-    if (!d->device) return 0;
-    if (!d->paintOp || !d->paintOp->canPaint()) return 0;
+    if (!d->device) return KisDistanceInformation();
+    if (!d->paintOp || !d->paintOp->canPaint()) return KisDistanceInformation();
 
     return d->paintOp->paintLine(pi1, pi2, savedDist);
 }
@@ -504,8 +564,9 @@ void KisPainter::paintPolyline(const vQPointF &points,
         numPoints = points.count() - index;
 
 
+    KisDistanceInformation saveDist;
     for (int i = index; i < index + numPoints - 1; i++) {
-        paintLine(points [index], points [index + 1]);
+        saveDist = paintLine(points [index], points [index + 1], saveDist);
     }
 }
 
@@ -545,16 +606,16 @@ void KisPainter::getBezierCurvePoints(const QPointF &pos1,
     ::getBezierCurvePoints(toKisVector2D(pos1), toKisVector2D(control1), toKisVector2D(control2), toKisVector2D(pos2), points);
 }
 
-double KisPainter::paintBezierCurve(const KisPaintInformation &pi1,
+KisDistanceInformation KisPainter::paintBezierCurve(const KisPaintInformation &pi1,
                                     const QPointF &control1,
                                     const QPointF &control2,
                                     const KisPaintInformation &pi2,
-                                    const double savedDist)
+                                    const KisDistanceInformation& savedDist)
 {
     if (d->paintOp && d->paintOp->canPaint()) {
         return d->paintOp->paintBezierCurve(pi1, control1, control2, pi2, savedDist);
     }
-    return 0.5;
+    return KisDistanceInformation();
 }
 
 void KisPainter::paintRect(const QRectF &rect)
@@ -629,10 +690,10 @@ void KisPainter::paintEllipse(const double x,
     paintEllipse(QRectF(x, y, w, h));
 }
 
-void KisPainter::paintAt(const KisPaintInformation& pi)
+double KisPainter::paintAt(const KisPaintInformation& pi)
 {
-    if (!d->paintOp || !d->paintOp->canPaint()) return;
-    d->paintOp->paintAt(pi);
+    if (!d->paintOp || !d->paintOp->canPaint()) return 0.0;
+    return d->paintOp->paintAt(pi);
 }
 
 void KisPainter::fillPolygon(const vQPointF& points, FillStyle fillStyle)
@@ -667,7 +728,7 @@ void KisPainter::paintPolygon(const vQPointF& points)
 
     if (d->strokeStyle != StrokeStyleNone) {
         if (points.count() > 1) {
-            double distance = -1;
+            KisDistanceInformation distance;
 
             for (int i = 0; i < points.count() - 1; i++) {
                 distance = paintLine(KisPaintInformation(points[i]), KisPaintInformation(points[i + 1]), distance);
@@ -679,8 +740,13 @@ void KisPainter::paintPolygon(const vQPointF& points)
 
 void KisPainter::paintPainterPath(const QPainterPath& path)
 {
+    if (d->fillStyle != FillStyleNone) {
+        fillPainterPath(path);
+    }
+
     QPointF lastPoint, nextPoint;
     int elementCount = path.elementCount();
+    KisDistanceInformation saveDist;
     for (int i = 0; i < elementCount; i++) {
         QPainterPath::Element element = path.elementAt(i);
         switch (element.type) {
@@ -689,15 +755,15 @@ void KisPainter::paintPainterPath(const QPainterPath& path)
             break;
         case QPainterPath::LineToElement:
             nextPoint =  QPointF(element.x, element.y);
-            paintLine(KisPaintInformation(lastPoint), KisPaintInformation(nextPoint));
+            saveDist = paintLine(KisPaintInformation(lastPoint), KisPaintInformation(nextPoint), saveDist);
             lastPoint = nextPoint;
             break;
         case QPainterPath::CurveToElement:
             nextPoint =  QPointF(path.elementAt(i + 2).x, path.elementAt(i + 2).y);
-            paintBezierCurve(KisPaintInformation(lastPoint),
+            saveDist = paintBezierCurve(KisPaintInformation(lastPoint),
                              QPointF(path.elementAt(i).x, path.elementAt(i).y),
                              QPointF(path.elementAt(i + 1).x, path.elementAt(i + 1).y),
-                             KisPaintInformation(nextPoint));
+                             KisPaintInformation(nextPoint), saveDist);
             lastPoint = nextPoint;
             break;
         default:
@@ -752,10 +818,10 @@ void KisPainter::fillPainterPath(const QPainterPath& path)
         // Currently unsupported, fall through
         warnImage << "Unknown or unsupported fill style in fillPolygon\n";
     case FillStyleForegroundColor:
-        d->fillPainter->fillRect(fillRect, paintColor(), OPACITY_OPAQUE);
+        d->fillPainter->fillRect(fillRect, paintColor(), OPACITY_OPAQUE_U8);
         break;
     case FillStyleBackgroundColor:
-        d->fillPainter->fillRect(fillRect, backgroundColor(), OPACITY_OPAQUE);
+        d->fillPainter->fillRect(fillRect, backgroundColor(), OPACITY_OPAQUE_U8);
         break;
     case FillStylePattern:
         Q_ASSERT(d->pattern != 0);
@@ -774,12 +840,12 @@ void KisPainter::fillPainterPath(const QPainterPath& path)
     }
 
     // Break the mask up into chunks so we don't have to allocate a potentially very large QImage.
-    const QColor opaqueColor(OPACITY_OPAQUE, OPACITY_OPAQUE, OPACITY_OPAQUE, 255);
+    const QColor opaqueColor(OPACITY_OPAQUE_U8, OPACITY_OPAQUE_U8, OPACITY_OPAQUE_U8, 255);
     const QBrush brush(opaqueColor);
     for (qint32 x = fillRect.x(); x < fillRect.x() + fillRect.width(); x += d->maskImageWidth) {
         for (qint32 y = fillRect.y(); y < fillRect.y() + fillRect.height(); y += d->maskImageHeight) {
 
-            d->polygonMaskImage.fill(qRgba(OPACITY_TRANSPARENT, OPACITY_TRANSPARENT, OPACITY_TRANSPARENT, 255));
+            d->polygonMaskImage.fill(qRgba(OPACITY_TRANSPARENT_U8, OPACITY_TRANSPARENT_U8, OPACITY_TRANSPARENT_U8, 255));
             d->maskPainter->translate(-x, -y);
             d->maskPainter->fillPath(path, brush);
             d->maskPainter->translate(x, y);
@@ -912,13 +978,13 @@ void KisPainter::drawWobblyLine(const QPointF & start, const QPointF & end)
 
             accessor.moveTo(x, y);
             if (accessor.isSelected()) {
-                mycolor.setOpacity((int)(255*br1));
+                mycolor.setOpacity((quint8)(255*br1));
                 memcpy(accessor.rawData(), mycolor.data(), pixelSize);
             }
 
             accessor.moveTo(x + 1, y);
             if (accessor.isSelected()) {
-                mycolor.setOpacity((int)(255*br2));
+                mycolor.setOpacity((quint8)(255*br2));
                 memcpy(accessor.rawData(), mycolor.data(), pixelSize);
             }
         }
@@ -940,13 +1006,13 @@ void KisPainter::drawWobblyLine(const QPointF & start, const QPointF & end)
 
             accessor.moveTo(x, y);
             if (accessor.isSelected()) {
-                mycolor.setOpacity((int)(255*br1));
+                mycolor.setOpacity((quint8)(255*br1));
                 memcpy(accessor.rawData(), mycolor.data(), pixelSize);
             }
 
             accessor.moveTo(x, y + 1);
             if (accessor.isSelected()) {
-                mycolor.setOpacity((int)(255*br2));
+                mycolor.setOpacity((quint8)(255*br2));
                 memcpy(accessor.rawData(), mycolor.data(), pixelSize);
             }
         }
@@ -971,7 +1037,7 @@ void KisPainter::drawWuLine(const QPointF & start, const QPointF & end)
     float brightness1, brightness2;
 
     int ix1, ix2, iy1, iy2;
-    int c1, c2;
+    quint8 c1, c2;
     const float MaxPixelValue = 255.0f;
 
     // gradient of line
@@ -1216,7 +1282,7 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
     int tp0, tn0, tp1, tn1;
 
     int horizontal = 0;
-    float opacity = OPACITY_OPAQUE;
+    float opacity = 1.0;
 
     tp0 = startWidth / 2;
     tn0 = startWidth / 2;
@@ -1286,16 +1352,16 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
         if (horizontal) {
             accessor.moveTo(x0a, y0a - 1);
             if (accessor.isSelected()) {
-                quint8 alpha = cs->alpha(accessor.rawData());
-                opacity = .25 * c1.opacity() + (1 - .25) * alpha;
+                qreal alpha = cs->opacityF(accessor.rawData());
+                opacity = .25 * c1.opacityF() + (1 - .25) * alpha;
                 col1.setOpacity(opacity);
                 memcpy(accessor.rawData(), col1.data(), pixelSize);
             }
 
             accessor.moveTo(x1b, y1b + 1);
             if (accessor.isSelected()) {
-                quint8 alpha = cs->alpha(accessor.rawData());
-                opacity = .25 * c2.opacity() + (1 - .25) * alpha;
+                qreal alpha = cs->opacityF(accessor.rawData());
+                opacity = .25 * c2.opacityF() + (1 - .25) * alpha;
                 col1.setOpacity(opacity);
                 memcpy(accessor.rawData(), col1.data(), pixelSize);
             }
@@ -1303,16 +1369,16 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
         } else {
             accessor.moveTo(x0a - 1, y0a);
             if (accessor.isSelected()) {
-                quint8 alpha = cs->alpha(accessor.rawData());
-                opacity = .25 * c1.opacity() + (1 - .25) * alpha;
+                qreal alpha = cs->opacityF(accessor.rawData());
+                opacity = .25 * c1.opacityF() + (1 - .25) * alpha;
                 col1.setOpacity(opacity);
                 memcpy(accessor.rawData(), col1.data(), pixelSize);
             }
 
             accessor.moveTo(x1b + 1, y1b);
             if (accessor.isSelected()) {
-                quint8 alpha = cs->alpha(accessor.rawData());
-                opacity = .25 * c2.opacity() + (1 - .25) * alpha;
+                qreal alpha = cs->opacityF(accessor.rawData());
+                opacity = .25 * c2.opacityF() + (1 - .25) * alpha;
                 col1.setOpacity(opacity);
                 memcpy(accessor.rawData(), col1.data(), pixelSize);
             }
@@ -1364,13 +1430,13 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
             b2b = fracb;
 
             // color first pixel of bottom line
-            opacity = ((x - ix1) / dx) * c2.opacity() + (1 - (x - ix1) / dx) * c1.opacity();
-            c3.setOpacity(static_cast<int>(opacity));
+            opacity = ((x - ix1) / dx) * c2.opacityF() + (1 - (x - ix1) / dx) * c1.opacityF();
+            c3.setOpacity(opacity);
 
             accessor.moveTo(x, (int)yfa);
             if (accessor.isSelected()) {
-                quint8 alpha = cs->alpha(accessor.rawData());
-                opacity = b1a * c3.opacity() + (1 - b1a) * alpha;
+                qreal alpha = cs->opacityF(accessor.rawData());
+                opacity = b1a * c3.opacityF() + (1 - b1a) * alpha;
                 col1.setOpacity(opacity);
                 memcpy(accessor.rawData(), col1.data(), pixelSize);
             }
@@ -1379,8 +1445,8 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
             if (!(startWidth == 1 && endWidth == 1)) {
                 accessor.moveTo(x, (int)yfb);
                 if (accessor.isSelected()) {
-                    quint8 alpha = cs->alpha(accessor.rawData());
-                    opacity = b1b * c3.opacity() + (1 - b1b) * alpha;
+                    qreal alpha = cs->opacityF(accessor.rawData());
+                    opacity = b1b * c3.opacityF() + (1 - b1b) * alpha;
                     col1.setOpacity(opacity);
                     memcpy(accessor.rawData(), col1.data(), pixelSize);
                 }
@@ -1390,8 +1456,8 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
             if (grada != 0 && grada != 1) { // if not flat or exact diagonal
                 accessor.moveTo(x, int (yfa) + 1);
                 if (accessor.isSelected()) {
-                    quint8 alpha = cs->alpha(accessor.rawData());
-                    opacity = b2a * c3.opacity() + (1 - b2a)  * alpha;
+                    qreal alpha = cs->opacityF(accessor.rawData());
+                    opacity = b2a * c3.opacityF() + (1 - b2a)  * alpha;
                     col2.setOpacity(opacity);
                     memcpy(accessor.rawData(), col2.data(), pixelSize);
                 }
@@ -1402,8 +1468,8 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
             if (gradb != 0 && gradb != 1 && !(startWidth == 1 && endWidth == 1)) {
                 accessor.moveTo(x, int (yfb) + 1);
                 if (accessor.isSelected()) {
-                    quint8 alpha = cs->alpha(accessor.rawData());
-                    opacity = b2b * c3.opacity() + (1 - b2b) * alpha;
+                    qreal alpha = cs->opacityF(accessor.rawData());
+                    opacity = b2b * c3.opacityF() + (1 - b2b) * alpha;
                     col2.setOpacity(opacity);
                     memcpy(accessor.rawData(), col2.data(), pixelSize);
                 }
@@ -1466,13 +1532,13 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
             b2b = fracb;
 
             // color first pixel of left line
-            opacity = ((y - iy1) / dy) * c2.opacity() + (1 - (y - iy1) / dy) * c1.opacity();
-            c3.setOpacity(static_cast<int>(opacity));
+            opacity = ((y - iy1) / dy) * c2.opacityF() + (1 - (y - iy1) / dy) * c1.opacityF();
+            c3.setOpacity(opacity);
 
             accessor.moveTo(int (xfa), y);
             if (accessor.isSelected()) {
-                quint8 alpha = cs->alpha(accessor.rawData());
-                opacity = b1a * c3.opacity() + (1 - b1a) * alpha;
+                qreal alpha = cs->opacityF(accessor.rawData());
+                opacity = b1a * c3.opacityF() + (1 - b1a) * alpha;
                 col1.setOpacity(opacity);
                 memcpy(accessor.rawData(), col1.data(), pixelSize);
             }
@@ -1481,8 +1547,8 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
             if (!(startWidth == 1 && endWidth == 1)) {
                 accessor.moveTo(int(xfb), y);
                 if (accessor.isSelected()) {
-                    quint8 alpha = cs->alpha(accessor.rawData());
-                    opacity = b1b * c3.opacity() + (1 - b1b)  * alpha;
+                    qreal alpha = cs->opacityF(accessor.rawData());
+                    opacity = b1b * c3.opacityF() + (1 - b1b)  * alpha;
                     col1.setOpacity(opacity);
                     memcpy(accessor.rawData(), col1.data(), pixelSize);
                 }
@@ -1492,8 +1558,8 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
             if (grada != 0 && grada != 1) { // if not flat or exact diagonal
                 accessor.moveTo(int(xfa) + 1, y);
                 if (accessor.isSelected()) {
-                    quint8 alpha = cs->alpha(accessor.rawData());
-                    opacity = b2a * c3.opacity() + (1 - b2a) * alpha;
+                    qreal alpha = cs->opacityF(accessor.rawData());
+                    opacity = b2a * c3.opacityF() + (1 - b2a) * alpha;
                     col2.setOpacity(opacity);
                     memcpy(accessor.rawData(), col2.data(), pixelSize);
                 }
@@ -1504,8 +1570,8 @@ void KisPainter::drawThickLine(const QPointF & start, const QPointF & end, int s
             if (gradb != 0 && gradb != 1 && !(startWidth == 1 && endWidth == 1)) {
                 accessor.moveTo(int(xfb) + 1, y);
                 if (accessor.isSelected()) {
-                    quint8 alpha = cs->alpha(accessor.rawData());
-                    opacity = b2b * c3.opacity() + (1 - b2b) * alpha;
+                    qreal alpha = cs->opacityF(accessor.rawData());
+                    opacity = b2b * c3.opacityF() + (1 - b2b) * alpha;
                     col2.setOpacity(opacity);
                     memcpy(accessor.rawData(), col2.data(), pixelSize);
                 }
@@ -1543,11 +1609,6 @@ void KisPainter::setProgress(KoUpdater * progressUpdater)
     d->progressUpdater = progressUpdater;
 }
 
-KisTransaction  * KisPainter::transaction()
-{
-    return d->transaction;
-}
-
 const KisPaintDeviceSP KisPainter::device() const
 {
     return d->device;
@@ -1565,17 +1626,7 @@ void KisPainter::setChannelFlags(QBitArray channelFlags)
             d->channelFlags = d->colorSpace->channelFlags(true, false, true, true);
             d->channelFlags = d->colorSpace->setChannelFlagsToPixelOrder(d->channelFlags);
         }
-        else {
-            QList<KoChannelInfo*> channels = d->colorSpace->channels();
-            foreach (KoChannelInfo* channel, channels) {
-                if (channel->channelType() == KoChannelInfo::ALPHA) {
-                    d->channelFlags.setBit(channel->pos());
-                }
-            }
-        }
     }
-
-
 }
 
 QBitArray KisPainter::channelFlags()
@@ -1583,12 +1634,12 @@ QBitArray KisPainter::channelFlags()
     return d->channelFlags;
 }
 
-void KisPainter::setPattern(KisPattern * pattern)
+void KisPainter::setPattern(const KisPattern * pattern)
 {
     d->pattern = pattern;
 }
 
-KisPattern * KisPainter::pattern() const
+const KisPattern * KisPainter::pattern() const
 {
     return d->pattern;
 }
@@ -1629,12 +1680,12 @@ const KoColor &KisPainter::fillColor() const
     return d->fillColor;
 }
 
-void KisPainter::setGenerator(KisFilterConfiguration * generator)
+void KisPainter::setGenerator(const KisFilterConfiguration * generator)
 {
     d->generator = generator;
 }
 
-KisFilterConfiguration * KisPainter::generator() const
+const KisFilterConfiguration * KisPainter::generator() const
 {
     return d->generator;
 }

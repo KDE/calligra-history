@@ -433,7 +433,7 @@ DateTime Schedule::appointmentEndTime() const
     return dt;
 }
 
-QList<Appointment*> &Schedule::appointments( int which)
+QList<Appointment*> Schedule::appointments( int which ) const
 {
     if ( which == CalculateForward ) {
         return m_forward;
@@ -485,6 +485,19 @@ EffortCostMap Schedule::plannedEffortCostPrDay( const QDate &start, const QDate 
     while ( it.hasNext() ) {
         //kDebug()<<m_name;
         ec += it.next() ->plannedPrDay( start, end );
+    }
+    return ec;
+}
+
+EffortCostMap Schedule::plannedEffortCostPrDay( const Resource *resource, const QDate &start, const QDate &end ) const
+{
+    //kDebug()<<m_name<<m_appointments;
+    EffortCostMap ec;
+    foreach ( Appointment *a, m_appointments ) {
+        if ( a->resource() && a->resource()->resource() == resource ) {
+            ec += a->plannedPrDay( start, end );
+            break;
+        }
     }
     return ec;
 }
@@ -1297,12 +1310,7 @@ void MainSchedule::addCriticalPathNode( Node *node )
     m_currentCriticalPath->append( node );
 }
 
-QList<Schedule::Log> MainSchedule::logs()
-{
-    return m_log;
-}
-
-const QList<Schedule::Log> &MainSchedule::logs() const
+QList<Schedule::Log> MainSchedule::logs() const
 {
     return m_log;
 }

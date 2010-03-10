@@ -178,14 +178,6 @@ public:
      */
     KoDockerManager * dockerManager() const;
 
-    /**
-     * use this to assign a KoDockerManager.
-     * Note this should only be called by KoView
-     * @ref dockerManager to retrieve it.
-     */
-    void setDockerManager(KoDockerManager *);
-
-
 signals:
     /**
      * This signal is emitted if the document has been saved successfully.
@@ -330,6 +322,10 @@ public slots:
 
     void slotProgress(int value);
 
+    /**
+     * Hide the dockers
+     */
+    void toggleDockersVisibility(bool v) const;
 
 private:
 

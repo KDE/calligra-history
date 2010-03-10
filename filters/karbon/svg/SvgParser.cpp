@@ -51,6 +51,7 @@
 #include <KoFilterEffectRegistry.h>
 #include <KoFilterEffect.h>
 #include "KoFilterEffectStack.h"
+#include "KoFilterEffectLoadingContext.h"
 
 #include <KDebug>
 
@@ -155,7 +156,7 @@ void SvgParser::addGraphicContext()
     if (! m_gc.isEmpty())
         *gc = *(m_gc.top());
 
-    gc->filterId = QString(); // filters are not inherited
+    gc->filterId.clear(); // filters are not inherited
     gc->display = true; // display is not inherited
     gc->opacity = 1.0; // opacity is not inherited
 
@@ -444,7 +445,7 @@ bool SvgParser::parseColor(QColor &color, const QString &s)
     if (s.isEmpty() || s == "none")
         return false;
 
-    if (s.startsWith("rgb(")) {
+    if (s.startsWith(QLatin1String("rgb("))) {
         QString parse = s.trimmed();
         QStringList colors = parse.split(',');
         QString r = colors[0].right((colors[0].length() - 4));
@@ -753,7 +754,7 @@ bool SvgParser::parseFilter(const KoXmlElement &e, const KoXmlElement &reference
 
 bool SvgParser::parseImage(const QString &attribute, QImage &image)
 {
-    if (attribute.startsWith("data:")) {
+    if (attribute.startsWith(QLatin1String("data:"))) {
         int start = attribute.indexOf("base64,");
         if (start > 0 && image.loadFromData(QByteArray::fromBase64(attribute.mid(start + 7).toLatin1())))
             return true;
@@ -775,7 +776,7 @@ void SvgParser::parsePA(SvgGraphicsContext *gc, const QString &command, const QS
     if (command == "fill") {
         if (params == "none") {
             gc->fillType = SvgGraphicsContext::None;
-        } else if (params.startsWith("url(")) {
+        } else if (params.startsWith(QLatin1String("url("))) {
             unsigned int start = params.indexOf('#') + 1;
             unsigned int end = params.indexOf(')', start);
             QString key = params.mid(start, end - start);
@@ -816,7 +817,7 @@ void SvgParser::parsePA(SvgGraphicsContext *gc, const QString &command, const QS
     } else if (command == "stroke") {
         if (params == "none") {
             gc->strokeType = SvgGraphicsContext::None;
-        } else if (params.startsWith("url(")) {
+        } else if (params.startsWith(QLatin1String("url("))) {
             unsigned int start = params.indexOf('#') + 1;
             unsigned int end = params.indexOf(')', start);
             QString key = params.mid(start, end - start);
@@ -1248,7 +1249,11 @@ void SvgParser::applyFilter(KoShape * shape)
     KoXmlElement content = filter->content();
 
     // parse filter region
-    QRectF bound(QPoint(), shape->size());
+    QRectF bound(shape->position(), shape->size());
+    // work on bounding box without viewbox tranformation applied
+    // so user space coordinates of bounding box and filter region match up
+    bound = gc->viewboxTransform.inverted().mapRect(bound);
+
     QRectF filterRegion(filter->position(bound), filter->size(bound));
 
     // convert filter region to boundingbox units
@@ -1256,10 +1261,11 @@ void SvgParser::applyFilter(KoShape * shape)
     objectFilterRegion.setTopLeft(SvgUtil::userSpaceToObject(filterRegion.topLeft(), bound));
     objectFilterRegion.setSize(SvgUtil::userSpaceToObject(filterRegion.size(), bound));
 
-    // matrix to transform from use space units
-    QMatrix matrix;
-    if (filter->primitiveUnits() == SvgFilterHelper::UserSpaceOnUse)
-        matrix = QMatrix().scale(1.0 / bound.width(), 1.0 / bound.height());
+    KoFilterEffectLoadingContext context(gc->xmlBaseDir.isEmpty() ? m_xmlBaseDir : gc->xmlBaseDir);
+    context.setShapeBoundingBox(bound);
+    // enable units conversion
+    context.enableFilterUnitsConversion(filter->filterUnits() == SvgFilterHelper::UserSpaceOnUse);
+    context.enableFilterPrimitiveUnitsConversion(filter->primitiveUnits() == SvgFilterHelper::UserSpaceOnUse);
 
     KoFilterEffectRegistry * registry = KoFilterEffectRegistry::instance();
 
@@ -1275,7 +1281,7 @@ void SvgParser::applyFilter(KoShape * shape)
     // create the filter effects and add them to the shape
     for (KoXmlNode n = content.firstChild(); !n.isNull(); n = n.nextSibling()) {
         KoXmlElement primitive = n.toElement();
-        KoFilterEffect * filterEffect = registry->createFilterEffectFromXml(primitive, matrix);
+        KoFilterEffect * filterEffect = registry->createFilterEffectFromXml(primitive, context);
         if (!filterEffect) {
             kWarning(30514) << "filter effect" << primitive.tagName() << "is not implemented yet";
             continue;
@@ -1300,7 +1306,7 @@ void SvgParser::applyFilter(KoShape * shape)
                         break;
                     }
                 }
-                if (hasStdInput) {
+                if (hasStdInput || primitive.tagName() == "feImage") {
                     // default to 0%, 0%, 100%, 100%
                     subRegion.setTopLeft(QPointF(0, 0));
                     subRegion.setSize(QSizeF(1, 1));
@@ -1475,6 +1481,7 @@ QList<KoShape*> SvgParser::parseSvg(const KoXmlElement &e, QSizeF * fragmentSize
         double y = e.hasAttribute("y") ? parseUnit(e.attribute("y")) : 0.0;
         move.translate(x, y);
         gc->matrix = move * gc->matrix;
+        gc->viewboxTransform = move *gc->viewboxTransform;
     }
 
     if (hasViewBox) {
@@ -1482,6 +1489,7 @@ QList<KoShape*> SvgParser::parseSvg(const KoXmlElement &e, QSizeF * fragmentSize
         viewTransform.translate(viewBox.x(), viewBox.y());
         viewTransform.scale(width / viewBox.width() , height / viewBox.height());
         gc->matrix = viewTransform * gc->matrix;
+        gc->viewboxTransform = viewTransform *gc->viewboxTransform;
         gc->currentBoundbox.setWidth(gc->currentBoundbox.width() * (viewBox.width() / width));
         gc->currentBoundbox.setHeight(gc->currentBoundbox.height() * (viewBox.height() / height));
     }
@@ -1998,7 +2006,7 @@ QString SvgParser::absoluteFilePath(const QString &href, const QString &xmlBase)
     QFileInfo pathInfo(QFileInfo(baseDir).filePath());
 
     QString relFile = href;
-    while (relFile.startsWith("../")) {
+    while (relFile.startsWith(QLatin1String("../"))) {
         relFile = relFile.mid(3);
         pathInfo.setFile(pathInfo.dir(), QString());
     }

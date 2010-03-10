@@ -1,89 +1,78 @@
-/* This file is part of the KDE project
-   Copyright (C) 2004 Lucijan Busch <lucijan@kde.org>
-   Copyright (C) 2004 Cedric Pasteur <cedric.pasteur@free.fr>
+/*
+ * Kexi Report Plugin
+ * Copyright (C) 2007-2008 by Adam Pigg (adam@piggz.co.uk)
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
+#ifndef _KEXIREPORTPART_H_
+#define _KEXIREPORTPART_H_
 
-   This library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+#include <core/kexipart.h>
+#include <core/KexiWindowData.h>
 
-   You should have received a copy of the GNU Library General Public License
-   along with this library; see the file COPYING.LIB.  If not, write to
-   the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA 02110-1301, USA.
-*/
+#include <QDomDocument>
+#include <KoReportData.h>
 
-#ifndef KEXIREPORTPART_H
-#define KEXIREPORTPART_H
-
-#include <kexi.h>
-#include <kexipart.h>
-#include <Q3CString>
-
-namespace KFormDesigner
-{
-class FormManager;
-class WidgetLibrary;
-class Form;
-}
-
-namespace KexiDB
-{
-class FieldList;
-}
-
-/*! @short Kexi Report Plugin
- It just creates a \ref KexiReportView. See there for most of code. */
-class KEXIREPORTUTILS_EXPORT KexiReportPart : public KexiPart::Part
+/**
+ * @short Application Main Window
+ * @author Adam Pigg <adam@piggz.co.uk>
+ * @version 0.1
+ */
+class KexiReportPart : public KexiPart::Part
 {
     Q_OBJECT
-
 public:
-    KexiReportPart(QObject *parent, const QStringList &);
+    /**
+     * Default Constructor
+     */
+    KexiReportPart(QObject *parent, const QVariantList &l);
+
+    /**
+     * Default Destructor
+     */
     virtual ~KexiReportPart();
 
-    //! \return a pointer to Reports Widget Library.
-    static KFormDesigner::WidgetLibrary* library();
+    virtual KexiView* createView(QWidget *parent, KexiWindow* win,
+                                 KexiPart::Item &item, Kexi::ViewMode = Kexi::DataViewMode, QMap<QString, QVariant>* staticObjectArgs = 0);
+    virtual KexiWindowData* createWindowData(KexiWindow* window);
 
-//  KFormDesigner::FormManager *manager() { return m_manager; }
+    virtual void setupCustomPropertyPanelTabs(KTabWidget *tab);
 
-    void generateForm(KexiDB::FieldList *list, QDomDocument &domDoc);
+    virtual void initPartActions();
 
     class TempData : public KexiWindowData
     {
     public:
         TempData(QObject* parent);
-        ~TempData();
-        QPointer<KFormDesigner::Form> form;
-        QPointer<KFormDesigner::Form> previewForm;
-        QString tempForm;
-        QPoint scrollViewContentsPos; //!< to preserve contents pos after switching to other view
-        int resizeMode; //!< form's window's resize mode -one of KexiFormView::ResizeMode items
+        QDomElement reportDefinition;
+        QDomElement connectionDefinition;
+
+        /*! true, if \a document member has changed in previous view. Used on view switching.
+        Check this flag to see if we should refresh data for DataViewMode. */
+    bool reportSchemaChangedInPreviousView :
+        1;
+        QString name;
     };
 
-    virtual KLocalizedString i18nMessage(const QString& englishMessage,
-                                         KexiWindow* window) const;
-
-protected:
-    virtual KexiWindowData* createWindowData(KexiWindow* window);
-
-    virtual KexiView* createView(QWidget *parent, KexiWindow* window,
-                                 KexiPart::Item &item, Kexi::ViewMode viewMode = Kexi::DataViewMode,
-                                 QMap<QString, QVariant>* staticObjectArgs = 0);
-
-    virtual void initPartActions();
-    virtual void initInstanceActions();
-
-    static KFormDesigner::WidgetLibrary* static_reportsLibrary;
+private slots:
+    void slotActionTriggered();
 
 private:
-//  QPointer<KFormDesigner::FormManager> m_manager;
+    QString loadReport(const QString&);
+    class Private;
+    Private* d;
 };
 
-#endif
-
+#endif // _KEXIREPORTPART_H_

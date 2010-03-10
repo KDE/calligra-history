@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-  Copyright (C) 2006 -2007 Dag Andersen <danders@get2net.dk>
+  Copyright (C) 2006 -20010 Dag Andersen <danders@get2net.dk>
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Library General Public
@@ -114,7 +114,8 @@ public slots:
     
 protected:
     void updateActionsEnabled( bool on );
-    int selectedNodeCount() const;
+    int selectedRowCount() const;
+    QModelIndexList selectedRows() const;
 
 protected slots:
     virtual void slotOptions();
@@ -156,6 +157,7 @@ private:
     KAction *actionIndentTask;
     KAction *actionUnindentTask;
 
+    KAction *actionShowProject;
 };
 
 class KPLATOUI_EXPORT TaskView : public ViewBase
@@ -169,6 +171,7 @@ public:
     virtual void draw( Project &project );
     virtual void draw();
 
+    NodeItemModel *baseModel() const { return m_view->baseModel(); }
     NodeSortFilterProxyModel *proxyModel() const { return m_view->proxyModel(); }
 
     virtual Node *currentNode() const;
@@ -211,6 +214,7 @@ private slots:
 
 private:
     NodeTreeView *m_view;
+    KAction *actionShowProject;
 
 };
 

@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright 2009 Vera Lukman <shichan.karachu@gmail.com>
+   Copyright 2009 Vera Lukman <shicmap@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,15 +19,22 @@
 #ifndef KIS_POPUP_PALETTE_H
 #define KIS_POPUP_PALETTE_H
 
+#define brushInnerRadius 80.0
+#define brushOuterRadius 100.0
+#define colorInnerRadius 55.0
+#define colorOuterRadius 75.0
+#define brushRadius (brushInnerRadius+brushOuterRadius)/2
+
 #include <kis_types.h>
 #include <QtGui/QWidget>
 #include <QQueue>
 #include <KoColor.h>
+#include <KoTriangleColorSelector.h>
 
 class KisFavoriteBrushData;
 class KoFavoriteResourceManager;
 class QWidget;
-
+class KisTriangleColorSelector;
 
 class KisPopupPalette : public QWidget
 {
@@ -43,6 +50,7 @@ public:
     QSize sizeHint() const;
 
     void showPopupPalette (const QPoint&);
+    void showPopupPalette (bool b);
 
     //functions to set up selectedBrush
     void setSelectedBrush( int x );
@@ -71,34 +79,42 @@ protected:
 
 
 private:
+    void setVisible(bool b);
+
     QPainterPath drawDonutPathFull(int, int, int, int);
     QPainterPath drawDonutPathAngle(int, int, int);
+    void drawArcRisen
+            (QPainter& painter, QColor color, int radius, int startAngle, float x, float y, float w, float h);
     bool isPointInPixmap(QPointF&, int pos);
 
-    //inline functions
-    inline int brushRadius(){ return 50; }
-    inline float PI(){ return 3.14159265; }
-    inline float brushInnerRadius(){ return width()/2 - 60; }
-    inline float brushOuterRadius(){ return width()/2 - 40; }
-    inline float colorInnerRadius(){ return width()/2 - 30; }
-    inline float colorOuterRadius(){ return width()/2 - 10; }
-
 private:
-    int colorFoo;//TEMPORARY
     int m_hoveredBrush;
     int m_selectedBrush;
     int m_hoveredColor;
     int m_selectedColor;
     KoFavoriteResourceManager* m_resourceManager;
+    KoTriangleColorSelector* m_triangleColorSelector;
+
+    QTimer* m_timer;
 
 signals:
-    void sigSelectNewColor();
     void sigChangeActivePaintop(int);
     void sigUpdateRecentColor(int);
-    void sigAddRecentColor(KoColor);
+    void sigChangefGColor(const KoColor&);
 
- private slots:
-    void slotSelectNewColor();
+    // These are used to handle a bug:
+    // If pop up palette is visible and a new colour is selected, the new colour
+    // will be added when the user clicks on the canvas to hide the palette
+    // In general, we want to be able to store recent color if the pop up palette
+    // is not visible
+    void sigEnableChangeFGColor(bool);
+    void sigTriggerTimer();
+
+private slots:
+    void slotChangefGColor(const QColor& newColor);
+
+    void slotTriggerTimer();
+    void slotEnableChangeFGColor();
 };
 
 #endif // KIS_POPUP_PALETTE_H

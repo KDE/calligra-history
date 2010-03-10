@@ -1,9 +1,10 @@
 /* This file is part of the KDE project
- * Copyright (C) 2006-2009 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2006-2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2008 Thorsten Zachmann <zachmann@kde.org>
  * Copyright (C) 2008 Girish Ramakrishnan <girish@forwardbias.in>
  * Copyright (C) 2008 Roopesh Chander <roop@forwardbias.in>
  * Copyright (C) 2009 KO GmbH <cbo@kogmbh.com>
+ * Copyright (C) 2009-2010 Casper Boemann <cbo@boemann.dk>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -45,13 +46,16 @@
 #include <KoChangeTracker.h>
 #include <KoChangeTrackerElement.h>
 #include <KoGenChange.h>
+#include <KoTextBlockPaintStrategyBase.h>
+#include <KoImageData.h>
+#include <KoImageCollection.h>
 
 #include <KDebug>
 #include <QTextList>
 #include <QStyle>
 #include <QFontMetrics>
 #include <QTextTableCell>
-
+#include <QTextFragment>
 
 // ---------------- layout helper ----------------
 Layout::Layout(KoTextDocumentLayout *parent)
@@ -63,6 +67,7 @@ Layout::Layout(KoTextDocumentLayout *parent)
         m_isRtl(false),
         m_inTable(false),
         m_parent(parent),
+        m_textShape(0),
         m_demoText(false),
         m_endOfDemoText(false),
         m_defaultTabSizing(MM_TO_POINT(15)),
@@ -72,6 +77,7 @@ Layout::Layout(KoTextDocumentLayout *parent)
         m_y_justBelowDropCaps(0),
         m_restartingAfterTableBreak(false),
         m_restartingFirstCellAfterTableBreak(false)
+        ,m_imageCollection(0)
 {
 }
 
@@ -255,7 +261,8 @@ bool Layout::addLine(QTextLine &line)
         if (m_data->endPosition() == -1) // no text at all fit in the shape!
             m_data->setEndPosition(m_data->position());
         m_data->wipe();
-        m_textShape->markLayoutDone();
+        if (m_textShape) // kword uses a dummy shape which is not a text shape
+            m_textShape->markLayoutDone();
         nextShape();
         if (m_data)
             m_data->setPosition(m_block.position() + (ignoreParagraph ? 0 : line.textStart()));
@@ -326,8 +333,7 @@ bool Layout::nextParag()
         }
         qreal borderBottom = m_y;
         if (m_block.isValid() && !m_newShape) { // only add bottom of prev parag if we did not go to a new shape for this parag.
-            if (m_format.pageBreakPolicy() == QTextFormat::PageBreak_AlwaysAfter ||
-                    m_format.boolProperty(KoParagraphStyle::BreakAfter)) {
+            if (m_format.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysAfter) {
                 m_data->setEndPosition(m_block.position() - 1);
                 m_data->wipe();
                 nextShape();
@@ -359,7 +365,9 @@ bool Layout::nextParag()
         shape->update(QRectF(0.0, offsetInShape, shape->size().width(), shape->size().height() - offsetInShape));
         // cleanup and repaint rest of shapes.
         m_data->wipe();
-        m_textShape->markLayoutDone();
+        if (m_textShape) { // may be null in relation to setFollowupShape
+            m_textShape->markLayoutDone();
+        }
         cleanupShapes();
         return false;
     }
@@ -407,8 +415,7 @@ bool Layout::nextParag()
         m_blockData->setCounterWidth(0.0);
     }
 
-    bool pagebreak = m_format.pageBreakPolicy() == QTextFormat::PageBreak_AlwaysBefore ||
-                      m_format.boolProperty(KoParagraphStyle::BreakBefore);
+    bool pagebreak = m_format.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore;
 
     const QVariant masterPageName = m_format.property(KoParagraphStyle::MasterPageName);
     if (! masterPageName.isNull() && m_currentMasterPage != masterPageName.toString()) {
@@ -736,6 +743,7 @@ void Layout::nextShape()
 
     shape = 0;
     m_data = 0;
+    m_textShape = 0;
 
     QList<KoShape *> shapes = m_parent->shapes();
     for (shapeNumber++; shapeNumber < shapes.count(); shapeNumber++) {
@@ -758,6 +766,7 @@ void Layout::nextShape()
         QTextCursor cursor(m_textShape->footnoteDocument());
         cursor.select(QTextCursor::Document);
         cursor.removeSelectedText();
+        Q_ASSERT(!m_textShape->hasFootnoteDocument());
     }
     m_shapeBorder = shape->borderInsets();
     m_y += m_shapeBorder.top;
@@ -811,6 +820,7 @@ void Layout::resetPrivate()
     shape = 0;
     layout = 0;
     m_newShape = true;
+    m_textShape = 0;
     m_blockData = 0;
     m_newParag = true;
     m_block = m_parent->document()->begin();
@@ -843,6 +853,7 @@ void Layout::resetPrivate()
                 // block has been layouted. So use its offset.
                 m_y = m_block.layout()->lineAt(0).position().y();
                 if (m_y < data->documentOffset() - 0.126) { // 0.126 to account of rounding in Qt-scribe
+                    // the last layed-out parag
                     Q_ASSERT(shapeNumber > 0);
                     // since we only recalc whole parags; we need to go back a little.
                     shapeNumber--;
@@ -877,16 +888,15 @@ void Layout::resetPrivate()
         return;
     Q_ASSERT(shapeNumber < shapes.count());
     shape = shapes[shapeNumber];
-
+    m_data = qobject_cast<KoTextShapeData*>(shape->userData());
     m_textShape = dynamic_cast<TextShape*>(shape);
     Q_ASSERT(m_textShape);
-    if (m_textShape->hasFootnoteDocument()) {
+    if (m_textShape->hasFootnoteDocument() && m_y == m_data->documentOffset()) {
         QTextCursor cursor(m_textShape->footnoteDocument());
         cursor.select(QTextCursor::Document);
         cursor.removeSelectedText();
     }
     m_demoText = m_textShape->demoText();
-    m_data = qobject_cast<KoTextShapeData*>(shape->userData());
     m_shapeBorder = shape->borderInsets();
     if (m_y == 0)
         m_y = m_shapeBorder.top;
@@ -957,7 +967,7 @@ qreal Layout::topMargin()
     bool allowMargin = true; // wheather to allow margins at top of shape
     if (m_newShape) {
         allowMargin = false; // false by default, but check 2 exceptions.
-        if (m_format.boolProperty(KoParagraphStyle::BreakBefore))
+        if (m_format.pageBreakPolicy () & QTextFormat::PageBreak_AlwaysBefore)
             allowMargin = true;
         else if (m_styleManager && m_format.topMargin() > 0) {
             // also allow it when the paragraph has the margin, but the style has a different one.
@@ -1018,11 +1028,26 @@ void Layout::drawFrame(QTextFrame *frame, QPainter *painter, const KoTextDocumen
 
         if (!painter->hasClipping() || ! clipRegion.intersect(QRegion(layout->boundingRect().toRect())).isEmpty()) {
             started = true;
-            QBrush bg = block.blockFormat().background();
+
+            KoTextBlockData *blockData = dynamic_cast<KoTextBlockData*>(block.userData());
+            KoTextBlockBorderData *border = 0;
+            KoTextBlockPaintStrategyBase *paintStrategy = 0;
+            if (blockData) {
+                border = blockData->border();
+                paintStrategy = blockData->paintStrategy();
+            }
+            KoTextBlockPaintStrategyBase dummyPaintStrategy;
+            if (paintStrategy == 0)
+                paintStrategy = &dummyPaintStrategy;
+            if (!paintStrategy->isVisible())
+                continue; // this paragraph shouldn't be shown so just skip it
+
+            QBrush bg = paintStrategy->background(block.blockFormat().background());
             if (bg != Qt::NoBrush)
                 painter->fillRect(layout->boundingRect(), bg);
+            paintStrategy->applyStrategy(painter);
             painter->save();
-            drawListItem(painter, block);
+            drawListItem(painter, block, context.imageCollection);
             painter->restore();
 
             QVector<QTextLayout::FormatRange> selections;
@@ -1054,10 +1079,6 @@ void Layout::drawFrame(QTextFrame *frame, QPainter *painter, const KoTextDocumen
             layout->draw(painter, QPointF(0, 0), selections);
             decorateParagraph(painter, block, selectionStart - block.position(), selectionEnd - block.position(), context.viewConverter);
 
-            KoTextBlockBorderData *border = 0;
-            KoTextBlockData *blockData = dynamic_cast<KoTextBlockData*>(block.userData());
-            if (blockData)
-                border = dynamic_cast<KoTextBlockBorderData*>(blockData->border());
             if (lastBorder && lastBorder != border) {
                 painter->save();
                 lastBorder->paint(*painter);
@@ -1325,11 +1346,11 @@ void Layout::drawTrackedChangeItem(QPainter *painter, QTextBlock &block, int sel
                             switch(changeElement->getChangeType()) {
                                 case (KoGenChange::insertChange):
                                     if (m_changeTracker->displayChanges())
-                                    	painter->fillRect(x1, line.y(), x2-x1, line.height(), m_changeTracker->getInsertionBgColor());
+                                        painter->fillRect(x1, line.y(), x2-x1, line.height(), m_changeTracker->getInsertionBgColor());
                                     break;
                                 case (KoGenChange::formatChange):
                                     if (m_changeTracker->displayChanges())
-                                    	painter->fillRect(x1, line.y(), x2-x1, line.height(), m_changeTracker->getFormatChangeBgColor());
+                                        painter->fillRect(x1, line.y(), x2-x1, line.height(), m_changeTracker->getFormatChangeBgColor());
                                     break;
                                 case (KoGenChange::deleteChange):
                                     if (m_changeTracker->displayChanges())
@@ -1546,7 +1567,7 @@ void Layout::decorateParagraph(QPainter *painter, const QTextBlock &block, int s
     painter->setFont(oldFont);
 }
 
-void Layout::drawListItem(QPainter *painter, const QTextBlock &block)
+void Layout::drawListItem(QPainter *painter, const QTextBlock &block, KoImageCollection *imageCollection)
 {
     KoTextBlockData *data = dynamic_cast<KoTextBlockData*>(block.userData());
     if (data == 0)
@@ -1560,6 +1581,12 @@ void Layout::drawListItem(QPainter *painter, const QTextBlock &block)
         if (m_styleManager) {
             const int id = listFormat.intProperty(KoListStyle::CharacterStyleId);
             KoCharacterStyle *cs = m_styleManager->characterStyle(id);
+            if (!cs) {
+                KoParagraphStyle *ps = m_styleManager->paragraphStyle(
+                                       block.blockFormat().intProperty(KoParagraphStyle::StyleId));
+                if (ps)
+                    cs = ps->characterStyle();
+            }
             if (cs) {
                 cs->applyStyle(cf);
                 filled = true;
@@ -1596,6 +1623,7 @@ void Layout::drawListItem(QPainter *painter, const QTextBlock &block)
             layout.setTextOption(option);
             layout.beginLayout();
             QTextLine line = layout.createLine();
+            line.setLineWidth(data->counterWidth());
             layout.endLayout();
             QPointF counterPosition = data->counterPosition();
             if (block.layout()->lineCount() > 0) {
@@ -1689,6 +1717,16 @@ void Layout::drawListItem(QPainter *painter, const QTextBlock &block)
                 break;
             default:; // others we ignore.
             }
+        } else if (listStyle == KoListStyle::ImageItem && imageCollection) {
+            QFontMetricsF fm(cf.font(), m_parent->paintDevice());
+            qreal x = qMax(qreal(1), data->counterPosition().x());
+            qreal width = qMax(listFormat.doubleProperty(KoListStyle::Width), (qreal)1.0);
+            qreal height = qMax(listFormat.doubleProperty(KoListStyle::Height), (qreal)1.0);
+            qreal y = data->counterPosition().y() + fm.ascent() - fm.xHeight()/2 - height/2; // centered
+            qint64 key = listFormat.property(KoListStyle::BulletImageKey).value<qint64>();
+            KoImageData idata;
+            imageCollection->fillFromKey(idata, key);
+            painter->drawPixmap(x, y, width, height, idata.pixmap());
         }
     }
 }
@@ -1706,6 +1744,7 @@ bool Layout::setFollowupShape(KoShape *followupShape)
 
     m_newShape = false;
     shape = followupShape;
+    m_textShape = 0;
     m_data->setDocumentOffset(m_y);
     m_shapeBorder = shape->borderInsets();
     return true;
@@ -1759,6 +1798,7 @@ bool Layout::previousParag()
         QList<KoShape *> shapes = m_parent->shapes();
         for (--shapeNumber; shapeNumber >= 0; shapeNumber--) {
             shape = shapes[shapeNumber];
+            m_textShape = dynamic_cast<TextShape*>(shape);
             m_data = qobject_cast<KoTextShapeData*>(shape->userData());
             if (m_data != 0)
                 break;
@@ -1789,7 +1829,7 @@ qreal Layout::inlineCharHeight(const QTextFragment &fragment)
 
 qreal Layout::findFootnote(const QTextLine &line, int *oldLength)
 {
-    if (m_parent->inlineTextObjectManager() == 0)
+    if (m_parent->inlineTextObjectManager() == 0 || m_textShape == 0)
         return 0;
     Q_ASSERT(oldLength);
     QString text = m_block.text();
@@ -1816,7 +1856,7 @@ qreal Layout::findFootnote(const QTextLine &line, int *oldLength)
             cursor.insertText(note->label() + ' ');
             cf.setVerticalAlignment(QTextCharFormat::AlignNormal);
             cursor.mergeCharFormat(cf);
-            cursor.insertText(note->text());
+            cursor.insertFragment(note->text());
         }
         pos = text.indexOf(QChar(0xFFFC), pos + 1);
     }

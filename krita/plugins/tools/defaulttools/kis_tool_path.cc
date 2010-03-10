@@ -1,5 +1,6 @@
 /*
  *  Copyright (c) 2007 Sven Langkamp <sven.langkamp@gmail.com>
+ *  Copyright (c) 2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,12 +28,17 @@
 #include <kis_paint_layer.h>
 #include <kis_image.h>
 #include <kis_painter.h>
+#include <kis_paint_information.h>
 #include <kis_layer.h>
 #include <canvas/kis_canvas2.h>
 #include <kis_view2.h>
 #include <kis_canvas_resource_provider.h>
 #include <kis_paintop_registry.h>
 #include <kis_selection.h>
+
+#include <recorder/kis_action_recorder.h>
+#include <recorder/kis_recorded_path_paint_action.h>
+#include <recorder/kis_node_query_path.h>
 
 KisToolPath::KisToolPath(KoCanvasBase * canvas)
         : KoCreatePathTool(canvas)
@@ -43,30 +49,72 @@ KisToolPath::~KisToolPath()
 {
 }
 
-void KisToolPath::addPathShape()
+void KisToolPath::addPathShape(KoPathShape* pathShape)
 {
     KisNodeSP currentNode =
         canvas()->resourceManager()->resource(KisCanvasResourceProvider::CurrentKritaNode).value<KisNodeSP>();
-    if (!currentNode) {
-        delete m_shape;
-        m_shape = 0;
+    KisCanvas2 *kiscanvas = dynamic_cast<KisCanvas2 *>(this->canvas());
+    if (!currentNode || !kiscanvas) {
         return;
     }
+    // Get painting options
+    KisPaintOpPresetSP preset = kiscanvas->resourceManager()->
+                                resource(KisCanvasResourceProvider::CurrentPaintOpPreset).value<KisPaintOpPresetSP>();
+    KoColor paintColor = canvas()->resourceManager()->resource(KoCanvasResource::ForegroundColor).value<KoColor>();
 
+    // Compute the outline
+    KisImageWSP image = kiscanvas->view()->image();
+    QMatrix matrix;
+    matrix.scale(image->xRes(), image->yRes());
+    matrix.translate(pathShape->position().x(), pathShape->position().y());
+    QPainterPath mapedOutline = matrix.map(pathShape->outline());
+
+    // Recorde the paint action
+    KisRecordedPathPaintAction bezierCurvePaintAction(
+            KisNodeQueryPath::absolutePath(currentNode),
+            preset );
+    bezierCurvePaintAction.setPaintColor(paintColor);
+    QPointF lastPoint, nextPoint;
+    int elementCount = mapedOutline.elementCount();
+    for (int i = 0; i < elementCount; i++) {
+        QPainterPath::Element element = mapedOutline.elementAt(i);
+        switch (element.type) {
+        case QPainterPath::MoveToElement:
+            if (i != 0) {
+                qFatal("Unhandled"); // XXX: I am not sure the tool can produce such element, deal with it when it can
+            }
+            lastPoint =  QPointF(element.x, element.y);
+            break;
+        case QPainterPath::LineToElement:
+            nextPoint =  QPointF(element.x, element.y);
+            bezierCurvePaintAction.addLine(KisPaintInformation(lastPoint), KisPaintInformation(nextPoint));
+            lastPoint = nextPoint;
+            break;
+        case QPainterPath::CurveToElement:
+            nextPoint =  QPointF(mapedOutline.elementAt(i + 2).x, mapedOutline.elementAt(i + 2).y);
+            bezierCurvePaintAction.addCurve(KisPaintInformation(lastPoint),
+                                             QPointF(mapedOutline.elementAt(i).x,
+                                                     mapedOutline.elementAt(i).y),
+                                             QPointF(mapedOutline.elementAt(i + 1).x,
+                                                     mapedOutline.elementAt(i + 1).y),
+                                             KisPaintInformation(nextPoint));
+            lastPoint = nextPoint;
+            break;
+        default:
+            continue;
+        }
+    }
+    image->actionRecorder()->addAction(bezierCurvePaintAction);
+    
     if (!currentNode->inherits("KisShapeLayer")) {
 
         KisPaintDeviceSP dev = currentNode->paintDevice();
 
-        KisCanvas2 *canvas = dynamic_cast<KisCanvas2 *>(this->canvas());
-
-        if (!dev || !canvas) {
-            delete m_shape;
-            m_shape = 0;
+        if (!dev) {
             return;
         }
 
-        KisImageWSP image = canvas->view()->image();
-        KisSelectionSP selection = canvas->view()->selection();
+        KisSelectionSP selection = kiscanvas->view()->selection();
 
         KisPainter painter(dev, selection);
         painter.beginTransaction(i18n("Path"));
@@ -77,32 +125,25 @@ void KisToolPath::addPathShape()
                 painter.setLockAlpha(l->alphaLocked());
             }
         }
-        painter.setPaintColor(KoColor(Qt::black, dev->colorSpace()));
+        painter.setPaintColor(paintColor);
         painter.setFillStyle(KisPainter::FillStyleForegroundColor);
         painter.setStrokeStyle(KisPainter::StrokeStyleNone);
-        painter.setOpacity(OPACITY_OPAQUE);
+        painter.setOpacity(OPACITY_OPAQUE_U8);
         painter.setCompositeOp(dev->colorSpace()->compositeOp(COMPOSITE_OVER));
-        KisPaintOpPresetSP preset = canvas->resourceManager()->
-                                    resource(KisCanvasResourceProvider::CurrentPaintOpPreset).value<KisPaintOpPresetSP>();
         painter.setPaintOpPreset(preset, image);
 
-        QMatrix matrix;
-        matrix.scale(image->xRes(), image->yRes());
-        matrix.translate(m_shape->position().x(), m_shape->position().y());
-        painter.paintPainterPath(matrix.map(m_shape->outline()));
+        painter.paintPainterPath(mapedOutline);
         QRegion dirtyRegion = painter.dirtyRegion();
         dev->setDirty(dirtyRegion);
         image->setModified();
 
-        canvas->addCommand(painter.endTransaction());
-        delete m_shape;
+        kiscanvas->addCommand(painter.endTransaction());
 
     } else {
-        m_shape->normalize();
-        QUndoCommand * cmd = canvas()->shapeController()->addShape(m_shape);
+        pathShape->normalize();
+        QUndoCommand * cmd = canvas()->shapeController()->addShape(pathShape);
         canvas()->addCommand(cmd);
     }
-    m_shape = 0;
 }
 
 #include "kis_tool_path.moc"

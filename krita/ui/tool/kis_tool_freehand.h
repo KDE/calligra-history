@@ -28,6 +28,7 @@
 // OpenGL
 #include <opengl/kis_opengl.h>
 
+class KAction;
 
 class KoPointerEvent;
 class KoCanvasBase;
@@ -36,8 +37,7 @@ class KisPainter;
 
 class QThreadPool;
 class FreehandPaintJob;
-class KisRecordedPolyLinePaintAction;
-class KisRecordedBezierCurvePaintAction;
+class KisRecordedPathPaintAction;
 class FreehandPaintJobExecutor;
 
 class KRITAUI_EXPORT KisToolFreehand : public KisToolPaint
@@ -56,8 +56,11 @@ public:
     virtual void mouseReleaseEvent(KoPointerEvent *e);
     virtual void customMoveEvent(KoPointerEvent * event); // only for panning
     virtual void keyPressEvent(QKeyEvent *event);
-    virtual bool wantsAutoScroll();
+    virtual bool wantsAutoScroll() const;
     virtual void setDirty(const QRegion& region);
+
+signals:
+    void sigPainting();
 
 protected:
 
@@ -92,6 +95,11 @@ private:
      */
     QPointF adjustPosition(const QPointF& point);
     void queuePaintJob(FreehandPaintJob* job, FreehandPaintJob* previousJob);
+
+private slots:
+
+    void increaseBrushSize();
+    void decreaseBrushSize();
 
 protected:
 
@@ -133,18 +141,20 @@ private:
     QPoint  m_originalPos;
 
     // for painting
-    QRectF oldOutlineRect;
+    QRectF m_oldOutlineRect;
     bool m_paintedOutline;
     QRegion m_incrementalDirtyRegion;
     QList<FreehandPaintJob*> m_paintJobs;
-    KisRecordedPolyLinePaintAction* m_polyLinePaintAction;
-    KisRecordedBezierCurvePaintAction* m_bezierCurvePaintAction;
+    KisRecordedPathPaintAction* m_pathPaintAction;
     QThreadPool* m_executor;
 
     // for panning
     QPointF documentToViewport(const QPointF &p);
     QPointF m_lastPosition;
+    QTime m_strokeTimeMeasure;
 
+    KAction* m_increaseBrushSize;
+    KAction* m_decreaseBrushSize;
 };
 
 

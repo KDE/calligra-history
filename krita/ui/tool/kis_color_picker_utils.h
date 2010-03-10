@@ -28,13 +28,7 @@ namespace KisToolUtils {
 /**
  * return the color at the given position on the given paint device.
  */
-KoColor pick(KisPaintDeviceSP dev, const QPoint& pos)
-{
-
-    KoColor pickedColor;
-    dev->pixel(pos.x(), pos.y(), &pickedColor);
-    return pickedColor;
-}
+KoColor pick(KisPaintDeviceSP dev, const QPoint& pos);
 
 }
 

@@ -25,6 +25,7 @@
 #include "sharedptr.h"
 #include "functordata.h"
 #include "wv2_export.h"
+#include "ms_odraw.h"
 
 namespace wvWare {
 
@@ -33,6 +34,7 @@ namespace wvWare {
     class UString;
     template<class ParserT, typename Data> class Functor;
     typedef Functor<Parser9x, HeaderData> HeaderFunctor;
+    typedef Functor<Parser9x, AnnotationData> AnnotationFunctor;
     typedef Functor<Parser9x, TableRowData> TableRowFunctor;
     typedef Functor<Parser9x, FootnoteData> FootnoteFunctor;
     typedef Functor<Parser9x, PictureData> PictureFunctor;
@@ -87,7 +89,7 @@ namespace wvWare {
         virtual void bodyEnd();
 
         /**
-         * Every time you invoke a @ref FoonoteFunctor this method will be called.
+         * Every time you invoke a @ref FootnoteFunctor this method will be called.
          * Note that @ref FoonoteFunctor is also emitted when we find endnotes.
          */
         virtual void footnoteStart();
@@ -95,6 +97,29 @@ namespace wvWare {
          * Once the footnote characters are processed this method is called.
          */
         virtual void footnoteEnd();
+
+        /**
+         * 2.3.4
+         *
+         * Comments/Annotations (Microsoft isn't consistent)
+         *
+         * The comment document contains all of the content in the comments/annotation. It begins at the CP
+         * immediately following the Header Document and is FibRgLw97.ccpAtn characters long.
+         * The locations of individual comments within the comment document are specified by a PlcfandTxt
+         * whose location is specified by the fcPlcfandTxt member of FibRgFcLcb97. The locations of the
+         * comment reference characters in the Main Document are specified by a PlcfandRef whose location is
+         * specified by the fcPlcfandRef member of FibRgFcLcb97.
+         *
+         * Let's see whether it makes sense when I continue implementing this...
+         */
+        /**
+         * Every time you invoke a @ref AnnotationFunctor this method will be called.
+         */
+        virtual void annotationStart();
+        /**
+         * Once the annotation characters are processed this method is called.
+         */
+        virtual void annotationEnd();
 
         /**
          * For every section in a Word document a @ref HeaderFunctor is emitted.
@@ -124,6 +149,7 @@ namespace wvWare {
          * The end of the current header or footer.
          */
         virtual void headerEnd();
+
     };
 
 
@@ -225,6 +251,11 @@ namespace wvWare {
          * Word allows to store .tif, .bmp, or .gif images externally.
          */
         virtual void externalImage( const UString& name, SharedPtr<const Word97::PICF> picf );
+
+        /**
+         * For the output of officeArt.
+         */
+        virtual void officeArt(wvWare::OfficeArtProperties *artProperties);
     };
 
 
@@ -315,8 +346,15 @@ namespace wvWare {
          * Very special characters (bad, bad name) are the ones which need additional
          * information from the file (i.e. the plain "put the current date there" isn't sufficent).
          */
-        enum VerySpecialCharacter { Picture = 1, FootnoteAuto = 2, DrawnObject = 8, FieldBegin = 19,
-                                FieldSeparator = 20, FieldEnd = 21, FieldEscapeChar = 92 };
+        enum VerySpecialCharacter { Picture = 1, FootnoteAuto = 2, AnnotationRef = 5,
+                                    DrawnObject = 8, FieldBegin = 19,
+                                    FieldSeparator = 20, FieldEnd = 21, FieldEscapeChar = 92 };
+
+        /**
+         * special charachters that were dfined in parser9x.h  (fSpec = 1) but that weren't used.
+         */
+        enum UnusedSpecialCharacter {FootnoteSeparator = 3, FootnodeContinuation = 4, HandAnnotationPic = 7,
+                                 AbbrevDate = 10, MergeHelper = 41};
 
         /**
          * This method passes the simple cases of special characters we find. More complex ones
@@ -331,8 +369,19 @@ namespace wvWare {
          * runOfText (that it doesn't get lost if someone doesn't override this method) and
          * invokes the functor.
          */
-        virtual void footnoteFound( FootnoteData::Type type, UChar character,
-                                    SharedPtr<const Word97::CHP> chp, const FootnoteFunctor& parseFootnote );
+        virtual void footnoteFound( FootnoteData::Type type, UString characters,
+                                    SharedPtr<const Word97::CHP> chp, const FootnoteFunctor& parseFootnote);
+
+
+        /**
+         * The parser found an annotation. The passed functor will trigger the parsing of this
+         * annotation, the default implementation just emits the passed character with
+         * runOfText (that it doesn't get lost if someone doesn't override this method) and
+         * invokes the functor.
+         */
+        virtual void annotationFound( UString characters,
+                                      SharedPtr<const Word97::CHP> chp, const AnnotationFunctor& parseAnnotation);
+
         /**
          * This callback will get triggered when parsing a auto-numbered footnote.
          * The passed CHP is the character formatting information provided for the

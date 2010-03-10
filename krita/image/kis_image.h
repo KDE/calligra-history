@@ -32,6 +32,7 @@
 #include "kis_shared.h"
 #include "kis_node_graph_listener.h"
 #include "kis_node_facade.h"
+#include "kis_default_bounds.h"
 
 class KoColorSpace;
 class KoCompositeOp;
@@ -359,7 +360,8 @@ public:
     /**
      * returns a paintdevice that contains the merged layers of this
      * image, within the bounds of this image (with the colorspace and
-     * profile of this image)
+     * profile of this image) It will cause a synchronous update to the
+     * projection.
      */
     KisPaintDeviceSP mergedImage();
 
@@ -405,6 +407,7 @@ public:
     KisLayerSP flattenLayer(KisLayerSP layer);
 
 
+    /// This overrides interface for KisDefaultBounds
     /// @return the exact bounds of the image in pixel coordinates.
     QRect bounds() const;
 
@@ -465,9 +468,6 @@ signals:
      */
     void sigPostLayersChanged(KisGroupLayerSP rootLayer);
 
-    void sigLayerMoved(KisLayerSP layer);
-    void sigLayerRemoved(KisLayerSP layer);
-
     /**
      *  Emitted whenever an action has caused the image to be
      *  recomposited.
@@ -507,15 +507,25 @@ signals:
      */
     void sigNodeHasBeenRemoved(KisNode *parent, int index);
 
+    /**
+     * Inform the model we're about to move a layer.
+     */
+    void sigAboutToMoveNode(KisNode *parent, int oldIndex, int newIndex);
+    
+    /**
+     * Inform the model we're done moving a layer.
+     */
+    void sigNodeHasBeenMoved(KisNode *parent, int oldIndex, int newIndex);
+
 public slots:
 
     void slotProjectionUpdated(const QRect & rc);
     void updateProjection(KisNodeSP node, const QRect& rc);
-    
+
     /**
      * Triggers synchronous recomposition of the projection
      */
-    void refreshGraph();
+    void refreshGraph(KisNodeSP root = 0);
 
 private:
     KisImage& operator=(const KisImage& rhs);

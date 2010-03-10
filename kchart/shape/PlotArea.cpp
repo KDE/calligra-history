@@ -85,9 +85,12 @@ Q_DECLARE_METATYPE( QPointer<QAbstractItemModel> )
 class PlotArea::Private
 {
 public:
-    Private( ChartShape *parent );
+    Private( PlotArea *q, ChartShape *parent );
     ~Private();
 
+    void initAxes();
+
+    PlotArea *q;
     // The parent chart shape
     ChartShape *shape;
 
@@ -144,10 +147,10 @@ public:
     mutable bool pixmapRepaintRequested;
 };
 
-PlotArea::Private::Private( ChartShape *parent )
+PlotArea::Private::Private( PlotArea *q, ChartShape *parent )
+    : q(q)
+    , shape(parent)
 {
-    shape = parent;
-
     // Default type: normal bar chart
     chartType    = BarChartType;
     chartSubtype = NormalChartSubtype;
@@ -185,11 +188,34 @@ PlotArea::Private::~Private()
     delete kdChart;
 }
 
+void PlotArea::Private::initAxes()
+{
+    // The category data region is anchored to an axis and will be set on addAxis if the
+    // axis defines the Axis::categoryDataRegionString(). So, clear it now.
+    q->proxyModel()->setCategoryDataRegion(QString());
+    // Remove all old axes
+    while( !axes.isEmpty() ) {
+        Axis *axis = axes.takeLast();
+        Q_ASSERT( axis );
+        if ( axis->title() )
+            automaticallyHiddenAxisTitles.removeAll( axis->title() );
+        delete axis;
+    }
+    // There need to be at least these two axes. Do not delete, but
+    // hide them instead.
+    Axis *xAxis = new Axis( q );
+    Axis *yAxis = new Axis( q );
+    xAxis->setPosition( BottomAxisPosition );
+    yAxis->setPosition( LeftAxisPosition );
+    yAxis->setShowMajorGrid( true );
+    axes.append( xAxis );
+    axes.append( yAxis );
+}
 
 PlotArea::PlotArea( ChartShape *parent )
     : QObject()
     , KoShape()
-    , d( new Private( parent ) )
+    , d( new Private( this, parent ) )
 {
     setShapeId( ChartShapeId );
     
@@ -228,15 +254,7 @@ void PlotArea::plotAreaInit()
     d->wall = new Surface( this );
     //d->floor = new Surface( this );
     
-    // There need to be at least these two axes. Do not delete, but
-    // hide them instead.
-    Axis *xAxis = new Axis( this );
-    Axis *yAxis = new Axis( this );
-    xAxis->setPosition( BottomAxisPosition );
-    yAxis->setPosition( LeftAxisPosition );
-    yAxis->setShowMajorGrid( true );
-    d->axes.append( xAxis );
-    d->axes.append( yAxis );
+    d->initAxes();
 }
 
 void PlotArea::dataSetCountChanged()
@@ -383,9 +401,16 @@ bool PlotArea::addAxis( Axis *axis )
     d->axes.append( axis );
     
     if ( axis->dimension() == XAxisDimension ) {
-        foreach ( Axis *_axis, d->axes )
+        // set the categoryDataRegion of the proxyModel. This will then be used on
+        // ChartProxyModel::createDataSetsFromRegion to create the dataSets.
+        if ( proxyModel()->categoryDataRegion().isEmpty() && ! axis->categoryDataRegionString().isEmpty() )
+            proxyModel()->setCategoryDataRegion(axis->categoryDataRegionString());
+
+        // let each axis know about the other axis
+        foreach ( Axis *_axis, d->axes ) {
             if ( _axis->isVisible() )
                 _axis->registerKdAxis( axis->kdAxis() );
+        }
     }
     
     requestRepaint();
@@ -404,9 +429,24 @@ bool PlotArea::removeAxis( Axis *axis )
     	qWarning() << "PlotArea::removeAxis(): Pointer to axis is NULL!";
     	return false;
     }
+    
+    if ( axis->title() )
+        d->automaticallyHiddenAxisTitles.removeAll( axis->title() );
+
     d->axes.removeAll( axis );
     
     if ( axis->dimension() == XAxisDimension ) {
+        // If the axis is removed we probably need to update the used categoryDataRegion too.
+        if ( ! proxyModel()->categoryDataRegion().isEmpty() && proxyModel()->categoryDataRegion() == axis->categoryDataRegionString() ) {
+            proxyModel()->setCategoryDataRegion(QString());
+            foreach ( Axis *_axis, d->axes ) {
+                 if ( _axis->dimension() == XAxisDimension && ! _axis->categoryDataRegionString().isEmpty()) {
+                     proxyModel()->setCategoryDataRegion( _axis->categoryDataRegionString() );
+                     break;
+                 }
+            }
+        }
+        
         foreach ( Axis *_axis, d->axes )
             _axis->deregisterKdAxis( axis->kdAxis() );
     }
@@ -505,10 +545,32 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
 
     styleStack.clear();
 
+    // First step is to load the axis. Datasets are attached to an
+    // axis and we need the axis to check for categories.
+    d->initAxes();
+    KoXmlElement n;
+    forEachElement ( n, plotAreaElement ) {
+        if ( n.namespaceURI() != KoXmlNS::chart )
+            continue;
+
+        if ( n.localName() == "axis" ) {
+            Axis *axis = new Axis( this );
+            axis->loadOdf( n, context );
+            addAxis( axis );
+        }
+    }
+
+    CellRegion cellRangeAddress;
+    if ( plotAreaElement.hasAttributeNS( KoXmlNS::table, "cell-range-address" ) )
+    {
+        cellRangeAddress = CellRegion( plotAreaElement.attributeNS( KoXmlNS::table, "cell-range-address" ) );
+    }
+
     // Find out about things that are in the plotarea style.
     // 
     // These things include chart subtype, special things for some
     // chart types like line charts, stock charts, etc.
+    QString seriesSource;
     if ( plotAreaElement.hasAttributeNS( KoXmlNS::chart, "style-name" ) ) {
         context.odfLoadingContext().fillStyleStack( plotAreaElement, KoXmlNS::chart, "style-name", "chart" );
 
@@ -537,17 +599,8 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
 
         // Data direction: It's in the plotarea style.
         if ( styleStack.hasProperty( KoXmlNS::chart, "series-source" ) ) {
-            const QString  seriesSource
-                = styleStack.property( KoXmlNS::chart, "series-source" );
-
+            seriesSource = styleStack.property( KoXmlNS::chart, "series-source" );
             kDebug(35001) << "series-source=" << seriesSource;
-            if ( seriesSource == "rows" )
-                proxyModel()->setDataDirection( Qt::Horizontal );
-            else if ( seriesSource == "columns" )
-                proxyModel()->setDataDirection( Qt::Vertical );
-            else
-                // Use the default value for wrong values (not "rows" or "columns")
-                proxyModel()->setDataDirection( Qt::Vertical );
         }
 
         // Special properties for various chart types
@@ -560,19 +613,23 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
 #endif
     }
 
+    if ( seriesSource == "rows" )
+        proxyModel()->setDataDirection( Qt::Horizontal );
+    else if ( seriesSource == "columns" )
+        proxyModel()->setDataDirection( Qt::Vertical );
+    else
+        proxyModel()->setDataDirection( cellRangeAddress.orientation() );
+
     loadOdfAttributes( plotAreaElement, context, OdfAllAttributes );
-    
-    //KoOdfStylesReader &stylesReader = context.odfLoadingContext().stylesReader();
     
     // Find out if the data table contains labels as first row and/or column.
     // This is in the plot-area element itself.
-    if ( plotAreaElement.hasAttributeNS( KoXmlNS::chart,
-                                         "data-source-has-labels" ) ) {
-
+    if( proxyModel()->categoryDataRegion().isEmpty() && // if chart:categories with a table:cell-range-address is defined within an axis then we need to ignore the data-source-has-labels.
+        plotAreaElement.hasAttributeNS( KoXmlNS::chart, "data-source-has-labels" ) ) {
         // Yes, it does.  Now find out how.
         const QString  dataSourceHasLabels
             = plotAreaElement.attributeNS( KoXmlNS::chart,
-                                           "data-source-has-labels" );
+                                        "data-source-has-labels" );
         if ( dataSourceHasLabels == "both" ) {
             proxyModel()->setFirstRowIsLabel( true );
             proxyModel()->setFirstColumnIsLabel( true );
@@ -600,16 +657,11 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
         sheetAccessModel = static_cast<QAbstractItemModel*>(var.value<void*>());
     }
 
-    QString sheetName;
-    if ( plotAreaElement.hasAttributeNS( KoXmlNS::table, "cell-range-address" ) )
-    {
-        CellRegion cellRangeAddress( plotAreaElement.attributeNS( KoXmlNS::table, "cell-range-address" ) );
-        setCellRangeAddress( cellRangeAddress );
-        sheetName = cellRangeAddress.sheetName();
-    }
+    setCellRangeAddress( cellRangeAddress );
 
     if ( sheetAccessModel )
     {
+        const QString sheetName = cellRangeAddress.sheetName();
         int sheetIndex = 0;
         // Find sheet that this cell range address is associated with
         if ( !sheetName.isEmpty() ) {
@@ -624,27 +676,7 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
         if ( sheet )
             d->shape->setModel( sheet.data() );
     }
-
-    // Remove all axes before loading new ones
-    while( !d->axes.isEmpty() ) {
-        Axis *axis = d->axes.takeLast();
-        Q_ASSERT( axis );
-        delete axis;
-    }
     
-    // A data set is always attached to an axis, so load them first.
-    KoXmlElement n;
-    forEachElement ( n, plotAreaElement ) {
-        if ( n.namespaceURI() != KoXmlNS::chart )
-            continue;
-
-        if ( n.localName() == "axis" ) {
-            Axis *axis = new Axis( this );
-            axis->loadOdf( n, context );
-            addAxis( axis );
-        }
-    }
-
     // Now, after the axes, load the datasets.
     // Note that this only contains properties of the datasets, the
     // actual data is not stored here.

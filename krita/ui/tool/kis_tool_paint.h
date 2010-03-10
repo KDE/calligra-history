@@ -106,9 +106,10 @@ protected:
         return QString();
     }
 
+    virtual void setupPaintAction(KisRecordedPaintAction* action);
 
 public slots:
-    virtual void activate(bool temporary = false);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
 
 private slots:
 

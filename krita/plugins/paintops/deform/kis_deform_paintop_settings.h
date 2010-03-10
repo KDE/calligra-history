@@ -38,18 +38,9 @@ public:
     virtual ~KisDeformPaintOpSettings() {}
 
     virtual QRectF paintOutlineRect(const QPointF& pos, KisImageWSP image, OutlineMode _mode) const;
-    virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const;
+    virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, OutlineMode _mode) const;
 
     bool paintIncremental();
-
-    int radius() const;
-    double deformAmount() const;
-    int deformAction() const;
-    bool bilinear() const;
-    bool useMovementPaint() const;
-    bool useCounter() const;
-    bool useOldData() const;
-    qreal spacing() const;
 
 #if defined(HAVE_OPENGL)
     inline QString modelName() const {

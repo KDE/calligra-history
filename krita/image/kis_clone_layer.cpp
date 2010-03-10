@@ -52,7 +52,7 @@ KisCloneLayer::KisCloneLayer(KisLayerSP from, KisImageWSP image, const QString &
 
 KisCloneLayer::KisCloneLayer(const KisCloneLayer& rhs)
         : KisLayer(rhs)
-        , KisIndirectPaintingSupport(rhs)
+        , KisIndirectPaintingSupport()
         , m_d(new Private())
 {
     m_d->copyFrom = rhs.copyFrom();
@@ -98,13 +98,6 @@ KisPaintDeviceSP KisCloneLayer::original() const
 bool KisCloneLayer::needProjection() const
 {
     return m_d->x || m_d->y;
-}
-
-QRect KisCloneLayer::repaintOriginal(KisPaintDeviceSP original,
-                                     const QRect& rect)
-{
-    Q_UNUSED(original);
-    return rect;
 }
 
 void KisCloneLayer::copyOriginalToProjection(const KisPaintDeviceSP original,

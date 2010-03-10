@@ -132,8 +132,7 @@ public:
         , imageManager(0)
         , gridManager(0)
         , perspectiveGridManager(0)
-        , paintingAssistantManager(0)
-        , favoriteResourceManager(0) {
+        , paintingAssistantManager(0) {
 
     }
 
@@ -151,7 +150,6 @@ public:
         delete perspectiveGridManager;
         delete paintingAssistantManager;
         delete viewConverter;
-        delete favoriteResourceManager;
     }
 
 public:
@@ -174,7 +172,6 @@ public:
     KisPerspectiveGridManager * perspectiveGridManager;
     KisPaintingAssistantsManager* paintingAssistantManager;
     KoFavoriteResourceManager* favoriteResourceManager;
-    QVector<QDockWidget*> hiddenDockwidgets;
 };
 
 
@@ -190,13 +187,17 @@ KisView2::KisView2(KisDoc2 * doc, QWidget * parent)
     m_d->totalRefresh->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_R));
     connect(m_d->totalRefresh, SIGNAL(triggered()), this, SLOT(slotTotalRefresh()));
 
-    m_d->toggleDockers = new KToggleAction(i18n("Show Dockers"), this);
-    m_d->toggleDockers->setChecked(true);
-    actionCollection()->addAction("toggledockers", m_d->toggleDockers);
+    if (shell()) {
+        m_d->toggleDockers = new KToggleAction(i18n("Show Dockers"), this);
+        m_d->toggleDockers->setChecked(true);
+        actionCollection()->addAction("toggledockers", m_d->toggleDockers);
 
 
-    m_d->toggleDockers->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_H));
-    connect(m_d->toggleDockers, SIGNAL(toggled(bool)), this, SLOT(toggleDockers(bool)));
+        m_d->toggleDockers->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_H));
+        connect(m_d->toggleDockers, SIGNAL(toggled(bool)), shell(), SLOT(toggleDockersVisibility(bool)));
+    } else {
+        m_d->toggleDockers = 0;
+    }
 
     setComponentData(KisFactory2::componentData(), false);
 
@@ -235,17 +236,14 @@ KisView2::KisView2(KisDoc2 * doc, QWidget * parent)
     createActions();
 
 
-    KoToolBoxFactory toolBoxFactory(m_d->canvasController, i18n("Tools"));
-    createDockWidget(&toolBoxFactory);
+    if (shell())
+    {
+        KoToolBoxFactory toolBoxFactory(m_d->canvasController, i18n("Tools"));
+        shell()->createDockWidget(&toolBoxFactory);
 
-    KoDockerManager *dockerMng = dockerManager();
-    if (!dockerMng) {
-        dockerMng = new KoDockerManager(this);
-        setDockerManager(dockerMng);
+        connect(m_d->canvasController, SIGNAL(toolOptionWidgetsChanged(const QMap<QString, QWidget *> &, QWidget*)),
+                shell()->dockerManager(), SLOT(newOptionWidgets(const  QMap<QString, QWidget *> &, QWidget*)));
     }
-
-    connect(m_d->canvasController, SIGNAL(toolOptionWidgetsChanged(const QMap<QString, QWidget *> &, QWidget*)),
-            dockerMng, SLOT(newOptionWidgets(const  QMap<QString, QWidget *> &, QWidget*)));
 
     m_d->statusBar = new KisStatusBar(this);
     connect(m_d->canvasController, SIGNAL(documentMousePositionChanged(const QPointF &)),
@@ -312,7 +310,7 @@ void KisView2::dropEvent(QDropEvent *event)
         if (kisimage) {
             KisPaintDeviceSP device = new KisPaintDevice(KoColorSpaceRegistry::instance()->rgb8());
             device->convertFromQImage(qimage, "");
-            KisLayerSP layer = new KisPaintLayer(kisimage.data(), kisimage->nextLayerName(), OPACITY_OPAQUE, device);
+            KisLayerSP layer = new KisPaintLayer(kisimage.data(), kisimage->nextLayerName(), OPACITY_OPAQUE_U8, device);
 
             QPointF pos = kisimage->documentToIntPixel(m_d->viewConverter->viewToDocument(event->pos() + m_d->canvas->documentOffset() - m_d->canvas->documentOrigin()));
             layer->setX(pos.x());
@@ -543,7 +541,6 @@ void KisView2::slotLoadingFinished()
 
 void KisView2::createActions()
 {
-    actionCollection()->addAction(KStandardAction::FullScreen, "full_screen", this, SLOT(slotUpdateFullScreen(bool)));
     actionCollection()->addAction(KStandardAction::Preferences,  "preferences", this, SLOT(slotPreferences()));
 
     KAction* action = new KAction(i18n("Edit Palette..."), this);
@@ -646,22 +643,6 @@ void KisView2::disconnectCurrentImage()
     }
 }
 
-void KisView2::slotUpdateFullScreen(bool toggle)
-{
-    if (KoView::shell()) {
-
-        Qt::WindowStates newState = KoView::shell()->windowState();
-
-        if (toggle) {
-            newState |= Qt::WindowFullScreen;
-        } else {
-            newState &= ~Qt::WindowFullScreen;
-        }
-
-        KoView::shell()->setWindowState(newState);
-    }
-}
-
 void KisView2::slotPreferences()
 {
     if (KisDlgPreferences::editPreferences()) {
@@ -713,17 +694,15 @@ void KisView2::loadPlugins()
                                                                                   "([X-Krita-Version] == 3)"));
     KService::List::ConstIterator iter;
     for (iter = offers.constBegin(); iter != offers.constEnd(); ++iter) {
-
         KService::Ptr service = *iter;
+        dbgUI << "Load plugin " << service->name();
         int errCode = 0;
         KParts::Plugin* plugin =
                 KService::createInstance<KParts::Plugin> (service, this, QStringList(), &errCode);
         if (plugin) {
             insertChildClient(plugin);
         } else {
-            if (errCode == KLibLoader::ErrNoLibrary) {
-                warnKrita << " Error loading plugin was : ErrNoLibrary" << KLibLoader::self()->lastErrorMessage();
-            }
+            errKrita << "Fail to create an instance for " << service->name() << " " << KLibLoader::errorString(errCode) << " " << KLibLoader::self()->lastErrorMessage();
         }
     }
 }
@@ -764,61 +743,15 @@ void KisView2::slotTotalRefresh()
     m_d->canvas->resetCanvas(cfg.useOpenGL());
 }
 
-KoFavoriteResourceManager* KisView2::favoriteResourceManager()
-{
-    return m_d->favoriteResourceManager;
-}
-
-void KisView2::setFavoriteResourceManager(KisPaintopBox* paintopBox)
-{
-    qDebug() << "KisView2: Setting favoriteResourceManager";
-    m_d->favoriteResourceManager = new KoFavoriteResourceManager(paintopBox, m_d->canvas->canvasWidget());
-    connect(this, SIGNAL(favoritePaletteCalled(const QPoint&)), favoriteResourceManager(), SLOT(slotShowPopupPalette(const QPoint&)));
-    connect(resourceProvider(), SIGNAL(sigFGColorUsed(KoColor)), favoriteResourceManager(), SLOT(slotAddRecentColor(KoColor)));
-    connect(favoriteResourceManager(), SIGNAL(sigSetFGColor(KoColor)), resourceProvider(), SLOT(slotSetFGColor(KoColor)));
-
-}
-
-void KisView2::slotCanvasDestroyed(QWidget* w)
-{
-    qDebug() << "[KisView2] Resetting popupPalette parent";
-    if (m_d->favoriteResourceManager != 0)
-    {
-        m_d->favoriteResourceManager->resetPopupPaletteParent(w);
-    }
-}
-
-void KisView2::toggleDockers(bool toggle)
-{
-    Q_UNUSED(toggle);
-    if (m_d->hiddenDockwidgets.isEmpty()){
-        foreach(QObject* widget, mainWindow()->children()) {
-            if (widget->inherits("QDockWidget")) {
-                QDockWidget* dw = static_cast<QDockWidget*>(widget);
-                if (dw->isVisible()) {
-                    dw->hide();
-                    m_d->hiddenDockwidgets << dw;
-                }
-            }
-        }
-    }
-    else {
-        foreach(QDockWidget* dw, m_d->hiddenDockwidgets) {
-            dw->show();
-        }
-        m_d->hiddenDockwidgets.clear();
-    }
-
-}
-
 void KisView2::resizeEvent ( QResizeEvent * event )
 {
     dbgUI << "resize: " << event->oldSize() << " to " << event->size() << "main window" << mainWindow()->size();
 
-    if (mainWindow()->size().height() > QApplication::desktop()->availableGeometry(this).height()) {
-        mainWindow()->resize(mainWindow()->width(),
-                             QApplication::desktop()->availableGeometry(this).height());
-    }
+//     // This code makes the full screen mode unusuable, it force the size of the view, (the reason is that QApplication::desktop()->availableGeometry(this) return the size of the screen minus the size taken by a panel, while in full screen mode the window cover a bigger area), and further more it does not prevent my window to increase its size out of the screen
+//     if (mainWindow()->size().height() > QApplication::desktop()->availableGeometry(this).height()) {
+//         mainWindow()->resize(mainWindow()->width(),
+//                              QApplication::desktop()->availableGeometry(this).height());
+//     }
 }
 
 

@@ -29,41 +29,96 @@
 
 #include <kis_debug.h>
 
+#include "kis_abr_brush.h"
+#include "kis_abr_brush_collection.h"
 #include "kis_gbr_brush.h"
 #include "kis_imagepipe_brush.h"
 
-class BrushResourceServer : public KoResourceServer<KisBrush>
+class BrushResourceServer : public KoResourceServer<KisBrush>, public KoResourceServerObserver<KisBrush>
 {
 
 public:
 
-    BrushResourceServer() : KoResourceServer<KisBrush>("kis_brushes", "*.gbr:*.gih") {
+    BrushResourceServer() : KoResourceServer<KisBrush>("kis_brushes", "*.gbr:*.gih:*.abr") {
+        addObserver(this, true);
+    }
+
+    ~BrushResourceServer() {
+        foreach(KisBrush* brush, m_brushes)
+        {
+            brush->deref();
+        }
+    }
+
+    virtual void resourceAdded(KisBrush* brush)
+    {
+        // Hack: This prevents the deletion of brushes in the resource server
+        // Brushes outside the server use shared pointer, but not inside the server
+        brush->ref();
+        m_brushes.append(brush);
+    }
+
+    ///Reimplemented
+    virtual void removingResource(KisBrush* brush)
+    {
+        brush->deref();
+        m_brushes.removeAll(brush);
+    }
+    
+    ///Reimplemented
+    void importResourceFile( const QString & filename ) {
+        QFileInfo fi( filename );
+        if( fi.exists() == false )
+            return;
+        
+        if( fi.suffix().toLower() == "abr") {
+            QFile::copy(filename, saveLocation() + fi.fileName());
+            QList<KisBrush*> collectionResources = createResources( filename );
+            foreach(KisBrush* brush, collectionResources) {
+                addResource(brush);
+            }
+        } else {
+            KoResourceServer<KisBrush>::importResourceFile(filename);
+        }
     }
 
 private:
 
-    virtual KisGbrBrush* createResource(const QString & filename) {
+    ///Reimplemented
+    virtual QList<KisBrush*> createResources( const QString & filename )
+    {
+        QList<KisBrush*> brushes;
 
-        QString fileExtension;
-        int index = filename.lastIndexOf('.');
+        QString fileExtension = QFileInfo(filename).suffix().toLower();
+        if(fileExtension == "abr") {
+            KisAbrBrushCollection collection(filename);
+            collection.load();
+            kDebug() << "abr brushes " << collection.brushes().count();
+            foreach(KisAbrBrush* abrBrush, collection.brushes()) {
+                brushes.append(abrBrush);
+            }
+        } else {
+            brushes.append(createResource(filename));
+        }
+        return brushes;
+    }
+    
+    ///Reimplemented
+    virtual KisBrush* createResource(const QString & filename) {
 
-        if (index != -1)
-            fileExtension = filename.mid(index).toLower();
+        QString fileExtension = QFileInfo(filename).suffix().toLower();
+        
+        KisBrush* brush = 0;
 
-        KisGbrBrush* brush = 0;
-
-        if (fileExtension == ".gbr") {
+        if (fileExtension == "gbr") {
             brush = new KisGbrBrush(filename);
-        } else if (fileExtension == ".gih") {
+        } else if (fileExtension == "gih") {
             brush = new KisImagePipeBrush(filename);
         }
-        
-        // Hack: This prevents the deletion of brushes in the resource server
-        // Brushes outside the server use shared pointer, but not inside the server
-        brush->ref.ref();
-
         return brush;
     }
+
+    QList<KisBrush*> m_brushes;
 };
 
 KisBrushServer::KisBrushServer()
@@ -73,14 +128,15 @@ KisBrushServer::KisBrushServer()
     KGlobal::mainComponent().dirs()->addResourceDir("kis_brushes", QDir::homePath() + QString("/.create/brushes/gimp"));
 
     m_brushServer = new BrushResourceServer();
-    brushThread = new KoResourceLoaderThread(m_brushServer);
-    connect(brushThread, SIGNAL(finished()), this, SLOT(brushThreadDone()));
-    brushThread->start();
+    m_brushThread = new KoResourceLoaderThread(m_brushServer);
+    connect(m_brushThread, SIGNAL(finished()), this, SLOT(brushThreadDone()));
+    m_brushThread->start();
 }
 
 KisBrushServer::~KisBrushServer()
 {
     dbgRegistry << "deleting KisBrushServer";
+    delete m_brushServer;
 }
 
 KisBrushServer* KisBrushServer::instance()
@@ -97,13 +153,8 @@ KoResourceServer<KisBrush>* KisBrushServer::brushServer()
 
 void KisBrushServer::brushThreadDone()
 {
-    delete brushThread;
-    brushThread = 0;
-
-    QList<KisBrush*> brushPointers = m_brushServer->resources();
-    foreach(KisBrush* brush, brushPointers) {
-        m_brushes << brush;
-    }
+    delete m_brushThread;
+    m_brushThread = 0;
 }
 
 #include "kis_brush_server.moc"

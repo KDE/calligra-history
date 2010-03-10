@@ -91,8 +91,9 @@ KisNode::~KisNode()
     delete m_d;
 }
 
-QRect KisNode::needRect(const QRect &rect) const
+QRect KisNode::needRect(const QRect &rect, PositionToFilthy pos) const
 {
+    Q_UNUSED(pos);
     return rect;
 }
 
@@ -121,7 +122,7 @@ KisNodeSP KisNode::parent() const
     return m_d->parent;
 }
 
-void KisNode::setParent(KisNodeSP parent)
+void KisNode::setParent(KisNodeWSP parent)
 {
     m_d->parent = parent;
 }
@@ -288,5 +289,18 @@ void KisNode::createNodeProgressProxy()
     }
 }
 
+void KisNode::setDirty()
+{
+    setDirty(extent());
+}
+
+void KisNode::setDirty(const QRegion & region)
+{
+    if (region.isEmpty()) return;
+
+    foreach(const QRect & rc, region.rects()) {
+        setDirty(rc);
+    }
+}
 
 #include "kis_node.moc"

@@ -51,7 +51,6 @@
 KisCanvasResourceProvider::KisCanvasResourceProvider(KisView2 * view)
         : m_view(view)
 {
-    //WARNING: this doesn't seem to be true for the first color that is selected automatically by the system
     m_fGChanged = true;
 }
 
@@ -329,10 +328,16 @@ const KoColorProfile *KisCanvasResourceProvider::getScreenProfile(int screen)
 
 void KisCanvasResourceProvider::slotPainting()
 {
-    if (m_fGChanged) {
+
+    if (m_fGChanged && m_enablefGChange) {
         emit sigFGColorUsed(fgColor());
         m_fGChanged = false;
     }
+}
+
+void KisCanvasResourceProvider::slotResetEnableFGChange(bool b)
+{
+    m_enablefGChange = b;
 }
 
 #include "kis_canvas_resource_provider.moc"

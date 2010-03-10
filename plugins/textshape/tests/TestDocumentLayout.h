@@ -62,6 +62,7 @@ private slots:
     void testNumberedList();
     void testInterruptedLists(); // consecutiveNumbering
     void testNestedLists();
+    void testNestedPrefixedLists();
     void testAutoRestartList();
     void testListParagraphIndent();
     void testRomanNumbering();
@@ -71,6 +72,7 @@ private slots:
     void testLetterSynchronization();
     void testInvalidateLists();
     void testCenteredItems();
+    void testMultiLevel();
 
 // relativeBulletSize
 

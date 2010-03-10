@@ -83,7 +83,7 @@ public:
         setIgnoreScrollBars(true);
     }
     virtual bool eventFilter(QObject *obj, QEvent *ev) {
-        if (!obj->isWidgetType() )
+        if (!obj->isWidgetType())
             return false;
         return KParts::PartManager::eventFilter(obj, ev);
     }
@@ -211,6 +211,7 @@ public:
     QMap<QDockWidget*, bool> dockWidgetVisibilityMap;
     KoDockerManager *dockerManager;
     QList<QDockWidget*> dockWidgets;
+    QList<QDockWidget*> hiddenDockwidgets; // List of dockers hiddent by the call to hideDocker
 };
 
 KoMainWindow::KoMainWindow(const KComponentData &componentData)
@@ -369,12 +370,18 @@ KoMainWindow::KoMainWindow(const KComponentData &componentData)
         }
     }
 
-   KConfigGroup config(KGlobal::config(), "MainWindow");
-   restoreWindowSize( config );
+    KConfigGroup config(KGlobal::config(), "MainWindow");
+    restoreWindowSize( config );
+
+    d->dockerManager = new KoDockerManager(this);
+    connect(this, SIGNAL(restoringDone()), d->dockerManager, SLOT(removeUnusedOptionWidgets()));
 }
 
 KoMainWindow::~KoMainWindow()
 {
+    // Explicitly delete the docker manager to ensure that it is deleted before the dockers
+    delete d->dockerManager;
+    d->dockerManager = 0;
     // The doc and view might still exist (this is the case when closing the window)
     if (d->rootDoc)
         d->rootDoc->removeShell(this);
@@ -419,11 +426,6 @@ void KoMainWindow::setRootDocument(KoDocument *doc)
         d->docToOpen = 0;
     } else {
         d->docToOpen = 0;
-    }
-
-    if (d->dockerManager) { // All the views will be deleted, so lets remove this one too
-        delete d->dockerManager;
-        d->dockerManager = 0;
     }
 
     //kDebug(30003) <<"KoMainWindow::setRootDocument this =" << this <<" doc =" << doc;
@@ -573,7 +575,7 @@ void KoMainWindow::updateCaption()
     else if (rootDocument()->isCurrent()) {
         QString caption( rootDocument()->caption() );
         if (d->readOnly)
-            caption += " " + i18n("(write protected)");
+            caption += ' ' + i18n("(write protected)");
 
         updateCaption(caption, rootDocument()->isModified());
         if (!rootDocument()->url().fileName(KUrl::ObeyTrailingSlash).isEmpty())
@@ -1035,6 +1037,11 @@ bool KoMainWindow::saveDocument(bool saveas, bool silent)
 void KoMainWindow::closeEvent(QCloseEvent *e)
 {
     if (queryClose()) {
+        // Reshow the docker that were temporarely hidden before saving settings
+        foreach(QDockWidget* dw, d->hiddenDockwidgets) {
+            dw->show();
+        }
+        d->hiddenDockwidgets.clear();
         saveWindowSettings();
         setRootDocument(0);
         if (!d->dockWidgetVisibilityMap.isEmpty()) { // re-enable dockers for persistency
@@ -1233,7 +1240,7 @@ void KoMainWindow::slotDocumentInfo()
     if (!docInfo)
         return;
 
-    KoDocumentInfoDlg *dlg = new KoDocumentInfoDlg(this, docInfo);
+    KoDocumentInfoDlg *dlg = new KoDocumentInfoDlg(this, docInfo, rootDocument()->documentRdf());
     if (dlg->exec()) {
         if (dlg->isDocumentSaved()) {
             rootDocument()->setModified(false);
@@ -1521,6 +1528,7 @@ void KoMainWindow::slotProgress(int value)
 
         d->progress = new QProgressBar(statusBar());
         d->progress->setMaximumHeight(statusBar()->fontMetrics().height());
+        d->progress->setRange(0, 100);
         statusBar()->addPermanentWidget(d->progress);
         d->progress->show();
         d->firstTime = false;
@@ -1878,12 +1886,26 @@ KoDockerManager * KoMainWindow::dockerManager() const
     return d->dockerManager;
 }
 
-void KoMainWindow::setDockerManager(KoDockerManager *dm)
+void KoMainWindow::toggleDockersVisibility(bool v) const
 {
-    d->dockerManager = dm;
-    if (dm) {
-        dm->setParent(this); // make sure that the dockerManager is deleted by us.
-        connect(this, SIGNAL(restoringDone()), d->dockerManager, SLOT(removeUnusedOptionWidgets()));
+    Q_UNUSED(v);
+    qDebug() << "toggleDockersVisibility";
+    if (d->hiddenDockwidgets.isEmpty()){
+        foreach(QObject* widget, children()) {
+            if (widget->inherits("QDockWidget")) {
+                QDockWidget* dw = static_cast<QDockWidget*>(widget);
+                if (dw->isVisible()) {
+                    dw->hide();
+                    d->hiddenDockwidgets << dw;
+                }
+            }
+        }
+    }
+    else {
+        foreach(QDockWidget* dw, d->hiddenDockwidgets) {
+            dw->show();
+        }
+        d->hiddenDockwidgets.clear();
     }
 }
 

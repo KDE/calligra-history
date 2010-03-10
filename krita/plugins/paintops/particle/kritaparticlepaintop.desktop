@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Particle brush
+Name[en_GB]=Particle brush
+Name[et]=Osakestepintsel
+Name[nl]=Deeltjes-penseel
+Name[pt]=Pincel de partículas
+Name[pt_BR]=Pincel de partículas
+Name[sv]=Partikelpensel
+Name[uk]=Пензель для малювання часток
+Name[x-test]=xxParticle brushxx
+X-KDE-ServiceTypes=Krita/Paintop
+Type=Service
+X-KDE-Library=kritaparticlepaintop
+X-Krita-Version=3

@@ -36,6 +36,42 @@ void randomizator(typename KoRgbTraits<_T_>::Pixel& p)
     p.alpha = rand();
 }
 
+void KoRgb32fTest::testChannels()
+{
+    const KoColorSpace* rgb32f = KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(), Float32BitsColorDepthID.id(), 0);
+    QVERIFY(rgb32f);
+    QList<KoChannelInfo *> channels = rgb32f->channels();
+    QCOMPARE(channels.size(), 4);
+    // Red
+    QCOMPARE(channels[0]->channelType(), KoChannelInfo::COLOR);
+    QCOMPARE(channels[0]->channelValueType(), KoChannelInfo::FLOAT32);
+//     QCOMPARE(channels[0]->color(), Qt::red);
+    QCOMPARE(channels[0]->name(), QString("Red"));
+    QCOMPARE(channels[0]->pos(), 8);
+    QCOMPARE(channels[0]->size(), 4);
+    // Green
+    QCOMPARE(channels[1]->channelType(), KoChannelInfo::COLOR);
+    QCOMPARE(channels[1]->channelValueType(), KoChannelInfo::FLOAT32);
+//     QCOMPARE(channels[1]->color(), Qt::green);
+    QCOMPARE(channels[1]->name(), QString("Green"));
+    QCOMPARE(channels[1]->pos(), 4);
+    QCOMPARE(channels[1]->size(), 4);
+    // Blue
+    QCOMPARE(channels[2]->channelType(), KoChannelInfo::COLOR);
+    QCOMPARE(channels[2]->channelValueType(), KoChannelInfo::FLOAT32);
+//     QCOMPARE(channels[2]->color(), Qt::blue);
+    QCOMPARE(channels[2]->name(), QString("Blue"));
+    QCOMPARE(channels[2]->pos(), 0);
+    QCOMPARE(channels[2]->size(), 4);
+    // Alpha
+    QCOMPARE(channels[3]->channelType(), KoChannelInfo::ALPHA);
+    QCOMPARE(channels[3]->channelValueType(), KoChannelInfo::FLOAT32);
+//     QCOMPARE(channels[3]->color(), Qt::red);
+    QCOMPARE(channels[3]->name(), QString("Alpha"));
+    QCOMPARE(channels[3]->pos(), 12);
+    QCOMPARE(channels[3]->size(), 4);
+}
+
 void KoRgb32fTest::testConversion()
 {
     const KoColorSpace* rgb32f = KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(), Float32BitsColorDepthID.id(), 0);
@@ -53,16 +89,16 @@ void KoRgb32fTest::testConversion()
 
     // Test alpha function
     p32f.alpha = 1.0;
-    QCOMPARE(qint32(rgb32f->alpha(p32fPtr)), 255);
+    QCOMPARE(qint32(rgb32f->opacityU8(p32fPtr)), 255);
     p32f.alpha = 0.5;
-    QCOMPARE(qint32(rgb32f->alpha(p32fPtr)), 127);
+    QCOMPARE(qint32(rgb32f->opacityU8(p32fPtr)), 127);
 
     // Test setAlpha
-    rgb32f->setAlpha(p32fPtr, 255, 1);
+    rgb32f->setOpacity(p32fPtr, quint8(255), 1);
     QCOMPARE(p32f.alpha, 1.0f);
-    rgb32f->setAlpha(p32fPtr, 0, 1);
+    rgb32f->setOpacity(p32fPtr, quint8(0), 1);
     QCOMPARE(p32f.alpha, 0.0f);
-    rgb32f->setAlpha(p32fPtr, 127, 1);
+    rgb32f->setOpacity(p32fPtr, quint8(127), 1);
     QCOMPARE(p32f.alpha, float(127 / 255.0));
 
     // Test conversion of black from 32f to 16u back to 32f

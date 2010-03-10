@@ -9,6 +9,8 @@ set(kritalibbrush_LIB_SRCS
     kis_brush_registry.cpp
     kis_brush_server.cpp
     kis_gbr_brush.cpp
+    kis_abr_brush.cpp
+    kis_abr_brush_collection.cpp
     kis_imagepipe_brush.cpp
     kis_imagepipe_brush_p.cpp
     kis_qimage_mask.cpp
@@ -17,6 +19,7 @@ set(kritalibbrush_LIB_SRCS
     kis_auto_brush_factory.cpp
     kis_text_brush_factory.cpp
     kis_gbr_brush_factory.cpp
+    kis_abr_brush_factory.cpp
 )
 
 kde4_add_library(kritalibbrush SHARED ${kritalibbrush_LIB_SRCS} )

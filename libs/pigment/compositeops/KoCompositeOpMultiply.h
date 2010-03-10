@@ -26,13 +26,13 @@
  * A template version of the multiply composite operation to use in colorspaces.
  */
 template<class _CSTraits>
-class KoCompositeOpMultiply : public KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpMultiply<_CSTraits> >
+class KoCompositeOpMultiply : public KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpMultiply<_CSTraits>, true >
 {
     typedef typename _CSTraits::channels_type channels_type;
 public:
 
     KoCompositeOpMultiply(const KoColorSpace * cs)
-            : KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpMultiply<_CSTraits> >(cs, COMPOSITE_MULT, i18n("Multiply"), KoCompositeOp::categoryArithmetic()) {
+            : KoCompositeOpAlphaBase<_CSTraits, KoCompositeOpMultiply<_CSTraits>, true >(cs, COMPOSITE_MULT, i18n("Multiply"), KoCompositeOp::categoryArithmetic()) {
     }
 
 public:
@@ -44,10 +44,11 @@ public:
                                             const channels_type* src,
                                             channels_type* dst,
                                             qint32 pixelSize,
+                                            bool allChannelFlags,
                                             const QBitArray & channelFlags) {
         Q_UNUSED(pixelSize);
         for (uint i = 0; i < _CSTraits::channels_nb; i++) {
-            if ((int)i != _CSTraits::alpha_pos  && (channelFlags.isEmpty() || channelFlags.testBit(i))) {
+            if ((int)i != _CSTraits::alpha_pos  && (allChannelFlags || channelFlags.testBit(i))) {
                 channels_type srcChannel = src[i];
                 channels_type dstChannel = dst[i];
 

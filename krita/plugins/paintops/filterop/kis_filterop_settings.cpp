@@ -21,21 +21,23 @@
  */
 
 #include "kis_filterop_settings.h"
+
+#include <QDomDocument>
+
 #include "kis_filterop_settings_widget.h"
 
-#include <kis_brush_option.h>
-#include <kis_paintop_options_widget.h>
-#include <kis_pressure_size_option.h>
 #include <kis_filter_option.h>
 #include <filter/kis_filter.h>
+#include <filter/kis_filter_registry.h>
 #include <filter/kis_filter_configuration.h>
 #include <kis_node.h>
 #include <kis_image.h>
-
+#include <kis_types.h>
+#include <kis_paint_device.h>
 
 KisFilterOpSettings::KisFilterOpSettings()
-        : m_options(0)
 {
+    setPropertyNotSaved(FILTER_CONFIGURATION);
 }
 
 KisFilterOpSettings::~KisFilterOpSettings()
@@ -49,30 +51,62 @@ bool KisFilterOpSettings::paintIncremental()
 
 void KisFilterOpSettings::setNode(KisNodeSP node)
 {
+    KisFilterOpSettingsWidget* options = dynamic_cast<KisFilterOpSettingsWidget*>(optionsWidget());
+
     KisPaintOpSettings::setNode(node);
-    if (m_options) {
-        m_options->m_filterOption->setNode(node);
+    if (options) {
+        options->m_filterOption->setNode(node);
     }
 }
 
 void KisFilterOpSettings::setImage(KisImageWSP image)
 {
-    if (m_options) {
-        m_options->m_filterOption->setImage(image);
-    }
-}
+    KisFilterOpSettingsWidget* options = dynamic_cast<KisFilterOpSettingsWidget*>(optionsWidget());
 
-KisFilterSP KisFilterOpSettings::filter() const
-{
-    return m_options->m_filterOption->filter();
+    if (options) {
+        options->m_filterOption->setImage(image);
+    }
 }
 
 KisFilterConfiguration* KisFilterOpSettings::filterConfig() const
 {
-    return m_options->m_filterOption->filterConfig();
+    if (hasProperty(FILTER_ID)) {
+        KisFilterSP filter = KisFilterRegistry::instance()->get(getString(FILTER_ID));
+        Q_ASSERT(filter);
+        if(filter) {
+            KisFilterConfiguration* configuration = filter->factoryConfiguration(0);
+            configuration->fromLegacyXML(getString(FILTER_CONFIGURATION));
+            return configuration;
+        }
+    }
+    return 0;
 }
 
-bool KisFilterOpSettings::ignoreAlpha() const
+void KisFilterOpSettings::toXML(QDomDocument& doc, QDomElement& root) const
 {
-    return m_options->m_filterOption->ignoreAlpha();
+    KisPaintOpSettings::toXML(doc, root);
+    KisFilterConfiguration* configuration = filterConfig();
+    if (configuration) {
+        QDomElement e = doc.createElement("filterconfig");
+        configuration->toXML(doc, e);
+        root.appendChild(e);
+    }
+    delete configuration;
 }
+
+void KisFilterOpSettings::fromXML(const QDomElement& e)
+{
+    KisPaintOpSettings::fromXML(e);
+    QDomElement element = e.firstChildElement("filterconfig");
+    if (hasProperty(FILTER_ID)) {
+        KisFilterSP filter = KisFilterRegistry::instance()->get(getString(FILTER_ID));
+        Q_ASSERT(filter);
+        if(filter) {
+            KisFilterConfiguration* configuration = filter->factoryConfiguration(0);
+            configuration->fromXML(element);
+            setProperty(FILTER_CONFIGURATION, configuration->toLegacyXML());
+            delete configuration;
+        }
+    }
+}
+

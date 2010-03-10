@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-  Copyright (C) 2006-2008 Dag Andersen <kplato@kde.org>
+  Copyright (C) 2006-2008 Dag Andersen <danders@get2net.dk>
   Copyright (C) 2006-2007 Menard Alexis <kplato@kde.org>
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Library General Public
@@ -245,6 +245,7 @@ public slots:
 protected slots:
     /// Noop, we handle subviews ourselves
     virtual void slotGuiActivated( ViewBase *v, bool active );
+    virtual void currentTabChanged( int i );
 
 private:
     ScheduleEditor *m_scheduleEditor;

@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2003 Lucijan Busch <lucijan@kde.org>
-   Copyright (C) 2003-2008 Jarosław Staniek <staniek@kde.org>
+   Copyright (C) 2003-2010 Jarosław Staniek <staniek@kde.org>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -77,9 +77,9 @@ public:
         unstoredItems.clear();
     }
 
-    void saveClassId(const QString& partClass, int id)
+    void saveClassId(const QString& partClass, int id, const QString& originalPartClass = QString())
     {
-        classIds.insert(partClass, id);
+        classIds.insert(originalPartClass.isEmpty() ? partClass : originalPartClass, id);
         classNames.insert(id, partClass);
     }
 
@@ -100,7 +100,7 @@ public:
     int versionMajor;
     int versionMinor;
     int privateIDCounter; //!< counter: ID for private "document" like Relations window
-    bool itemsRetrieved : 1;
+    bool itemsRetrieved;
 };
 
 //---------------------------
@@ -420,8 +420,8 @@ bool KexiProject::createInternalStructures(bool insideTransaction)
         }
     }
 
-    //Store default part infos.
-    //Infos for other parts (forms, reports...) are created on demand in KexiWindow::storeNewData()
+    //Store default part information.
+    //Information for other parts (forms, reports...) are created on demand in KexiWindow::storeNewData()
     KexiDB::InternalTableSchema *t_parts = new KexiDB::InternalTableSchema("kexi__parts"); //newKexiDBSystemTableSchema("kexi__parts");
     t_parts->addField(
         new KexiDB::Field("p_id", KexiDB::Field::Integer, KexiDB::Field::PrimaryKey | KexiDB::Field::AutoInc, KexiDB::Field::Unsigned)
@@ -1083,20 +1083,28 @@ bool KexiProject::checkProject(const QString& singlePartClass)
 
     bool saved = false;
     for (cursor->moveFirst(); !cursor->eof(); cursor->moveNext()) {
-        QString partMime( cursor->value(2).toString() );
+        const QString partMime( cursor->value(2).toString() );
         QString partClass( cursor->value(3).toString() );
-        if (partClass.startsWith("http://")) {
+        if (partClass.startsWith(QLatin1String("http://"))) {
             // for compatibility with Kexi 1.x
             // part mime was used at the time
-            partClass = QString::fromLatin1("org.kexi-project.")
+            partClass = QLatin1String("org.kexi-project.")
                 + QString(partMime).replace("kexi/", QString());
         }
+        QString originalPartClass;
+        if (partClass == QLatin1String("uk.co.piggz.report")) { // compatibility
+            originalPartClass = partClass;
+            partClass = QLatin1String("org.kexi-project.report");
+        }
         KexiPart::Info *info = Kexi::partManager().infoForClass(partClass);
-        if (info) {
-//            i->setProjectPartID(cursor->value(0).toInt());
-            d->saveClassId(partClass, cursor->value(0).toInt());
+        bool ok;
+        const int classId = cursor->value(0).toInt(&ok);
+        if (!ok || classId <= 0) {
+            kWarning() << "Invalid class Id" << classId << "; part" << partClass << "will not be used";
+        }
+        if (info && ok && classId > 0) {
+            d->saveClassId(partClass, classId, originalPartClass);
             saved = true;
-//            i->setIdStoredInPartDatabase(true);
         }
         else {
             KexiPart::MissingPart m;

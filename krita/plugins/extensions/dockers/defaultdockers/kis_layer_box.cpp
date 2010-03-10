@@ -126,7 +126,7 @@ KisLayerBox::KisLayerBox()
     m_wdgLayerBox->bnLower->setEnabled(false);
     m_wdgLayerBox->bnLower->setIcon(SmallIcon("go-down"));
 
-    m_wdgLayerBox->bnProperties->setText("...");
+    m_wdgLayerBox->bnProperties->setIcon(SmallIcon("document-properties"));
 
     m_wdgLayerBox->bnDuplicate->setIcon(SmallIcon("edit-copy"));
 
@@ -164,24 +164,6 @@ KisLayerBox::KisLayerBox()
 KisLayerBox::~KisLayerBox()
 {
     delete m_wdgLayerBox;
-}
-
-bool KisLayerBox::eventFilter(QObject *o, QEvent *e)
-{
-    Q_ASSERT(o == m_wdgLayerBox->listLayers->viewport());
-
-    if (e->type() == QEvent::MouseButtonDblClick) {
-
-        QMouseEvent *me = static_cast<QMouseEvent*>(e);
-        QModelIndex mi = m_wdgLayerBox->listLayers->indexAt(me->pos());
-        if (mi.isValid())
-            slotPropertiesClicked();
-        else
-            slotNewPaintLayer();
-        return true;
-    }
-
-    return QDockWidget::eventFilter(o, e);
 }
 
 void KisLayerBox::setCanvas(KoCanvasBase * canvas)

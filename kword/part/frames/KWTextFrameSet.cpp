@@ -161,6 +161,9 @@ void KWTextFrameSet::setupFrame(KWFrame *frame)
             }
         }
     }
+    if (frame->shape() && m_pageStyle.isValid()) {
+        frame->shape()->setBackground(m_pageStyle.background());
+    }
     connect(data, SIGNAL(relayout()), this, SLOT(updateTextLayout()));
 }
 
@@ -234,6 +237,8 @@ void KWTextFrameSet::framesEmpty(int emptyFrames)
     //kDebug() <<"KWTextFrameSet::framesEmpty" << emptyFrames;
     if (m_pageManager == 0) // be lazy; just refuse to delete frames if we don't know which are on which page
         return;
+    if (KWord::isHeaderFooter(this)) // then we are deleted by the frameManager
+        return;
     QList<KWFrame*> myFrames = m_frames; // make a copy so we can do a removeFrame without worries
     QList<KWFrame*>::Iterator deleteFrom = myFrames.end();
     QList<KWFrame*>::Iterator iter = --myFrames.end();
@@ -257,7 +262,7 @@ void KWTextFrameSet::framesEmpty(int emptyFrames)
         return;
 
     iter = --myFrames.end();
-    do { // while (--iter != deleteFrom) {// remove all frames from end till last empty page
+    do { // remove all frames from end till last empty page
         if (*iter == *m_frames.begin())
             break;
         removeFrame(*iter);
@@ -285,6 +290,13 @@ bool KWTextFrameSet::allowLayout() const
 void KWTextFrameSet::setPageStyle(const KWPageStyle &style)
 {
     m_pageStyle = style;
+    if (style.isValid()) {
+        foreach(KWFrame* frame, m_frames) {
+            if (frame->shape()) {
+                frame->shape()->setBackground(style.background());
+            }
+        }
+    }
 }
 
 KWPageStyle KWTextFrameSet::pageStyle() const

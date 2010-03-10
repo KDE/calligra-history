@@ -78,9 +78,6 @@ public:
      */
     virtual QRect updateProjection(const QRect& rect);
 
-    virtual QRect repaintOriginal(KisPaintDeviceSP original,
-                                  const QRect& rect) = 0;
-
     virtual bool needProjection() const;
 
     virtual void copyOriginalToProjection(const KisPaintDeviceSP original,
@@ -171,11 +168,10 @@ public:
     QImage createThumbnail(qint32 w, qint32 h);
 public:
 
-    virtual void setDirty();
+    void setDirty(const QRect & rect);
 
-    virtual void setDirty(const QRect & rect);
+    using KisNode::setDirty;
 
-    virtual void setDirty(const QRegion & region);
     /**
      * Returns true if there are any effect masks present
      */
@@ -185,6 +181,8 @@ public:
      * @return the list of effect masks
      */
     QList<KisEffectMaskSP> effectMasks() const;
+
+    QRect changeRect(const QRect &rect) const;
 
     /**
      * Set a temporary effect mask on this layer for filter previews.
@@ -257,7 +255,8 @@ private:
  */
 class KRITAIMAGE_EXPORT KisIndirectPaintingSupport
 {
-
+    KisIndirectPaintingSupport(const KisIndirectPaintingSupport&);
+    KisIndirectPaintingSupport& operator=(const KisIndirectPaintingSupport&);
 public:
 
     KisIndirectPaintingSupport();

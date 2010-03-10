@@ -60,7 +60,7 @@ public:
 
 public:
 
-    virtual bool wantsAutoScroll();
+    virtual bool wantsAutoScroll() const;
     virtual void paint( QPainter &painter, const KoViewConverter &converter );
 
     virtual void repaintDecorations();
@@ -89,7 +89,7 @@ public:
     KoFlake::SelectionHandle handleAt(const QPointF &point, bool *innerHandleMeaning = 0);
 
 public slots:
-    void activate(bool temporary = false);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
 
 private slots:
     void selectionAlignHorizontalLeft();

@@ -1,6 +1,8 @@
 /* This file is part of the KDE project
    Copyright (C) 2005 Yolla Indria <yolla.indria@gmail.com>
    Copyright (C) 2010 KO GmbH <jos.van.den.oever@kogmbh.com>
+   Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
+   Contact: Amit Aggarwal <amitcs06@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -21,7 +23,8 @@
 #ifndef PPTTOODP_H
 #define PPTTOODP_H
 
-#include "mso/simpleParser.h"
+#include "generated/simpleParser.h"
+#include "pptstyle.h"
 #include "DateTimeFormat.h"
 #include "ParsedPresentation.h"
 
@@ -33,6 +36,7 @@
 #include <QtCore/QPair>
 #include <QtCore/QRectF>
 #include <QtGui/QColor>
+#include <QtCore/QDebug>
 
 /**
  * Converts PPT files to ODP files.
@@ -73,6 +77,7 @@ public:
      */
     KoFilter::ConversionStatus convert(POLE::Storage& input,
                                        KoStore* output);
+    QString getPicturePath(int pib) const;
 private:
     /**
      * Function that does the actual conversion.
@@ -104,13 +109,22 @@ private:
          * Xml writer that writes into content.xml.
          */
         KoXmlWriter& xml;
+        /**
+         * Styles for the document that is being created.
+         **/
+        KoGenStyles& styles;
+        /**
+         * Tells if the current output is for styles.xml or content.xml
+         **/
+        bool stylesxml;
 
         /**
          * Construct a new Writer.
          *
          * @param xmlWriter The xml writer that writes content.xml
          */
-        Writer(KoXmlWriter& xmlWriter);
+        Writer(KoXmlWriter& xmlWriter, KoGenStyles& kostyles,
+               bool stylexml = false);
         /**
          * Create a new writer with a new coordinate system.
          *
@@ -144,48 +158,192 @@ private:
     };
 
     void createMainStyles(KoGenStyles& styles);
+    void defineDefaultTextStyle(KoGenStyles& styles);
+    void defineDefaultParagraphStyle(KoGenStyles& styles);
+    void defineDefaultSectionStyle(KoGenStyles& styles);
+    void defineDefaultRubyStyle(KoGenStyles& styles);
+    void defineDefaultTableStyle(KoGenStyles& styles);
+    void defineDefaultTableColumnStyle(KoGenStyles& styles);
+    void defineDefaultTableRowStyle(KoGenStyles& styles);
+    void defineDefaultTableCellStyle(KoGenStyles& styles);
+    void defineDefaultGraphicStyle(KoGenStyles& styles);
+    void defineDefaultPresentationStyle(KoGenStyles& styles);
+    void defineDefaultDrawingPageStyle(KoGenStyles& styles);
+    void defineDefaultChartStyle(KoGenStyles& styles);
 
+    /** define automatic styles for text, paragraphs, graphic and presentation
+      families
+      */
+    void defineMasterStyles(KoGenStyles& styles);
+    void defineAutomaticDrawingPageStyles(KoGenStyles& styles);
+
+    // we assume that these functions are the same for all style families
+    void defineDefaultTextProperties(KoGenStyle& style);
+    void defineDefaultParagraphProperties(KoGenStyle& style);
+    void defineDefaultGraphicProperties(KoGenStyle& style);
+
+    /* Extract data from TextCFException into the style */
+    void defineTextProperties(KoGenStyle& style, const MSO::TextCFException* cf,
+                              const MSO::TextCFException9* cf9,
+                              const MSO::TextCFException10* cf10,
+                              const MSO::TextSIException * si);
+
+    /* Extract data from TextPFException into the style */
+    void defineParagraphProperties(KoGenStyle& style,
+                                   const PptTextPFRun& pf);
+    /* Extract data into the style */
     template <typename T>
-    void processGraphicStyle(KoGenStyle& style, T& o);
-    void processSlideForStyle(int slideNo, KoGenStyles &styles);
-    void processObjectForStyle(const PPT::OfficeArtSpgrContainerFileBlock& of, KoGenStyles &styles);
-    void processObjectForStyle(const PPT::OfficeArtSpgrContainer& o, KoGenStyles &styles);
-    void processObjectForStyle(const PPT::OfficeArtSpContainer& o, KoGenStyles &styles);
-    void processDrawingObjectForStyle(const PPT::OfficeArtSpContainer& o, KoGenStyles &styles);
-    void processTextObjectForStyle(const PPT::OfficeArtSpContainer& o, const PPT::TextContainer& tc, KoGenStyles &styles);
+    void defineDrawingPageStyle(KoGenStyle& style, const T* o,
+                                const MSO::HeadersFootersAtom* hf);
 
+    /* Extract data into the style */
+    template <typename T>
+    void defineGraphicProperties(KoGenStyle& style, const T& o,
+                                 const QString& listStyle = QString());
+
+    /**
+     * Structure that influences all information that affects the style of a
+     * text:style.
+     * This is a convenience container for passing this information.
+     **/
+    class ListStyleInput {
+    public:
+        PptTextPFRun pf;
+        const MSO::TextPFException9* pf9;
+        const MSO::TextCFException* cf;
+        const MSO::TextCFException9* cf9;
+        const MSO::TextCFException10* cf10;
+        const MSO::TextSIException* si;
+
+        ListStyleInput() :pf9(0), cf(0), cf9(0), cf10(0), si(0) {}
+    };
+    /* Extract data into the style element style:list */
+    void defineListStyle(KoGenStyle& style,
+                         const MSO::TextMasterStyleAtom& levels,
+                         const MSO::TextMasterStyle9Atom* levels9 = 0,
+                         const MSO::TextMasterStyle10Atom* levels10 = 0);
+    void defineListStyle(KoGenStyle& style, quint8 depth,
+                         ListStyleInput input,
+                         const MSO::TextMasterStyleLevel* level = 0,
+                         const MSO::TextMasterStyle9Level* level9 = 0,
+                         const MSO::TextMasterStyle10Level* level10 = 0);
+
+    void defineListStyle(KoGenStyle& style, quint8 depth,
+                         const ListStyleInput& info,
+                         const ListStyleInput& parent);
+
+    const MSO::StyleTextProp9* getStyleTextProp9(quint32 slideIdRef,
+                                                quint32 textType, quint8 pp9rt);
+    QString defineAutoListStyle(Writer& out, const PptTextPFRun& pf,
+                                const MSO::TextPFException9* pf9);
+
+    quint32 getTextType(const MSO::PptOfficeArtClientTextBox* clientTextbox,
+                        const MSO::PptOfficeArtClientData* clientData) const;
+    void addGraphicStyleToDrawElement(Writer& out, const MSO::OfficeArtSpContainer& o);
+    void addPresentationStyleToDrawElement(Writer& out, const MSO::OfficeArtSpContainer& o);
 
     QByteArray createContent(KoGenStyles& styles);
-    void processSlideForBody(unsigned slideNo, KoXmlWriter& xmlWriter);
-    void processObjectForBody(const PPT::OfficeArtSpgrContainerFileBlock& o, Writer& out);
-    void processObjectForBody(const PPT::OfficeArtSpgrContainer& o, Writer& out);
-    void processObjectForBody(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processDrawingObjectForBody(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processTextObjectForBody(const PPT::OfficeArtSpContainer& o, const PPT::TextContainer& tc, Writer& out);
+    void processSlideForBody(unsigned slideNo, Writer& out);
+    void processObjectForBody(const MSO::OfficeArtSpgrContainerFileBlock& o, Writer& out);
+    void processObjectForBody(const MSO::OfficeArtSpgrContainer& o, Writer& out);
+    void processObjectForBody(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processDrawingObjectForBody(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processTextForBody(const MSO::OfficeArtSpContainer& o,
+                            const MSO::TextContainer& tc, Writer& out);
+    void processTextObjectForBody(const MSO::OfficeArtSpContainer& o, const MSO::TextContainer& tc, Writer& out);
+
+    int processTextSpan(const MSO::TextContainer& tc, Writer& out,
+                        const QString& text, const int start, int end);
+    int processTextSpans(const MSO::TextContainer& tc, Writer& out,
+                        const QString& text, int start, int end);
+    void processTextLine(Writer& out, const MSO::OfficeArtSpContainer& o,
+                         const MSO::TextContainer& tc, const QString& text,
+                        int start, int end, QStack<QString>& levels);
+
+     /**
+     * @brief Write declaration in the content body presentation
+     * @param xmlWriter XML writer to write
+     */
+     void processDeclaration(KoXmlWriter* xmlWriter);
+
+     /**
+     * @brief Write Frame element.
+     * @param KoGenStyle& style To represent the style
+     * @param Writer& out writer xml.
+     * @param presentatonName represent the class for ex: page-number etc
+     * @param QRect -  co-ordinates of the frame
+     * @param mStyle - presentation style
+     * @param pStyle - paragraph style
+     * @param tStyle - text style
+     */
+     void addFrame(KoGenStyle& style, Writer& out, const char* presentationName,
+            const QRect& rect, QString mStyle, QString pStyle, QString tStyle);
 
     /**
-    * @brief Write styles (KoGenStyle& style) meant for the whole presentation
-    * @param KoGenStyle& style To represent the style
-    * @param Slide master - master slide
-    */
-    void processDocStyles(KoGenStyles &styles);
+      * @brief An enumeration that specifies an action that can be performed
+      * when interacting with an object during a slide show.
+      */
+    enum {
+        /**
+          * @brief No effect.
+          */
+        II_NoAction,
+
+        /**
+          * @brief A macro is executed.
+          */
+        II_MacroAction,
+
+        /**
+          * @brief A program is run.
+          */
+        II_RunProgramAction,
+
+        /**
+          * @brief The current presentation slide of the slide show jumps to
+          * another presentation slide in the same presentation.
+          */
+        II_JumpAction,
+
+        /**
+          * @brief A URL is executed.
+          */
+        II_HyperlinkAction,
+
+        /**
+          * @brief An OLE action (only valid if the object this applies to is an
+          * OLE embedded object).
+          */
+        II_OLEAction,
+
+        /**
+          * @brief A media object is played.
+          */
+        II_MediaAction,
+
+        /**
+          * @brief A named show is displayed.
+          */
+        II_CustomShowAction,
+    }InteractiveInfoActionEnum;
 
     /**
-    * @brief Write Frame element (KoGenStyle& style,const char* presentation_class,
-    *  QString width, QString height, QString x, QString y) specified amount into the
-    *  styles.xml for page-number represtation
-    * @param KoGenStyle& style To represent the style
-    * @param presentaton_class represent the class for ex: page-number etc
-    * @param width - width of the frame
-    * @param height - Height of the frame
-    * @param x - X cordinate
-    * @param y - Y cordinate
-    * @param pStyle - paragraph style
-    * @param tStyle - text style
-    */
-    void addFrame(KoGenStyle& style, const char* presentationName,
-                  QString width, QString height, QString x, QString y,
-                  QString pStyle, QString tStyle);
+      * @brief Converts vector of quint16 to String
+      *
+      * Powerpoint files have text as utf16.
+      * @param data Vector to convert
+      * @return data as string
+      */
+    inline QString utf16ToString(const QVector<quint16> &data);
+
+    /**
+      * @brief Find hyperlink with specified id
+      *
+      * @param id Id of the hyperlink to find
+      * @return QPair where first element is hyperlink's target, second is
+      * user readable name. If both are empty, hyperlink is not found
+      */
+    QPair<QString, QString> findHyperlink(const quint32 id);
 
     /**
     * @brief Write text deindentations the specified amount. Actually it just
@@ -199,81 +357,6 @@ private:
     void writeTextObjectDeIndent(KoXmlWriter& xmlWriter,
                                  const unsigned int count,
                                  QStack<QString>& levels);
-
-    /**
-    * @brief Write text all text within specified paragraph
-    *
-    * @param xmlWriter XML writer to write with
-    * @param pf Text paragraph exception to define style for the text paragraph
-    * @param textObject text object whose contents to write
-    * @param textPos position of current paragraph within all the text in
-    * textObject
-    * @param levels   stack of current list levels by name
-    */
-    void writeTextPFException(KoXmlWriter& xmlWriter,
-                              const PPT::TextPFRun *pf,
-                              const PPT::TextContainer& text,
-                              const QString& intext,
-                              const unsigned int textPos,
-                              QStack<QString>& levels);
-
-    /**
-    * @brief Write specified line within specified paragraph with xmlWriter
-    * @param xmlWriter XML writer to write with
-    * @param pf Text paragraph exception to define paragraph style for the line
-    * @param textObject text object whose contents to write
-    * @param text Line to write
-    * @param linePosition what is the index of the whole text (within textObject)
-    * that this line starts from
-    */
-    void writeTextLine(KoXmlWriter& xmlWriter,
-                       const PPT::StyleTextPropAtom& style,
-                       const PPT::TextPFException* pf,
-                       const QString& text,
-                       const unsigned int linePosition);
-
-    /**
-    * @brief write part of a line (bound by the same text character exception)
-    * @param xmlWriter XML writer to write with
-    * @param cf character exception that applies to text we are about to write
-    * @param pf paragraph exception that applies to text we are about to write
-    * @param textObject text object that contains the text
-    * @param text text to write
-    */
-    void writeTextCFException(KoXmlWriter& xmlWriter,
-                              const PPT::TextCFException *cf,
-                              const PPT::TextPFException *pf,
-                              const QString &text);
-
-    /**
-    * @brief Parse all styles from given PPT::TextCFRun and PPT::TextPFRun pair
-    * @param cf PPT::TextCFRun that provides character style
-    * @param pf PPT::TextPFRun that provides paragraph style
-    * @param styles KoGenStyles to store styles to
-    * @param textObject TextObject to cache style names to
-    */
-    void processTextExceptionsForStyle(const PPT::TextCFRun *cf,
-                                       const PPT::TextPFRun *pf,
-                                       KoGenStyles &styles,
-                                       const PPT::TextContainer& tc);
-
-    /**
-    * @brief Helper method to find specified TextParagraphException from
-    * MainMasterContainer
-    * @param text type of the text whose style to get. See TextTypeEnum in
-    * [MS-PPT].pdf
-    * @param level TextMasterStyleLevel index (indentation level)
-    */
-    const PPT::TextPFException *masterTextPFException(quint16 type, quint16 level);
-
-    /**
-    * @brief Helper method to find specified TextCharacterException from
-    * MainMasterContainer
-    * @param text type of the text whose style to get. See TextTypeEnum in
-    * [MS-PPT].pdf
-    * @param level TextMasterStyleLevel index (indentation level)
-    */
-    const PPT::TextCFException *masterTextCFException(int type, unsigned int level);
 
     /**
     * @brief Convert paraspacing value to centimeters
@@ -341,8 +424,8 @@ private:
     * @param color Color to convert
     * @return QColor value, may be undefined
     */
-    QColor toQColor(const PPT::ColorIndexStruct &color);
-    QColor toQColor(const PPT::OfficeArtCOLORREF& c);
+    QColor toQColor(const MSO::ColorIndexStruct &color);
+    QColor toQColor(const MSO::OfficeArtCOLORREF& c);
 
     /**
     * TextAutoNumberSchemeEnum
@@ -371,6 +454,17 @@ private:
     }TextAutoNumberSchemeEnum;
 
     /**
+    * Declaration Type
+    * Referenced by: Declaration Type
+    * A declaration type ex:- Header,Footer,DateTime
+    */
+    enum DeclarationType {
+        Footer,
+        Header,
+        DateTime
+    };
+
+    /**
     * @brief processTextAutoNumberScheme : process the Textautoscheme to display the Bullet and numbering.
     * @param TextAutomNumberSchemeEnum - enum values of textautoscheme.
     * @param numFormat - Format of the bulletand numbering scheme
@@ -381,22 +475,21 @@ private:
     void processTextAutoNumberScheme(int val, QString& numFormat, QString& numSuffix, QString& numPrefix);
 
 
-    void processEllipse(const PPT::OfficeArtSpContainer& fsp, Writer& out);
-    void processRectangle(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processRoundRectangle(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processDiamond(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processTriangle(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processTrapezoid(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processParallelogram(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processHexagon(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processOctagon(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processArrow(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processLine(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processSmiley(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processHeart(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processFreeLine(const PPT::OfficeArtSpContainer& o, Writer& out);
-    void processPictureFrame(const PPT::OfficeArtSpContainer& o, Writer& out);
-
+    void processEllipse(const MSO::OfficeArtSpContainer& fsp, Writer& out);
+    void processRectangle(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processRoundRectangle(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processDiamond(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processTriangle(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processTrapezoid(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processParallelogram(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processHexagon(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processOctagon(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processArrow(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processLine(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processSmiley(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processHeart(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processFreeLine(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processPictureFrame(const MSO::OfficeArtSpContainer& o, Writer& out);
 
     /**
     * @brief Struct that contains precalculated style names based on
@@ -438,16 +531,26 @@ private:
     };
 
     QMap<QByteArray, QString> pictureNames;
+    QMap<quint16, QString> bulletPictureNames;
     DateTimeFormat dateTime;
-    QString masterStyleName;
-    typedef QPair<const PPT::TextCFException*, const PPT::TextPFException*> StyleKey;
-    QMap<StyleKey, StyleName> textStyles;
-    QMap<const PPT::OfficeArtSpContainer*, QString> graphicStyles;
+    QString declarationStyleName;
+
+    /**
+      * name for to use in the style:page-layout-name attribute for master
+      * slides (style:master-page)
+      */
+    QString slidePageLayoutName;
+    /**
+      * name for to use in the style:page-layout-name attribute for notes
+      * and handout slides (presentation:notes and style:handout-master)
+      */
+    QString notesPageLayoutName;
 
     const ParsedPresentation* p;
 
-    const PPT::SlideContainer* currentSlide;
-    const PPT::SlideListWithTextSubContainerOrAtom* currentSlideTexts;
+    const MSO::SlideListWithTextSubContainerOrAtom* currentSlideTexts;
+
+    const MSO::MasterOrSlideContainer* currentMaster;
 
     bool parse(POLE::Storage& storage);
 
@@ -456,47 +559,10 @@ private:
      * it is in a strange positions. This convenience function returns a pointer
      * to the SlideHeadersFootersContainer or NULL if there is none.
      **/
-    const PPT::SlideHeadersFootersContainer* getSlideHF() const {
+    const MSO::SlideHeadersFootersContainer* getSlideHF() const {
         return (p->documentContainer->slideHF)
                ? p->documentContainer->slideHF.data()
                : p->documentContainer->slideHF2.data();
-    }
-    void setGraphicStyleName(const PPT::OfficeArtSpContainer& o, const QString& name) {
-        graphicStyles[&o] = name;
-    }
-
-    /**
-      *Return the name of the style associated with this object.
-      * If no style is present, create one.
-      **/
-    QString getGraphicStyleName(const PPT::OfficeArtSpContainer& o) {
-        return graphicStyles.value(&o);
-    }
-    void addStyleNames(const PPT::TextCFException *cf, const PPT::TextPFException *pf,
-                       const QString& text, const QString& paragraph, const QString& list) {
-        textStyles[StyleKey(cf, pf)] = StyleName(text, paragraph, list);
-    }
-
-    /**
-      *Return the name of the style associated with these objects.
-      * If no style is present, create one.
-      **/
-    QString getTextStyleName(const PPT::TextCFException *cf, const PPT::TextPFException *pf) {
-        return textStyles.value(StyleKey(cf, pf)).text;
-    }
-    /**
-      *Return the name of the style associated with these objects.
-      * If no style is present, create one.
-      **/
-    QString getListStyleName(const PPT::TextCFException *cf, const PPT::TextPFException *pf) {
-        return textStyles.value(StyleKey(cf, pf)).list;
-    }
-    /**
-      *Return the name of the style associated with these objects.
-      * If no style is present, create one.
-      **/
-    QString getParagraphStyleName(const PPT::TextCFException *cf, const PPT::TextPFException *pf) {
-        return textStyles.value(StyleKey(cf, pf)).paragraph;
     }
 
     /**
@@ -505,27 +571,174 @@ private:
     QByteArray getRgbUid(quint16 pib) const {
         // return 16 byte rgbuid for this given blip id
         if (p->documentContainer->drawingGroup.OfficeArtDgg.blipStore) {
-            const PPT::OfficeArtBStoreContainer* b
+            const MSO::OfficeArtBStoreContainer* b
             = p->documentContainer->drawingGroup.OfficeArtDgg.blipStore.data();
             if (pib < b->rgfb.size()
-                    && b->rgfb[pib].anon.is<PPT::OfficeArtFBSE>()) {
-                return b->rgfb[pib].anon.get<PPT::OfficeArtFBSE>()->rgbUid;
+                    && b->rgfb[pib].anon.is<MSO::OfficeArtFBSE>()) {
+                return b->rgfb[pib].anon.get<MSO::OfficeArtFBSE>()->rgbUid;
             }
         }
+        qDebug() << "Could not find image for pib " << pib;
         return QByteArray();
     }
-    const PPT::FontEntityAtom*
+    const MSO::FontEntityAtom*
     getFont(quint16 fontRef) {
-        const PPT::FontCollectionContainer* f =
+        const MSO::FontCollectionContainer* f =
             p->documentContainer->documentTextInfo.fontCollection.data();
         if (f && f->rgFontCollectionEntry.size() > fontRef) {
             return &f->rgFontCollectionEntry[fontRef].fontEntityAtom;
         }
         return 0;
     }
+    QRect getRect(const MSO::OfficeArtSpContainer &o);
 
-    void createFillImages(KoGenStyles& styles);
-    QString getPicturePath(int pib) const;
+    QMap<const void*, QString> presentationPageLayouts;
+    QMap<const void*, QString> drawingPageStyles;
+    typedef QMap<const MSO::MasterOrSlideContainer*, QMap<int, QString> >
+            MasterStyles;
+    MasterStyles masterGraphicStyles;
+    MasterStyles masterPresentationStyles;
+    QMap<const MSO::MasterOrSlideContainer*, QString> masterNames;
+    QString notesMasterName;
+
+    /**
+    * @brief An usedDeclaration.
+    * settings for slideNo &  usedeclaration name.
+    */
+    QHash<unsigned int/*slideNo*/,QString /*usedDeclarationName*/>usedFooterDeclaration;
+
+    /**
+    * @brief An usedDeclaration.
+    * settings for slideNo &  usedeclaration name.
+    */
+    QHash<unsigned int/*slideNo*/,QString/*usedDeclarationName*/>usedHeaderDeclaration;
+
+    /**
+    * @brief An usedDeclaration.
+    * settings for slideNo &  usedeclaration name.
+    */
+    QHash<unsigned int/*slideNo*/,QString/*usedDeclarationName*/>usedDateTimeDeclaration;
+
+    /**
+    * @brief An declaration.
+    * settings for declaration text and usedeclaration name.
+    */
+    QHash<DeclarationType/*type*/,QPair<QString/*declarationName*/,QString/*text*/> >declaration;
+
+    /**
+    * @brief An notesDeclaration.
+    * settings for notes declaration  text and usenotes declaration name.
+    */
+    QHash<DeclarationType/*type*/,QPair<QString /*declarationName*/,QString/*text*/> >notesDeclaration;
+
+    /**
+    * @brief find the text from  Declaration.
+    * @return pointer of the use name.
+    */
+    QString findDeclaration(DeclarationType type, const QString &text) const;
+    /**
+    * @brief find the text from  notesDeclaration.
+    * @return pointer of the use notes name.
+    */
+    QString findNotesDeclaration(DeclarationType type, const QString &) const;
+
+    /**
+    * @brief insert the text into  Declaration.
+    * @param QString declaration use name string ex: ftr1
+    * @param QString declaration text to displayed.
+    */
+    void insertDeclaration(DeclarationType type, const QString &name, const QString &text);
+    /**
+    * @brief insert the text into  notesDeclaration.
+    * @param QString notes declaration use name string ex: ftr2
+    * @param QString notes text to displayed.
+    */
+    void insertNotesDeclaration(DeclarationType type, const QString &name, const QString &text);
+
+    /**
+    * @brief set the width, height rotation and starting point for the given container
+    */
+    void set2dGeometry(const MSO::OfficeArtSpContainer& o, Writer& out);
 };
+
+
+/**
+ * Retrieve an option from an options containing class B
+ *
+ * @p b must have a member fopt that is an array of
+ * type OfficeArtFOPTEChoice.
+ * A is the type of the required option. The option containers
+ * in PPT have only one instance of each option in a option container.
+ * @param b class that contains options.
+ * @return pointer to the option of type A or 0 if there is none.
+ */
+template <typename A, typename B>
+const A*
+get(const B& b)
+{
+    foreach(const MSO::OfficeArtFOPTEChoice& a, b.fopt) {
+        const A *ptr = a.anon.get<A>();
+        if (ptr) return ptr;
+    }
+    return 0;
+}
+/**
+ * Retrieve an option from an OfficeArtSpContainer
+ *
+ * Look in all option containers in @p o for an option of type A.
+ * @param o OfficeArtSpContainer instance which contains options.
+ * @return pointer to the option of type A or 0 if there is none.
+ */
+template <typename A>
+const A*
+get(const MSO::OfficeArtSpContainer& o)
+{
+    const A* a = 0;
+    if (o.shapePrimaryOptions) a = get<A>(*o.shapePrimaryOptions);
+    if (!a && o.shapeSecondaryOptions1) a = get<A>(*o.shapeSecondaryOptions1);
+    if (!a && o.shapeSecondaryOptions2) a = get<A>(*o.shapeSecondaryOptions2);
+    if (!a && o.shapeTertiaryOptions1) a = get<A>(*o.shapeTertiaryOptions1);
+    if (!a && o.shapeTertiaryOptions2) a = get<A>(*o.shapeTertiaryOptions2);
+    return a;
+}
+/**
+ * Retrieve an option from an OfficeArtDggContainer
+ *
+ * Look in all option containers in @p o for an option of type A.
+ * @param o OfficeArtDggContainer instance which contains options.
+ * @return pointer to the option of type A or 0 if there is none.
+ */
+template <typename A>
+const A*
+get(const MSO::OfficeArtDggContainer& o)
+{
+    const A* a = 0;
+    if (o.drawingPrimaryOptions) {
+        get<A>(*o.drawingPrimaryOptions);
+    }
+    if (!a && o.drawingTertiaryOptions) a = get<A>(*o.drawingTertiaryOptions);
+    return a;
+}
+/**
+ * Retrieve an option from a container
+ *
+ * Look in all option containers in @p o for an option of type A.
+ * @param o OfficeArtDggContainer instance which contains options.
+ * @return pointer to the option of type A or 0 if there is none.
+ */
+template <typename A, typename T>
+const A*
+get(const T* o)
+{
+    return (o) ?get<A>(*o) :0;
+}
+
+/**
+ * Convert FixedPoint to a qreal
+ */
+inline qreal toQReal(const MSO::FixedPoint& f)
+{
+    return f.integral + f.fractional / 65536.0;
+}
 
 #endif // POWERPOINTIMPORT_H

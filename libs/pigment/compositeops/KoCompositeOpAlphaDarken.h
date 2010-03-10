@@ -22,6 +22,7 @@
 
 #include "KoColorSpaceMaths.h"
 #include "KoCompositeOp.h"
+#include "KoColorSpaceConstants.h"
 
 #define NATIVE_OPACITY_OPAQUE KoColorSpaceMathsTraits<channels_type>::unitValue
 #define NATIVE_OPACITY_TRANSPARENT KoColorSpaceMathsTraits<channels_type>::zeroValue
@@ -73,7 +74,7 @@ public:
 
                 // apply the alphamask
                 if (mask != 0) {
-                    if (*mask != OPACITY_OPAQUE) {
+                    if (*mask != OPACITY_OPAQUE_U8) {
                         channels_type tmpOpacity = KoColorSpaceMaths<quint8 , channels_type>::scaleToA(*mask);
                         srcAlpha =  KoColorSpaceMaths<channels_type>::multiply(srcAlpha, tmpOpacity);
                     }
@@ -85,21 +86,40 @@ public:
                 }
 
                 // not transparent
-                if (srcAlpha != NATIVE_OPACITY_TRANSPARENT && srcAlpha >= dstAlpha) {
-                    if (!testChannelFlags) {
-                        for (uint i = 0; i < _CSTraits::channels_nb; i++) {
-                            if ((int)i != _CSTraits::alpha_pos) {
-                                d[i] = s[i];
-                            }
-                        }
-                    } else {
-                        for (uint i = 0; i < _CSTraits::channels_nb; i++) {
-                            if ((int)i != _CSTraits::alpha_pos && channelFlags.testBit(i)) {
-                                d[i] = s[i];
-                            }
-                        }
-                    }
-                    d[_CSTraits::alpha_pos] = srcAlpha;
+                if (srcAlpha != NATIVE_OPACITY_TRANSPARENT )
+                {
+                    if (srcAlpha >= dstAlpha) {
+                      if (!testChannelFlags) {
+                          for (uint i = 0; i < _CSTraits::channels_nb; i++) {
+                              if ((int)i != _CSTraits::alpha_pos) {
+                                  d[i] = s[i];
+                              }
+                          }
+                      } else {
+                          for (uint i = 0; i < _CSTraits::channels_nb; i++) {
+                              if ((int)i != _CSTraits::alpha_pos && channelFlags.testBit(i)) {
+                                  d[i] = s[i];
+                              }
+                          }
+                      }
+                      d[_CSTraits::alpha_pos] = srcAlpha;
+                  } else {
+                      qreal blend1 = srcAlpha / qreal(dstAlpha);
+                      qreal blend0 = 1.0 - blend1;
+                      if (!testChannelFlags) {
+                          for (uint i = 0; i < _CSTraits::channels_nb; i++) {
+                              if ((int)i != _CSTraits::alpha_pos) {
+                                  d[i] = d[i] * blend0 + s[i] * blend1;
+                              }
+                          }
+                      } else {
+                          for (uint i = 0; i < _CSTraits::channels_nb; i++) {
+                              if ((int)i != _CSTraits::alpha_pos && channelFlags.testBit(i)) {
+                                  d[i] = d[i] * blend0 + s[i] * blend1;
+                              }
+                          }
+                      }                      
+                  }
                 }
             }
 

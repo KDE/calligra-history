@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2006-2007 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2006-2007, 2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2008 Girish Ramakrishnan <girish@forwardbias.in>
  *
  * This library is free software; you can redistribute it and/or
@@ -224,7 +224,7 @@ ListItemsHelper::ListItemsHelper(QTextList *textList, const QFont &font)
 
 void ListItemsHelper::recalculate()
 {
-    //kDebug(32500) <<"ListItemsHelper::recalculate";
+    //kDebug(32500);
     const QTextListFormat format = m_textList->format();
     const KoListStyle::Style listStyle = static_cast<KoListStyle::Style>(m_textList->format().style());
 
@@ -236,7 +236,9 @@ void ListItemsHelper::recalculate()
         dp = level;
     const int displayLevel = dp ? dp : 1;
 
-    int startValue = format.intProperty(KoListStyle::StartValue);
+    int startValue = 1;
+    if (format.hasProperty(KoListStyle::StartValue))
+        startValue = format.intProperty(KoListStyle::StartValue);
     if (format.boolProperty(KoListStyle::ContinueNumbering)) {
         // Look for the index of a previous list of the same numbering style and level
         for (QTextBlock tb = m_textList->item(0).previous(); tb.isValid(); tb = tb.previous()) {
@@ -293,7 +295,8 @@ void ListItemsHelper::recalculate()
                 break;
             }
         }
-        QString item("");
+
+        QString item;
         if (displayLevel > 1) {
             int checkLevel = level;
             int tmpDisplayLevel = displayLevel;
@@ -308,8 +311,9 @@ void ListItemsHelper::recalculate()
                       TODO
                   } */
                 KoTextBlockData *otherData = dynamic_cast<KoTextBlockData*>(b.userData());
-                if (! otherData) {  //sebsauer, 2007-09-21, happens on loading the odf 1.1 draft odt in kword
-                    kWarning(32500) << "Skipping textblock cause userData() does not contain a valid KoTextBlockData";
+                if (! otherData) {
+                    //sebsauer, 2007-09-21, happens on loading the odf 1.1 draft odt in kword
+                    kWarning(32500) << "Missing KoTextBlockData, Skipping textblock";
                     continue;
                 }
                 if (tmpDisplayLevel - 1 < otherLevel) { // can't just copy it fully since we are
@@ -317,17 +321,24 @@ void ListItemsHelper::recalculate()
                     item += otherData->partialCounterText();
                     tmpDisplayLevel--;
                     checkLevel--;
-                    for (int i = otherLevel + 1;i < level; i++) {
+                    for (int i = otherLevel + 1; i < level; i++) {
                         tmpDisplayLevel--;
                         item += ".0"; // add missing counters.
                     }
                 } else { // just copy previous counter as prefix
-                    item += otherData->counterText();
-                    for (int i = otherLevel + 1;i < level; i++)
+                    QString otherPrefix = lf.stringProperty(KoListStyle::ListItemPrefix);
+                    QString otherSuffix = lf.stringProperty(KoListStyle::ListItemSuffix);
+                    QString pureCounter = otherData->counterText().mid(otherPrefix.size());
+                    pureCounter = pureCounter.left(pureCounter.size() - otherSuffix.size());
+                    item += pureCounter;
+                    for (int i = otherLevel + 1; i < level; i++)
                         item += ".0"; // add missing counters.
+                    tmpDisplayLevel = 0;
                     break;
                 }
             }
+            for (int i = 1; i < tmpDisplayLevel; i++)
+                item = "1." + item; // add missing counters.
         }
 
         if ((listStyle == KoListStyle::DecimalItem || listStyle == KoListStyle::AlphaLowerItem ||
@@ -401,6 +412,10 @@ void ListItemsHelper::recalculate()
         case KoListStyle::AbjadMinor:
             partialCounterText = intToScriptList(index, listStyle);
             break;
+        case KoListStyle::ImageItem:
+            calcWidth = false;
+            width = qMax(format.doubleProperty(KoListStyle::Width), (qreal)1.0);
+            break;
         default:  // others we ignore.
             calcWidth = false;
         }
@@ -432,8 +447,9 @@ void ListItemsHelper::recalculate()
     }
 
     qreal counterSpacing = m_fm.width(' ');
+    counterSpacing = qMax(format.doubleProperty(KoListStyle::MinimumDistance), counterSpacing);
     width += m_fm.width(prefix + suffix); // same for all
-    width = qMax(format.doubleProperty(KoListStyle::MinimumDistance), width);
+    width = qMax(format.doubleProperty(KoListStyle::MinimumWidth), width);
     for (int i = 0; i < m_textList->count(); i++) {
         QTextBlock tb = m_textList->item(i);
         KoTextBlockData *data = dynamic_cast<KoTextBlockData*>(tb.userData());

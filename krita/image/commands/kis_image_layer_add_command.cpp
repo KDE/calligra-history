@@ -51,17 +51,24 @@ KisImageLayerAddCommand::KisImageLayerAddCommand(KisImageWSP image, KisNodeSP la
 
 void KisImageLayerAddCommand::redo()
 {
+    m_image->lock();
     if (m_aboveThis || m_index == quint32(-1)) {
         m_image->addNode(m_layer, m_parent, m_aboveThis);
     } else {
         m_image->addNode(m_layer, m_parent, m_index);
     }
-    m_layer->setDirty();
+    m_image->unlock();
+
+    m_layer->setDirty(m_image->bounds());
 }
 
 void KisImageLayerAddCommand::undo()
 {
-    KisNodeSP parentNode = m_layer->parent();
+    UpdateTarget target(m_image, m_layer, m_image->bounds());
+
+    m_image->lock();
     m_image->removeNode(m_layer);
-    parentNode->setDirty();
+    m_image->unlock();
+
+    target.update();
 }

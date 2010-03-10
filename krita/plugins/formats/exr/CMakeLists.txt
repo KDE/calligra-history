@@ -1,3 +1,4 @@
+add_subdirectory(tests)
 
 include_directories( ${OPENEXR_INCLUDE_DIR} ${KRITA_INCLUDES} )
 
@@ -26,6 +27,8 @@ set(kritaexrexport_PART_SRCS
     exr_export.cc
     ${libkritaconverter_LIB_SRCS}
     )
+
+kde4_add_ui_files(kritaexrexport_PART_SRCS exr_export_widget.ui )
 
 kde4_add_plugin(kritaexrexport WITH_PREFIX ${kritaexrexport_PART_SRCS})
 

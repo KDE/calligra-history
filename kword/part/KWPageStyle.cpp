@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2006, 2008 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2006, 2008, 2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2008 Pierre Ducroquet <pinaraf@pinaraf.info>
  * Copyright (C) 2008 Sebastian Sauer <mail@dipe.org>
  *
@@ -25,9 +25,18 @@
 #include <KoXmlWriter.h>
 #include <KoXmlNS.h>
 #include <KoUnit.h>
+#include <KoColorBackground.h>
 
 #include <kdebug.h>
 #include <QBuffer>
+#include <QColor>
+
+KWPageStylePrivate::~KWPageStylePrivate()
+{
+    if (background && !background->deref()) {
+        delete background;
+    }
+}
 
 void KWPageStylePrivate::clear()
 {
@@ -47,11 +56,16 @@ void KWPageStylePrivate::clear()
     columns.columnSpacing = 17; // ~ 6mm
     pageLayout = KoPageLayout::standardLayout();
     direction = KoText::AutoDirection;
+
+    if (background && !background->deref()) {
+        delete background;
+    }
+    background = 0;
 }
 
 ///////////
 
-KWPageStyle::KWPageStyle(const QString& name)
+KWPageStyle::KWPageStyle(const QString &name)
     : d (new KWPageStylePrivate())
 {
     d->name = name;
@@ -222,6 +236,22 @@ QString KWPageStyle::name() const
     return d->name;
 }
 
+KoShapeBackground *KWPageStyle::background() const
+{
+    return d->background;
+}
+
+void KWPageStyle::setBackground(KoShapeBackground *background)
+{
+    if (d->background) {
+        if (!d->background->deref())
+            delete d->background;
+    }
+    d->background = background;
+    if (d->background)
+        d->background->ref();
+}
+
 KoGenStyle KWPageStyle::saveOdf() const
 {
     KoGenStyle pageLayout = d->pageLayout.saveOdf();
@@ -242,10 +272,10 @@ KoGenStyle KWPageStyle::saveOdf() const
     //<style:footnote-sep style:adjustment="left" style:width="0.5pt" style:rel-width="20%" style:line-style="solid"/>
     //writer.startElement("style:footnote-sep");
     // TODO
-    //writer.addAttribute("style:adjustment", )
-    //writer.addAttribute("style:width", )
-    //writer.addAttribute("style:rel-width", )
-    //writer.addAttribute("style:line-style", )
+    //writer.addAttribute("style:adjustment",)
+    //writer.addAttribute("style:width",)
+    //writer.addAttribute("style:rel-width",)
+    //writer.addAttribute("style:line-style",)
     //writer.endElement();
 
     QString contentElement = QString::fromUtf8(buffer.buffer(), buffer.buffer().size());
@@ -314,6 +344,19 @@ void KWPageStyle::loadOdf(const KoXmlElement &style)
         if (! hfprops.isNull())
             d->footerDistance = KoUnit::parseValue(hfprops.attributeNS(KoXmlNS::fo, "margin-top"));
         // TODO there are quite some more properties we want to at least preserve between load and save
+    }
+
+    // Load background color
+    QString backgroundColor = props.attributeNS(KoXmlNS::fo, "background-color", QString::null);
+    if (!backgroundColor.isNull()) {
+
+        if (backgroundColor == "transparent") {
+            d->background = 0;
+        }
+        else {
+            d->background = new KoColorBackground(QColor(backgroundColor));
+            d->background->ref();
+        }
     }
 }
 

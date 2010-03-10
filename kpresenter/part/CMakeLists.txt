@@ -82,6 +82,18 @@ set( kpresenterprivate_LIB_SRCS
      shapeanimations/KPrShapeAnimationFactory.cpp
      shapeanimations/KPrShapeAnimationRegistry.cpp
 
+     animations/KPrAnimationBase.cpp
+     animations/KPrAnimPar.cpp
+     animations/KPrAnimSeq.cpp
+     animations/KPrAnimSet.cpp
+     animations/KPrAnimate.cpp
+     animations/KPrAnimateColor.cpp
+     animations/KPrAnimateMotion.cpp
+     animations/KPrAnimateTransform.cpp
+     animations/KPrAnimationFactory.cpp
+     animations/KPrAnimationCache.cpp
+     animations/KPrTextBlockPaintStrategy.cpp
+
      pagelayout/KPrPlaceholder.cpp
      pagelayout/KPrPageLayout.cpp
      pagelayout/KPrPageLayouts.cpp

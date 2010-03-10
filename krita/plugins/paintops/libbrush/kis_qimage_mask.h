@@ -72,8 +72,8 @@ public:
     /**
      * Return the alpha mask bytes
      */
-    inline quint8 * data() {
-        return m_data.data();
+    inline quint8 * scanline(int y) {
+        return m_data.scanLine(y);
     }
 
     /**
@@ -90,19 +90,23 @@ public:
        provide an iterator over the mask, that would be nice, too.
     */
     inline quint8 alphaAt(qint32 x, qint32 y) const {
-        if (y >= 0 && y < m_height && x >= 0 && x < m_width) {
-            return m_data[(y * m_width) + x];
+        if (y >= 0 && y < m_data.height() && x >= 0 && x < m_data.width()) {
+            return m_data.scanLine(y)[x];
         } else {
-            return OPACITY_TRANSPARENT;
+            return OPACITY_TRANSPARENT_U8;
         }
     }
 
     inline void setAlphaAt(qint32 x, qint32 y, quint8 alpha) {
-        if (y >= 0 && y < m_height && x >= 0 && x < m_width) {
-            m_data[(y * m_width) + x] = alpha;
+        if (y >= 0 && y < m_data.height() && x >= 0 && x < m_data.width()) {
+            m_data.scanLine(y)[x] = alpha;
         }
     }
 
+    /**
+     * Apply rotation to the mask
+     */
+    void rotation(double angle);
 
     // Create a new mask by interpolating between mask1 and mask2 as t
     // goes from 0 to 1.
@@ -112,9 +116,7 @@ private:
     void computeAlpha(const QImage& image);
     void copyAlpha(const QImage& image);
 
-    QVector<quint8> m_data;
-    qint32 m_width;
-    qint32 m_height;
+    QImage m_data;
 };
 
 #endif // KIS_ALPHA_MASK_

@@ -181,7 +181,7 @@ DefaultTool::~DefaultTool()
     delete m_guideLine;
 }
 
-bool DefaultTool::wantsAutoScroll()
+bool DefaultTool::wantsAutoScroll() const
 {
     return true;
 }
@@ -907,9 +907,8 @@ void DefaultTool::recalcSelectionBox()
     }
 }
 
-void DefaultTool::activate(bool temporary)
+void DefaultTool::activate(ToolActivation, const QSet<KoShape*> &)
 {
-    Q_UNUSED(temporary);
     m_mouseWasInsideHandles = false;
     m_lastHandle = KoFlake::NoHandle;
     useCursor(Qt::ArrowCursor);

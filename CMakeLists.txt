@@ -45,6 +45,8 @@ IF (TINY)
     set(SHOULD_BUILD_KDGANTT FALSE)
     set(SHOULD_BUILD_KOUNAVAIL FALSE)
     set(SHOULD_BUILD_SCRIPTING FALSE)
+    set(SHOULD_BUILD_F_OFFICE TRUE)
+    set(SHOULD_BUILD_KOREPORT FALSE)
 ELSE(TINY)
     set(SHOULD_BUILD_KWORD TRUE)
     set(SHOULD_BUILD_KPRESENTER TRUE)
@@ -59,6 +61,8 @@ ELSE(TINY)
     set(SHOULD_BUILD_KDGANTT TRUE)
     set(SHOULD_BUILD_KOUNAVAIL TRUE)
     set(SHOULD_BUILD_SCRIPTING TRUE)
+    set(SHOULD_BUILD_F_OFFICE TRUE)
+    set(SHOULD_BUILD_KOREPORT TRUE)
 ENDIF(TINY)
 
 if(KDE4_BUILD_TESTS)
@@ -179,14 +183,24 @@ macro_optional_find_package(Exiv2)
 macro_log_feature(EXIV2_FOUND "Exiv2" "Image metadata library and tools" "http://www.exiv2.org" FALSE "0.16" "Required by Krita")
 
 ##
-## Test for bzip2
+## Test for soprano
 ##
-find_program(BZIP2_EXECUTABLE NAMES bzip2 )
-macro_log_feature(BZIP2_EXECUTABLE "bzip2" "High-quality data compressor" "http://www.bzip.org" FALSE "" "Required by Kexi")
+macro_optional_find_package(Soprano)
+macro_log_feature(Soprano_FOUND "Soprano" "KDE4 RDF handling library" "http://soprano.sourceforge.net/" FALSE "" "Required to handle RDF metadata in ODF")
+if(NOT Soprano_FOUND)
+    set(SHOULD_BUILD_RDF FALSE)
+    set(SOPRANO_INCLUDE_DIR "")
+else(NOT Soprano_FOUND)
+    set(SHOULD_BUILD_RDF TRUE)
+endif(NOT Soprano_FOUND)
+if( Soprano_FOUND )
+   add_definitions( -DSHOULD_BUILD_RDF )
+endif( Soprano_FOUND )
+
 
 ##
 ## Test for lcms
-## 
+##
 macro_optional_find_package(LCMS)
 set(REQUIRED_LCMS_VERSION 118)
 if(LCMS_FOUND AND NOT LCMS_VERSION LESS ${REQUIRED_LCMS_VERSION})
@@ -197,8 +211,7 @@ else(LCMS_FOUND AND NOT LCMS_VERSION LESS ${REQUIRED_LCMS_VERSION})
     set(HAVE_LCMS FALSE)
 endif(LCMS_FOUND AND NOT LCMS_VERSION LESS ${REQUIRED_LCMS_VERSION})
 
-macro_log_feature(HAVE_REQUIRED_LCMS_VERSION "LittleCMS" "Color management engine" "http://www.littlecms.com" FALSE "1.18" "Required for color management and Krita's JPEG filter.")
-
+macro_log_feature(HAVE_REQUIRED_LCMS_VERSION "LittleCMS" "Color management engine" "http://www.littlecms.com" FALSE "1.18" "Required for color management and Krita")
 
 #Set the build of TextShape changetraker
 
@@ -247,22 +260,13 @@ configure_file(config-prefix.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-prefix.h
 # for config.h and <toplevel/foo.h> includes (if any?)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR}/interfaces )
 
-
-# kostore is at the bottom of stack, so it has the dependency on the kde4 includes.
-set(KOSTORE_INCLUDES ${CMAKE_SOURCE_DIR}/libs/store ${CMAKE_BINARY_DIR}/libs/store ${KDE4_INCLUDES})
-
 # koplugin is at the bottom of the stack
 set(KOPLUGIN_INCLUDES ${CMAKE_SOURCE_DIR}/libs/koplugin)
 
-# kobase is at the bottom of the stack
-set(KOBASE_INCLUDES ${CMAKE_SOURCE_DIR}/libs/kobase)
-
-# koodf depends on kostore, kobase and koodf
+# koodf is at the bottom of the stack
 set(KOODF_INCLUDES ${CMAKE_SOURCE_DIR}/libs/odf
                    ${CMAKE_BINARY_DIR}/libs/odf
-                   ${KOBASE_INCLUDES}
-                   ${KOSTORE_INCLUDES})
-
+                   ${KDE4_INCLUDES})
 
 # pigment depends on koplugin and lcms
 set(PIGMENT_INCLUDES ${KOPLUGIN_INCLUDES}
@@ -292,6 +296,7 @@ set(KOTEXT_INCLUDES ${CMAKE_SOURCE_DIR}/libs/kotext
 
 # komain depends on kotext & flake
 set(KOMAIN_INCLUDES ${KDE4_INCLUDES}
+                    ${SOPRANO_INCLUDE_DIR}
                     ${KOTEXT_INCLUDES}
                     ${CMAKE_SOURCE_DIR}/libs/widgets
                     ${CMAKE_SOURCE_DIR}/libs/main
@@ -303,6 +308,16 @@ endif(SHOULD_BUILD_SCRIPTING)
 
 # kopageapp
 set(KOPAGEAPP_INCLUDES ${CMAKE_SOURCE_DIR}/libs/kopageapp ${CMAKE_SOURCE_DIR}/libs/kopageapp/commands ${CMAKE_BINARY_DIR}/libs/kopageapp )
+
+# koproperty
+SET(KOPROPERTY_TARGETNAME koproperty)                           # TODO remove when we move to independent place
+SET(KOPROPERTY_LIBS ${KOPROPERTY_TARGETNAME})                   # TODO remove when we move to independent place
+SET(KOPROPERTY_LIB_VERSION ${GENERIC_KOFFICE_LIB_VERSION})      # TODO remove when we move to independent place
+SET(KOPROPERTY_LIB_SOVERSION ${GENERIC_KOFFICE_LIB_SOVERSION})  # TODO remove when we move to independent place
+SET(KOPROPERTY_USE_KOLIBS TRUE)                                 # TODO remove when we move to independent place
+set(KOPROPERTY_INCLUDES ${KOODF_INCLUDES}
+                        ${CMAKE_SOURCE_DIR}/libs
+                        ${CMAKE_SOURCE_DIR}/libs/widgets)
 
  #############################################
 ##############################################
@@ -327,11 +342,6 @@ if(NOT Boost_FOUND)
     set(SHOULD_BUILD_KPRESENTER FALSE)
 endif(NOT Boost_FOUND)
 
-### Kexi: bzip2
-if(NOT BZIP2_EXECUTABLE )
-    set(SHOULD_BUILD_KEXI FALSE)
-endif(NOT BZIP2_EXECUTABLE )
-
 ### Krita: pigment, blitz, eigen2, exiv2
 if(NOT BLITZ_FOUND OR NOT EIGEN2_FOUND OR NOT EXIV2_FOUND)
    set(SHOULD_BUILD_KRITA FALSE)
@@ -342,15 +352,50 @@ if(NOT KdepimLibs_FOUND)
     set(SHOULD_BUILD_KPLATO FALSE)
 endif(NOT KdepimLibs_FOUND)
 
+if(NOT BUILD_kchart OR NOT SHOULD_BUILD_KCHART)
+    message(STATUS "WARNING: KoReport component will not be built because KChart is not available.")
+    if(BUILD_kplato AND SHOULD_BUILD_KPLATO)
+        message(STATUS "WARNING: KPlato will not be built because KoReport component is not available.")
+    endif(BUILD_kplato AND SHOULD_BUILD_KPLATO)
+# no, Kexi can work without reports    set(SHOULD_BUILD_KEXI FALSE)
+    set(SHOULD_BUILD_KPLATO FALSE)
+    set(SHOULD_BUILD_KOREPORT FALSE)
+endif(NOT BUILD_kchart OR NOT SHOULD_BUILD_KCHART)
+
+if(BUILD_kexi AND SHOULD_BUILD_KEXI)
+    ##
+    ## Test for sqlite
+    ##
+    set(SQLITE_RECOMMENDED_VERSION "3.6.22")
+    find_package(KofficeSqlite 3.6.16)
+    macro_log_feature(SQLITE_FOUND "SQLite" "Embedded SQL database engine" "http://www.sqlite.org"
+                      FALSE ${SQLITE_MIN_VERSION} "Required by Kexi (for its default database driver).")
+    ## Test for bzip2
+    find_program(BZIP2_EXECUTABLE NAMES bzip2)
+    macro_log_feature(BZIP2_EXECUTABLE "bzip2" "High-quality data compressor" "http://www.bzip.org"
+                      FALSE "" "Required by Kexi.")
+
+    if(NOT BZIP2_EXECUTABLE OR NOT SQLITE_FOUND)
+        set(SHOULD_BUILD_KEXI FALSE)
+        message(STATUS "WARNING: Kexi will not be built.")
+    endif(NOT BZIP2_EXECUTABLE OR NOT SQLITE_FOUND)
+endif(BUILD_kexi AND SHOULD_BUILD_KEXI)
+
+# koreport component not needed if no app is using it
+if(BUILD_koreport AND SHOULD_BUILD_KOREPORT)
+    if(NOT BUILD_kexi AND NOT SHOULD_BUILD_KEXI)
+        if(NOT BUILD_kplato AND NOT SHOULD_BUILD_KPLATO)
+            message(STATUS "KoReport component will not be built because is unused.")
+            set(SHOULD_BUILD_KOREPORT FALSE)
+        endif(NOT BUILD_kplato AND NOT SHOULD_BUILD_KPLATO)
+    endif(NOT BUILD_kexi AND NOT SHOULD_BUILD_KEXI)
+endif(BUILD_koreport AND SHOULD_BUILD_KOREPORT)
+
  ###################
 ####################
 ## Subdirectories ##
 ####################
 ###################
-
-add_subdirectory(libs)
-add_subdirectory(interfaces)
-add_subdirectory(cmake)
 
 if(SHOULD_BUILD_KWORD)
     macro_optional_add_subdirectory(kword)
@@ -373,6 +418,7 @@ if (SHOULD_BUILD_KPLATO)
 endif (SHOULD_BUILD_KPLATO)
 
 if (SHOULD_BUILD_KCHART)
+    add_definitions(-DHAVE_KCHART)
     macro_optional_add_subdirectory(kchart)
 endif (SHOULD_BUILD_KCHART)
 
@@ -402,6 +448,10 @@ endif(SHOULD_BUILD_KARBON)
 
 macro_optional_add_subdirectory(doc)
 
+# non-app directories are moved here because they can depend on SHOULD_BUILD_{appname} variables set above
+add_subdirectory(libs)
+add_subdirectory(interfaces)
+add_subdirectory(cmake)
 add_subdirectory(pics)
 add_subdirectory(plugins)
 add_subdirectory(servicetypes)
@@ -429,6 +479,11 @@ macro_display_application_enabled(krita ${SHOULD_BUILD_KRITA})
 macro_display_application_enabled(karbon ${SHOULD_BUILD_KARBON})
 macro_display_application_enabled(kformula ${SHOULD_BUILD_KFORMULA})
 macro_display_application_enabled(kchart ${SHOULD_BUILD_KCHART})
+macro_display_application_enabled(f-office ${SHOULD_BUILD_F_OFFICE})
+
+message(STATUS "---------------- The following components will be built ----------------" )
+
+macro_display_application_enabled(koreport ${SHOULD_BUILD_KOREPORT})
 
 message(STATUS "--------------------------------------------------------------------------" )
 

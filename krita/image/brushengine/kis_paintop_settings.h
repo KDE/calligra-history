@@ -128,7 +128,7 @@ public:
      * And we need a lot of caching here, since no matter what we do, it is utterly slow, especially
      * when using a tablet. How does XXX works with the duplicate op ? List of images ? With a center ?
      */
-    virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, const KoViewConverter &converter, OutlineMode _mode) const;
+    virtual void paintOutline(const QPointF& pos, KisImageWSP image, QPainter &painter, OutlineMode _mode) const;
 
     /**
      * XXX: document!
@@ -137,10 +137,16 @@ public:
     
     // XXX: I'd like to be able to get at the size as well
 
-#if defined(HAVE_OPENGL)
+    /**
+     * @return filename of the 3D brush model, empty if no brush is set
+     */
     virtual QString modelName() const;
-#endif
 
+     /**
+     * Set filename of 3D brush model. By default no brush is set
+     */
+    void setModelName(const QString & modelName);
+    
 protected:
      /**
      * @return the option widget of the paintop (can be 0 is no option widgets is set)

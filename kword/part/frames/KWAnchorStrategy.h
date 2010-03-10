@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
- * Copyright (C) 2007, 2009 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2007, 2009, 2010 Thomas Zander <zander@kde.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -21,9 +21,8 @@
 #define KWANCHORSTRATEGY_H
 
 #include <KoTextDocumentLayout.h>
+#include <KoTextAnchor.h>
 
-
-class KoTextAnchor;
 class KWAnchorStrategy;
 class KWFrame;
 
@@ -75,12 +74,18 @@ public:
     }
 
 private:
+    void calculateKnowledgePoint();
+
     KoTextAnchor *const m_anchor;
     int m_knowledgePoint; // the cursor position at which the layout process has gathered enough info to do our work
     bool m_finished;
     qreal m_currentLineY;
     int m_pass;
     int m_lastknownPosInDoc;
+
+    QPointF m_lastOffset;
+    KoTextAnchor::AnchorVertical m_lastVerticalAnchorAlignment;
+    KoTextAnchor::AnchorHorizontal m_lastHorizontalAnchorAlignment;
 };
 
 #endif

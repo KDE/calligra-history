@@ -21,10 +21,7 @@
  */
 
 #include "kis_brushop_settings_widget.h"
-#include "kis_brushop_settings.h"
-#include <kis_properties_configuration.h>
-#include <kis_brush_option_widget.h>
-#include <kis_paintop_options_widget.h>
+#include <kis_brush_based_paintop_settings.h>
 #include <kis_pressure_darken_option.h>
 #include <kis_pressure_opacity_option.h>
 #include <kis_pressure_size_option.h>
@@ -34,13 +31,10 @@
 #include <kis_curve_option_widget.h>
 
 KisBrushOpSettingsWidget::KisBrushOpSettingsWidget(QWidget* parent)
-        : KisPaintOpOptionsWidget(parent)
+        : KisBrushBasedPaintopOptionWidget(parent)
 {
     setObjectName("brush option widget");
 
-    m_brushOption = new KisBrushOptionWidget();
-
-    addPaintOpOption(m_brushOption);
     addPaintOpOption(new KisCurveOptionWidget(new KisPressureSizeOption()));
     addPaintOpOption(new KisCurveOptionWidget(new KisPressureOpacityOption()));
     addPaintOpOption(new KisCurveOptionWidget(new KisPressureDarkenOption()));
@@ -51,24 +45,15 @@ KisBrushOpSettingsWidget::KisBrushOpSettingsWidget(QWidget* parent)
 
 KisBrushOpSettingsWidget::~KisBrushOpSettingsWidget()
 {
-    delete m_brushOption;
 }
 
 KisPropertiesConfiguration* KisBrushOpSettingsWidget::configuration() const
 {
-    KisBrushOpSettings *config = new KisBrushOpSettings();
+    KisBrushBasedPaintOpSettings *config = new KisBrushBasedPaintOpSettings();
     config->setOptionsWidget(const_cast<KisBrushOpSettingsWidget*>(this));
     config->setProperty("paintop", "paintbrush"); // XXX: make this a const id string
     writeConfiguration(config);
     return config;
-}
-
-void KisBrushOpSettingsWidget::changePaintOpSize(qreal x, qreal y)
-{
-    Q_UNUSED(y);
-    qreal currentDiameter = m_brushOption->autoBrushDiameter();
-    
-    m_brushOption->setAutoBrushDiameter(currentDiameter + qRound(x));
 }
 
 #include "kis_brushop_settings_widget.moc"

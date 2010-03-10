@@ -31,6 +31,7 @@
 
 class KoShapeLoadingContext;
 class QTextCursor;
+class KoBookmarkManager;
 
 /**
  * The KoTextLoader loads is use to load text for one and only one textdocument or shape
@@ -104,6 +105,16 @@ private:
     void loadSpan(const KoXmlElement &element, QTextCursor &cursor, bool *leadingSpace);
 
     /**
+    * Load the deleted change within a \p or a \h and store it in the Delete Change Marker
+    */
+    void loadDeleteChangeWithinPorH(QString id, QTextCursor &cursor);
+
+    /**
+    * Load the deleted change outside of a \p or a \h and store it in the Delete Change Marker
+    */
+    void loadDeleteChangeOutsidePorH(QString id, QTextCursor &cursor);
+
+    /**
      * Load the table from the \p element into the \p cursor.
      *
      * The table and its contents are placed in a new shape.
@@ -139,6 +150,19 @@ private:
     * This is called in loadBody once the body was read.
     */
     void endBody();
+
+    /**
+    * Store the delete changes in the deleteChangeTable. Will be processed with "change" is encountered
+    */
+    void storeDeleteChanges(KoXmlElement &tag);
+
+    /**
+     * This is called in loadSpan to allow Cut and Paste of bookmarks. This
+     * method gives a correct, unique, name, respecting the fact that an
+     * endMarker should be the foo_lastID instead of foo_lastID+1
+     */
+    QString createUniqueBookmarkName(KoBookmarkManager* bmm, QString bookmarkName, bool isEndMarker);
+
 
     /// \internal d-pointer class.
     class Private;

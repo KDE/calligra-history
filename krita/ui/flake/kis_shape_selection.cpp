@@ -41,6 +41,7 @@
 #include <KoShapeLoadingContext.h>
 #include <KoXmlWriter.h>
 #include <KoStore.h>
+#include <KoShapeController.h>
 #include <KoShapeSavingContext.h>
 #include <KoStoreDevice.h>
 
@@ -51,6 +52,7 @@
 #include "kis_image.h"
 #include "kis_selection.h"
 #include "kis_shape_selection_canvas.h"
+#include "kis_shape_layer_paste.h"
 
 #include <kis_debug.h>
 
@@ -73,12 +75,26 @@ KisShapeSelection::~KisShapeSelection()
 }
 
 KisShapeSelection::KisShapeSelection(const KisShapeSelection& rhs)
-        : KoShapeLayer(rhs)
+        : KoShapeLayer()
 {
     m_dirty = rhs.m_dirty;
     m_image = rhs.m_image;
     m_canvas = new KisShapeSelectionCanvas();
     m_canvas->shapeManager()->add(this);
+
+    KoShapeOdfSaveHelper saveHelper(rhs.childShapes());
+    KoDrag drag;
+    drag.setOdf(KoOdf::mimeType(KoOdf::Text), saveHelper);
+    QMimeData* mimeData = drag.mimeData();
+
+    Q_ASSERT(mimeData->hasFormat(KoOdf::mimeType(KoOdf::Text)));
+
+    KisShapeLayerShapePaste paste(this, 0);
+    bool success = paste.paste(KoOdf::Text, mimeData);
+    Q_ASSERT(success);
+    if (!success) {
+        warnUI << "Could not paste shape layer";
+    }
 }
 
 KisSelectionComponent* KisShapeSelection::clone()
@@ -337,9 +353,9 @@ void KisShapeSelection::renderSelection(KisSelection* projection, const QRect& r
     for (qint32 x = r.x(); x < r.x() + r.width(); x += MASK_IMAGE_WIDTH) {
         for (qint32 y = r.y(); y < r.y() + r.height(); y += MASK_IMAGE_HEIGHT) {
 
-            maskPainter.fillRect(polygonMaskImage.rect(), QColor(OPACITY_TRANSPARENT, OPACITY_TRANSPARENT, OPACITY_TRANSPARENT, 255));
+            maskPainter.fillRect(polygonMaskImage.rect(), QColor(OPACITY_TRANSPARENT_U8, OPACITY_TRANSPARENT_U8, OPACITY_TRANSPARENT_U8, 255));
             maskPainter.translate(-x, -y);
-            maskPainter.fillPath(resolutionMatrix.map(selectionOutline()), QColor(OPACITY_OPAQUE, OPACITY_OPAQUE, OPACITY_OPAQUE, 255));
+            maskPainter.fillPath(resolutionMatrix.map(selectionOutline()), QColor(OPACITY_OPAQUE_U8, OPACITY_OPAQUE_U8, OPACITY_OPAQUE_U8, 255));
             maskPainter.translate(x, y);
 
             qint32 rectWidth = qMin(r.x() + r.width() - x, MASK_IMAGE_WIDTH);

@@ -17,9 +17,10 @@
  * Boston, MA 02110-1301, USA.
 */
 #include "ParsedPresentation.h"
+#include "generated/leinputstream.h"
 #include <QtCore/QBuffer>
 
-using namespace PPT;
+using namespace MSO;
 
 bool
 readStream(POLE::Storage& storage, const char* streampath, QBuffer& buffer)
@@ -193,7 +194,7 @@ ParsedPresentation::parse(POLE::Storage& storage)
         qDebug() << "no documentContainer";
         return false;
     }
-// Part 3: identify the node master slide persist object
+// Part 3: identify the note master slide persist object
     quint32 persistId = documentContainer->documentAtom.notesMasterPersistIdRef;
     if (persistId) {
         if (!persistDirectory.contains(persistId)) {
@@ -242,6 +243,8 @@ ParsedPresentation::parse(POLE::Storage& storage)
     if (documentContainer->slideList) {
         size = documentContainer->slideList->rgChildRec.size();
         slides.resize(size);
+        notes.resize(size);
+        notes.fill(0);
         for (int i = 0; i < size;++i) {
             persistId = documentContainer->slideList->rgChildRec[i].slidePersistAtom.persistIdRef;
             if (!persistDirectory.contains(persistId)) {
@@ -259,18 +262,36 @@ ParsedPresentation::parse(POLE::Storage& storage)
 // Part 7: Identify the notes slide persist object
     if (documentContainer->notesList) {
         size = documentContainer->notesList->rgNotesPersistAtom.size();
-        notes.resize(size);
-        for (int i = 0; i < size;++i) {
-            persistId = documentContainer->notesList->rgNotesPersistAtom[i].persistIdRef;
+        for (int i = 0; i < size; ++i) {
+            const NotesPersistAtom& atom
+                    = documentContainer->notesList->rgNotesPersistAtom[i];
+            persistId = atom.persistIdRef;
             if (!persistDirectory.contains(persistId)) {
                 qDebug() << "cannot load notes " << i;
                 return false;
             }
-            notes[i] = get<NotesContainer>(presentation, persistDirectory[persistId]);
-            if (!notes[i]) {
+            const NotesContainer* nc
+               = get<NotesContainer>(presentation, persistDirectory[persistId]);
+            if (!nc) {
                 qDebug() << "cannot load notes " << i;
                 return false;
             }
+            // find the slide the note belongs to
+            int pos = -1;
+            for (int j=0; j < slides.size(); ++j) {
+                if (slides[j]->slideAtom.notesIdRef == atom.notesId) {
+                    if (notes[j] != 0) {
+                        qDebug() << "slide " << j << " has more than one note";
+                        return false;
+                    }
+                    pos = j;
+                }
+            }
+            if (pos == -1) {
+                qDebug() << "notes " << i << " do not belong to a slide";
+                return false;
+            }
+            notes[pos] = nc;
         }
     }
 // Part 8: Identify the ActiveX control persist objects
@@ -279,7 +300,7 @@ ParsedPresentation::parse(POLE::Storage& storage)
 // Part 11: Identify the VBA project persist object
     return true;
 }
-const PPT::MasterOrSlideContainer*
+const MSO::MasterOrSlideContainer*
 ParsedPresentation::getMaster(const SlideContainer* slide) const
 {
     foreach(const MasterPersistAtom& m, documentContainer->masterList.rgMasterPersistAtom) {

@@ -1,7 +1,7 @@
 /* This file is part of the KDE project
  * Copyright (C) 2006,2008-2009 Jan Hambrecht <jaham@gmx.net>
  * Copyright (C) 2006,2007 Thorsten Zachmann <zachmann@kde.org>
- *               2007 Thomas Zander <zander@kde.org>
+ * Copyright (C) 2007, 2010 Thomas Zander <zander@kde.org>
  * Copyright (C) 2007 Boudewijn Rempt <boud@valdyas.org>
  *
  * This library is free software; you can redistribute it and/or
@@ -828,17 +828,17 @@ bool KoPathTool::segmentAtPoint( const QPointF &point, KoPathShape* &shape, KoPa
     return (shape && segmentStart);
 }
 
-void KoPathTool::activate(bool temporary)
+void KoPathTool::activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes)
 {
     Q_D(KoToolBase);
-    Q_UNUSED(temporary);
+    Q_UNUSED(toolActivation);
     // retrieve the actual global handle radius
     m_handleRadius = d->canvas->resourceManager()->handleRadius();
     d->canvas->snapGuide()->reset();
 
     repaintDecorations();
     QList<KoPathShape*> selectedShapes;
-    foreach(KoShape *shape, d->canvas->shapeManager()->selection()->selectedShapes()) {
+    foreach(KoShape *shape, shapes) {
         KoPathShape *pathShape = dynamic_cast<KoPathShape*>(shape);
 
         if (shape->isEditable() && pathShape) {
@@ -858,6 +858,21 @@ void KoPathTool::activate(bool temporary)
     connect(d->canvas->shapeManager()->selection(), SIGNAL(selectionChanged()), this, SLOT(activate()));
     updateOptionsWidget();
     updateActions();
+}
+
+void KoPathTool::activate()
+{
+    Q_D(KoToolBase);
+    QSet<KoShape*> shapes;
+    foreach(KoShape *shape, d->canvas->shapeManager()->selection()->selectedShapes()) {
+        QSet<KoShape*> delegates = shape->toolDelegates();
+        if (delegates.isEmpty()) {
+            shapes << shape;
+        } else {
+            shapes += delegates;
+        }
+    }
+    activate(DefaultActivation, shapes);
 }
 
 void KoPathTool::updateOptionsWidget()

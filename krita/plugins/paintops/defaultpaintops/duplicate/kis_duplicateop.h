@@ -49,7 +49,7 @@ public:
 
     virtual ~KisDuplicateOp();
 
-    void paintAt(const KisPaintInformation& info);
+    double paintAt(const KisPaintInformation& info);
 
 private:
 
@@ -63,6 +63,8 @@ private:
     QPointF m_duplicateStart;
     bool m_duplicateStartIsSet;
     KisPressureSizeOption m_sizeOption;
+    bool m_healing;
+    bool m_perspectiveCorrection;
 };
 
 #endif // KIS_DUPLICATEOP_H_

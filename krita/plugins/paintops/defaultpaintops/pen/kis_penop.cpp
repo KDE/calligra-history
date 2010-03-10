@@ -33,15 +33,10 @@
 #include <kis_global.h>
 #include <kis_paint_device.h>
 #include <kis_painter.h>
-#include <kis_paintop.h>
-#include <kis_selection.h>
-#include <kis_brush_option_widget.h>
+#include <kis_brush_based_paintop_settings.h>
 
-#include <kis_penop_settings.h>
-
-KisPenOp::KisPenOp(const KisPenOpSettings *settings, KisPainter *painter, KisImageWSP image)
+KisPenOp::KisPenOp(const KisBrushBasedPaintOpSettings *settings, KisPainter *painter, KisImageWSP image)
         : KisBrushBasedPaintOp(settings, painter)
-        , settings(settings)
 {
     Q_UNUSED(image);
     Q_ASSERT(settings);
@@ -58,19 +53,19 @@ KisPenOp::~KisPenOp()
 {
 }
 
-void KisPenOp::paintAt(const KisPaintInformation& info)
+double KisPenOp::paintAt(const KisPaintInformation& info)
 {
-    if (!painter()->device()) return;
+    if (!painter()->device()) return 1.0;
 
     KisBrushSP brush = m_brush;
     if (!m_brush)
-        return;
+        return 1.0;
 
     if (! brush->canPaintFor(info))
-        return;
+        return 1.0;
 
     double scale = KisPaintOp::scaleForPressure(m_sizeOption.apply(info));
-    if ((scale * brush->width()) <= 0.01 || (scale * brush->height()) <= 0.01) return;
+    if ((scale * brush->width()) <= 0.01 || (scale * brush->height()) <= 0.01) return spacing(scale);
 
     KisPaintDeviceSP device = painter()->device();
     QPointF hotSpot = brush->hotSpot(scale, scale);
@@ -102,7 +97,7 @@ void KisPenOp::paintAt(const KisPaintInformation& info)
         dstRect &= painter()->bounds();
     }
 
-    if (dstRect.isNull() || dstRect.isEmpty() || !dstRect.isValid()) return;
+    if (dstRect.isNull() || dstRect.isEmpty() || !dstRect.isValid()) return 1.0;
 
     const KoColorSpace * cs = dab->colorSpace();
 
@@ -112,12 +107,12 @@ void KisPenOp::paintAt(const KisPaintInformation& info)
     QRect rc = dab->bounds();
     int pixelSize = dab->pixelSize();
     for (int i = 0; i < rc.width() * rc.height(); i++) {
-        quint8 alpha = cs->alpha(dabPointer);
+        quint8 alpha = cs->opacityU8(dabPointer);
 
-        if (alpha < (4 * OPACITY_OPAQUE) / 10) {
-            cs->setAlpha(dabPointer, OPACITY_TRANSPARENT, 1);
+        if (alpha < (4 * OPACITY_OPAQUE_U8) / 10) {
+            cs->setOpacity(dabPointer, OPACITY_TRANSPARENT_U8, 1);
         } else {
-            cs->setAlpha(dabPointer, OPACITY_OPAQUE, 1);
+            cs->setOpacity(dabPointer, OPACITY_OPAQUE_U8, 1);
         }
 
         dabPointer += pixelSize;
@@ -131,4 +126,6 @@ void KisPenOp::paintAt(const KisPaintInformation& info)
     painter()->bltFixed(dstRect.x(), dstRect.y(), dab, sx, sy, sw, sh);
     painter()->setOpacity(origOpacity);
     painter()->setPaintColor(origColor);
+    
+    return spacing(scale);
 }

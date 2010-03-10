@@ -1,5 +1,6 @@
 /* This file is part of the KDE libraries
  * Copyright (c) 2003 thierry lorthiois (lorthioist@wanadoo.fr)
+ *               2009-2010 Inge Wallin <inge@lysator.liu.se>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -23,6 +24,8 @@
 #include <QFontMetrics>
 
 #include <kdebug.h>
+
+#include "kowmfenums.h"
 
 
 KoWmfPaint::KoWmfPaint()
@@ -82,13 +85,16 @@ bool KoWmfPaint::begin()
     if (ret) {
         if (mRelativeCoord) {
             mInternalWorldMatrix.reset();
+
+            // This window is used for scaling in setWindowExt().
+            mPainter->setWindow(boundingRect());
         } else {
-            // Some wmf files doesn't call setwindowOrg and
+            // Some WMF files don't call setwindowOrg and
             // setWindowExt, so it's better to do it here.  Note that
             // boundingRect() is the rect of the WMF file, not the device.
             QRect rec = boundingRect();
-            kDebug(31000) << "BoundingRect: " << rec;
-            mPainter->setWindow(rec.left(), rec.top(), rec.width(), rec.height());
+            //kDebug(31000) << "BoundingRect: " << rec;
+            mPainter->setWindow(rec);
         }
     }
 
@@ -104,17 +110,6 @@ bool KoWmfPaint::begin()
 
 bool KoWmfPaint::end()
 {
-    if (mRelativeCoord) {
-        QRect rec = boundingRect();
-
-        // Draw 2 invisible points
-        // because QPicture::setBoundingRect() doesn't give expected result (QT3.1.2)
-        // setBoundingRect( boundingRect() );
-//        mPainter->setPen( Qt::NoPen );
-//        mPainter->drawPoint( rec.left(), rec.top() );
-//        mPainter->drawPoint( rec.right(), rec.bottom() );
-    }
-
     bool ret = true;
     if (mIsInternalPainter)
         ret = mPainter->end();
@@ -161,14 +156,6 @@ void KoWmfPaint::setPen(const QPen &pen)
 
     QPen p = pen;
     int width = pen.width();
-
-    // FIXME: For some reason, this seems to be necessary.  There are
-    //        some calls to setPen() that contains the wrong color,
-    //        but with width == 0.  If these are ignored, the image
-    //        looks much more correct.  It should be investigated why
-    //        this is so.
-    if (width == 0)
-        return;
 
     if (dynamic_cast<QPrinter *>(mTarget)) {
         width = 0;
@@ -241,7 +228,8 @@ void KoWmfPaint::setCompositionMode(QPainter::CompositionMode mode)
 #endif
 
     // FIXME: This doesn't work.  I don't understand why, but when I
-    //        enable this all backgrounds become black.
+    //        enable this all backgrounds become black. /iw
+    Q_UNUSED(mode);
     //mPainter->setCompositionMode(mode);
 }
 
@@ -253,58 +241,79 @@ void KoWmfPaint::setCompositionMode(QPainter::CompositionMode mode)
 // - change the origin or the scale in the middle of the drawing
 // - negative width or height
 // and relative/absolute coordinate
-void KoWmfPaint::setWindowOrg(int left, int top)
+
+void KoWmfPaint::setWindowOrg(int orgX, int orgY) // Love that parameter name...
 {
 #if DEBUG_WMFPAINT
-    kDebug(31000) << left << " " << top;
+    kDebug(31000) << orgX << " " << orgY;
 #endif
-    //return;
-    if (mRelativeCoord) {
-        double dx = mInternalWorldMatrix.dx();
-        double dy = mInternalWorldMatrix.dy();
 
-        // translation : Don't use setWindow()
+    mOrgX = orgX;
+    mOrgY = orgY;
+
+    if (mRelativeCoord) {
+        // Translate back from last translation to the origin.
+        qreal dx = mInternalWorldMatrix.dx();
+        qreal dy = mInternalWorldMatrix.dy();
+        //kDebug(31000) << "old translation: " << dx << dy;
+        //kDebug(31000) << mInternalWorldMatrix;
+        //kDebug(31000) << "new translation: " << -orgX << -orgY;
         mInternalWorldMatrix.translate(-dx, -dy);
         mPainter->translate(-dx, -dy);
-        mInternalWorldMatrix.translate(-left, -top);
-        mPainter->translate(-left, -top);
+
+        // Translate to the new origin.
+        mInternalWorldMatrix.translate(-orgX, -orgY);
+        mPainter->translate(-orgX, -orgY);
     } else {
         QRect rec = mPainter->window();
-        mPainter->setWindow(left, top, rec.width(), rec.height());
+        mPainter->setWindow(orgX, orgY, rec.width(), rec.height());
     }
 }
 
 
-void KoWmfPaint::setWindowExt(int w, int h)
+void KoWmfPaint::setWindowExt(int width, int height)
 {
 #if DEBUG_WMFPAINT
-    kDebug(31000) << w << " " << h;
+    kDebug(31000) << width << " " << height;
 #endif
-    //return;
+
+    mExtWidth = width;
+    mExtHeight = height;
+
     if (mRelativeCoord) {
         QRect r = mPainter->window();
-        double dx = mInternalWorldMatrix.dx();
-        double dy = mInternalWorldMatrix.dy();
-        double sx = mInternalWorldMatrix.m11();
-        double sy = mInternalWorldMatrix.m22();
+        qreal dx = mInternalWorldMatrix.dx();
+        qreal dy = mInternalWorldMatrix.dy();
+        qreal sx = mInternalWorldMatrix.m11();
+        qreal sy = mInternalWorldMatrix.m22();
 
-        // scale : don't use setWindow()
+        // Translate and scale back from the last window.
         mInternalWorldMatrix.translate(-dx, -dy);
         mPainter->translate(-dx, -dy);
         mInternalWorldMatrix.scale(1 / sx, 1 / sy);
         mPainter->scale(1 / sx, 1 / sy);
 
-        sx = (double)r.width() / (double)w;
-        sy = (double)r.height() / (double)h;
+        sx = (qreal)r.width()  / (qreal)width;
+        sy = (qreal)r.height() / (qreal)height;
 
+        // Scale and translate into the new window
         mInternalWorldMatrix.scale(sx, sy);
         mPainter->scale(sx, sy);
         mInternalWorldMatrix.translate(dx, dy);
         mPainter->translate(dx, dy);
     } else {
         QRect rec = mPainter->window();
-        mPainter->setWindow(rec.left(), rec.top(), w, h);
+        mPainter->setWindow(rec.left(), rec.top(), width, height);
     }
+#if 0
+    mPainter->save();
+    mPainter->setPen(Qt::black);
+    mPainter->drawRect(QRect(QPoint(mOrgX, mOrgY),
+                             QSize(mExtWidth, mExtHeight)));
+    mPainter->setPen(Qt::red);
+    mPainter->drawRect(boundingRect());
+    mPainter->restore();
+#endif
 }
 
 
@@ -482,47 +491,73 @@ void KoWmfPaint::drawImage(int x, int y, const QImage &img, int sx, int sy, int 
 }
 
 
-void KoWmfPaint::drawText(int x, int y, int w, int h, int flags, const QString& s, double)
+void KoWmfPaint::patBlt(int x, int y, int width, int height, quint32 rasterOperation)
 {
 #if DEBUG_WMFPAINT
-    kDebug(31000) << x << " " << y << " " << w << " " << h << " " << flags << " " << s;
+    kDebug(31000) << x << y << width << height << hex << rasterOperation << dec;
 #endif
 
-    // This enum is taken from the karbon WMF import filter.
-    // FIXME: This is just a small subset of the align flags that WMF defines.  
-    //        They should all be handled.
-    enum TextFlags { CurrentPosition = 0x01, AlignHCenter = 0x06, AlignBottom = 0x08 };
+    // 0x00f00021 is the PatCopy raster operation which just fills a rectangle with a brush.
+    // This seems to be the most common one.
+    //
+    // FIXME: Implement the rest of the raster operations.
+    if (rasterOperation == 0x00f00021) {
+        // Would have been nice if we didn't have to pull out the
+        // brush to use it with fillRect()...
+        QBrush brush = mPainter->brush();
+        mPainter->fillRect(x, y, width, height, brush);
+    }
+}
 
-    if (flags & CurrentPosition) {
+
+void KoWmfPaint::drawText(int x, int y, int w, int h, int textAlign, const QString& text, double)
+{
+#if DEBUG_WMFPAINT
+    kDebug(31000) << x << y << w << h << hex << textAlign << dec << text;
+#endif
+
+    // The TA_UPDATECP flag tells us to use the current position
+    if (textAlign & TA_UPDATECP) {
         // (left, top) position = current logical position
         x = mLastPos.x();
         y = mLastPos.y();
     }
 
-    // If this flag is set, the point to draw the text is the
-    // baseline, otherwise it should be the upper left corner.
-    if (!(flags & AlignBottom)) {
-        QFontMetrics  fontMetrics(mPainter->font(), mTarget);
-        y += fontMetrics.ascent();
+    QFontMetrics  fm(mPainter->font(), mTarget);
+    int width  = fm.width(text) + fm.descent();    // fm.width(text) isn't right with Italic text
+    int height = fm.height();
+
+    // Horizontal align.  These flags are supposed to be mutually exclusive.
+    if ((textAlign & TA_CENTER) == TA_CENTER)
+        x -= (width / 2);
+    else if ((textAlign & TA_RIGHT) == TA_RIGHT)
+        x -= width;
+
+    // Vertical align. 
+    if ((textAlign & TA_BASELINE) == TA_BASELINE)
+        y -= fm.ascent();  // (height - fm.descent()) is used in qwmf.  This should be the same.
+    else if ((textAlign & TA_BOTTOM) == TA_BOTTOM) {
+        y -= height;
 
 #if DEBUG_WMFPAINT
         kDebug(31000) << "font = " << mPainter->font() << " pointSize = " << mPainter->font().pointSize()
-                      << "ascent = " << fontMetrics.ascent() << " height = " << fontMetrics.height()
-                      << "leading = " << fontMetrics.leading();
+                      << "ascent = " << fm.ascent() << " height = " << fm.height()
+                      << "leading = " << fm.leading();
 #endif
     }
 
+    // Use the special pen defined by mTextPen for text.
     QPen  savePen = mPainter->pen();
-
-    // Sometimes it happens that w and/or h == -1, and then the
-    // bounding box isn't valid any more.  In that case, no text at
-    // all is shown.
     mPainter->setPen(mTextPen);
-    if (w == -1 || h == -1)
-        mPainter->drawText(x, y, s);
-    else
-        // FIXME: Find out which Qt flags should be there instead of the 0.
-        mPainter->drawText(x, y, w, h, 0, s);
+
+    // Sometimes it happens that w and/or h == -1, and then the bounding box
+    // isn't valid any more.  In that case, use our own calculated values.
+    if (w == -1 || h == -1) {
+        mPainter->drawText(x, y, width, height, Qt::AlignLeft|Qt::AlignTop, text);
+    }
+    else {
+        mPainter->drawText(x, y, w, h, Qt::AlignLeft|Qt::AlignTop, text);
+    }
 
     mPainter->setPen(savePen);
 }

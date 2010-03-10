@@ -70,11 +70,11 @@ KisDynaPaintOp::~KisDynaPaintOp()
 {
 }
 
-double KisDynaPaintOp::paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, double savedDist)
+KisDistanceInformation KisDynaPaintOp::paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2, const KisDistanceInformation& savedDist)
 {
     Q_UNUSED(savedDist);
-    if (!m_image) return 0;
-    if (!painter()) return 0;
+    if (!m_image) return KisDistanceInformation();
+    if (!painter()) return KisDistanceInformation();
 
     if (!m_dab) {
         m_dab = new KisPaintDevice(painter()->device()->colorSpace());
@@ -97,10 +97,11 @@ double KisDynaPaintOp::paintLine(const KisPaintInformation &pi1, const KisPaintI
     KisVector2D end = toKisVector2D(pi2.pos());
     KisVector2D start = toKisVector2D(pi1.pos());
     KisVector2D dragVec = end - start;
-    return  dragVec.norm();
+    return KisDistanceInformation(0, dragVec.norm());
 }
 
-void KisDynaPaintOp::paintAt(const KisPaintInformation& info)
+double KisDynaPaintOp::paintAt(const KisPaintInformation& info)
 {
     Q_UNUSED(info);
+    return 1.0;
 }

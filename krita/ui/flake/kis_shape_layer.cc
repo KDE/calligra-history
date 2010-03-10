@@ -44,7 +44,6 @@
 #include <KoEmbeddedDocumentSaver.h>
 #include <KoGenStyle.h>
 #include <KoImageCollection.h>
-#include <KoOdfLoadingContext.h>
 #include <KoOdfReadStore.h>
 #include <KoOdfStylesReader.h>
 #include <KoOdfWriteStore.h>
@@ -75,10 +74,8 @@
 #include <kis_painter.h>
 #include "kis_node_visitor.h"
 #include "kis_effect_mask.h"
-#include <KoShapeOdfSaveHelper.h>
-#include <KoDrag.h>
-#include <KoOdf.h>
-#include <KoOdfPaste.h>
+
+#include "kis_shape_layer_paste.h"
 
 class KisShapeLayer::Private
 {
@@ -102,36 +99,6 @@ KisShapeLayer::KisShapeLayer(KoShapeContainer * parent,
     KoShapeContainer::setParent(parent);
     initShapeLayer(controller);
 }
-
-class KisShapeLayerShapePaste : public KoOdfPaste
-{
-public:
-    KisShapeLayerShapePaste(KisShapeLayer* _container, KoShapeControllerBase* _controller)
-            : m_container(_container)
-            , m_controller(_controller) {
-    }
-
-    virtual ~KisShapeLayerShapePaste() {
-    }
-
-    virtual bool process(const KoXmlElement & body, KoOdfReadStore & odfStore) {
-        KoOdfLoadingContext loadingContext(odfStore.styles(), odfStore.store());
-        KoShapeLoadingContext context(loadingContext, m_controller->resourceManager());
-        KoXmlElement child;
-        forEachElement(child, body) {
-            KoShape * shape = KoShapeRegistry::instance()->createShapeFromOdf(child, context);
-            if (shape) {
-                kDebug() << "Adding " << shape << "with parent" << shape->parent() << "to container" << m_container;
-                m_container->addChild(shape);
-            }
-        }
-        return true;
-    }
-private:
-    KisShapeLayer* m_container;
-    KoShapeControllerBase* m_controller;
-};
-
 
 KisShapeLayer::KisShapeLayer(const KisShapeLayer& _rhs)
         : KisExternalLayer(_rhs)
@@ -362,7 +329,7 @@ bool KisShapeLayer::loadLayer(KoStore* store)
     odfStore.loadAndParse(errorMessage);
 
     if (!errorMessage.isEmpty()) {
-        qDebug() << errorMessage;
+        warnKrita << errorMessage;
         return false;
     }
 
@@ -376,21 +343,18 @@ bool KisShapeLayer::loadLayer(KoStore* store)
     KoXmlElement body(KoXml::namedItemNS(contents, KoXmlNS::office, "body"));
 
     if (body.isNull()) {
-        qDebug() << "No office:body found!";
         //setErrorMessage( i18n( "Invalid OASIS document. No office:body tag found." ) );
         return false;
     }
 
     body = KoXml::namedItemNS(body, KoXmlNS::office, "drawing");
     if (body.isNull()) {
-        qDebug() << "No office:drawing found!";
         //setErrorMessage( i18n( "Invalid OASIS document. No office:drawing tag found." ) );
         return false;
     }
 
     KoXmlElement page(KoXml::namedItemNS(body, KoXmlNS::draw, "page"));
     if (page.isNull()) {
-        qDebug() << "No office:drawing found!";
         //setErrorMessage( i18n( "Invalid OASIS document. No draw:page tag found." ) );
         return false;
     }
@@ -462,7 +426,9 @@ QUndoCommand* KisShapeLayer::crop(const QRect & rect) {
 }
 
 QUndoCommand* KisShapeLayer::transform(double  xscale, double  yscale, double  xshear, double  yshear, double angle, qint32  translatex, qint32  translatey) {
-    
+
+    Q_UNUSED(xshear);
+    Q_UNUSED(yshear);
     QPointF transF = m_d->converter->viewToDocument(QPoint(translatex, translatey));;
     QList<KoShape*> shapes = m_d->canvas->shapeManager()->shapes();
     if(shapes.isEmpty())

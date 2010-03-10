@@ -112,6 +112,13 @@ public slots:
     void slotImageSizeChanged();
     void slotSetDisplayProfile(const KoColorProfile * profile);
 
+    // This is a flag to handle a bug:
+    // If pop up palette is visible and a new colour is selected, the new colour
+    // will be added when the user clicks on the canvas to hide the palette
+    // In general, we want to be able to store recent color if the pop up palette
+    // is not visible
+    void slotResetEnableFGChange(bool);
+
 private slots:
 
     void slotResourceChanged(int key, const QVariant & res);
@@ -134,6 +141,13 @@ private:
     KoResourceManager * m_resourceManager;
     const KoColorProfile * m_displayProfile;
     bool m_fGChanged;
+
+    // This is a flag to handle a bug:
+    // If pop up palette is visible and a new colour is selected, the new colour
+    // will be added when the user clicks on the canvas to hide the palette
+    // In general, we want to be able to store recent color if the pop up palette
+    // is not visible
+    bool m_enablefGChange;
 
 };
 

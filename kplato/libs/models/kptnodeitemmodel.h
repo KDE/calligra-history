@@ -252,7 +252,6 @@ public:
     virtual const QMetaEnum columnMap() const { return m_nodemodel.columnMap(); }
     
     virtual void setProject( Project *project );
-    void setManager( ScheduleManager *sm );
     ScheduleManager *manager() const { return m_nodemodel.manager(); }
     long id() const { return m_nodemodel.id(); }
 
@@ -288,9 +287,15 @@ public:
     
     virtual bool dropAllowed( const QModelIndex &index, int dropIndicatorPosition, const QMimeData *data );
     
+    bool projectShown() const { return m_projectshown; }
+
 signals:
     void nodeInserted( Node *node );
     
+public slots:
+    virtual void setScheduleManager( ScheduleManager *sm );
+    void setShowProject( bool on );
+
 protected slots:
     virtual void slotWbsDefinitionChanged();
     virtual void slotNodeChanged( Node* );
@@ -331,6 +336,7 @@ protected:
 protected:
     Node *m_node; // for sanety check
     NodeModel m_nodemodel;
+    bool m_projectshown;
 };
 
 //--------------------------------------
@@ -419,7 +425,6 @@ public:
     ~MilestoneItemModel();
 
     virtual void setProject( Project *project );
-    void setManager( ScheduleManager *sm );
 
     virtual Qt::ItemFlags flags( const QModelIndex & index ) const;
 
@@ -455,6 +460,9 @@ public:
 
     QList<Node*> mileStones() const;
     
+public slots:
+    virtual void setScheduleManager( ScheduleManager *sm );
+
 protected slots:
     void slotNodeChanged( Node* );
     void slotNodeToBeInserted( Node *node, int row );

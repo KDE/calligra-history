@@ -2,6 +2,7 @@
  * Copyright (c) 1998 Stefan Taferner
  *               2001/2003 thierry lorthiois (lorthioist@wanadoo.fr)
  *               2007-2008 Jan Hambrecht <jaham@gmx.net>
+ *               2009-2010 Inge Wallin <inge@lysator.liu.se>
  * With the help of WMF documentation by Caolan Mc Namara
  *
  * This library is free software; you can redistribute it and/or
@@ -32,6 +33,10 @@
 #include <QtGui/QPolygon>
 
 #include <math.h>
+
+
+#define DEBUG_RECORDS 0
+
 
 KoWmfReadPrivate::KoWmfReadPrivate()
 {
@@ -87,18 +92,29 @@ bool KoWmfReadPrivate::load(const QByteArray& array)
 
     QDataStream st(mBuffer);
     st.setByteOrder(QDataStream::LittleEndian);
-    mStackOverflow = mWinding = false;
+    mStackOverflow = false;
+    mWinding = false;
     mLayout = LAYOUT_LTR;
-    mTextAlign = mTextRotation = 0;
+    mTextAlign = 0;
+    mTextRotation = 0;
     mTextColor = Qt::black;
     mValid = false;
     mStandard = false;
     mPlaceable = false;
     mEnhanced = false;
 
-    //----- Read placeable metafile header
+    // Initialize the bounding box.
+    mBBoxTop = 32767;           // Is there a constant for this?
+    mBBoxLeft = 32767;
+    mBBoxRight = -32768;
+    mBBoxBottom = -32768;
+
+#if DEBUG_RECORDS
+    kDebug(31000) << "--------------------------- Starting parsing WMF ---------------------------";
+#endif
     st >> pheader.key;
     if (pheader.key == (quint32)APMHEADER_KEY) {
+        //----- Read placeable metafile header
         mPlaceable = true;
         st >> pheader.handle;
         st >> pheader.left;
@@ -120,11 +136,15 @@ bool KoWmfReadPrivate::load(const QByteArray& array)
         st >> header.numOfObjects;
         st >> header.maxRecordSize;
         st >> header.numOfParameters;
+
         mNbrObject = header.numOfObjects;
-        mBBox.setLeft(pheader.left);
-        mBBox.setTop(pheader.top);
-        mBBox.setRight(pheader.right);
-        mBBox.setBottom(pheader.bottom);
+
+        // The bounding box of the WMF
+        mBBoxLeft   = pheader.left;
+        mBBoxTop    = pheader.top;
+        mBBoxRight  = pheader.right;
+        mBBoxBottom = pheader.bottom;
+
         mDpi = pheader.inch;
     } else {
         mBuffer->reset();
@@ -140,6 +160,7 @@ bool KoWmfReadPrivate::load(const QByteArray& array)
         st >> eheader.frameTop;
         st >> eheader.frameRight;
         st >> eheader.frameBottom;
+
         st >> eheader.signature;
         if (eheader.signature == ENHMETA_SIGNATURE) {
             mEnhanced = true;
@@ -180,18 +201,22 @@ bool KoWmfReadPrivate::load(const QByteArray& array)
     }
 
     // check bounding rectangle for standard meta file
-    if ((mValid) && (mStandard)) {
+    if (mStandard && mValid) {
         quint16 numFunction = 1;
         quint32 size;
-        bool firstOrg = true, firstExt = true;
 
-        // search functions setWindowOrg and setWindowExt
+        // Search for records setWindowOrg and setWindowExt to
+        // determine what the total bounding box of this WMF is.
+        // This initialization assumes that setWindowOrg comes before setWindowExt.
+        qint16 curOrgX = 0;
+        qint16 curOrgY = 0;
         while (numFunction) {
+
             filePos = mBuffer->pos();
             st >> size >> numFunction;
 
             if (size == 0) {
-                kDebug(31000) << "KoWmfReadPrivate : incorrect file!";
+                kDebug(31000) << "KoWmfReadPrivate: incorrect file!";
                 mValid = 0;
                 break;
             }
@@ -199,20 +224,13 @@ bool KoWmfReadPrivate::load(const QByteArray& array)
             numFunction &= 0xFF;
             if (numFunction == 11) {
                 // setWindowOrg
-                qint16 top;
-                qint16 left;
 
-                st >> top >> left;
-                if (firstOrg) {
-                    firstOrg = false;
-                    mBBox.setLeft(left);
-                    mBBox.setTop(top);
-                } else {
-                    if (left < mBBox.left())
-                        mBBox.setLeft(left);
-                    if (top < mBBox.top())
-                        mBBox.setTop(top);
-                }
+                st >> curOrgY >> curOrgX;
+                //kDebug(31000) << "setWindowOrg" << curOrgX << curOrgY;
+                if (curOrgY < mBBoxTop)    mBBoxTop = curOrgY;
+                if (curOrgX < mBBoxLeft)   mBBoxLeft = curOrgX;
+                if (curOrgX > mBBoxRight)  mBBoxRight = curOrgX;
+                if (curOrgY > mBBoxBottom) mBBoxBottom = curOrgY;
             }
             else if (numFunction == 12) {
                 // setWindowExt
@@ -220,22 +238,38 @@ bool KoWmfReadPrivate::load(const QByteArray& array)
                 qint16 height;
 
                 st >> height >> width;
+                //kDebug(31000) << "setWindowExt" << width << height
+                //              << "(curOrg = " << curOrgX << curOrgY << ")";
+
                 // Negative values are allowed
-                //if (width < 0) width = -width;
-                //if (height < 0) height = -height;
-                if (firstExt) {
-                    firstExt = false;
-                    mBBox.setWidth(width);
-                    mBBox.setHeight(height);
-                } else {
-                    if (width > mBBox.width())
-                        mBBox.setWidth(width);
-                    if (height > mBBox.height())
-                        mBBox.setHeight(height);
+                if (width < 0) {
+                    if (curOrgX + width < mBBoxLeft) {
+                        mBBoxLeft = curOrgX + width;
+                    }
+                }
+                else {
+                    if (curOrgX + width > mBBoxRight) {
+                        mBBoxRight = curOrgX + width;
+                    }
+                }
+
+                if (height < 0) {
+                    if (curOrgY + height < mBBoxTop) {
+                        mBBoxTop = curOrgY + height;
+                    }
+                }
+                else {
+                    if (curOrgY + height > mBBoxBottom) {
+                        mBBoxBottom = curOrgY + height;
+                    }
                 }
             }
+
+            //kDebug(31000) << "              mBBoxTop = " << mBBoxTop;
+            //kDebug(31000) << "mBBoxLeft = " << mBBoxLeft << "  mBBoxRight = " << mBBoxRight;
+            //kDebug(31000) << "           MBBoxBotton = " << mBBoxBottom;
+
             mBuffer->seek(filePos + (size << 1));
-            // ## shouldn't we break from the loop as soon as we found what we were looking for?
         }
     }
 
@@ -251,17 +285,21 @@ bool KoWmfReadPrivate::play(KoWmfRead* readWmf)
     }
 
     if (mNbrFunc) {
+#if DEBUG_RECORDS
         if ((mStandard)) {
-            kDebug(31000) << "Standard :" << mBBox.left() << ""  << mBBox.top() << ""  << mBBox.width() << ""  << mBBox.height();
+            kDebug(31000) << "Standard :" << mBBoxLeft << ""  << mBBoxTop << ""  << mBBoxRight - mBBoxLeft << ""  << mBBoxBottom - mBBoxTop;
         } else {
-            kDebug(31000) << "DPI :" << mDpi << " :" << mBBox.left() << ""  << mBBox.top() << ""  << mBBox.width() << ""  << mBBox.height();
-            kDebug(31000) << "inch :" << mBBox.width() / mDpi << "" << mBBox.height() / mDpi;
-            kDebug(31000) << "mm :" << mBBox.width()*25.4 / mDpi << "" << mBBox.height()*25.4 / mDpi;
+            kDebug(31000) << "DPI :" << mDpi;
+            kDebug(31000) << "inch :" << (mBBoxRight - mBBoxLeft) / mDpi
+                          << "" << (mBBoxBottom - mBBoxTop) / mDpi;
+            kDebug(31000) << "mm :" << (mBBoxRight - mBBoxLeft) * 25.4 / mDpi
+                          << "" << (mBBoxBottom - mBBoxTop) * 25.4 / mDpi;
         }
         kDebug(31000) << mValid << "" << mStandard << "" << mPlaceable;
+#endif
     }
 
-    // stack of handle
+    // Stack of handles
     mObjHandleTab = new KoWmfHandle* [ mNbrObject ];
     for (int i = 0; i < mNbrObject ; i++) {
         mObjHandleTab[ i ] = 0;
@@ -275,8 +313,14 @@ bool KoWmfReadPrivate::play(KoWmfRead* readWmf)
     QDataStream st(mBuffer);
     st.setByteOrder(QDataStream::LittleEndian);
 
+    // Set the output strategy.
     mReadWmf = readWmf;
-    mWindow = mBBox;
+
+    // Set the full bounding box as the output window just to have something to go with.
+    mWindowTop    = mBBoxTop;
+    mWindowLeft   = mBBoxLeft;
+    mWindowWidth  = mBBoxRight - mBBoxLeft;
+    mWindowHeight = mBBoxBottom - mBBoxTop;
     if (mReadWmf->begin()) {
         // play wmf functions
         mBuffer->seek(mOffsetFirstRecord);
@@ -294,8 +338,11 @@ bool KoWmfReadPrivate::play(KoWmfRead* readWmf)
                 index -= 0x90;
             }
             
+#if DEBUG_RECORDS
             kDebug(31000) << "Record = " << koWmfFunc[ index ].name
-                          << " (" << hex << numFunction << dec << ", index" << index << ")";
+                          << " (" << hex << numFunction
+                          << ", index" << dec << index << ")";
+#endif
 
             if ((index > 111) || (koWmfFunc[ index ].method == 0)) {
                 // function outside WMF specification
@@ -326,7 +373,7 @@ bool KoWmfReadPrivate::play(KoWmfRead* readWmf)
                 j++;
             }
 
-            // execute the function
+            // Execute the function.
             (this->*koWmfFunc[ index ].method)(size, st);
 
             mBuffer->seek(bufferOffset + (size << 1));
@@ -355,9 +402,9 @@ void KoWmfReadPrivate::setWindowOrg(quint32, QDataStream& stream)
 
     stream >> top >> left;
     mReadWmf->setWindowOrg(left, top);
-    mWindow.setLeft(left);
-    mWindow.setTop(top);
-    //kDebug(31000) <<"Org : (" << left <<","  << top <<")";
+    mWindowLeft = left;
+    mWindowTop = top;
+    //kDebug(31000) <<"Org: (" << left <<","  << top <<")";
 }
 
 /*  TODO : deeper look in negative width and height
@@ -369,10 +416,11 @@ void KoWmfReadPrivate::setWindowExt(quint32, QDataStream& stream)
 
     // negative value allowed for width and height
     stream >> height >> width;
+    //kDebug(31000) <<"Ext: (" << width <<","  << height <<")";
+
     mReadWmf->setWindowExt(width, height);
-    mWindow.setWidth(width);
-    mWindow.setHeight(height);
-    //kDebug(31000) <<"Ext : (" << width <<","  << height <<")";
+    mWindowWidth  = width;
+    mWindowHeight = height;
 }
 
 
@@ -381,27 +429,31 @@ void KoWmfReadPrivate::OffsetWindowOrg(quint32, QDataStream &stream)
     qint16 offTop, offLeft;
 
     stream >> offTop >> offLeft;
-    mReadWmf->setWindowOrg(mWindow.left() + offLeft, mWindow.top() + offTop);
-    mWindow.setLeft(mWindow.left() + offLeft);
-    mWindow.setTop(mWindow.top() + offTop);
+    mReadWmf->setWindowOrg(mWindowLeft + offLeft, mWindowTop + offTop);
+
+    // FIXME: Check if we must move the right and bottom edges too.
+    mWindowLeft = mWindowLeft + offLeft;
+    mWindowTop  = mWindowTop + offTop;
 }
 
 
 void KoWmfReadPrivate::ScaleWindowExt(quint32, QDataStream &stream)
 {
-    qint16 width, height;
-    qint16 heightDenom, heightNum, widthDenom, widthNum;
+    // Use 32 bits in the calculations to not lose precision.
+    qint32 width, height;
+    qint16 heightDenum, heightNum, widthDenum, widthNum;
 
-    stream >> heightDenom >> heightNum >> widthDenom >> widthNum;
+    stream >> heightDenum >> heightNum >> widthDenum >> widthNum;
 
-    if ((widthDenom != 0) && (heightDenom != 0)) {
-        width = (mWindow.width() * widthNum) / widthDenom;
-        height = (mWindow.height() * heightNum) / heightDenom;
+    if ((widthDenum != 0) && (heightDenum != 0)) {
+        width = (qint32(mWindowWidth) * widthNum) / widthDenum;
+        height = (qint32(mWindowHeight) * heightNum) / heightDenum;
         mReadWmf->setWindowExt(width, height);
-        mWindow.setWidth(width);
-        mWindow.setHeight(height);
+
+        mWindowWidth  = width;
+        mWindowHeight = height;
     }
-//    kDebug(31000) <<"KoWmfReadPrivate::ScaleWindowExt :" << widthDenom <<"" << heightDenom;
+    //kDebug(31000) <<"KoWmfReadPrivate::ScaleWindowExt :" << widthDenum <<"" << heightDenum;
 }
 
 
@@ -708,6 +760,8 @@ void KoWmfReadPrivate::textOut(quint32, QDataStream& stream)
     stream >> y;
     stream >> x;
 
+    // FIXME: If we ever want to support vertical text (e.g. japanese),
+    //        we need to send the vertical text align as well.
     mReadWmf->drawText(x, y, -1, -1, mTextAlign, text, static_cast<double>(mTextRotation));
 }
 
@@ -731,6 +785,8 @@ void KoWmfReadPrivate::extTextOut(quint32 , QDataStream& stream)
         stream.readRawData(text.data(), textLength);
     }
 
+    // FIXME: If we ever want to support vertical text (e.g. japanese),
+    //        we need to send the vertical text align as well.
     mReadWmf->drawText(parm[ 1 ], parm[ 0 ], -1, -1, mTextAlign, text, static_cast<double>(mTextRotation));
 }
 
@@ -871,6 +927,24 @@ void KoWmfReadPrivate::dibCreatePatternBrush(quint32 size, QDataStream& stream)
 }
 
 
+void KoWmfReadPrivate::patBlt(quint32, QDataStream& stream)
+{
+    quint32 rasterOperation;
+    quint16 height, width;
+    qint16  y, x;
+
+    stream >> rasterOperation;
+    stream >> height >> width;
+    stream >> y >> x;
+
+    //kDebug(31000) << "patBlt record" << hex << rasterOperation << dec
+    //              << x << y << width << height;
+
+    mReadWmf->patBlt(x, y, width, height, rasterOperation);
+}
+
+
+
 //-----------------------------------------------------------------------------
 // Object handle
 
@@ -981,14 +1055,17 @@ void KoWmfReadPrivate::createPenIndirect(quint32, QDataStream& stream)
 
 void KoWmfReadPrivate::createFontIndirect(quint32 size, QDataStream& stream)
 {
-    qint16  pointSize, rotation;
+    qint16  height;             // Height of the character cell
+    qint16  width;              // Average width (not used)
+    qint16  rotation;           // The rotation of the text in 1/10th degrees
+    qint16  orientation;        // The rotation of each character
     quint16 weight, property, fixedPitch, arg;
 
     KoWmfFontHandle* handle = new KoWmfFontHandle;
 
     if (addHandle(handle)) {
-        stream >> pointSize >> arg;
-        stream >> rotation >> arg;
+        stream >> height >> width;
+        stream >> rotation >> orientation;
         stream >> weight >> property >> arg >> arg;
         stream >> fixedPitch;
 
@@ -996,12 +1073,27 @@ void KoWmfReadPrivate::createFontIndirect(quint32 size, QDataStream& stream)
         // TODO: memorisation of rotation in object Font
         mTextRotation = -rotation / 10;
         handle->font.setFixedPitch(((fixedPitch & 0x01) == 0));
-        // TODO: investigation why some test case need -2
-        // size of font in logical point
-        handle->font.setPointSize(qAbs(pointSize) - 2);
-        handle->font.setWeight((weight >> 3));
+
+        // A negative width means to use device units.  This is irrelevant for us here.
+        height = qAbs(height);
+        // FIXME: For some reason this value needs to be multiplied by
+        //        a factor.  0.6 seems to give a good result, but why??
+        handle->font.setPointSize(height * 6 / 10);
+        if (weight == 0)
+            weight = QFont::Normal;
+        else {
+            // Linear transform between MS weights to Qt weights
+            // MS: 400=normal, 700=bold
+            // Qt: 50=normal, 75=bold
+            // This makes the line cross x=0 at y=50/3.  (x=MS weight, y=Qt weight)
+            //
+            // FIXME: Is this a linear relationship?
+            weight = (50 + 3 * ((weight * (75-50))/(700-400))) / 3;
+        }
+        handle->font.setWeight(weight);
         handle->font.setItalic((property & 0x01));
         handle->font.setUnderline((property & 0x100));
+        // TODO: Strikethrough
 
         // font name
         int    maxChar = (size - 12) * 2;
@@ -1091,7 +1183,7 @@ void KoWmfReadPrivate::setLayout(quint32, QDataStream &stream)
 
     // negative value allowed for width and height
     stream >> layout >> reserved;
-    mLayout = (Layout)layout;
+    mLayout = (WmfLayout)layout;
 
     kDebug(31000) << "setLayout: layout=" << layout;
 }

@@ -57,7 +57,7 @@ public slots:
 
     void setRadius(qreal radius);
 
-    virtual void activate(bool temporary = false);
+    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
 
     virtual void deactivate();
 
@@ -79,13 +79,6 @@ public:
 
     /// reimplemented from superclass
     virtual void mouseDoubleClickEvent(KoPointerEvent *) {}
-
-protected:
-
-    void initPaint(KoPointerEvent *e);
-    void endPaint();
-    void paintAt(const KisPaintInformation &pi);
-    void paintLine(const KisPaintInformation &pi1, const KisPaintInformation &pi2);
 
 private:
 

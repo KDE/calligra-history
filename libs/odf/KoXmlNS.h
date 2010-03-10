@@ -41,6 +41,7 @@ public:
     static const char* const style;
     static const char* const number;
     static const char* const manifest;
+    static const char* const anim;
 
     static const char* const math;
     static const char* const svg;
@@ -49,6 +50,7 @@ public:
     static const char* const xlink;
     static const char* const VL;
     static const char* const smil;
+    static const char* const xhtml;
 
     static const char* const koffice;
 private:

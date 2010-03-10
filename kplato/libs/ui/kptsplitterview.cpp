@@ -43,11 +43,23 @@ SplitterView::SplitterView(KoDocument *doc, QWidget *parent)
     b->addWidget( m_splitter );
 }
     
-QTabWidget *SplitterView::addTabWidget(  )
+KTabWidget *SplitterView::addTabWidget(  )
 {
     KTabWidget *w = new KTabWidget( m_splitter );
     m_splitter->addWidget( w );
+    connect( w, SIGNAL( currentChanged( int ) ), SLOT( currentTabChanged( int ) ) );
     return w;
+}
+
+void SplitterView::currentTabChanged( int )
+{
+    ViewBase *v = qobject_cast<ViewBase*>( qobject_cast<KTabWidget*>( sender() )->currentWidget() );
+    if ( v && v != m_activeview ) {
+        if ( m_activeview ) {
+            m_activeview->setGuiActive( false );
+        }
+        v->setGuiActive( true );
+    }
 }
 
 void SplitterView::addView( ViewBase *view )
@@ -89,33 +101,6 @@ void SplitterView::slotGuiActivated( ViewBase *v, bool active )
     emit guiActivated( v, active );
 }
 
-ViewBase *SplitterView::hitView( const QPoint &glpos )
-{
-    kDebug()<<glpos;
-    for ( int i = 0; i < m_splitter->count(); ++i ) {
-        kDebug()<<m_splitter->widget( i );
-        ViewBase *w = dynamic_cast<ViewBase*>( m_splitter->widget( i ) );
-        if ( w && w->frameGeometry().contains( w->mapFromGlobal( glpos ) ) ) {
-            kDebug()<<w<<glpos<<"->"<<w->mapFromGlobal( glpos )<<"in"<<w->frameGeometry();
-            return w;
-        }
-        QTabWidget *tw = dynamic_cast<QTabWidget*>( m_splitter->widget( i ) );
-        /*if (tw && tw->frameGeometry().contains( tw->mapFromGlobal( glpos ) ) ) {
-        //FIXME: tw->frameGeometry() returns geometry ex tw->tabBar()*/
-        //FIXME: and when hitting the tab, this is called before currentWidget() has changed
-        
-        if ( tw ) {
-            w = dynamic_cast<ViewBase*>( tw->currentWidget() );
-            if ( w && w->frameGeometry().contains( w->mapFromGlobal( glpos ) ) ) {
-                kDebug()<<w<<glpos<<"->"<<w->mapFromGlobal( glpos )<<"in"<<w->frameGeometry();
-            }
-            kDebug()<<w;
-            return w;
-        }
-    }
-    return const_cast<SplitterView*>( this );
-}
-
 ViewBase *SplitterView::findView( const QPoint &pos ) const
 {
     for ( int i = 0; i < m_splitter->count(); ++i ) {
@@ -138,24 +123,20 @@ ViewBase *SplitterView::findView( const QPoint &pos ) const
 
 void SplitterView::setProject( Project *project )
 {
-    for ( int i = 0; i < m_splitter->count(); ++i ) {
-        ViewBase *v = dynamic_cast<ViewBase*>( m_splitter->widget( i ) );
-        if ( v ) {
-            v->setProject( project );
-        } else {
-            QTabWidget *tw = dynamic_cast<QTabWidget*>( m_splitter->widget( i ) );
-            if (tw ) {
-                for ( int j = 0; j < tw->count(); ++j ) {
-                    v = dynamic_cast<ViewBase*>( tw->widget( j ) );
-                    if ( v ) {
-                        v->setProject( project );
-                    }
-                }
-            }
-        }
+    foreach ( ViewBase *v, findChildren<ViewBase*>() ) {
+        v->setProject( project );
     }
+    ViewBase::setProject( project );
 }
-    
+
+void SplitterView::setScheduleManager( ScheduleManager *sm )
+{
+    foreach ( ViewBase *v, findChildren<ViewBase*>() ) {
+        v->setScheduleManager( sm );
+    }
+    ViewBase::setScheduleManager( sm );
+}
+
 void SplitterView::draw()
 {
     for ( int i = 0; i < m_splitter->count(); ++i ) {
@@ -232,20 +213,24 @@ ViewBase *SplitterView::focusView() const
 
 QStringList SplitterView::actionListNames() const
 {
+    QStringList lst = ViewActionLists::actionListNames();
     ViewBase *view = focusView();
-    if ( view ) {
-        return view->actionListNames();
+    if ( view && view != this ) {
+        lst << view->actionListNames();
     }
-    return QStringList();
+    return lst;
 }
     
 QList<QAction*> SplitterView::actionList( const QString name ) const
 {
-    ViewBase *view = focusView();
-    if ( view ) {
-        return view->actionList( name );
+    QList<QAction*> lst = ViewActionLists::actionList( name );
+    if ( lst.isEmpty() ) {
+        ViewBase *view = focusView();
+        if ( view && view != this ) {
+            lst = view->actionList( name );
+        }
     }
-    return QList<QAction*>();
+    return lst;
 }
     
 QList<QAction*> SplitterView::contextActionList() const
@@ -311,7 +296,7 @@ bool SplitterView::loadContext( const KoXmlElement &context )
     }
 #ifndef KOXML_USE_QDOM
     foreach ( const QString &s, e.attributeNames() ) {
-        ViewBase *v = findChildren<ViewBase*>( s ).first();
+        ViewBase *v = findChildren<ViewBase*>( s ).value( 0 );
         if ( v == 0 ) {
             continue;
         }

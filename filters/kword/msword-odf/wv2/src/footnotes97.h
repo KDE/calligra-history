@@ -49,7 +49,7 @@ namespace wvWare
         /**
          * Get the FootnoteData for the footnote/endnote at @param globalCP.
          * The @param ok flag is true if a footnote/endnote has been found.
-         * If @þaram ok is false no footnote/endnote has been found and the
+         * If @param ok is false no footnote/endnote has been found and the
          * returned FootnoteData structure is invalid.
          */
         FootnoteData footnote( U32 globalCP, bool& ok );

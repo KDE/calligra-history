@@ -20,6 +20,7 @@
 #define KIS_PAINT_DEVICE_IMPL_H_
 
 #include <QObject>
+#include <QRect>
 
 #include "kis_debug.h"
 
@@ -29,6 +30,7 @@
 #include "kis_global.h"
 #include "kis_shared.h"
 #include "kis_iterators_pixel.h"
+#include "kis_default_bounds.h"
 
 #include <krita_export.h>
 
@@ -44,9 +46,11 @@ class KoColor;
 class KoColorSpace;
 class KoColorProfile;
 
+class KisHLineIteratorNG;
 class KisRandomSubAccessorPixel;
 class KisDataManager;
 class KisSelectionComponent;
+
 
 typedef KisSharedPtr<KisDataManager> KisDataManagerSP;
 
@@ -82,7 +86,7 @@ public:
      * @param colorSpace the colorspace of this paint device
      * @param name for debugging purposes
      */
-    KisPaintDevice(KisNodeWSP parent, const KoColorSpace * colorSpace, const QString& name = QString());
+    KisPaintDevice(KisNodeWSP parent, const KoColorSpace * colorSpace, KisDefaultBounds defaultBounds = KisDefaultBounds(), const QString& name = QString());
 
     KisPaintDevice(const KisPaintDevice& rhs);
     virtual ~KisPaintDevice();
@@ -105,6 +109,12 @@ public:
      * set the parent node of the paint device
      */
     void setParentNode(KisNodeWSP parent);
+
+    /**
+     * set the default bounds for the paint device when
+     * the default pixel in not completely transarent
+     */
+    void setDefaultBounds(KisDefaultBounds bounds);
 
     /**
      * Moves the device to these new coordinates (so no incremental move or so)
@@ -314,14 +324,14 @@ public:
      * won't exceed \p maxw and \p maxw, but they may be smaller.
      */
 
-    KisPaintDeviceSP createThumbnailDevice(qint32 w, qint32 h, const KisSelection *selection = 0) const;
+    KisPaintDeviceSP createThumbnailDevice(qint32 w, qint32 h, const KisSelection *selection = 0, QRect rect = QRect()) const;
 
     /**
      * Creates a thumbnail of the paint device, retaining the aspect ratio.
      * The width and height of the returned QImage won't exceed \p maxw and \p maxw, but they may be smaller.
      * The colors are not corrected for display!
      */
-    virtual QImage createThumbnail(qint32 maxw, qint32 maxh, const KisSelection *selection = 0);
+    virtual QImage createThumbnail(qint32 maxw, qint32 maxh, const KisSelection *selection = 0, QRect rect = QRect());
 
     /**
      * Fill c and opacity with the values found at x and y.
@@ -444,6 +454,15 @@ public:
      */
     KisHLineConstIteratorPixel createHLineConstIterator(qint32 x, qint32 y, qint32 w, const KisSelection * selection = 0) const;
 
+    KisHLineIteratorSP createHLineIteratorNG(qint32 x, qint32 y, qint32 w);
+    KisHLineConstIteratorSP createHLineConstIteratorNG(qint32 x, qint32 y, qint32 w) const;
+    KisVLineIteratorSP createVLineIteratorNG(qint32 x, qint32 y, qint32 h);
+    KisVLineConstIteratorSP createVLineConstIteratorNG(qint32 x, qint32 y, qint32 h) const;
+    KisRectIteratorSP createRectIteratorNG(qint32 x, qint32 y, qint32 w, qint32 h);
+    KisRectConstIteratorSP createRectConstIteratorNG(qint32 x, qint32 y, qint32 w, qint32 h) const;
+    KisRandomAccessorSP createRandomAccessorNG(qint32 x, qint32 y);
+    KisRandomConstAccessorSP createRandomConstAccessorNG(qint32 x, qint32 y) const;
+
     /**
      * Create an iterator that will "artificially" extend the paint device with the
      * value of the border when trying to access values outside the range of data.
@@ -482,6 +501,7 @@ public:
      * the paint device.
      * <b>Note:</b> random access is way slower than iterators, always use iterators whenever
      * you can.
+     * @param x, y starting point of the accessor
      * @param selection an up-to-date selection that has the same origin as the paint device
      */
     KisRandomAccessorPixel createRandomAccessor(qint32 x, qint32 y, const KisSelection * selection = 0);

@@ -13,8 +13,9 @@ set(msooxml_LIB_SRCS
     MsooXmlRelationshipsReader.cpp
     MsooXmlRelationships.cpp
     MsooXmlImport.cpp
+
+    # TODO: move back to kolibs
     KoOdfExporter.cpp
-    MsooXmlCommentsReader.cpp
 )
 
 kde4_add_library(msooxml SHARED ${msooxml_LIB_SRCS})
@@ -25,6 +26,12 @@ target_link_libraries(msooxml
 
 set_target_properties(msooxml PROPERTIES VERSION ${GENERIC_KOFFICE_LIB_VERSION} SOVERSION ${GENERIC_KOFFICE_LIB_SOVERSION} )
 install(TARGETS msooxml ${INSTALL_TARGETS_DEFAULT_ARGS})
+
+find_package(SharedMimeInfo)
+macro_log_feature(SHARED_MIME_INFO_FOUND "SharedMimeInfo" "Shared Mime Info" "http://freedesktop.org/wiki/Software/shared-mime-info" TRUE "" "Required to determine MSOOXML file types.")
+
+install(FILES msooxml-all.xml DESTINATION ${XDG_MIME_INSTALL_DIR})
+update_xdg_mimetypes(${XDG_MIME_INSTALL_DIR})
 
 if (FALSE) # these headers are private for now
 install( FILES
@@ -41,6 +48,7 @@ install( FILES
     MsooXmlRelationships.h
     MsooXmlImport.h
     MsooXmlCommentsReader.h
+    MsooXmlNotesReader.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/msooxml COMPONENT Devel
 )
 endif (FALSE)

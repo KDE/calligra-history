@@ -29,6 +29,7 @@
 namespace Swinder
 {
 
+class Object;
 class Sheet;
 class GlobalsSubStreamHandler;
 
@@ -76,10 +77,14 @@ class WorksheetSubStreamHandler : public SubStreamHandler, public FormulaDecoder
 public:
     WorksheetSubStreamHandler(Sheet* sheet, const GlobalsSubStreamHandler* globals);
     virtual ~WorksheetSubStreamHandler();
+    Sheet* sheet() const;
+
+    std::map<unsigned long, Object*>& sharedObjects() const;
+    std::vector<unsigned long>& charts() const;
 
     virtual void handleRecord(Record* record);
     
-protected:
+public:
     // from FormulaDecoder
     virtual const std::vector<UString>& externSheets() const;
     virtual UString nameFromIndex(unsigned index) const;

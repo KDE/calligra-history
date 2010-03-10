@@ -2288,7 +2288,7 @@ void KexiMainWindow::updateAppCaption()
 {
 //! @todo allow to set custom "static" app caption
 
-    d->appCaptionPrefix = "";
+    d->appCaptionPrefix.clear();
     if (d->prj && d->prj->data()) {//add project name
         d->appCaptionPrefix = d->prj->data()->caption();
         if (d->appCaptionPrefix.isEmpty())
@@ -2462,7 +2462,9 @@ KexiMainWindow::storeSettings()
 // d->mainWidget->saveMainWindowSettings( mainWindowGroup );
 // d->mainWidget->saveState();
 
-    mainWindowGroup.writeEntry("ProjectNavigatorSize", d->nav->parentWidget()->size());
+    if (d->nav)
+        mainWindowGroup.writeEntry("ProjectNavigatorSize", d->nav->parentWidget()->size());
+
     mainWindowGroup.writeEntry("PropertyEditorSize", d->propEditorDockableWidget->size());
 
     KGlobal::config()->sync();
@@ -4785,7 +4787,7 @@ tristate KexiMainWindow::showProjectMigrationWizard(
         args.insert("connectionData", str);
     }
 
-    QDialog *dlg = KexiInternalPart::createModalDialogInstance("migration", this, 0, &args);
+    QDialog *dlg = KexiInternalPart::createModalDialogInstance("migration", "migration", this, 0, &args);
     if (!dlg)
         return false; //error msg has been shown by KexiInternalPart
 

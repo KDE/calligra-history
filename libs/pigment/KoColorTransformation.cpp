@@ -23,16 +23,27 @@ KoColorTransformation::~KoColorTransformation()
 {
 }
 
+QList<QString> KoColorTransformation::parameters() const
+{
+    return QList<QString>();
+}
+
+int KoColorTransformation::parameterId(const QString& name) const
+{
+    Q_UNUSED(name);
+    return -1;
+}
+
+void KoColorTransformation::setParameter(int id, const QVariant& parameter)
+{
+  Q_UNUSED(id);
+  Q_UNUSED(parameter);
+}
+
 void KoColorTransformation::setParameters(const QHash<QString, QVariant> & parameters)
 {
     for (QHash<QString, QVariant>::const_iterator it = parameters.begin(); it != parameters.end(); ++it) {
-        setParameter(it.key(), it.value());
+        setParameter( parameterId(it.key()), it.value());
     }
 
-}
-
-void KoColorTransformation::setParameter(const QString& name, const QVariant& parameter)
-{
-    Q_UNUSED(name);
-    Q_UNUSED(parameter);
 }

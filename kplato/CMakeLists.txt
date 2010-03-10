@@ -17,6 +17,11 @@ set( KPLATO_INCLUDES
     ${CMAKE_BINARY_DIR}/kdgantt
     ${KOMAIN_INCLUDES}    
     ${KDEPIMLIBS_INCLUDE_DIR}
+
+    ${CMAKE_SOURCE_DIR}/libs/koreport
+    ${CMAKE_SOURCE_DIR}/libs/koreport/common
+    ${CMAKE_SOURCE_DIR}/libs/koreport/renderer
+    ${CMAKE_SOURCE_DIR}/libs/koreport/wrtembed
 )
 
 add_definitions(-DQT3_SUPPORT -DQT3_SUPPORT_WARNINGS)

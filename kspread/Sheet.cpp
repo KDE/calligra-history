@@ -30,6 +30,7 @@
 #include <QMimeData>
 #include <QStack>
 #include <QTextStream>
+#include <QPainter>
 
 #include <kdebug.h>
 #include <kcodecs.h>
@@ -2179,7 +2180,6 @@ QString Sheet::getPart(const KoXmlNode & part)
     KoXmlElement e = KoXml::namedItemNS(part, KoXmlNS::text, "p");
     while (!e.isNull()) {
         QString text = e.text();
-        kDebug() << "PART:" << text;
 
         KoXmlElement macro = KoXml::namedItemNS(e, KoXmlNS::text, "time");
         if (!macro.isNull())
@@ -2995,12 +2995,12 @@ void Sheet::loadOdfSettings(const KoOasisSettings::NamedMap &settings)
     KoOasisSettings::Items items = settings.entry(sheetName());
     if (items.isNull())
         return;
-    setHideZero(items.parseConfigItemBool("ShowZeroValues"));
+    setHideZero(!items.parseConfigItemBool("ShowZeroValues"));
     setShowGrid(items.parseConfigItemBool("ShowGrid"));
     setFirstLetterUpper(items.parseConfigItemBool("FirstLetterUpper"));
 
-    int cursorX = qMax(1, items.parseConfigItemInt("CursorPositionX") + 1);
-    int cursorY = qMax(1, items.parseConfigItemInt("CursorPositionY") + 1);
+    int cursorX = qMin(KS_colMax, qMax(1, items.parseConfigItemInt("CursorPositionX") + 1));
+    int cursorY = qMin(KS_rowMax, qMax(1, items.parseConfigItemInt("CursorPositionY") + 1));
     map()->loadingInfo()->setCursorPosition(this, QPoint(cursorX, cursorY));
 
     double offsetX = items.parseConfigItemDouble("xOffset");
@@ -3018,7 +3018,7 @@ void Sheet::loadOdfSettings(const KoOasisSettings::NamedMap &settings)
 void Sheet::saveOdfSettings(KoXmlWriter &settingsWriter) const
 {
     //not into each page into oo spec
-    settingsWriter.addConfigItem("ShowZeroValues", getHideZero());
+    settingsWriter.addConfigItem("ShowZeroValues", !getHideZero());
     settingsWriter.addConfigItem("ShowGrid", getShowGrid());
     //not define into oo spec
     settingsWriter.addConfigItem("FirstLetterUpper", getFirstLetterUpper());
@@ -3918,6 +3918,18 @@ void Sheet::convertObscuringBorders()
         }
     }
 #endif
+}
+
+QPixmap Sheet::generateThumbnail(const QSize& size)
+{
+    if (size.isEmpty())
+        return QPixmap();
+
+    QPixmap pixmap( size.width(), size.height() );
+    pixmap.fill( Qt::white );
+    QPainter painter( &pixmap );
+    d->print->generateThumbnail(painter);
+    return pixmap;
 }
 
 /**********************

@@ -24,6 +24,66 @@
   <computedField name="asValue" ctype="Value" value="isError() ? errorAsValue(value()) : Value(value() ? true : false)" />
 </record>
 
+<record name="StartBlock" id="0x0852">
+  <field name="frtHeaderOld" type="unsigned" size="32" />
+  <field name="iObjectKind" type="unsigned" size="16" />
+  <field name="iObjectContext" type="unsigned" size="16" />
+  <field name="iObjectInstance1" type="unsigned" size="16" />
+  <field name="iObjectInstance2" type="unsigned" size="16" />
+</record>
+
+<record name="EndBlock" id="0x0853">
+  <field name="frtHeaderOld" type="unsigned" size="32" />
+  <field name="iObjectKind" type="unsigned" size="16" />
+</record>
+
+<record name="ShapePropsStream" id="0x08a4">
+  <field name="rt" type="unsigned" size="16" />
+  <field name="grbitFrt" type="unsigned" size="16" />
+  <field name="reserved" type="unsigned" size="64" />
+  <field name="wObjContext" type="unsigned" size="16" />
+  <field name="unused" type="unsigned" size="16" />
+  <field name="dwChecksum" type="unsigned" size="32" />
+  <field name="cb" type="unsigned" size="32" />
+  <field name="rgb" type="bytestring" length="cb" />
+</record>
+
+<record name="TextPropsStream" id="0x08a5">
+  <field name="rt" type="unsigned" size="16" />
+  <field name="grbitFrt" type="unsigned" size="16" />
+  <field name="reserved" type="unsigned" size="64" />
+  <field name="dwChecksum" type="unsigned" size="32" />
+  <field name="cb" type="unsigned" size="32" />
+  <field name="rgb" type="bytestring" length="cb" />
+</record>
+
+<!--
+<record name="ChartMlFrt" id="0x089e"/>
+-->
+
+<!-- future record info -->
+<record name="ChartFrtInfo" id="0x089e"/>
+
+<record name="ChartLayout12A" id="0x08a7">
+  <field name="rt" type="unsigned" size="16" />
+  <field name="grbitFrt" type="unsigned" size="16" />
+  <field name="reserved" type="unsigned" size="64" />
+  <field name="dwChecksum" type="unsigned" size="32" />
+  <field name="fLayoutTargetInner" type="bool" size="1" />
+  <field name="reserved" size="15" />
+  <field name="xTL" type="signed" size="16" />
+  <field name="yTL" type="signed" size="16" />
+  <field name="xBR" type="signed" size="16" />
+  <field name="yBR" type="signed" size="16" />
+  <field name="wXMode" type="unsigned" size="16" />
+  <field name="wYMode" type="unsigned" size="16" />
+  <field name="wWidthMode" type="unsigned" size="16" />
+  <field name="wHeightMode" type="unsigned" size="16" />
+  <field name="x" type="float" size="64" />
+  <field name="y" type="float" size="64" />
+  <field name="dx" type="float" size="64" />
+  <field name="dy" type="float" size="64" />
+</record>
 
 <record name="LeftMargin" id="0x0026">
   <field name="leftMargin" type="float" size="64" />
@@ -40,7 +100,6 @@
 <record name="BottomMargin" id="0x0029">
   <field name="bottomMargin" type="float" size="64" />
 </record>
-
 
 <record name="BoundSheet" id="0x0085">
   <field name="bofPosition"     type="unsigned" size="32" />
@@ -325,7 +384,6 @@
   <computedField name="value" ctype="Value" value="Value(ustring())" />
 </record>
 
-
 <record name="Note" id="0x1C">
   <field name="row"     type="unsigned" size="16" />
   <field name="column"  type="unsigned" size="16" />
@@ -389,6 +447,9 @@
   <field name="numCopies"               type="unsigned" size="16" />
 </record>
 
+<record name="CrtLine" id="0x101c"/>
+<record name="Units" id="0x1001"/>
+
 <!-- TODO all records following are missing the handle in there streams -->
 <record name="PrintSize" id="0x0033">
   <field name="printSize" type="unsigned" size="16">
@@ -397,10 +458,6 @@
     <enum name="FillPageProportionally" value="2" />
     <enum name="SizeFromChartRecord"    value="3" />
   </field>
-</record>
-
-<record name="Units" id="0x1001">
-  <field name="reserved" size="16" />
 </record>
 
 <record name="Chart" id="0x1002">
@@ -439,7 +496,16 @@
 <record name="AreaFormat" id="0x100a">
 </record>
 
+<record name="Pie" id="0x1019">
+  <field name="anStart" type="unsigned" size="16" />
+  <field name="pcDonut" type="unsigned" size="16" />
+  <field name="fHasShadow" type="bool" size="1" />
+  <field name="fShowLdrLines" type="bool" size="1" />
+  <field name="reserved" type="unsigned" size="14" />
+</record>
+
 <record name="PieFormat" id="0x100b">
+  <field name="pcExplode" type="signed" size="16" />
 </record>
 
 <record name="AttachedLabel" id="0x100c">
@@ -449,6 +515,19 @@
 </record>
 
 <record name="Legend" id="0x1015">
+  <field name="x" type="unsigned" size="32" />
+  <field name="y" type="unsigned" size="32" />
+  <field name="dx" type="unsigned" size="32" />
+  <field name="dy" type="unsigned" size="32" />
+  <field name="unused" type="unsigned" size="8" />
+  <field name="wSpace" type="unsigned" size="8" />
+  <field name="fAutoPosition" type="bool" size="1" />
+  <field name="reserved1" type="bool" size="1" />
+  <field name="fAutoPosX" type="bool" size="1" />
+  <field name="fAutoPosY" type="bool" size="1" />
+  <field name="fVert" type="bool" size="1" />
+  <field name="fWasDataTable" type="bool" size="1" />
+  <field name="reserved2" type="unsigned" size="10" />
 </record>
 
 <record name="SeriesList" id="0x1016">
@@ -460,21 +539,10 @@
 <record name="Line" id="0x1018">
 </record>
 
-<record name="Pie" id="0x1019">
-  <field name="anStart" type="unsigned" size="16" />
-  <field name="pcDonut" type="unsigned" size="16" />
-  <field name="fHasShadow" type="bool" size="1" />
-  <field name="fShowLdrLines" type="bool" size="1" />
-  <field name="reserved" type="unsigned" size="14" />
-</record>
-
 <record name="Area" id="0x101a">
 </record>
 
 <record name="Scatter" id="0x101b">
-</record>
-
-<record name="CrtLine" id="0x101c">
 </record>
 
 <record name="Axis" id="0x101d">
@@ -492,11 +560,15 @@
 <record name="AxisLine" id="0x1021">
 </record>
 
-<record name="CrtLink" id="0x1022">
-</record>
+<record name="CrtLink" id="0x1022"/>
 
 <record name="DefaultText" id="0x1024">
-  <field name="identifier" type="unsigned" size="16" />
+  <field name="identifier" type="unsigned" size="16">
+    <enum name="ShowPercent0_or_ShowValue0" value="0x0000" />
+    <enum name="ShowPercent1_or_ShowValue1" value="0x0001" />
+    <enum name="Scalable0" value="0x0002" />
+    <enum name="Scalable1" value="0x0003" />
+  </field>
 </record>
 
 <record name="Text" id="0x1025">
@@ -535,11 +607,26 @@
 </record>
 
 <record name="ObjectLink" id="0x1027">
+  <field name="wLinkObj" type="unsigned" size="16">
+    <enum name="EntireChart" value="0x0001" />
+    <enum name="ValueOrVerticalAxis" value="0x0002" />
+    <enum name="CategoryOrHorizontalAxis" value="0x0003" />
+    <enum name="SeriesOrDatapoints" value="0x0004" />
+    <enum name="SeriesAxis" value="0x0007" />
+    <enum name="DisplayUnitsLabelsOfAxis" value="0x000c" />
+  </field>
+  <!-- zero-based index of a series on the collection of series -->
+  <field name="wLinkVar1" type="unsigned" size="16" />
+  <!-- zero-based index of the category in the series -->
+  <field name="wLinkVar2" type="unsigned" size="16" />
 </record>
 
 <record name="PlotArea" id="0x1035">
 </record>
 
+<record name="MsoDrawingSelection" id="0x00ed">
+  <!-- an OfficeArtFDGSL structure -->
+</record>
 
 <record name="Chart3d" id="0x103a">
   <field name="anRot"         type="signed"   size="16" />
@@ -699,24 +786,6 @@
   <field name="countYValues"          type="unsigned" size="16" />
   <field name="bubbleSizeDataType"    type="unsigned" size="16" />
   <field name="countBubbleSizeValues" type="unsigned" size="16" />
-</record>
-
-<record name="BRAI" id="0x1051"> <!--Reference to data in a sheet -->
-  <field name="dataId"               type="unsigned" size="8">
-    <enum name="SeriesLegendOrTrendlineName" value="0" />
-    <enum name="HorizontalValues"            value="1" />
-    <enum name="VerticalValues"              value="2" />
-    <enum name="BubbleSizeValues"            value="3" />
-  </field>
-  <field name="type"                 type="unsigned" size="8">
-    <enum name="AutoGeneratedName" value="0" />
-    <enum name="TextOrValue"       value="1" />
-    <enum name="CellRange"         value="2" />
-  </field>
-  <field name="unlinkedNumberFormat" type="bool"     size="1" />
-  <field name="reserved0"                            size="15" />
-  <field name="numberFormat"         type="unsigned" size="16" />
-  <!-- TODO: chart formula tokens -->
 </record>
 
 <record name="SeriesText" id="0x100d">

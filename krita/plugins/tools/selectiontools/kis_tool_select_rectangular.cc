@@ -50,10 +50,11 @@
 #include "flake/kis_shape_selection.h"
 #include "kis_pixel_selection.h"
 #include "kis_selection_tool_helper.h"
+#include "kis_shape_tool_helper.h"
 
 KisToolSelectRectangular::KisToolSelectRectangular(KoCanvasBase * canvas)
         : KisToolSelectBase(canvas, KisCursor::load("tool_rectangular_selection_cursor.png", 6, 6)),
-        m_lokalTool(canvas, this)
+        m_localTool(canvas, this)
 {
 }
 
@@ -69,7 +70,7 @@ QWidget* KisToolSelectRectangular::createOptionWidget()
     return m_optWidget;
 }
 
-void KisToolSelectRectangular::LokalTool::finishRect(const QRectF& rect)
+void KisToolSelectRectangular::LocalTool::finishRect(const QRectF& rect)
 {
     QRect rc(rect.toRect());
     rc = rc.intersected(currentImage()->bounds());
@@ -94,27 +95,7 @@ void KisToolSelectRectangular::LokalTool::finishRect(const QRectF& rect)
         }
     } else {
         QRectF documentRect = convertToPt(rect);
-
-        KoShape* shape;
-        KoShapeFactoryBase *rectFactory = KoShapeRegistry::instance()->value("RectangleShape");
-        if (rectFactory) {
-            shape = rectFactory->createDefaultShape();
-            shape->setSize(documentRect.size());
-            shape->setPosition(documentRect.topLeft());
-        } else {
-            //Fallback if the plugin wasn't found
-            KoPathShape* path = new KoPathShape();
-            path->setShapeId(KoPathShapeId);
-            path->moveTo(documentRect.topLeft());
-            path->lineTo(documentRect.topLeft() + QPointF(documentRect.width(), 0));
-            path->lineTo(documentRect.bottomRight());
-            path->lineTo(documentRect.topLeft() + QPointF(0, documentRect.height()));
-            path->close();
-            path->normalize();
-            shape = path;
-        }
-
-        helper.addSelectionShape(shape);
+        helper.addSelectionShape(KisShapeToolHelper::createRectangleShape(documentRect));
     }
 }
 

@@ -5,6 +5,7 @@
  *  Copyright (c) 2002 Patrick Julien <freak@codepimps.org>
  *  Copyright (c) 2003 Boudewijn Rempt <boud@valdyas.org>
  *  Copyright (c) 2009 Lukáš Tvrdý <lukast.dev@gmail.com>
+ *  Copyright (c) 2007,2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,7 +37,6 @@
 #include <KoCanvasController.h>
 #include <KoPointerEvent.h>
 
-#include <opengl/kis_opengl.h>
 #include <kis_debug.h>
 #include <kis_selection.h>
 #include <kis_paint_device.h>
@@ -48,12 +48,12 @@
 #include <kis_paint_layer.h>
 
 #include <recorder/kis_action_recorder.h>
-#include <recorder/kis_recorded_polyline_paint_action.h>
+#include <recorder/kis_recorded_path_paint_action.h>
 #include <recorder/kis_node_query_path.h>
 
 
 
-// #define ENABLE_RECORDING
+#define ENABLE_RECORDING
 
 
 KisToolLine::KisToolLine(KoCanvasBase * canvas)
@@ -93,6 +93,12 @@ void KisToolLine::mousePressEvent(KoPointerEvent *e)
         m_dragging = true;
         m_startPos = pos;
         m_endPos = pos;
+    }
+
+    if (m_dragging == true && (e->button() == Qt::MidButton || e->button() == Qt::RightButton)) {
+        // end painting, if calling the menu or the pop up palette. otherwise there is weird behaviour
+        m_dragging = false;
+        updatePreview();
     }
 }
 
@@ -167,10 +173,10 @@ void KisToolLine::mouseReleaseEvent(KoPointerEvent *e)
 
 #ifdef ENABLE_RECORDING
                 if (image()) {
-                    KisRecordedPolyLinePaintAction* linePaintAction = new KisRecordedPolyLinePaintAction(i18n("Line tool"), KisNodeQueryPath::absolutePath(currentNode()), currentPaintOpPreset(), m_painter->paintColor(), m_painter->backgroundColor(), m_painter->opacity(), false, m_compositeOp);
-                    linePaintAction->addPoint(m_startPos);
-                    linePaintAction->addPoint(m_endPos);
-                    image()->actionRecorder()->addAction(*linePaintAction);
+                    KisRecordedPathPaintAction linePaintAction(KisNodeQueryPath::absolutePath(currentNode()), currentPaintOpPreset());
+                    setupPaintAction(&linePaintAction);
+                    linePaintAction.addLine(m_startPos, m_endPos);
+                    image()->actionRecorder()->addAction(linePaintAction);
                 }
 #endif
                 canvas()->addCommand(m_painter->endTransaction());
@@ -222,40 +228,12 @@ void KisToolLine::paintLine(QPainter& gc, const QRect&)
     QPointF viewStartPos = pixelToView(m_startPos);
     QPointF viewStartEnd = pixelToView(m_endPos);
 
-#if defined(HAVE_OPENGL)
-    if (isCanvasOpenGL()) {
-        beginOpenGL();
-
-        glEnable(GL_LINE_SMOOTH);
-        glEnable(GL_COLOR_LOGIC_OP);
-        glLogicOp(GL_XOR);
-
-        glBegin(GL_LINES);
-        glColor3f(0.5, 1.0, 0.5);
-        glVertex2f(viewStartPos.x(), viewStartPos.y());
-        glVertex2f(viewStartEnd.x(), viewStartEnd.y());
-        glEnd();
-
-        glDisable(GL_COLOR_LOGIC_OP);
-        glDisable(GL_LINE_SMOOTH);
-
-        endOpenGL();
-    } else
-#endif
-
-        if (canvas()) {
-#ifdef INDEPENDENT_CANVAS
-            QPainterPath path;
-            path.moveTo(viewStartPos);
-            path.lineTo(viewStartEnd);
-            paintToolOutline(&gc, path);
-#else
-            QPen old = gc.pen();
-            QPen pen(Qt::SolidLine);
-            gc.drawLine(viewStartPos, viewStartEnd);
-            gc.setPen(old);
-#endif
-        }
+    if (canvas()) {
+        QPainterPath path;
+        path.moveTo(viewStartPos);
+        path.lineTo(viewStartEnd);
+        paintToolOutline(&gc, path);
+    }
 }
 
 QString KisToolLine::quickHelp() const

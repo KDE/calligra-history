@@ -106,7 +106,9 @@ protected:
     // Allow the baseclass of iterators access to the interior
     // derived iterator classes must go through KisTiledIterator
     friend class KisTiledIterator;
+    friend class KisBaseIterator;
     friend class KisTiledRandomAccessor;
+    friend class KisRandomAccessor2;
 protected:
 
     void setDefaultPixel(const quint8 *defPixel);
@@ -117,12 +119,21 @@ protected:
     /* FIXME:*/
 public:
 
-    inline KisTileSP getTile(qint32 col, qint32 row) {
-        bool newTile;
-        KisTileSP tile = m_hashTable->getTileLazy(col, row, newTile);
-        if (newTile)
-            updateExtent(tile->col(), tile->row());
-        return tile;
+    inline KisTileSP getTile(qint32 col, qint32 row, bool writable) {
+        if (writable) {
+            bool newTile;
+            KisTileSP tile = m_hashTable->getTileLazy(col, row, newTile);
+            if (newTile)
+                updateExtent(tile->col(), tile->row());
+            return tile;
+        } else {
+            KisTileSP tile = m_hashTable->getExistedTile(col, row);
+            if (tile) {
+                return tile;
+            } else {
+                return m_defaultTile;
+            }
+        }
     }
 
     inline KisTileSP getOldTile(qint32 col, qint32 row) {
@@ -133,7 +144,7 @@ public:
 //      return getTile(col, row);
 
         KisTileSP tile = m_mementoManager->getCommitedTile(col, row);
-        return tile ? tile : getTile(col, row);
+        return tile ? tile : getTile(col, row, false);
     }
 
     KisMementoSP getMemento() {
@@ -252,6 +263,7 @@ private:
     KisTileHashTable *m_hashTable;
     KisMementoManager *m_mementoManager;
     quint8* m_defaultPixel;
+    KisTileSP m_defaultTile;
     qint32 m_pixelSize;
 
     /**

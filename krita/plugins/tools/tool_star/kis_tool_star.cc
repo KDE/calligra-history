@@ -3,6 +3,7 @@
  *
  *  Copyright (c) 2004 Michael Thaler <michael.thaler@physik.tu-muenchen.de>
  *  Copyright (c) 2009 Lukáš Tvrdý <lukast.dev@gmail.com>
+ *  Copyright (c) 2010 Cyrille Berger <cberger@cberger.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,15 +39,19 @@
 #include <KoPathShape.h>
 #include <KoLineBorder.h>
 
-#include <opengl/kis_opengl.h>
 #include <kis_debug.h>
 #include <canvas/kis_canvas2.h>
 #include <kis_painter.h>
 #include <kis_paintop_registry.h>
 #include <kis_cursor.h>
 #include <kis_paint_device.h>
+#include <kis_paint_information.h>
 
 #include "kis_selection.h"
+
+#include <recorder/kis_action_recorder.h>
+#include <recorder/kis_recorded_path_paint_action.h>
+#include <recorder/kis_node_query_path.h>
 
 KisToolStar::KisToolStar(KoCanvasBase * canvas)
         : KisToolShape(canvas, KisCursor::load("tool_star_cursor.png", 6, 6)),
@@ -69,13 +74,18 @@ void KisToolStar::mousePressEvent(KoPointerEvent *event)
         m_vertices = m_optWidget->verticesSpinBox->value();
         m_innerOuterRatio = m_optWidget->ratioSpinBox->value();
     }
+    if(m_dragging && (event->button() == Qt::MidButton || event->button() == Qt::RightButton)) {
+        //end painting, if calling the menu or the pop up palette. otherwise there is weird behaviour
+        m_dragging=false;
+        updatePreview();
+    }
 }
 
 void KisToolStar::mouseMoveEvent(KoPointerEvent *event)
 {
     if (m_dragging) {
         //Erase old lines
-        canvas()->updateCanvas(convertToPt(boundingRect()));
+        updatePreview();
         if (event->modifiers() & Qt::AltModifier) {
             QPointF trans = convertToPixelCoord(event) - m_dragEnd;
             m_dragStart += trans;
@@ -83,7 +93,7 @@ void KisToolStar::mouseMoveEvent(KoPointerEvent *event)
         } else {
             m_dragEnd = convertToPixelCoord(event);
         }
-        canvas()->updateCanvas(convertToPt(boundingRect()));
+        updatePreview();
     }
 }
 
@@ -105,6 +115,13 @@ void KisToolStar::mouseReleaseEvent(KoPointerEvent *event)
             return;
 
         vQPointF coord = starCoordinates(m_vertices, m_dragStart.x(), m_dragStart.y(), m_dragEnd.x(), m_dragEnd.y());
+        if (image()) {
+            KisRecordedPathPaintAction linePaintAction(KisNodeQueryPath::absolutePath(currentNode()), currentPaintOpPreset());
+            setupPaintAction(&linePaintAction);
+            linePaintAction.addPolyLine(coord.toList());
+            linePaintAction.addLine(KisPaintInformation(coord.last()), KisPaintInformation(coord.first()));
+            image()->actionRecorder()->addAction(linePaintAction);
+        }
 
         if (!currentNode()->inherits("KisShapeLayer")) {
 
@@ -122,7 +139,7 @@ void KisToolStar::mouseReleaseEvent(KoPointerEvent *event)
 
             device->setDirty(painter.dirtyRegion());
             notifyModified();
-            canvas()->updateCanvas(convertToPt(boundingRect()));
+            updatePreview();
 
             canvas()->addCommand(painter.endTransaction());
         } else {
@@ -158,59 +175,14 @@ void KisToolStar::paint(QPainter& gc, const KoViewConverter &converter)
 
     vQPointF points = starCoordinates(m_vertices, m_dragStart.x(), m_dragStart.y(), m_dragEnd.x(), m_dragEnd.y());
 
-#if defined(HAVE_OPENGL)
-    if (isCanvasOpenGL()) {
-        beginOpenGL();
-
-        QPointF begin, end;
-
-        glEnable(GL_LINE_SMOOTH);
-        glEnable(GL_COLOR_LOGIC_OP);
-        glLogicOp(GL_XOR);
-        glColor3f(0.501961, 1.0, 0.501961);
-
-        glBegin(GL_LINE_LOOP);
-        for (int i = 0; i < points.count() - 1; i++) {
-            begin = pixelToView(points[i]);
-            end = pixelToView(points[i + 1]);
-
-            glVertex2f(begin.x(), begin.y());
-            glVertex2f(end.x(), end.y());
-
-        }
-        glEnd();
-
-        glDisable(GL_COLOR_LOGIC_OP);
-        glDisable(GL_LINE_SMOOTH);
-
-        endOpenGL();
-    } else
-#endif
-
-#ifdef INDEPENDENT_CANVAS
-    {
-        QPainterPath path;
-        for (int i = 0; i < points.count() - 1; i++) {
-            path.moveTo(pixelToView(points[i]));
-            path.lineTo(pixelToView(points[i + 1]));
-        }
-        path.moveTo(pixelToView(points[points.count() - 1]));
-        path.lineTo(pixelToView(points[0]));
-        paintToolOutline(&gc, path);
+    QPainterPath path;
+    for (int i = 0; i < points.count() - 1; i++) {
+        path.moveTo(pixelToView(points[i]));
+        path.lineTo(pixelToView(points[i + 1]));
     }
-#else
-    {
-        QPen pen(Qt::SolidLine);
-        gc.setPen(pen);
-
-        for (int i = 0; i < points.count() - 1; i++) {
-            gc.drawLine(pixelToView(points[i]), pixelToView(points[i + 1]));
-        }
-        gc.drawLine(pixelToView(points[points.count() - 1]), pixelToView(points[0]));
-    }
-#endif
-
-
+    path.moveTo(pixelToView(points[points.count() - 1]));
+    path.lineTo(pixelToView(points[0]));
+    paintToolOutline(&gc, path);
 }
 
 vQPointF KisToolStar::starCoordinates(int N, double mx, double my, double x, double y)
@@ -243,12 +215,12 @@ vQPointF KisToolStar::starCoordinates(int N, double mx, double my, double x, dou
     return starCoordinatesArray;
 }
 
-QRectF KisToolStar::boundingRect()
-{
+void KisToolStar::updatePreview() {
     //Calculating the radius
     double radius = sqrt((m_dragEnd.x() - m_dragStart.x()) * (m_dragEnd.x() - m_dragStart.x()) + (m_dragEnd.y() - m_dragStart.y()) * ((m_dragEnd.y() - m_dragStart.y())));
-    return QRectF(m_dragStart.x() - radius, m_dragStart.y() - radius, 2*radius, 2*radius);
+    canvas()->updateCanvas(convertToPt(QRectF(m_dragStart.x() - radius, m_dragStart.y() - radius, 2*radius, 2*radius)));
 }
+
 
 QWidget* KisToolStar::createOptionWidget()
 {

@@ -24,19 +24,36 @@
 #include <kis_paintop_options_widget.h>
 #include <kis_paint_action_type_option.h>
 
+#include <kis_curve_option_widget.h>
+#include <kis_brush_size_option.h>
+
+#include <kis_pressure_rotation_option.h>
+
+#include "kis_hsv_option.h"
+#include <kis_pressure_opacity_option.h>
+#include <kis_pressure_size_option.h>
+
 KisSoftPaintOpSettingsWidget:: KisSoftPaintOpSettingsWidget(QWidget* parent)
     : KisPaintOpOptionsWidget(parent)
 {
     m_paintActionTypeOption = new KisPaintActionTypeOption();
     m_softOption =  new KisSoftOpOption();
-
+    m_sizeOption = new KisBrushSizeOption();
+    m_hsvOption = new KisHSVOption();
+    
+    addPaintOpOption(m_sizeOption);
     addPaintOpOption(m_softOption);
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureSizeOption()));
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureOpacityOption()));
+    addPaintOpOption(new KisCurveOptionWidget(new KisPressureRotationOption()));
+    addPaintOpOption(m_hsvOption);
     addPaintOpOption(m_paintActionTypeOption);
 }
 
 KisSoftPaintOpSettingsWidget::~ KisSoftPaintOpSettingsWidget()
 {
     delete m_softOption;
+    delete m_sizeOption;
     delete m_paintActionTypeOption;
 }
 
@@ -52,7 +69,7 @@ KisPropertiesConfiguration*  KisSoftPaintOpSettingsWidget::configuration() const
 void KisSoftPaintOpSettingsWidget::changePaintOpSize(qreal x, qreal y)
 {
     if (qAbs(x) > qAbs(y)){
-        m_softOption->setDiameter( m_softOption->diameter() + qRound(x) );
+        m_sizeOption->setDiameter( m_sizeOption->diameter() + qRound(x) );
     }
     else // vertical drag
     {

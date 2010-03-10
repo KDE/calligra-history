@@ -33,13 +33,11 @@ KisDeformOption::KisDeformOption()
     m_checkable = false;
     m_options = new KisDeformOptionsWidget();
 
-    connect(m_options->deformRadiusSPBox, SIGNAL(valueChanged(int)),SIGNAL(sigSettingChanged()));
     connect(m_options->deformAmountSPBox, SIGNAL(valueChanged(double)),SIGNAL(sigSettingChanged()));
     connect(m_options->interpolationChBox, SIGNAL(toggled(bool)),SIGNAL(sigSettingChanged()));
     connect(m_options->addPaintChBox, SIGNAL(toggled(bool)),SIGNAL(sigSettingChanged()));
     connect(m_options->useCounter, SIGNAL(toggled(bool)),SIGNAL(sigSettingChanged()));
     connect(m_options->useOldData, SIGNAL(toggled(bool)),SIGNAL(sigSettingChanged()));
-    connect(m_options->spacingKDNumInp, SIGNAL(valueChanged(double)),SIGNAL(sigSettingChanged()));
 
     connect(m_options->growBtn, SIGNAL(clicked(bool)),SIGNAL(sigSettingChanged()));
     connect(m_options->shrinkBtn, SIGNAL(clicked(bool)),SIGNAL(sigSettingChanged()));
@@ -55,20 +53,18 @@ KisDeformOption::KisDeformOption()
 
 KisDeformOption::~KisDeformOption()
 {
-    // delete m_options;
+    delete m_options;
 }
 
 void  KisDeformOption::readOptionSetting(const KisPropertiesConfiguration * config)
 {
-    m_options->deformRadiusSPBox->setValue(config->getInt("Deform/radius"));
-    m_options->deformAmountSPBox->setValue(config->getDouble("Deform/deformAmount"));
-    m_options->interpolationChBox->setChecked(config->getBool("Deform/bilinear"));
-    m_options->addPaintChBox->setChecked(config->getBool("Deform/useMovementPaint"));
-    m_options->useCounter->setChecked(config->getBool("Deform/useCounter"));
-    m_options->useOldData->setChecked(config->getBool("Deform/useOldData"));
-    m_options->spacingKDNumInp->setValue(config->getDouble("Deform/spacing"));
+    m_options->deformAmountSPBox->setValue(config->getDouble(DEFORM_AMOUNT));
+    m_options->interpolationChBox->setChecked(config->getBool(DEFORM_USE_BILINEAR));
+    m_options->addPaintChBox->setChecked(config->getBool(DEFORM_USE_MOVEMENT_PAINT));
+    m_options->useCounter->setChecked(config->getBool(DEFORM_USE_COUNTER));
+    m_options->useOldData->setChecked(config->getBool(DEFORM_USE_OLD_DATA));
 
-    int deformAction = config->getInt("Deform/deformAction");
+    int deformAction = config->getInt(DEFORM_ACTION);
     if (deformAction == 1) {
         m_options->growBtn->setChecked(true);
     } else if (deformAction == 2) {
@@ -91,24 +87,12 @@ void  KisDeformOption::readOptionSetting(const KisPropertiesConfiguration * conf
 
 void KisDeformOption::writeOptionSetting(KisPropertiesConfiguration* config) const
 {
-    config->setProperty("Deform/radius", radius());
-    config->setProperty("Deform/deformAmount", deformAmount());
-    config->setProperty("Deform/deformAction", deformAction());
-    config->setProperty("Deform/bilinear", bilinear());
-    config->setProperty("Deform/useMovementPaint", useMovementPaint());
-    config->setProperty("Deform/useCounter", useCounter());
-    config->setProperty("Deform/useOldData", useOldData());
-    config->setProperty("Deform/spacing", spacing());
-}
-
-int  KisDeformOption::radius() const
-{
-    return m_options->deformRadiusSPBox->value();
-}
-
-double  KisDeformOption::deformAmount() const
-{
-    return m_options->deformAmountSPBox->value();
+    config->setProperty(DEFORM_AMOUNT, m_options->deformAmountSPBox->value());
+    config->setProperty(DEFORM_ACTION, deformAction());
+    config->setProperty(DEFORM_USE_BILINEAR, m_options->interpolationChBox->isChecked());
+    config->setProperty(DEFORM_USE_MOVEMENT_PAINT, m_options->addPaintChBox->isChecked());
+    config->setProperty(DEFORM_USE_COUNTER, m_options->useCounter->isChecked());
+    config->setProperty(DEFORM_USE_OLD_DATA, m_options->useOldData->isChecked());
 }
 
 int  KisDeformOption::deformAction() const
@@ -133,36 +117,5 @@ int  KisDeformOption::deformAction() const
     } else {
         return -1;
     }
-}
-
-bool  KisDeformOption::bilinear() const
-{
-    return m_options->interpolationChBox->isChecked();
-}
-
-bool KisDeformOption::useMovementPaint() const
-{
-    return m_options->addPaintChBox->isChecked();
-}
-
-bool KisDeformOption::useCounter() const
-{
-    return m_options->useCounter->isChecked();
-}
-
-bool KisDeformOption::useOldData() const
-{
-    return m_options->useOldData->isChecked();
-}
-
-qreal KisDeformOption::spacing() const
-{
-    return m_options->spacingKDNumInp->value();
-}
-
-
-void KisDeformOption::setRadius(int radius) const
-{
-    m_options->deformRadiusSPBox->setValue( radius );
 }
 

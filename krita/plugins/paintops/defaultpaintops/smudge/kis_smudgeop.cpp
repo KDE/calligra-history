@@ -22,16 +22,7 @@
 
 #include "kis_smudgeop.h"
 
-#include <string.h>
-
 #include <QRect>
-#include <QWidget>
-#include <QLayout>
-#include <QLabel>
-#include <QCheckBox>
-#include <QDomElement>
-#include <QHBoxLayout>
-#include <qtoolbutton.h>
 
 #include <kis_debug.h>
 
@@ -39,25 +30,16 @@
 #include <KoColorTransformation.h>
 #include <KoColor.h>
 #include <KoCompositeOp.h>
-#include <KoInputDevice.h>
 
 #include <kis_brush.h>
-#include <kis_datamanager.h>
 #include <kis_global.h>
 #include <kis_paint_device.h>
 #include <kis_painter.h>
-#include <kis_paintop.h>
-#include <kis_properties_configuration.h>
 #include <kis_selection.h>
-#include <kis_brush_option_widget.h>
-#include <kis_paintop_options_widget.h>
+#include <kis_brush_based_paintop_settings.h>
 
-#include "kis_smudgeop_settings.h"
-#include "kis_smudgeop_settings_widget.h"
-
-KisSmudgeOp::KisSmudgeOp(const KisSmudgeOpSettings *settings, KisPainter *painter, KisImageWSP image)
+KisSmudgeOp::KisSmudgeOp(const KisBrushBasedPaintOpSettings *settings, KisPainter *painter, KisImageWSP image)
         : KisBrushBasedPaintOp(settings, painter)
-        , settings(settings)
         , m_firstRun(true)
         , m_target(0)
         , m_srcdev(0)
@@ -72,13 +54,8 @@ KisSmudgeOp::KisSmudgeOp(const KisSmudgeOpSettings *settings, KisPainter *painte
     m_opacityOption.sensor()->reset();
     m_rateOption.sensor()->reset();
 
-    if (settings->node()) {
-        m_source = settings->node()->paintDevice();
-    } else {
-        m_source = painter->device();
-    }
-    m_srcdev = new KisPaintDevice(m_source->colorSpace());
-    m_target = new KisPaintDevice(m_source->colorSpace());
+    m_srcdev = new KisPaintDevice(painter->device()->colorSpace());
+    m_target = new KisPaintDevice(painter->device()->colorSpace());
 
 }
 
@@ -86,19 +63,19 @@ KisSmudgeOp::~KisSmudgeOp()
 {
 }
 
-void KisSmudgeOp::paintAt(const KisPaintInformation& info)
+double KisSmudgeOp::paintAt(const KisPaintInformation& info)
 {
-    if (!painter()->device()) return;
+    if (!painter()->device()) return 1.0;
 
     KisBrushSP brush = m_brush;
     if (!brush)
-        return;
+        return 1.0;
 
     if (! brush->canPaintFor(info))
-        return;
+        return 1.0;
 
     double scale = KisPaintOp::scaleForPressure(m_sizeOption.apply(info));
-    if ((scale * brush->width()) <= 0.01 || (scale * brush->height()) <= 0.01) return;
+    if ((scale * brush->width()) <= 0.01 || (scale * brush->height()) <= 0.01) return 1.0;
 
     KisPaintDeviceSP device = painter()->device();
     QPointF hotSpot = brush->hotSpot(scale, scale);
@@ -119,7 +96,7 @@ void KisSmudgeOp::paintAt(const KisPaintInformation& info)
 
     QRect dabRect = QRect(0, 0, brush->maskWidth(scale, 0.0), brush->maskHeight(scale, 0.0));
     QRect dstRect = QRect(x, y, dabRect.width(), dabRect.height());
-    if (dstRect.isNull() || dstRect.isEmpty() || !dstRect.isValid()) return;
+    if (dstRect.isNull() || dstRect.isEmpty() || !dstRect.isValid()) return 1.0;
 
     if (brush->brushType() == IMAGE || brush->brushType() == PIPE_IMAGE) {
         dab = brush->paintDevice(device->colorSpace(), scale, 0.0, info, xFraction, yFraction);
@@ -127,8 +104,9 @@ void KisSmudgeOp::paintAt(const KisPaintInformation& info)
     } else {
         dab = cachedDab();
         KoColor color = painter()->paintColor();
-        dab->convertTo(KoColorSpaceRegistry::instance()->alpha8());
+        color.convertTo(dab->colorSpace());
         brush->mask(dab, color, scale, scale, 0.0, info, xFraction, yFraction);
+        dab->convertTo(KoColorSpaceRegistry::instance()->alpha8());
     }
 
     qint32 sw = dab->bounds().width();
@@ -143,18 +121,18 @@ void KisSmudgeOp::paintAt(const KisPaintInformation& info)
          * this combination is then composited upon the actual image
        TODO: what happened exactly in 1.6 (and should happen now) when the dab resizes halfway due to pressure?
     */
-    int opacity = OPACITY_OPAQUE;
+    int opacity = OPACITY_OPAQUE_U8;
     if (!m_firstRun) {
         opacity = m_rateOption.apply(opacity, info);
 
         KisRectIterator it = m_srcdev->createRectIterator(0, 0, sw, sh);
         KoColorSpace* cs = m_srcdev->colorSpace();
         while (!it.isDone()) {
-            cs->setAlpha(it.rawData(), (cs->alpha(it.rawData()) * opacity) / OPACITY_OPAQUE, 1);
+            cs->setOpacity(it.rawData(), quint8(cs->opacityF(it.rawData()) * opacity), 1);
             ++it;
         }
 
-        opacity = OPACITY_OPAQUE - opacity;
+        opacity = OPACITY_OPAQUE_U8 - opacity;
     } else {
         m_firstRun = false;
     }
@@ -164,12 +142,12 @@ void KisSmudgeOp::paintAt(const KisPaintInformation& info)
     copyPainter.bitBlt(0, 0, device, pt.x(), pt.y(), sw, sh);
     copyPainter.end();
 
-    m_target = new KisPaintDevice(device->colorSpace());
+    m_target->clear();
 
     // Looks hacky, but we lost bltMask, or the ability to easily convert alpha8 paintdev to selection?
     KisSelectionSP dabAsSelection = new KisSelection();
     copyPainter.begin(dabAsSelection);
-    copyPainter.setOpacity(OPACITY_OPAQUE);
+    copyPainter.setOpacity(OPACITY_OPAQUE_U8);
     copyPainter.setCompositeOp(COMPOSITE_COPY);
     copyPainter.bltFixed(0, 0, dab, 0, 0, sw, sh);
     copyPainter.end();
@@ -186,5 +164,5 @@ void KisSmudgeOp::paintAt(const KisPaintInformation& info)
     sh = dstRect.height();
 
     painter()->bitBlt(dstRect.x(), dstRect.y(), m_target, sx, sy, sw, sh);
-
+    return spacing(scale);
 }

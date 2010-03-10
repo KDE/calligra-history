@@ -61,6 +61,7 @@
 
 #include "kis_duplicateop_settings.h"
 #include "kis_duplicateop_settings_widget.h"
+#include "kis_duplicateop_option.h"
 
 
 KisDuplicateOp::KisDuplicateOp(const KisDuplicateOpSettings *settings, KisPainter *painter)
@@ -70,6 +71,8 @@ KisDuplicateOp::KisDuplicateOp(const KisDuplicateOpSettings *settings, KisPainte
     Q_ASSERT(settings);
     Q_ASSERT(painter);
     m_sizeOption.readOptionSetting(settings);
+    m_healing = settings->getBool(DUPLICATE_HEALING);
+    m_perspectiveCorrection = settings->getBool(DUPLICATE_CORRECT_PERSPECTIVE);
 }
 
 KisDuplicateOp::~KisDuplicateOp()
@@ -103,25 +106,23 @@ double KisDuplicateOp::minimizeEnergy(const double* m, double* sol, int w, int h
 #define CLAMP(x,l,u) ((x)<(l)?(l):((x)>(u)?(u):(x)))
 
 
-void KisDuplicateOp::paintAt(const KisPaintInformation& info)
+double KisDuplicateOp::paintAt(const KisPaintInformation& info)
 {
-    if (!painter()) return;
+    if (!painter()) return 1.0;
 
     if (!m_duplicateStartIsSet) {
         m_duplicateStartIsSet = true;
         m_duplicateStart = info.pos();
     }
 
-    bool heal = settings->healing();
-
-    if (!source()) return;
+    if (!source()) return 1.0;
 
     KisBrushSP brush = m_brush;
     if (!brush)
-        return;
+        return 1.0;
 
     if (! brush->canPaintFor(info))
-        return;
+        return 1.0;
 
     double scale = KisPaintOp::scaleForPressure(m_sizeOption.apply(info));
     QPointF hotSpot = brush->hotSpot(scale, scale);
@@ -159,7 +160,7 @@ void KisDuplicateOp::paintAt(const KisPaintInformation& info)
 
     // Perspective correction ?
     KisImageWSP image = settings->m_image;
-    if (settings->perspectiveCorrection() && image && image->perspectiveGrid()->countSubGrids() == 1) {
+    if (m_perspectiveCorrection && image && image->perspectiveGrid()->countSubGrids() == 1) {
         Matrix3qreal startM = Matrix3qreal::Identity();
         Matrix3qreal endM = Matrix3qreal::Identity();
 
@@ -221,7 +222,7 @@ void KisDuplicateOp::paintAt(const KisPaintInformation& info)
 
     // heal ?
 
-    if (heal) {
+    if (m_healing) {
         quint16 dataDevice[4];
         quint16 dataSrcDev[4];
         double* matrix = new double[ 3 * sw * sh ];
@@ -296,7 +297,7 @@ void KisDuplicateOp::paintAt(const KisPaintInformation& info)
         dstRect &= painter()->bounds();
     }
 
-    if (dstRect.isNull() || dstRect.isEmpty() || !dstRect.isValid()) return;
+    if (dstRect.isNull() || dstRect.isEmpty() || !dstRect.isValid()) return 1.0;
 
     qint32 sx = dstRect.x() - x;
     qint32 sy = dstRect.y() - y;
@@ -305,5 +306,5 @@ void KisDuplicateOp::paintAt(const KisPaintInformation& info)
 
     painter()->bitBlt(dstRect.x(), dstRect.y(), m_srcdev, sx, sy, sw, sh);
 
-
+    return spacing(scale);
 }

@@ -125,6 +125,7 @@ KisBrush::KisBrush(const QString& filename)
 
 KisBrush::KisBrush(const KisBrush& rhs)
     : KoResource("")
+    , KisShared()
     , d(new Private)
 {
     m_image = rhs.m_image;
@@ -344,9 +345,14 @@ void KisBrush::generateMaskAndApplyMaskOrCreateDab(KisFixedPaintDeviceSP dst,
 
     KisQImagemaskSP outputMask = createMask(scale, subPixelX, subPixelY);
 
+    if (angle != 0)
+    {
+        outputMask->rotation(angle);
+    }
+
     qint32 maskWidth = outputMask->width();
     qint32 maskHeight = outputMask->height();
-
+    
     if (coloringInformation) {
 
         // old bounds
@@ -357,7 +363,7 @@ void KisBrush::generateMaskAndApplyMaskOrCreateDab(KisFixedPaintDeviceSP dst,
 
         if (maskWidth * maskHeight <= bounds.width() * bounds.height()) {
             // just clear the data in dst,
-            memset(dst->data(), OPACITY_TRANSPARENT, maskWidth * maskHeight * dst->pixelSize());
+            memset(dst->data(), OPACITY_TRANSPARENT_U8, maskWidth * maskHeight * dst->pixelSize());
         } else {
             dst->initialize();
         }
@@ -378,15 +384,15 @@ void KisBrush::generateMaskAndApplyMaskOrCreateDab(KisFixedPaintDeviceSP dst,
         }
     } else {
         // Mask everything out
-        cs->setAlpha(dst->data(), OPACITY_TRANSPARENT, dst->bounds().width() * dst->bounds().height());
+        cs->setOpacity(dst->data(), OPACITY_TRANSPARENT_U8, dst->bounds().width() * dst->bounds().height());
     }
 
     int rowWidth = dst->bounds().width();
 
-    quint8* maskPointer = outputMask->data();
     quint8* rowPointer = dabPointer;
 
     for (int y = 0; y < maskHeight; y++) {
+        quint8* maskPointer = outputMask->scanline(y);
         for (int x = 0; x < maskWidth; x++) {
             if (coloringInformation) {
                 if (color) {
@@ -420,7 +426,6 @@ KisFixedPaintDeviceSP KisBrush::paintDevice(const KoColorSpace * colorSpace,
     Q_ASSERT(valid());
     Q_UNUSED(colorSpace);
     Q_UNUSED(info);
-    Q_UNUSED(angle);
     if (d->scaledBrushes.isEmpty()) {
         createScaledBrushes();
     }
@@ -455,6 +460,11 @@ KisFixedPaintDeviceSP KisBrush::paintDevice(const KoColorSpace * colorSpace,
             outputImage = scaleSinglePixelImage(s, aboveBrush->image().pixel(0, 0), subPixelX, subPixelY);
 
         }
+    }
+    
+    if (angle != 0.0)
+    {
+        outputImage = outputImage.transformed(QMatrix().rotate(-angle * 180 / M_PI));
     }
 
     int outputWidth = outputImage.width();
@@ -630,10 +640,10 @@ KisQImagemaskSP KisBrush::scaleMask(const KisScaledBrush *srcBrush, double scale
 
             double yInterp = srcY - topY;
 
-            quint8 topLeft = (leftX >= 0 && leftX < srcWidth && topY >= 0 && topY < srcHeight) ? srcMask->alphaAt(leftX, topY) : OPACITY_TRANSPARENT;
-            quint8 bottomLeft = (leftX >= 0 && leftX < srcWidth && topY + 1 >= 0 && topY + 1 < srcHeight) ? srcMask->alphaAt(leftX, topY + 1) : OPACITY_TRANSPARENT;
-            quint8 topRight = (leftX + 1 >= 0 && leftX + 1 < srcWidth && topY >= 0 && topY < srcHeight) ? srcMask->alphaAt(leftX + 1, topY) : OPACITY_TRANSPARENT;
-            quint8 bottomRight = (leftX + 1 >= 0 && leftX + 1 < srcWidth && topY + 1 >= 0 && topY + 1 < srcHeight) ? srcMask->alphaAt(leftX + 1, topY + 1) : OPACITY_TRANSPARENT;
+            quint8 topLeft = (leftX >= 0 && leftX < srcWidth && topY >= 0 && topY < srcHeight) ? srcMask->alphaAt(leftX, topY) : OPACITY_TRANSPARENT_U8;
+            quint8 bottomLeft = (leftX >= 0 && leftX < srcWidth && topY + 1 >= 0 && topY + 1 < srcHeight) ? srcMask->alphaAt(leftX, topY + 1) : OPACITY_TRANSPARENT_U8;
+            quint8 topRight = (leftX + 1 >= 0 && leftX + 1 < srcWidth && topY >= 0 && topY < srcHeight) ? srcMask->alphaAt(leftX + 1, topY) : OPACITY_TRANSPARENT_U8;
+            quint8 bottomRight = (leftX + 1 >= 0 && leftX + 1 < srcWidth && topY + 1 >= 0 && topY + 1 < srcHeight) ? srcMask->alphaAt(leftX + 1, topY + 1) : OPACITY_TRANSPARENT_U8;
 
             double a = 1 - xInterp;
             double b = 1 - yInterp;
@@ -644,10 +654,10 @@ KisQImagemaskSP KisBrush::scaleMask(const KisScaledBrush *srcBrush, double scale
                                      + (1 - a) * b * topRight
                                      + (1 - a) * (1 - b) * bottomRight + 0.5);
 
-            if (d < OPACITY_TRANSPARENT) {
-                d = OPACITY_TRANSPARENT;
-            } else if (d > OPACITY_OPAQUE) {
-                d = OPACITY_OPAQUE;
+            if (d < OPACITY_TRANSPARENT_U8) {
+                d = OPACITY_TRANSPARENT_U8;
+            } else if (d > OPACITY_OPAQUE_U8) {
+                d = OPACITY_OPAQUE_U8;
             }
 
             dstMask->setAlphaAt(dstX, dstY, static_cast<quint8>(d));
@@ -666,6 +676,10 @@ QImage KisBrush::scaleImage(const KisScaledBrush *srcBrush, double scale, double
     QImage dstImage(dstWidth, dstHeight, QImage::Format_ARGB32);
 
     QImage srcImage = srcBrush->image();
+    if (srcImage.format() != QImage::Format_ARGB32)
+    {
+        srcImage = srcImage.convertToFormat(QImage::Format_ARGB32);
+    }
 
     // Compute scales to map the scaled brush onto the required scale.
     double xScale = srcBrush->xScale() / scale;
@@ -767,6 +781,10 @@ QImage KisBrush::scaleImage(const QImage& _srcImage, int width, int height)
     QImage scaledImage;
     QImage srcImage = _srcImage; // detaches!
     //QString filename;
+    if (srcImage.format() != QImage::Format_ARGB32)
+    {
+        srcImage = srcImage.convertToFormat(QImage::Format_ARGB32);
+    }
 
     int srcWidth = srcImage.width();
     int srcHeight = srcImage.height();
@@ -944,10 +962,10 @@ KisQImagemaskSP KisBrush::scaleSinglePixelMask(double scale, quint8 maskValue, d
 
         for (int x = 0; x < dstWidth; x++) {
 
-            quint8 topLeft = (x > 0 && y > 0) ? maskValue : OPACITY_TRANSPARENT;
-            quint8 bottomLeft = (x > 0 && y < srcHeight) ? maskValue : OPACITY_TRANSPARENT;
-            quint8 topRight = (x < srcWidth && y > 0) ? maskValue : OPACITY_TRANSPARENT;
-            quint8 bottomRight = (x < srcWidth && y < srcHeight) ? maskValue : OPACITY_TRANSPARENT;
+            quint8 topLeft = (x > 0 && y > 0) ? maskValue : OPACITY_TRANSPARENT_U8;
+            quint8 bottomLeft = (x > 0 && y < srcHeight) ? maskValue : OPACITY_TRANSPARENT_U8;
+            quint8 topRight = (x < srcWidth && y > 0) ? maskValue : OPACITY_TRANSPARENT_U8;
+            quint8 bottomRight = (x < srcWidth && y < srcHeight) ? maskValue : OPACITY_TRANSPARENT_U8;
 
             // Bi-linear interpolation
             int d = static_cast<int>(a * b * topLeft
@@ -959,10 +977,10 @@ KisQImagemaskSP KisBrush::scaleSinglePixelMask(double scale, quint8 maskValue, d
             // has 0.25 the value of the 1x1.
             d = static_cast<int>(d * scale * scale + 0.5);
 
-            if (d < OPACITY_TRANSPARENT) {
-                d = OPACITY_TRANSPARENT;
-            } else if (d > OPACITY_OPAQUE) {
-                d = OPACITY_OPAQUE;
+            if (d < OPACITY_TRANSPARENT_U8) {
+                d = OPACITY_TRANSPARENT_U8;
+            } else if (d > OPACITY_OPAQUE_U8) {
+                d = OPACITY_OPAQUE_U8;
             }
 
             outputMask->setAlphaAt(x, y, static_cast<quint8>(d));
@@ -1115,8 +1133,6 @@ void KisBrush::resetBoundary()
 void KisBrush::generateBoundary() const
 {
     KisFixedPaintDeviceSP dev;
-    int w = width();
-    int h = height();
 
     if (brushType() == IMAGE || brushType() == PIPE_IMAGE) {
         dev = paintDevice(KoColorSpaceRegistry::instance()->rgb8(), 1.0, 0.0, KisPaintInformation());
@@ -1143,8 +1159,8 @@ void KisBrush::generateBoundary() const
 #endif
     }
 
-    d->boundary = new KisBoundary(dev.data());
-    d->boundary->generateBoundary(w, h);
+    d->boundary = new KisBoundary(dev);
+    d->boundary->generateBoundary();
 }
 
 const KisBoundary* KisBrush::boundary() const

@@ -96,11 +96,9 @@ void KoGenChange::writeChange(KoXmlWriter* writer, const QString& name) const
             writer->addCompleteElement(m_literalData.value("changeMetaData").toUtf8());
         writer->endElement(); // office:change-info
     }
-    if ((m_type == KoGenChange::deleteChange) && m_literalData.contains("deletedData")) {
-        QString deletedElement;
-        deletedElement = QString("<text:p>") + m_literalData.value("deletedData") + QString("</text:p>");
-        writer->addCompleteElement(deletedElement.toUtf8());
-    }
+    if ((m_type == KoGenChange::deleteChange) && m_literalData.contains("deleteChangeXml"))
+        writer->addCompleteElement(m_literalData.value("deleteChangeXml").toUtf8());
+    
     writer->endElement(); // text:insertion/format/deletion
     writer->endElement(); // text:change
 }
@@ -121,7 +119,5 @@ bool KoGenChange::operator==(const KoGenChange &other) const
     if (m_literalData.count() != other.m_literalData.count()) return false;
     int comp = compareMap(m_changeMetaData, other.m_changeMetaData);
     if (comp != 0) return false;
-    comp = compareMap(m_literalData, other.m_literalData);
-    if (comp != 0) return false;
-    return true;
+    return (compareMap(m_literalData, other.m_literalData) == 0);
 }

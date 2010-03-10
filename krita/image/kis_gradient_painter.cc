@@ -55,6 +55,8 @@
 
 
 #include "KoColorSpaceRegistry.h"
+#include "kis_iterator_ng.h"
+#include "kis_random_accessor_ng.h"
 
 namespace
 {
@@ -576,7 +578,7 @@ bool KisGradientPainter::paintGradient(const QPointF& gradientVectorStart,
     const KoColorSpace * colorSpace = dev->colorSpace();
     KoColor color(colorSpace);
     qint32 pixelSize = colorSpace->pixelSize();
-    KisHLineIteratorPixel hit = dev->createHLineIterator(startx, starty, width);
+    KisHLineIteratorSP hit = dev->createHLineIteratorNG(startx, starty, width);
     for (int y = starty; y <= endy; y++) {
 
         for (int x = startx; x <= endx; x++) {
@@ -589,11 +591,11 @@ bool KisGradientPainter::paintGradient(const QPointF& gradientVectorStart,
             }
 
             gradient()->colorAt(color, t);
-            memcpy(hit.rawData(), color.data(), pixelSize);
+            memcpy(hit->rawData(), color.data(), pixelSize);
 
-            ++hit;
+            hit->nextPixel();
         }
-        hit.nextRow();
+        hit->nextRow();
 
         linesProcessed++;
 
@@ -618,8 +620,8 @@ bool KisGradientPainter::paintGradient(const QPointF& gradientVectorStart,
         if (false && antiAliasThreshold < 1 - DBL_EPSILON) {
 
             QList<KoChannelInfo *> channels = colorSpace->channels();
-            KisHLineIterator iter = dev->createHLineIterator(0, 0, 0);
-            KisRandomAccessor accessor = dev->createRandomAccessor(0, 0, 0);
+            KisHLineIteratorSP iter = dev->createHLineIteratorNG(0, 0, 0);
+            KisRandomAccessorSP accessor = dev->createRandomAccessorNG(0, 0);
             double squareRootNumColorChannels = sqrt(static_cast<double>(colorSpace->colorChannelCount()));
 
             for (int y = starty; y <= endy; y++) {
@@ -627,8 +629,8 @@ bool KisGradientPainter::paintGradient(const QPointF& gradientVectorStart,
 
                     double maxDistance = 0;
                     quint8* thisPixel = colorSpace->allocPixelBuffer(1);
-                    memcpy(thisPixel, iter.rawData(), pixelSize);
-                    quint8 thisPixelOpacity = colorSpace->alpha(thisPixel);
+                    memcpy(thisPixel, iter->rawData(), pixelSize);
+                    quint8 thisPixelOpacity = colorSpace->opacityU8(thisPixel);
 
                     // XXX: Move the distance computation into the colorspace when it works.
                     for (int yOffset = -1; yOffset < 2; yOffset++) {
@@ -642,9 +644,9 @@ bool KisGradientPainter::paintGradient(const QPointF& gradientVectorStart,
                                     uint x = sampleX - startx;
                                     uint y = sampleY - starty;
 
-                                    accessor.moveTo(x, y);
-                                    quint8 * pixel = accessor.rawData();
-                                    quint8 opacity = colorSpace->alpha(pixel);
+                                    accessor->moveTo(x, y);
+                                    quint8 * pixel = accessor->rawData();
+                                    quint8 opacity = colorSpace->opacityU8(pixel);
 
                                     double totalDistance = 0;
 
@@ -738,11 +740,11 @@ bool KisGradientPainter::paintGradient(const QPointF& gradientVectorStart,
                                         }
                                     }
                                 }
-                                totalOpacity += colorSpace->alpha(color.data());
+                                totalOpacity += colorSpace->opacityU8(color.data());
                             }
                         }
-                        accessor.moveTo(x - startx, y - starty);
-                        quint8 * pixel = accessor.rawData();
+                        accessor->moveTo(x - startx, y - starty);
+                        quint8 * pixel = accessor->rawData();
                         foreach(KoChannelInfo * channel, channels) {
                             if (channel->channelType() == KoChannelInfo::COLOR) {
                                 int pos = channel->pos();
@@ -750,7 +752,7 @@ bool KisGradientPainter::paintGradient(const QPointF& gradientVectorStart,
                                 memcpy(pixel + pos, &val, channel->size());
                             }
                         }
-                        colorSpace->setAlpha(pixel, totalOpacity, 1);
+                        colorSpace->setOpacity(pixel, quint8(totalOpacity), 1);
                     }
 
                     pixelsProcessed++;
@@ -765,9 +767,9 @@ bool KisGradientPainter::paintGradient(const QPointF& gradientVectorStart,
                             break;
                         }
                     }
-                    ++iter;
+                    iter->nextPixel();
                 }
-                iter.nextRow();
+                iter->nextRow();
                 if (progressUpdater() && progressUpdater()->interrupted()) {
                     break;
                 }

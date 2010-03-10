@@ -24,6 +24,7 @@
 
 #include <KoColorSpaceConstants.h>
 
+#include "kis_distance_information.h"
 #include "kis_global.h"
 #include "kis_types.h"
 #include <krita_export.h>
@@ -108,9 +109,6 @@ public:
     /// begin a transaction with the given command
     void beginTransaction(KisTransaction* command);
 
-    /// Return the current transcation
-    KisTransaction  * transaction();
-
     /// Returns the current paint device.
     const KisPaintDeviceSP device() const;
     KisPaintDeviceSP device();
@@ -160,6 +158,30 @@ public:
      */
     void bltFixed(const QPoint & pos, const KisFixedPaintDeviceSP src, const QRect & srcRect);
 
+    /**
+     * Transfer the specified region from src onto the current paint device with selection. 
+     * Src is a * fixed-size paint device: this means that src must have the same colorspace as
+     * the destination device. Selection is also fixed-size paint device and it's colorspace has
+     * to be alpha8. Assert if there is wrong colorspace for selection
+     *
+     * @param dx the destination x-coordinate
+     * @param dy the destination y-coordinate
+     * @param op a pointer to the composite op use to blast the pixels from src on dst
+     * @param src the source device
+     * @param selection the selection stored in fixed device
+     * @param sx the source x-coordinate
+     * @param sy the source y-coordinate
+     * @param sw the width of the region
+     * @param sh the height of the region
+     */
+    void bltFixed(qint32 dx, qint32 dy,
+                  const KisFixedPaintDeviceSP srcDev,
+                  const KisFixedPaintDeviceSP selection,
+                  qint32 sx, qint32 sy,
+                  qint32 sw, qint32 sh);
+    
+    
+    
 
     /**
      * The methods below are 'higher' level than the above methods. They need brushes, colors
@@ -184,9 +206,9 @@ public:
      * @return the drag distance, that is the remains of the distance between p1 and p2 not covered
      * because the currenlty set brush has a spacing greater than that distance.
      */
-    double paintLine(const KisPaintInformation &pi1,
+    KisDistanceInformation paintLine(const KisPaintInformation &pi1,
                      const KisPaintInformation &pi2,
-                     double savedDist = -1);
+                     const KisDistanceInformation& savedDist = KisDistanceInformation());
 
     /**
      * Draw a Bezier curve between pos1 and pos2 using control points 1 and 2.
@@ -195,11 +217,11 @@ public:
      * @return the drag distance, that is the remains of the distance between p1 and p2 not covered
      * because the currenlty set brush has a spacing greater than that distance.
      */
-    double paintBezierCurve(const KisPaintInformation &pi1,
+    KisDistanceInformation paintBezierCurve(const KisPaintInformation &pi1,
                             const QPointF &control1,
                             const QPointF &control2,
                             const KisPaintInformation &pi2,
-                            const double savedDist = -1);
+                            const KisDistanceInformation& savedDist = KisDistanceInformation());
     /**
      * Fill the given vector points with the points needed to draw the Bezier curve between
      * pos1 and pos2 using control points 1 and 2, excluding the final pos2.
@@ -256,7 +278,7 @@ public:
     void paintPolygon(const vQPointF& points);
 
     /** Draw a spot at pos using the currently set paint op, brush and color */
-    void paintAt(const KisPaintInformation &pos);
+    double paintAt(const KisPaintInformation &pos);
 
     /**
      * Stroke the given QPainterPath.
@@ -349,10 +371,10 @@ public:
     KisPaintOp* paintOp() const;
 
     /// Set the current pattern
-    void setPattern(KisPattern * pattern);
+    void setPattern(const KisPattern * pattern);
 
     /// Returns the currently set pattern
-    KisPattern * pattern() const;
+    const KisPattern * pattern() const;
 
     /**
      * Set the color that will be used to paint with, and convert it
@@ -379,10 +401,10 @@ public:
     const KoColor &fillColor() const;
 
     /// Set the current generator (a generator can be used to fill an area
-    void setGenerator(KisFilterConfiguration * generator);
+    void setGenerator(const KisFilterConfiguration * generator);
 
     /// @return the current generator configuration
-    KisFilterConfiguration * generator() const;
+    const KisFilterConfiguration * generator() const;
 
     /// This enum contains the styles with which we can fill things like polygons and ellipses
     enum FillStyle {

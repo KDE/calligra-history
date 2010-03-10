@@ -94,18 +94,18 @@ public:
      * Fill a rectangle with a certain pattern. The pattern is repeated if it does not fit the
      * entire rectangle.
      */
-    void fillRect(qint32 x1, qint32 y1, qint32 w, qint32 h, KisPattern * pattern);
+    void fillRect(qint32 x1, qint32 y1, qint32 w, qint32 h, const KisPattern * pattern);
 
     /**
      * Overloaded version of the above function.
      */
-    void fillRect(const QRect& rc, KisPattern * pattern);
+    void fillRect(const QRect& rc, const KisPattern * pattern);
 
     /**
      * Fill the specified area with the output of the generator plugin that is configured
      * in the generator parameter
      */
-    void fillRect(qint32 x1, qint32 y1, qint32 w, qint32 h, KisFilterConfiguration * generator);
+    void fillRect(qint32 x1, qint32 y1, qint32 w, qint32 h, const KisFilterConfiguration * generator);
 
     /**
      * Fills the enclosed area around the point with the set color. If
@@ -225,13 +225,13 @@ private:
 inline
 void KisFillPainter::fillRect(qint32 x, qint32 y, qint32 w, qint32 h, const KoColor& c)
 {
-    fillRect(x, y, w, h, c, OPACITY_OPAQUE);
+    fillRect(x, y, w, h, c, OPACITY_OPAQUE_U8);
 }
 
 inline
 void KisFillPainter::fillRect(const QRect& rc, const KoColor& c)
 {
-    fillRect(rc.x(), rc.y(), rc.width(), rc.height(), c, OPACITY_OPAQUE);
+    fillRect(rc.x(), rc.y(), rc.width(), rc.height(), c, OPACITY_OPAQUE_U8);
 }
 
 inline
@@ -239,7 +239,7 @@ void KisFillPainter::eraseRect(qint32 x1, qint32 y1, qint32 w, qint32 h)
 {
     const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
     KoColor c(Qt::black, cs);
-    fillRect(x1, y1, w, h, c, OPACITY_TRANSPARENT);
+    fillRect(x1, y1, w, h, c, OPACITY_TRANSPARENT_U8);
 }
 
 inline
@@ -247,7 +247,7 @@ void KisFillPainter::eraseRect(const QRect& rc)
 {
     const KoColorSpace * cs = KoColorSpaceRegistry::instance()->rgb8();
     KoColor c(Qt::black, cs);
-    fillRect(rc.x(), rc.y(), rc.width(), rc.height(), c, OPACITY_TRANSPARENT);
+    fillRect(rc.x(), rc.y(), rc.width(), rc.height(), c, OPACITY_TRANSPARENT_U8);
 }
 
 inline
@@ -257,7 +257,7 @@ void KisFillPainter::fillRect(const QRect& rc, const KoColor& c, quint8 opacity)
 }
 
 inline
-void KisFillPainter::fillRect(const QRect& rc, KisPattern *pattern)
+void KisFillPainter::fillRect(const QRect& rc, const KisPattern* pattern)
 {
     fillRect(rc.x(), rc.y(), rc.width(), rc.height(), pattern);
 }

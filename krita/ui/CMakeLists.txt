@@ -18,7 +18,7 @@ configure_file(config-processor.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-proce
 include(kdefx.cmake)
 
 set(kritaui_LIB_SRCS
-    canvas/kis_abstract_canvas_widget.cpp 
+    canvas/kis_canvas_widget_base.cpp 
     canvas/kis_canvas2.cpp 
     canvas/kis_canvas_decoration.cc
     canvas/kis_grid_manager.cpp 
@@ -87,7 +87,7 @@ set(kritaui_LIB_SRCS
     kis_resource_server_provider.cpp 
     kis_selection_decoration.cc
     kis_selection_manager.cc 
-    kis_statusbar.cc 
+    kis_statusbar.cc
     kis_view2.cpp 
     kis_zoom_manager.cc
     ko_favorite_resource_manager.cpp
@@ -109,7 +109,6 @@ set(kritaui_LIB_SRCS
     recorder/kis_recorded_action_editor_factory_registry.cc
     recorder/kis_recorded_filter_action_editor.cc
     recorder/kis_recorded_paint_action_editor.cc
-    tool/kis_selection_options.cc 
     tool/kis_selection_tool_helper.cpp 
     tool/kis_shape_tool_helper.cpp 
     tool/kis_tool.cc 
@@ -121,6 +120,7 @@ set(kritaui_LIB_SRCS
     tool/kis_tool_ellipse_base.cpp
     tool/kis_tool_rectangle_base.cpp
     tool/kis_tool_polyline_base.cpp
+    tool/kis_color_picker_utils.cpp
     widgets/kis_channelflags_widget.cpp 
     widgets/kis_cmb_composite.cc
     widgets/kis_cmb_idlist.cc 
@@ -143,7 +143,10 @@ set(kritaui_LIB_SRCS
     widgets/kis_preset_chooser.cpp
     widgets/kis_preset_widget.cpp 
     widgets/kis_progress_widget.cpp
+    widgets/kis_selection_options.cc 
+    widgets/kis_scratch_pad.cpp
     widgets/kis_tree_view_popup.cc 
+    widgets/kis_slider_spin_box.cpp
     widgets/kis_wdg_generator.cpp
     widgets/squeezedcombobox.cpp
 )
