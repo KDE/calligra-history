@@ -23,9 +23,10 @@
 
 #include <KoPAViewMode.h>
 #include <QTextEdit>
+#include <QTextTableCell>
 
-class QTextEdit;
 class QKeyEvent;
+class QTextTable;
 
 /**
  * @brief View for outline mode.
@@ -52,6 +53,13 @@ public:
     void activate(KoPAViewMode *previousViewMode);
     void deactivate();
 
+protected slots:
+    /**
+     * @brief Synchronize the editor with shapes.
+     * @see QTextDocument::contentsChange
+     */
+    void synchronize(int position, int charsRemoved, int charsAdded);
+
 protected:
     /**
      * (Un)indents current line or selection.
@@ -61,7 +69,6 @@ protected:
     bool indent(bool indent=true);
     void placeholderSwitch();
 
-protected:
     class KPrOutlineEditor : public QTextEdit {
     public:
         KPrOutlineEditor ( KPrViewModeOutline* out, QWidget * parent = 0 ) : QTextEdit(parent), outline(out) {};
@@ -74,18 +81,19 @@ protected:
          * Since we want to catch ALL tab key events, we completely disable
          * keyboard focus switching.
          */
-        virtual bool focusNextPrevChild(bool next) { return false; }
+        virtual bool focusNextPrevChild(bool next) { Q_UNUSED(next); return false; }
     private:
         KPrViewModeOutline *outline;
     };
 
 
 private:
-
-    /**
-     * @brief Synchronize the editor with shapes.
-     */
-    void synchronize();
+    QTextBlockFormat m_titleBlockFormat;
+    QTextBlockFormat m_defaultBlockFormat;
+    QTextCharFormat  m_titleCharFormat;
+    QTextCharFormat  m_defaultCharFormat;
+    QTextListFormat  m_listFormat;
+    QTextTable *m_table;
 
     /**
      * @brief The outline editor.
@@ -95,7 +103,7 @@ private:
     /**
      * @brief Link between frame in the editor and document in the shape.
      */
-    QMap<QTextFrame *, QTextDocument *> m_link;
+    QMap<int, QTextDocument *> m_link;
 
 };
 

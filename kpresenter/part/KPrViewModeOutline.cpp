@@ -26,6 +26,8 @@
 #include <QTextDocumentFragment>
 #include <QTextFrame>
 #include <QTextFrameFormat>
+#include <QTextList>
+#include <QTextListFormat>
 #include <QKeyEvent>
 #include <QShortcut>
 #include <QKeySequence>
@@ -35,8 +37,14 @@ KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas )
     , m_editor(new KPrOutlineEditor(this, m_view->parentWidget()))
     , m_link()
 {
-    //m_editor->setFocusPolicy(Qt::ClickFocus);
     m_editor->hide();
+
+    // sets text format
+    m_titleCharFormat.setFontWeight(QFont::Bold);
+    m_titleCharFormat.setFontPointSize(14.0);
+
+    m_defaultBlockFormat.setBottomMargin(15.0);
+    m_defaultBlockFormat.setLeftMargin(15.0);
 }
 
 KPrViewModeOutline::~KPrViewModeOutline()
@@ -97,40 +105,66 @@ void KPrViewModeOutline::wheelEvent( QWheelEvent * event, const QPointF &point )
     Q_UNUSED(point);
 }
 
+#include <QTextTable>
+#include <QTextTableCell>
 
 void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
 {
     Q_UNUSED(previousViewMode);
-    // Create cursor for editing documents
+
     QTextCursor cursor = m_editor->document()->rootFrame()->lastCursorPosition();
-    // Custom frame format
-    QTextFrameFormat frameFormat;
-    frameFormat.setBorderStyle(QTextFrameFormat::BorderStyle_Solid);
-    frameFormat.setBorder(1.0);
-    // Create frame for each page
+    QTextTableFormat frmt;
+    frmt.setBorderStyle(QTextFrameFormat::BorderStyle_None);
+    frmt.setBorder(0.0);
+    m_table = cursor.insertTable(1,1,frmt);
+
+    QTextTableCell currentCell = m_table->cellAt(0,0);
+    // Create a row
     foreach (KoPAPageBase * pageBase, m_view->kopaDocument()->pages()) {
         KPrPage * page = static_cast<KPrPage *>(pageBase);
-        QTextFrame * slideFrame = cursor.insertFrame(frameFormat);
         // Copy relevant content of the page in the frame
         foreach (OutlinePair pair, page->placeholders().outlineData()) {
-            if (pair.first == "title" || pair.first == "subtitle" || pair.first == "outline") {
-                m_link.insert(cursor.insertFrame(frameFormat), pair.second->document()); // Create frame and save the link
-                cursor.insertFragment(QTextDocumentFragment(pair.second->document()));
-                cursor = slideFrame->lastCursorPosition();
+            // gets text format
+            QTextBlockFormat *blockFormat;
+            QTextCharFormat *charFormat;
+            if (pair.first == "title") {
+                blockFormat = &m_titleBlockFormat;
+                charFormat = &m_titleCharFormat;
             }
+            else if (pair.first == "subtitle" || pair.first == "outline") {
+                blockFormat = &m_defaultBlockFormat;
+                charFormat = &m_defaultCharFormat;
+            }
+            else {
+                continue;
+            }
+            cursor = currentCell.firstCursorPosition();
+            m_link.insert(currentCell.row(), pair.second->document()); // Create frame and save the link
+            //cursor.setBlockFormat(*blockFormat);
+            cursor.setCharFormat(*charFormat);
+            // insert text (create lists where needed)
+            cursor.insertText(pair.second->document()->toPlainText());
+            cursor.movePosition(QTextCursor::End);
+
+            // prepare cell for the next element
+            m_table->appendRows(1);
+            currentCell = m_table->cellAt(m_table->rows()-1,0);
         }
-        cursor = m_editor->document()->rootFrame()->lastCursorPosition();
     }
+    m_table->removeRows(m_table->rows()-1,1);
+
     m_view->hide();
     m_editor->show();
     m_editor->setFocus(Qt::ActiveWindowFocusReason);
+
+    connect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
 }
 
 void KPrViewModeOutline::deactivate()
 {
+    disconnect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
     m_editor->hide();
-    synchronize();     // Save change
-    m_editor->clear(); // Content will be regenerated when outline mode is activate
+    m_editor->clear(); // Content will be regenerated when outline mode is activated
     m_link.clear();    // ditto
     m_view->show();
 }
@@ -152,6 +186,9 @@ bool KPrViewModeOutline::indent(bool indent)
     if(selectionStart >= startOfLine && selectionEnd <= endOfLine && selectionEnd != startOfLine) {
         return false;
     }
+
+    // if selection is through several frames, no indent should be done, but normal tab key
+    // should not be handled either
 
     cursor.beginEditBlock();
     QTextBlock block = cursor.block().document()->findBlock(selectionStart);
@@ -180,17 +217,39 @@ void KPrViewModeOutline::placeholderSwitch()
     qDebug() << "Placeholder switched !";
 }
 
-void KPrViewModeOutline::synchronize()
+void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAdded)
 {
-    QMap<QTextFrame *, QTextDocument *>::const_iterator i = m_link.constBegin();
-     while (i != m_link.constEnd()) {
-         QTextCursor cursorFrame = i.key()->firstCursorPosition();
-         cursorFrame.setPosition(cursorFrame.currentFrame()->lastPosition(), QTextCursor::KeepAnchor);
-         QTextCursor cursorDocument(i.value());
-         cursorDocument.select(QTextCursor::Document);
-         cursorDocument.removeSelectedText();
-         cursorDocument.insertFragment(cursorFrame.selection());
-         ++i;
+    QMap<int, QTextDocument *>::const_iterator i = m_link.constBegin();
+     qDebug() << "Event on position " << position;
+     // define in which frame text has changed
+     for (; i != m_link.constEnd() && (m_table->cellAt(i.key(),0).firstCursorPosition().position() > position || m_table->cellAt(i.key(),0).lastCursorPosition().position() < position); ++i) {
+         QTextTableCell cell = m_table->cellAt(i.key(), 0);
+         qDebug() << "Not in cell " << i.key() << " from pos " << cell.firstCursorPosition().position() << " to " << cell.lastCursorPosition().position();
+     }
+
+     if(i == m_link.constEnd()) { return; }
+
+     QTextCursor cur(m_editor->document());
+     QTextCursor target(i.value());
+     QTextTableCell cell = m_table->cellAt(i.key(), 0);
+     int frameBegin = cell.firstCursorPosition().position();
+
+     qDebug() << "Event on frame " << i.key() << " from pos " << frameBegin<< " to " << cell.lastCursorPosition().position();
+     qDebug() << charsRemoved << " chars removed";
+
+     // synchronyze real target
+     if (charsAdded > 0) {
+         cur.setPosition(position);
+         cur.setPosition(position+charsAdded, QTextCursor::KeepAnchor);
+         qDebug() << charsAdded << " chars added (" << cur.selectedText() << ")";
+         target.setPosition(position - frameBegin);
+         target.insertText(cur.selectedText());
+     }
+
+     if (charsRemoved > 0) {
+         target.setPosition(position - frameBegin);
+         target.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor, charsRemoved);
+         target.deleteChar();
      }
 }
 
