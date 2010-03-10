@@ -42,9 +42,9 @@ KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas )
     // sets text format
     m_titleCharFormat.setFontWeight(QFont::Bold);
     m_titleCharFormat.setFontPointSize(14.0);
+    m_titleFrameFormat.setTopMargin(12.0);
 
-    m_defaultBlockFormat.setBottomMargin(15.0);
-    m_defaultBlockFormat.setLeftMargin(15.0);
+    m_defaultFrameFormat.setLeftMargin(15.0);
 }
 
 KPrViewModeOutline::~KPrViewModeOutline()
@@ -112,52 +112,43 @@ void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
 {
     Q_UNUSED(previousViewMode);
 
-    QTextCursor cursor = m_editor->document()->rootFrame()->lastCursorPosition();
-    QTextTableFormat frmt;
-    frmt.setBorderStyle(QTextFrameFormat::BorderStyle_None);
-    frmt.setBorder(0.0);
-    m_table = cursor.insertTable(1,1,frmt);
-
-    QTextTableCell currentCell = m_table->cellAt(0,0);
-    // Create a row
-    foreach (KoPAPageBase * pageBase, m_view->kopaDocument()->pages()) {
-        KPrPage * page = static_cast<KPrPage *>(pageBase);
-        // Copy relevant content of the page in the frame
-        foreach (OutlinePair pair, page->placeholders().outlineData()) {
-            // gets text format
-            QTextBlockFormat *blockFormat;
-            QTextCharFormat *charFormat;
-            if (pair.first == "title") {
-                blockFormat = &m_titleBlockFormat;
-                charFormat = &m_titleCharFormat;
-            }
-            else if (pair.first == "subtitle" || pair.first == "outline") {
-                blockFormat = &m_defaultBlockFormat;
-                charFormat = &m_defaultCharFormat;
-            }
-            else {
-                continue;
-            }
-            cursor = currentCell.firstCursorPosition();
-            m_link.insert(currentCell.row(), pair.second->document()); // Create frame and save the link
-            //cursor.setBlockFormat(*blockFormat);
-            cursor.setCharFormat(*charFormat);
-            // insert text (create lists where needed)
-            cursor.insertText(pair.second->document()->toPlainText());
-            cursor.movePosition(QTextCursor::End);
-
-            // prepare cell for the next element
-            m_table->appendRows(1);
-            currentCell = m_table->cellAt(m_table->rows()-1,0);
-        }
-    }
-    m_table->removeRows(m_table->rows()-1,1);
+    populate();
 
     m_view->hide();
     m_editor->show();
     m_editor->setFocus(Qt::ActiveWindowFocusReason);
 
     connect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
+}
+
+void KPrViewModeOutline::populate() {
+    QTextCursor cursor = m_editor->document()->rootFrame()->lastCursorPosition();
+
+    foreach (KoPAPageBase * pageBase, m_view->kopaDocument()->pages()) {
+        KPrPage * page = static_cast<KPrPage *>(pageBase);
+        // Copy relevant content of the page in the frame
+        foreach (OutlinePair pair, page->placeholders().outlineData()) {
+            // gets text format
+            QTextFrameFormat *frameFormat;
+            QTextCharFormat *charFormat;
+            if (pair.first == "title") {
+                frameFormat = &m_titleFrameFormat;
+                charFormat = &m_titleCharFormat;
+            }
+            else if (pair.first == "subtitle" || pair.first == "outline") {
+                frameFormat = &m_defaultFrameFormat;
+                charFormat = &m_defaultCharFormat;
+            }
+            else {
+                continue;
+            }
+            m_link.insert(cursor.insertFrame(*frameFormat), pair.second->document()); // Create frame and save the link
+            cursor.setCharFormat(*charFormat);
+            // insert text (create lists where needed)
+            cursor.insertText(pair.second->document()->toPlainText());
+            cursor.movePosition(QTextCursor::End);
+        }
+    }
 }
 
 void KPrViewModeOutline::deactivate()
@@ -219,22 +210,20 @@ void KPrViewModeOutline::placeholderSwitch()
 
 void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAdded)
 {
-    QMap<int, QTextDocument *>::const_iterator i = m_link.constBegin();
+    QMap<QTextFrame*, QTextDocument *>::const_iterator i = m_link.constBegin();
      qDebug() << "Event on position " << position;
      // define in which frame text has changed
-     for (; i != m_link.constEnd() && (m_table->cellAt(i.key(),0).firstCursorPosition().position() > position || m_table->cellAt(i.key(),0).lastCursorPosition().position() < position); ++i) {
-         QTextTableCell cell = m_table->cellAt(i.key(), 0);
-         qDebug() << "Not in cell " << i.key() << " from pos " << cell.firstCursorPosition().position() << " to " << cell.lastCursorPosition().position();
+     for (; i != m_link.constEnd() && (i.key()->firstPosition() > position || i.key()->lastPosition() < position); ++i) {
+         qDebug() << "Not in frame " << i.key() << " from pos " << i.key()->firstPosition() << " to " << i.key()->lastPosition();
      }
 
      if(i == m_link.constEnd()) { return; }
 
      QTextCursor cur(m_editor->document());
      QTextCursor target(i.value());
-     QTextTableCell cell = m_table->cellAt(i.key(), 0);
-     int frameBegin = cell.firstCursorPosition().position();
+     int frameBegin = i.key()->firstPosition();
 
-     qDebug() << "Event on frame " << i.key() << " from pos " << frameBegin<< " to " << cell.lastCursorPosition().position();
+     qDebug() << "Event on frame " << i.key() << " from pos " << frameBegin << " to " << i.key()->lastPosition();
      qDebug() << charsRemoved << " chars removed";
 
      // synchronyze real target

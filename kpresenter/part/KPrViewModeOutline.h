@@ -26,7 +26,7 @@
 #include <QTextTableCell>
 
 class QKeyEvent;
-class QTextTable;
+class QTextFrame;
 
 /**
  * @brief View for outline mode.
@@ -69,6 +69,11 @@ protected:
     bool indent(bool indent=true);
     void placeholderSwitch();
 
+    /**
+     * Fills the editor with presentation data
+     */
+    void populate();
+
     class KPrOutlineEditor : public QTextEdit {
     public:
         KPrOutlineEditor ( KPrViewModeOutline* out, QWidget * parent = 0 ) : QTextEdit(parent), outline(out) {};
@@ -88,12 +93,11 @@ protected:
 
 
 private:
-    QTextBlockFormat m_titleBlockFormat;
-    QTextBlockFormat m_defaultBlockFormat;
+    QTextFrameFormat m_titleFrameFormat;
+    QTextFrameFormat m_defaultFrameFormat;
     QTextCharFormat  m_titleCharFormat;
     QTextCharFormat  m_defaultCharFormat;
     QTextListFormat  m_listFormat;
-    QTextTable *m_table;
 
     /**
      * @brief The outline editor.
@@ -103,7 +107,7 @@ private:
     /**
      * @brief Link between frame in the editor and document in the shape.
      */
-    QMap<int, QTextDocument *> m_link;
+    QMap<QTextFrame*, QTextDocument *> m_link;
 
 };
 
