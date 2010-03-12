@@ -19,10 +19,13 @@
  */
 
 #include "KPrViewModeOutline.h"
+#include "KPresenter.h"
 #include <KoPADocument.h>
 #include <KoPAView.h>
 #include <KoTextShapeData.h>
 #include <KPrPage.h>
+#include <pagelayout/KPrPageLayout.h>
+#include <pagelayout/KPrPageLayouts.h>
 #include <QTextDocumentFragment>
 #include <QTextFrame>
 #include <QTextFrameFormat>
@@ -122,8 +125,10 @@ void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
 }
 
 void KPrViewModeOutline::populate() {
+    m_editor->clear();
+    m_link.clear();
     QTextCursor cursor = m_editor->document()->rootFrame()->lastCursorPosition();
-
+    int numSlide = 0;
     foreach (KoPAPageBase * pageBase, m_view->kopaDocument()->pages()) {
         KPrPage * page = static_cast<KPrPage *>(pageBase);
         // Copy relevant content of the page in the frame
@@ -142,12 +147,14 @@ void KPrViewModeOutline::populate() {
             else {
                 continue;
             }
-            m_link.insert(cursor.insertFrame(*frameFormat), pair.second->document()); // Create frame and save the link
+            FrameData frameData = {pair.second->document(), numSlide, pair.first};
+            m_link.insert(cursor.insertFrame(*frameFormat), frameData); // Create frame and save the link
             cursor.setCharFormat(*charFormat);
             // insert text (create lists where needed)
             cursor.insertText(pair.second->document()->toPlainText());
             cursor.movePosition(QTextCursor::End);
         }
+        ++numSlide;
     }
 }
 
@@ -155,8 +162,6 @@ void KPrViewModeOutline::deactivate()
 {
     disconnect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
     m_editor->hide();
-    m_editor->clear(); // Content will be regenerated when outline mode is activated
-    m_link.clear();    // ditto
     m_view->show();
 }
 
@@ -208,9 +213,21 @@ void KPrViewModeOutline::placeholderSwitch()
     qDebug() << "Placeholder switched !";
 }
 
+void KPrViewModeOutline::addSlide() {
+    m_view->insertPage();
+    // I search layouts
+    KPrPageLayouts * layouts = m_view->kopaDocument()->resourceManager()->resource(KPresenter::PageLayouts).value<KPrPageLayouts*>();
+    Q_ASSERT( layouts );
+    const QList<KPrPageLayout *> layoutMap = layouts->layouts();
+    // Add the layout 1
+    //TODO Find constant for 1
+    static_cast<KPrPage *>(m_view->kopaDocument()->pages()[m_link.take(m_editor->textCursor().currentFrame()).numSlide + 1])->setLayout(layoutMap[1], m_view->kopaDocument());
+    populate();
+}
+
 void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAdded)
 {
-    QMap<QTextFrame*, QTextDocument *>::const_iterator i = m_link.constBegin();
+    QMap<QTextFrame*, FrameData>::const_iterator i = m_link.constBegin();
      qDebug() << "Event on position " << position;
      // define in which frame text has changed
      for (; i != m_link.constEnd() && (i.key()->firstPosition() > position || i.key()->lastPosition() < position); ++i) {
@@ -220,7 +237,7 @@ void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAd
      if(i == m_link.constEnd()) { return; }
 
      QTextCursor cur(m_editor->document());
-     QTextCursor target(i.value());
+     QTextCursor target(i.value().textDocument);
      int frameBegin = i.key()->firstPosition();
 
      qDebug() << "Event on frame " << i.key() << " from pos " << frameBegin << " to " << i.key()->lastPosition();
@@ -268,7 +285,17 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
             QTextEdit::keyPressEvent(event);
         }
         break;
+    case Qt::Key_Return:
+        qDebug() << "Qt::Key_Return";
+        if (int(event->modifiers()) == 0 && outline->m_link.take(outline->m_editor->textCursor().currentFrame()).type == "title") {
+            outline->addSlide();
+        }
+        else {
+            QTextEdit::keyPressEvent(event);
+        }
+        break;
     default:
+        qDebug()<< event->key();
         QTextEdit::keyPressEvent(event);
     }
 }

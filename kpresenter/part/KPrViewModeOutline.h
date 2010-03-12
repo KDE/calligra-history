@@ -69,6 +69,8 @@ protected:
     bool indent(bool indent=true);
     void placeholderSwitch();
 
+    void addSlide();
+
     /**
      * Fills the editor with presentation data
      */
@@ -93,6 +95,13 @@ protected:
 
 
 private:
+
+    struct FrameData {
+        QTextDocument * textDocument;
+        int             numSlide;
+        QString         type;
+    };
+
     QTextFrameFormat m_titleFrameFormat;
     QTextFrameFormat m_defaultFrameFormat;
     QTextCharFormat  m_titleCharFormat;
@@ -107,7 +116,7 @@ private:
     /**
      * @brief Link between frame in the editor and document in the shape.
      */
-    QMap<QTextFrame*, QTextDocument *> m_link;
+    QMap<QTextFrame*, FrameData> m_link;
 
 };
 
