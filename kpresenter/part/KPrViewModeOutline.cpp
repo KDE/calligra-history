@@ -46,8 +46,12 @@ KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas )
     m_titleCharFormat.setFontWeight(QFont::Bold);
     m_titleCharFormat.setFontPointSize(14.0);
     m_titleFrameFormat.setTopMargin(12.0);
+    m_titleFrameFormat.setBorderStyle(QTextFrameFormat::BorderStyle_Solid);
+    m_titleFrameFormat.setBorder(1);
 
     m_defaultFrameFormat.setLeftMargin(15.0);
+    m_defaultFrameFormat.setBorderStyle(QTextFrameFormat::BorderStyle_Solid);
+    m_defaultFrameFormat.setBorder(1);
 }
 
 KPrViewModeOutline::~KPrViewModeOutline()
@@ -128,9 +132,15 @@ void KPrViewModeOutline::populate() {
     m_editor->clear();
     m_link.clear();
     QTextCursor cursor = m_editor->document()->rootFrame()->lastCursorPosition();
+    int i=0;
+    QTextFrameFormat slideFrameFormat;
     int numSlide = 0;
     foreach (KoPAPageBase * pageBase, m_view->kopaDocument()->pages()) {
         KPrPage * page = static_cast<KPrPage *>(pageBase);
+
+        slideFrameFormat.setBackground(QBrush((i++%2)?QColor(240,240,240):QColor(255,255,255)));
+        QTextFrame* slideFrame = cursor.insertFrame(slideFrameFormat);
+
         // Copy relevant content of the page in the frame
         foreach (OutlinePair pair, page->placeholders().outlineData()) {
             // gets text format
@@ -147,14 +157,72 @@ void KPrViewModeOutline::populate() {
             else {
                 continue;
             }
+
+            QTextFrame *frame = cursor.insertFrame(*frameFormat);
             FrameData frameData = {pair.second->document(), numSlide, pair.first};
-            m_link.insert(cursor.insertFrame(*frameFormat), frameData); // Create frame and save the link
+            m_link.insert(frame, frameData); // Create frame and save the link
             cursor.setCharFormat(*charFormat);
             // insert text (create lists where needed)
-            cursor.insertText(pair.second->document()->toPlainText());
-            cursor.movePosition(QTextCursor::End);
+            //cursor.insertText(pair.second->document()->toPlainText());
+            insertText(pair.second->document(), frame, charFormat);
+            cursor.setPosition(slideFrame->lastPosition());
         }
+        cursor.movePosition(QTextCursor::End);
         ++numSlide;
+    }
+}
+
+void KPrViewModeOutline::insertText(QTextDocument* sourceShape, QTextFrame* destFrame, QTextCharFormat* charFormat) {
+    /*for(QTextBlock currentBlock = sourceShape->begin(); currentBlock.isValid(); currentBlock = currentBlock.next()) {
+        QTextList *srclist = currentBlock.textList();
+        if(srclist) {
+            qDebug() << "Entering in list " << srclist << " indent: " << currentBlock.blockFormat().leftMargin();
+            QTextList *destlist = destDocument->insertList(QTextListFormat::ListDisc);
+            while(currentBlock.isValid() && currentBlock.textList() == srclist) {
+                qDebug() << "Inserting text " << currentBlock.text();
+                QTextBlockFormat format = destDocument->blockFormat();
+                format.setLeftMargin(currentBlock.blockFormat().leftMargin());
+                destDocument->setBlockFormat(format);
+                destDocument->insertText(currentBlock.text());
+                destDocument->insertBlock();
+                currentBlock = currentBlock.next();
+            }
+            qDebug() << "Exiting in list " << srclist;
+            currentBlock = currentBlock.previous();
+        } else {
+            qDebug() << "Out of list text " << currentBlock.text();
+            destDocument->insertText(currentBlock.text());
+        }
+    }*/
+
+    // we  start by insert raw blocks
+    QTextCursor destFrameCursor = destFrame->firstCursorPosition();
+    for(QTextBlock currentBlock = sourceShape->begin(); currentBlock.isValid(); currentBlock = currentBlock.next()) {
+        destFrameCursor.setCharFormat(*charFormat);
+        destFrameCursor.insertText(currentBlock.text());
+        destFrameCursor.insertBlock();
+    }
+    destFrameCursor.deletePreviousChar();
+
+    // then we format lists
+    QTextList *currentList = 0;
+    int currentIndent = -1;
+    for(QTextBlock srcBlock = sourceShape->begin(), destBlock = destFrame->firstCursorPosition().block();
+        srcBlock.isValid() && destBlock.isValid();
+        srcBlock = srcBlock.next(), destBlock = destBlock.next()) {
+        if(srcBlock.textList()) {
+            QTextCursor destCursor(destBlock);
+            if(currentList) {
+                currentList->add(destBlock);
+            }
+            else {
+                currentList = destCursor.createList(QTextListFormat::ListDisc);
+            }
+            QTextBlockFormat format = destBlock.blockFormat();
+            currentIndent = srcBlock.blockFormat().leftMargin();
+            format.setLeftMargin(currentIndent);
+            destCursor.setBlockFormat(format);
+        }
     }
 }
 
@@ -165,8 +233,6 @@ void KPrViewModeOutline::deactivate()
     m_view->show();
 }
 
-#include <QTextList>
-#include <QTextListFormat>
 bool KPrViewModeOutline::indent(bool indent)
 {
     QTextCursor cursor = m_editor->textCursor();
@@ -180,31 +246,61 @@ bool KPrViewModeOutline::indent(bool indent)
     cursor.movePosition(QTextCursor::EndOfLine);
     int endOfLine = cursor.position();
     if(selectionStart >= startOfLine && selectionEnd <= endOfLine && selectionEnd != startOfLine) {
+        qDebug() << "Not indent";
         return false;
     }
 
     // if selection is through several frames, no indent should be done, but normal tab key
     // should not be handled either
+    cursor.setPosition(selectionStart);
+    QTextDocument *targetShape = m_link[cursor.currentFrame()].textDocument;
+    cursor.setPosition(selectionEnd);
+    QTextDocument *selectionEndShape = m_link[cursor.currentFrame()].textDocument;
 
-    cursor.beginEditBlock();
-    QTextBlock block = cursor.block().document()->findBlock(selectionStart);
-
-    cursor.movePosition(QTextCursor::EndOfLine);
-    QTextList *list = cursor.currentList();
-    QTextListFormat format = list->format();
-
-    format.setIndent(indent?1:-1);
-    QTextList *newList = cursor.insertList(format);
-
-    while (block.isValid() && ((block.position() < selectionEnd) || oneOf)) {
-        block.textList()->remove(block);
-        newList->add(block);
-        oneOf = false;
-        block = block.next();
+    if(targetShape == 0 || targetShape != selectionEndShape) {
+        qDebug("Incorrect indent");
+        return true;
     }
 
-    cursor.deletePreviousChar();
+    int frameOffset = cursor.currentFrame()->firstPosition();
+
+    cursor.setPosition(selectionStart);
+    cursor.beginEditBlock();
+
+    QTextCursor targetCursor(targetShape);
+    targetCursor.beginEditBlock();
+
+    qDebug() << (indent?"Indent":"Unindent") << " from "<<selectionStart << " to " << selectionEnd;
+
+    QTextBlock block = cursor.block();
+    for(; block.isValid() && block.textList() && ((block.position() < selectionEnd) || oneOf); block = block.next()) {
+        QTextBlockFormat format = block.blockFormat();
+        if(indent || format.leftMargin() > 0) {
+            int newMargin = format.leftMargin() + (indent?10:-10);
+            qDebug() << "Indent "<<block.text() << " old indent: " << format.leftMargin() << "; new indent: " << newMargin;
+            format.setLeftMargin(newMargin);
+            cursor.setPosition(block.position());
+            cursor.setBlockFormat(format);
+
+            targetCursor.setPosition(block.position() - frameOffset);
+            QTextBlockFormat targetFormat = targetCursor.blockFormat();
+            targetFormat.setLeftMargin(newMargin);
+            targetCursor.setBlockFormat(targetFormat);
+        } else {
+            qDebug() << "New slide!";
+        }
+        oneOf = false;
+    }
     cursor.endEditBlock();
+    targetCursor.endEditBlock();
+
+    // if the selection is not fully a list, we undo the changes
+    if(!block.previous().contains(selectionEnd)) {
+        qDebug() << "undo last indent";
+        cursor.document()->undo();
+        targetCursor.document()->undo();
+    }
+
     return true;
 }
 

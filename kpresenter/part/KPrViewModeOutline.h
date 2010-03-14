@@ -60,6 +60,11 @@ protected slots:
      */
     void synchronize(int position, int charsRemoved, int charsAdded);
 
+    /**
+     * Inserts the shape's document into text editor
+     */
+    void insertText(QTextDocument* sourceShape, QTextFrame* destDocument, QTextCharFormat *charFormat);
+
 protected:
     /**
      * (Un)indents current line or selection.
