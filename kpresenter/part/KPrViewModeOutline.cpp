@@ -163,7 +163,6 @@ void KPrViewModeOutline::populate() {
             m_link.insert(frame, frameData); // Create frame and save the link
             cursor.setCharFormat(*charFormat);
             // insert text (create lists where needed)
-            //cursor.insertText(pair.second->document()->toPlainText());
             insertText(pair.second->document(), frame, charFormat);
             cursor.setPosition(slideFrame->lastPosition());
         }
@@ -173,28 +172,6 @@ void KPrViewModeOutline::populate() {
 }
 
 void KPrViewModeOutline::insertText(QTextDocument* sourceShape, QTextFrame* destFrame, QTextCharFormat* charFormat) {
-    /*for(QTextBlock currentBlock = sourceShape->begin(); currentBlock.isValid(); currentBlock = currentBlock.next()) {
-        QTextList *srclist = currentBlock.textList();
-        if(srclist) {
-            qDebug() << "Entering in list " << srclist << " indent: " << currentBlock.blockFormat().leftMargin();
-            QTextList *destlist = destDocument->insertList(QTextListFormat::ListDisc);
-            while(currentBlock.isValid() && currentBlock.textList() == srclist) {
-                qDebug() << "Inserting text " << currentBlock.text();
-                QTextBlockFormat format = destDocument->blockFormat();
-                format.setLeftMargin(currentBlock.blockFormat().leftMargin());
-                destDocument->setBlockFormat(format);
-                destDocument->insertText(currentBlock.text());
-                destDocument->insertBlock();
-                currentBlock = currentBlock.next();
-            }
-            qDebug() << "Exiting in list " << srclist;
-            currentBlock = currentBlock.previous();
-        } else {
-            qDebug() << "Out of list text " << currentBlock.text();
-            destDocument->insertText(currentBlock.text());
-        }
-    }*/
-
     // we  start by insert raw blocks
     QTextCursor destFrameCursor = destFrame->firstCursorPosition();
     for(QTextBlock currentBlock = sourceShape->begin(); currentBlock.isValid(); currentBlock = currentBlock.next()) {
@@ -323,22 +300,21 @@ void KPrViewModeOutline::addSlide() {
 
 void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAdded)
 {
-    QMap<QTextFrame*, FrameData>::const_iterator i = m_link.constBegin();
-     qDebug() << "Event on position " << position;
-     // define in which frame text has changed
-     for (; i != m_link.constEnd() && (i.key()->firstPosition() > position || i.key()->lastPosition() < position); ++i) {
-         qDebug() << "Not in frame " << i.key() << " from pos " << i.key()->firstPosition() << " to " << i.key()->lastPosition();
+     QTextCursor cur(m_editor->document());
+     cur.setPosition(position);
+     QTextFrame* frame = cur.currentFrame();
+     int frameBegin = frame->firstPosition();
+
+     qDebug() << "Event on frame " << frame << " from pos " << frameBegin << " to " << frame->lastPosition() << (m_link.contains(frame)?"(known)":"(unknown)");
+     qDebug() << charsAdded << " chars added; " << charsRemoved << " chars removed";
+
+     QTextDocument* targetDocument = m_link[frame].textDocument;
+     if(!targetDocument) {  // event on an unknown frame (parasite blank line ?)
+         qDebug() << "Incorrect action";
+         return;
      }
 
-     if(i == m_link.constEnd()) { return; }
-
-     QTextCursor cur(m_editor->document());
-     QTextCursor target(i.value().textDocument);
-     int frameBegin = i.key()->firstPosition();
-
-     qDebug() << "Event on frame " << i.key() << " from pos " << frameBegin << " to " << i.key()->lastPosition();
-     qDebug() << charsRemoved << " chars removed";
-
+     QTextCursor target(targetDocument);
      // synchronyze real target
      if (charsAdded > 0) {
          cur.setPosition(position);
@@ -383,7 +359,7 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
         break;
     case Qt::Key_Return:
         qDebug() << "Qt::Key_Return";
-        if (int(event->modifiers()) == 0 && outline->m_link.take(outline->m_editor->textCursor().currentFrame()).type == "title") {
+        if (int(event->modifiers()) == 0 && outline->m_link[outline->m_editor->textCursor().currentFrame()].type == "title") {
             outline->addSlide();
         }
         else {
