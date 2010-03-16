@@ -28,6 +28,7 @@ KPrPageEffectStrategy::KPrPageEffectStrategy( int subType, const char * smilType
 : m_subType( subType )
 , m_smilData( smilType, smilSubType, reverse )
 {
+    graphicsView = false;
 }
 
 KPrPageEffectStrategy::~KPrPageEffectStrategy()
@@ -75,4 +76,9 @@ const QString & KPrPageEffectStrategy::smilSubType() const
 bool KPrPageEffectStrategy::reverse() const
 {
     return m_smilData.reverse;
+}
+
+bool KPrPageEffectStrategy::useGraphicsView() const
+{
+    return graphicsView;
 }

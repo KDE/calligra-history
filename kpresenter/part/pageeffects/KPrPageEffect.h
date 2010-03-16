@@ -83,7 +83,7 @@ public:
     virtual ~KPrPageEffect();
 
     virtual void setup( const Data &data, QTimeLine &timeLine );
-
+    virtual bool useGraphicsView();
     /**
      * Paint the page effect
      *

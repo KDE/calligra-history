@@ -111,6 +111,12 @@ public:
      */
     bool reverse() const;
 
+    /**
+    * @return true if we use QGraphicsView, false otherwise
+    */
+    bool useGraphicsView() const;
+protected:
+    bool graphicsView;
 private:
     struct SmilData
     {

@@ -27,6 +27,7 @@
 KPrSpaceRotationFromBottomStrategy::KPrSpaceRotationFromBottomStrategy()
 : KPrPageEffectStrategy( KPrSpaceRotationEffectFactory::FromBottom, "spaceRotation", "topToBottom", true )
 {
+    graphicsView = true;
 }
 
 KPrSpaceRotationFromBottomStrategy::~KPrSpaceRotationFromBottomStrategy()
@@ -37,7 +38,6 @@ void KPrSpaceRotationFromBottomStrategy::setup( const KPrPageEffect::Data &data,
 {
     timeLine.setFrameRange( 0, 180 );
     data.m_oldPageItem->show();
-    data.m_graphicsView->show();
 }
 
 void KPrSpaceRotationFromBottomStrategy::paintStep( QPainter &p, int currPos, const KPrPageEffect::Data &data )

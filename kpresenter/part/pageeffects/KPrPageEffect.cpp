@@ -43,6 +43,10 @@ void KPrPageEffect::setup( const Data &data, QTimeLine &timeLine )
     timeLine.setCurveShape( QTimeLine::LinearCurve );
 }
 
+bool KPrPageEffect::useGraphicsView(){
+    return m_strategy->useGraphicsView();
+}
+
 bool KPrPageEffect::paint( QPainter &p, const Data &data )
 {
     int currPos = data.m_timeLine.frameForTime( data.m_currentTime );

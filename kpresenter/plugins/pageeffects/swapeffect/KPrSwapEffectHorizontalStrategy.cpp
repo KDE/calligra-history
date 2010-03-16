@@ -27,6 +27,7 @@
 KPrSwapEffectHorizontalStrategy::KPrSwapEffectHorizontalStrategy()
 : KPrPageEffectStrategy( KPrSwapEffectFactory::Horizontal, "swapEffect", "horizontal", true )
 {
+    graphicsView = true;
 }
 
 KPrSwapEffectHorizontalStrategy::~KPrSwapEffectHorizontalStrategy()
@@ -37,7 +38,7 @@ void KPrSwapEffectHorizontalStrategy::setup( const KPrPageEffect::Data &data, QT
 {
     timeLine.setFrameRange( 0, 500 );
     data.m_oldPageItem->show();
-    data.m_graphicsView->show();
+    data.m_newPageItem->show();
 }
 
 void KPrSwapEffectHorizontalStrategy::paintStep( QPainter &p, int currPos, const KPrPageEffect::Data &data )

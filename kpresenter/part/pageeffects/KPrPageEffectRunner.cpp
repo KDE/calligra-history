@@ -26,26 +26,31 @@ KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap 
 : m_effect( effect )
 , m_data( oldPage, newPage, w )
 {
-    m_data.m_scene = new QGraphicsScene();
-    m_data.m_graphicsView = new QGraphicsView(m_data.m_scene, w);
-    m_data.m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_data.m_graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_data.m_graphicsView->resize(w->size());
-    m_data.m_graphicsView->setFrameShape(QFrame::Panel);
-    m_data.m_graphicsView->setLineWidth(0);
-    m_data.m_oldPageItem = new QGraphicsPixmapItem(oldPage, 0, m_data.m_scene);
-    m_data.m_newPageItem = new QGraphicsPixmapItem(newPage, 0, m_data.m_scene);
-    m_data.m_oldPageItem->hide();
-    m_data.m_newPageItem->hide();
-    m_data.m_graphicsView->hide();
+    if(m_effect->useGraphicsView()){
+        qDebug() << "use qgv";
+        m_data.m_scene = new QGraphicsScene();
+        m_data.m_graphicsView = new QGraphicsView(m_data.m_scene, m_data.m_widget);
+        m_data.m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_data.m_graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_data.m_graphicsView->resize(m_data.m_widget->size());
+        m_data.m_graphicsView->setFrameShape(QFrame::Panel);
+        m_data.m_graphicsView->setLineWidth(0);
+        m_data.m_oldPageItem = new QGraphicsPixmapItem(m_data.m_oldPage, 0, m_data.m_scene);
+        m_data.m_newPageItem = new QGraphicsPixmapItem(m_data.m_newPage, 0, m_data.m_scene);
+        m_data.m_oldPageItem->hide();
+        m_data.m_newPageItem->hide();
+        m_data.m_graphicsView->show();
+
+    }
     m_effect->setup( m_data, m_data.m_timeLine );
 }
 
 KPrPageEffectRunner::~KPrPageEffectRunner()
 {
-    qDebug() << "finish RUNNER";
-    delete m_data.m_graphicsView;
-    delete m_data.m_scene;
+    if(m_effect->useGraphicsView()){
+        delete m_data.m_graphicsView;
+        delete m_data.m_scene;
+    }
 }
 
 bool KPrPageEffectRunner::paint( QPainter &painter )
@@ -62,7 +67,6 @@ void KPrPageEffectRunner::next( int currentTime )
 
 void KPrPageEffectRunner::finish()
 {
-    qDebug() << "finish KPrPageEffectRunner";
     m_data.m_finished = true;
     m_effect->finish( m_data );
 }
