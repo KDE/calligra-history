@@ -30,9 +30,6 @@ public:
     virtual QString subTypeName(int subType) const;
 
     enum SubType {
-        FromLeft,
-        FromTop,
-        FromRight,
         FromBottom
     };
 };
