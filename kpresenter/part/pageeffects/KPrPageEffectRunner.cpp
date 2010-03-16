@@ -19,15 +19,14 @@
 */
 
 #include "KPrPageEffectRunner.h"
-
+#include <QGLFormat>
 #include "KPrPageEffect.h"
-#include <QDebug>
+
 KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap &newPage, QWidget *w, KPrPageEffect *effect )
 : m_effect( effect )
 , m_data( oldPage, newPage, w )
 {
     if(m_effect->useGraphicsView()){
-        qDebug() << "use qgv";
         m_data.m_scene = new QGraphicsScene();
         m_data.m_graphicsView = new QGraphicsView(m_data.m_scene, m_data.m_widget);
         m_data.m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -41,16 +40,30 @@ KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap 
         m_data.m_newPageItem->hide();
         m_data.m_graphicsView->show();
 
+        // Do some optimization
+        m_data.m_scene->setItemIndexMethod( QGraphicsScene::NoIndex );
+        m_data.m_graphicsView->setOptimizationFlag( QGraphicsView::DontClipPainter, true );
+        m_data.m_graphicsView->setOptimizationFlag( QGraphicsView::DontSavePainterState, true );
+        m_data.m_graphicsView->setOptimizationFlag( QGraphicsView::DontAdjustForAntialiasing, true );
+        m_data.m_graphicsView->setViewportUpdateMode( QGraphicsView::FullViewportUpdate );
+
+        // If computer support openGL
+        if(QGLFormat::hasOpenGL()){
+            m_data.m_graphicsView->setRenderHints( QPainter::SmoothPixmapTransform );
+            m_data.m_graphicsView->setRenderHints( QPainter::Antialiasing );
+            m_data.m_graphicsView->setRenderHints( QPainter::HighQualityAntialiasing );
+            QGLWidget *openGLWidget = new QGLWidget(QGLFormat(QGL::SampleBuffers));
+            openGLWidget->format().setSwapInterval(0);
+            m_data.m_graphicsView->setViewport(openGLWidget);
+        }
     }
     m_effect->setup( m_data, m_data.m_timeLine );
 }
 
 KPrPageEffectRunner::~KPrPageEffectRunner()
 {
-    if(m_effect->useGraphicsView()){
-        delete m_data.m_graphicsView;
-        delete m_data.m_scene;
-    }
+    delete m_data.m_graphicsView;
+    delete m_data.m_scene;
 }
 
 bool KPrPageEffectRunner::paint( QPainter &painter )
