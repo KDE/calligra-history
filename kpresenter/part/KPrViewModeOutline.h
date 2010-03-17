@@ -53,6 +53,9 @@ public:
     void activate(KoPAViewMode *previousViewMode);
     void deactivate();
 
+    void enableSync();
+    void disableSync();
+
 protected slots:
     /**
      * @brief Synchronize the editor with shapes.

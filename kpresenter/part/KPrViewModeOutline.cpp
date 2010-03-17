@@ -123,9 +123,16 @@ void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
     m_editor->setFocus(Qt::ActiveWindowFocusReason);
 }
 
-void KPrViewModeOutline::populate() {
-    disconnect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
+void KPrViewModeOutline::enableSync() {
+    connect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
+}
 
+void KPrViewModeOutline::disableSync() {
+    disconnect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
+}
+
+void KPrViewModeOutline::populate() {
+    disableSync();
     m_editor->clear();
     m_link.clear();
     QTextCursor cursor = m_editor->document()->rootFrame()->lastCursorPosition();
@@ -167,7 +174,7 @@ void KPrViewModeOutline::populate() {
         ++numSlide;
     }
 
-    connect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
+    enableSync();
 }
 
 void KPrViewModeOutline::insertText(QTextDocument* sourceShape, QTextFrame* destFrame, QTextCharFormat* charFormat) {
@@ -308,8 +315,10 @@ void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAd
      QTextFrame* frame = cur.currentFrame();
      int frameBegin = frame->firstPosition();
 
-     qDebug() << "Event on frame " << frame << " from pos " << frameBegin << " to " << frame->lastPosition() << (m_link.contains(frame)?"(known)":"(unknown)");
+     qDebug() << "Event on pos " << position << ", frame " << frame << "(" << frameBegin << " => " << frame->lastPosition() << ") "<< (m_link.contains(frame)?"(known)":"(unknown)");
      qDebug() << charsAdded << " chars added; " << charsRemoved << " chars removed";
+     while(cur.currentFrame() == frame) cur.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
+     qDebug() << "Frame contents: " << cur.selectedText();
 
      QTextDocument* targetDocument = m_link[frame].textDocument;
      if(!targetDocument) {  // event on an unknown frame (parasite blank line ?)
@@ -319,18 +328,19 @@ void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAd
 
      QTextCursor target(targetDocument);
      // synchronyze real target
-     if (charsAdded > 0) {
-         cur.setPosition(position);
-         cur.setPosition(position+charsAdded, QTextCursor::KeepAnchor);
-         qDebug() << charsAdded << " chars added (" << cur.selectedText() << ")";
-         target.setPosition(position - frameBegin);
-         target.insertText(cur.selectedText());
-     }
-
      if (charsRemoved > 0) {
          target.setPosition(position - frameBegin);
          target.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor, charsRemoved);
          target.deleteChar();
+     }
+     if (charsAdded > 0) {
+         cur.setPosition(position);
+         qDebug() << cur.currentFrame();
+         cur.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor, charsAdded);
+         qDebug() << cur.currentFrame();
+         qDebug() << charsAdded << " chars added (" << cur.selectedText() << ")";
+         target.setPosition(position - frameBegin);
+         target.insertText(cur.selectedText());
      }
 }
 
@@ -362,8 +372,26 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
         break;
     case Qt::Key_Return:
         qDebug() << "Qt::Key_Return";
-        if (int(event->modifiers()) == 0 && outline->m_link[outline->m_editor->textCursor().currentFrame()].type == "title") {
-            outline->addSlide();
+        if (int(event->modifiers()) == 0) {
+            if (outline->m_link[outline->m_editor->textCursor().currentFrame()].type == "title") {
+                outline->addSlide();
+            }
+            else {
+                // the native behaviour whan adding an item is buggy as hell !
+                QTextCursor cur = textCursor();
+                QTextDocument* target = outline->m_link[cur.currentFrame()].textDocument;
+                if (!(cur.currentList() && target)) {
+                    QTextEdit::keyPressEvent(event);
+                    break;
+                }
+
+                outline->disableSync();
+                QTextEdit::keyPressEvent(event);
+                outline->enableSync();
+                QTextCursor targetCur(target);
+                targetCur.setPosition(cur.position() - cur.currentFrame()->firstPosition());
+                targetCur.insertText("\n");
+            }
         }
         else {
             QTextEdit::keyPressEvent(event);
