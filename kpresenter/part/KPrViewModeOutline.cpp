@@ -294,7 +294,7 @@ void KPrViewModeOutline::addSlide() {
     const QList<KPrPageLayout *> layoutMap = layouts->layouts();
     // Add the layout 1
     //TODO Find constant for 1
-    static_cast<KPrPage *>(m_view->kopaDocument()->pages()[m_link.take(m_editor->textCursor().currentFrame()).numSlide + 1])->setLayout(layoutMap[1], m_view->kopaDocument());
+    static_cast<KPrPage *>(m_view->kopaDocument()->pages()[m_link[(m_editor->textCursor().currentFrame())].numSlide + 1])->setLayout(layoutMap[1], m_view->kopaDocument());
     populate();
 }
 
