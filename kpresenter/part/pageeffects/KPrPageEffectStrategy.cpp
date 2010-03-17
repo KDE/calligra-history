@@ -1,5 +1,6 @@
 /* This file is part of the KDE project
    Copyright (C) 2008 Thorsten Zachmann <zachmann@kde.org>
+   Copyright (C) 2010 Benjamin Port <port.benjamin@gmail.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,11 +25,11 @@
 #include <KoXmlWriter.h>
 #include <KoGenStyle.h>
 
-KPrPageEffectStrategy::KPrPageEffectStrategy( int subType, const char * smilType, const char *smilSubType, bool reverse )
+KPrPageEffectStrategy::KPrPageEffectStrategy( int subType, const char * smilType, const char *smilSubType, bool reverse, bool graphicsView )
 : m_subType( subType )
 , m_smilData( smilType, smilSubType, reverse )
+, m_graphicsView (graphicsView)
 {
-    graphicsView = false;
 }
 
 KPrPageEffectStrategy::~KPrPageEffectStrategy()
@@ -80,5 +81,5 @@ bool KPrPageEffectStrategy::reverse() const
 
 bool KPrPageEffectStrategy::useGraphicsView() const
 {
-    return graphicsView;
+    return m_graphicsView;
 }

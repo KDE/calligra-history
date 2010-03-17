@@ -25,9 +25,8 @@
 #include <QDebug>
 
 KPrSpaceRotationFromBottomStrategy::KPrSpaceRotationFromBottomStrategy()
-: KPrPageEffectStrategy( KPrSpaceRotationEffectFactory::FromBottom, "spaceRotation", "topToBottom", true )
+: KPrPageEffectStrategy( KPrSpaceRotationEffectFactory::FromBottom, "spaceRotation", "topToBottom", false, true )
 {
-    graphicsView = true;
 }
 
 KPrSpaceRotationFromBottomStrategy::~KPrSpaceRotationFromBottomStrategy()

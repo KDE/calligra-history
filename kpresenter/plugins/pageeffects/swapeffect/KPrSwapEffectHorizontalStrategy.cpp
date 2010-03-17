@@ -25,9 +25,8 @@
 #include <QDebug>
 
 KPrSwapEffectHorizontalStrategy::KPrSwapEffectHorizontalStrategy()
-: KPrPageEffectStrategy( KPrSwapEffectFactory::Horizontal, "swapEffect", "horizontal", true )
+: KPrPageEffectStrategy( KPrSwapEffectFactory::Horizontal, "swapEffect", "horizontal", false, true )
 {
-    graphicsView = true;
 }
 
 KPrSwapEffectHorizontalStrategy::~KPrSwapEffectHorizontalStrategy()
