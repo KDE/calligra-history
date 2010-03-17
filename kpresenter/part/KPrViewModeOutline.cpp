@@ -285,14 +285,19 @@ void KPrViewModeOutline::placeholderSwitch()
 }
 
 void KPrViewModeOutline::addSlide() {
+    int numSlide = m_link[currentFrame()].numSlide;
+    // Active the current page and insert page
+    m_view->setActivePage(m_view->kopaDocument()->pageByIndex(numSlide, false));
     m_view->insertPage();
-    // I search layouts
+    // Search layouts
     KPrPageLayouts * layouts = m_view->kopaDocument()->resourceManager()->resource(KPresenter::PageLayouts).value<KPrPageLayouts*>();
     Q_ASSERT( layouts );
     const QList<KPrPageLayout *> layoutMap = layouts->layouts();
     // Add the layout 1
     //TODO Find constant for 1
-    static_cast<KPrPage *>(m_view->kopaDocument()->pages()[m_link[(m_editor->textCursor().currentFrame())].numSlide + 1])->setLayout(layoutMap[1], m_view->kopaDocument());
+    KPrPage * page = static_cast<KPrPage *>(m_view->kopaDocument()->pages()[numSlide + 1]);
+    page->setLayout(layoutMap[1], m_view->kopaDocument());
+    // Reload the editor
     populate();
 }
 

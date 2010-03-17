@@ -101,6 +101,10 @@ protected:
 
 private:
 
+    QTextFrame * currentFrame() {
+        return m_editor->textCursor().currentFrame();
+    }
+
     struct FrameData {
         QTextDocument * textDocument;
         int             numSlide;
