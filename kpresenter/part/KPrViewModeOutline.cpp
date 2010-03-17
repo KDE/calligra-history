@@ -112,9 +112,6 @@ void KPrViewModeOutline::wheelEvent( QWheelEvent * event, const QPointF &point )
     Q_UNUSED(point);
 }
 
-#include <QTextTable>
-#include <QTextTableCell>
-
 void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
 {
     Q_UNUSED(previousViewMode);
@@ -124,11 +121,11 @@ void KPrViewModeOutline::activate(KoPAViewMode * previousViewMode)
     m_view->hide();
     m_editor->show();
     m_editor->setFocus(Qt::ActiveWindowFocusReason);
-
-    connect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
 }
 
 void KPrViewModeOutline::populate() {
+    disconnect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
+
     m_editor->clear();
     m_link.clear();
     QTextCursor cursor = m_editor->document()->rootFrame()->lastCursorPosition();
@@ -169,6 +166,8 @@ void KPrViewModeOutline::populate() {
         cursor.movePosition(QTextCursor::End);
         ++numSlide;
     }
+
+    connect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
 }
 
 void KPrViewModeOutline::insertText(QTextDocument* sourceShape, QTextFrame* destFrame, QTextCharFormat* charFormat) {
@@ -205,7 +204,6 @@ void KPrViewModeOutline::insertText(QTextDocument* sourceShape, QTextFrame* dest
 
 void KPrViewModeOutline::deactivate()
 {
-    disconnect(m_editor->document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(synchronize(int,int,int)));
     m_editor->hide();
     m_view->show();
 }
