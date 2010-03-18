@@ -180,7 +180,7 @@ void KPrViewModeOutline::populate() {
 void KPrViewModeOutline::insertText(QTextDocument* sourceShape, QTextFrame* destFrame, QTextCharFormat* charFormat) {
     // we  start by insert raw blocks
     QTextCursor destFrameCursor = destFrame->firstCursorPosition();
-    for(QTextBlock currentBlock = sourceShape->begin(); currentBlock.isValid(); currentBlock = currentBlock.next()) {
+    for (QTextBlock currentBlock = sourceShape->begin(); currentBlock.isValid(); currentBlock = currentBlock.next()) {
         destFrameCursor.setCharFormat(*charFormat);
         destFrameCursor.insertText(currentBlock.text());
         destFrameCursor.insertBlock();
@@ -190,12 +190,12 @@ void KPrViewModeOutline::insertText(QTextDocument* sourceShape, QTextFrame* dest
     // then we format lists
     QTextList *currentList = 0;
     int currentIndent = -1;
-    for(QTextBlock srcBlock = sourceShape->begin(), destBlock = destFrame->firstCursorPosition().block();
+    for (QTextBlock srcBlock = sourceShape->begin(), destBlock = destFrame->firstCursorPosition().block();
         srcBlock.isValid() && destBlock.isValid();
         srcBlock = srcBlock.next(), destBlock = destBlock.next()) {
-        if(srcBlock.textList()) {
+        if (srcBlock.textList()) {
             QTextCursor destCursor(destBlock);
-            if(currentList) {
+            if (currentList) {
                 currentList->add(destBlock);
             }
             else {
@@ -227,7 +227,7 @@ bool KPrViewModeOutline::indent(bool indent)
     int startOfLine = cursor.position();
     cursor.movePosition(QTextCursor::EndOfLine);
     int endOfLine = cursor.position();
-    if(selectionStart >= startOfLine && selectionEnd <= endOfLine && selectionEnd != startOfLine) {
+    if (selectionStart >= startOfLine && selectionEnd <= endOfLine && selectionEnd != startOfLine) {
         qDebug() << "Not indent";
         return false;
     }
@@ -239,7 +239,7 @@ bool KPrViewModeOutline::indent(bool indent)
     cursor.setPosition(selectionEnd);
     QTextDocument *selectionEndShape = m_link[cursor.currentFrame()].textDocument;
 
-    if(targetShape == 0 || targetShape != selectionEndShape) {
+    if (targetShape == 0 || targetShape != selectionEndShape) {
         qDebug("Incorrect indent");
         return true;
     }
@@ -255,9 +255,9 @@ bool KPrViewModeOutline::indent(bool indent)
     qDebug() << (indent?"Indent":"Unindent") << " from "<<selectionStart << " to " << selectionEnd;
 
     QTextBlock block = cursor.block();
-    for(; block.isValid() && block.textList() && ((block.position() < selectionEnd) || oneOf); block = block.next()) {
+    for (; block.isValid() && block.textList() && ((block.position() < selectionEnd) || oneOf); block = block.next()) {
         QTextBlockFormat format = block.blockFormat();
-        if(indent || format.leftMargin() > 0) {
+        if (indent || format.leftMargin() > 0) {
             int newMargin = format.leftMargin() + (indent?10:-10);
             qDebug() << "Indent "<<block.text() << " old indent: " << format.leftMargin() << "; new indent: " << newMargin;
             format.setLeftMargin(newMargin);
@@ -277,7 +277,7 @@ bool KPrViewModeOutline::indent(bool indent)
     targetCursor.endEditBlock();
 
     // if the selection is not fully a list, we undo the changes
-    if(!block.previous().contains(selectionEnd)) {
+    if (!block.previous().contains(selectionEnd)) {
         qDebug() << "undo last indent";
         cursor.document()->undo();
         targetCursor.document()->undo();
@@ -288,7 +288,24 @@ bool KPrViewModeOutline::indent(bool indent)
 
 void KPrViewModeOutline::placeholderSwitch()
 {
-    qDebug() << "Placeholder switched !";
+    QTextCursor cur = m_editor->textCursor();
+    QTextFrame* currentFrame = cur.currentFrame();
+    FrameData &currentFrameData = m_link[currentFrame];
+
+    if (!currentFrameData.textDocument || currentFrameData.type == "title") {
+        return;
+    }
+
+    // we search the next known frame
+    while((cur.currentFrame() == currentFrame ||
+           !(m_link[cur.currentFrame()].textDocument)) &&
+          !cur.atEnd()) {
+        cur.movePosition(QTextCursor::NextCharacter);
+    }
+
+    if(!cur.atEnd() && m_link[cur.currentFrame()].numSlide == currentFrameData.numSlide) {
+        m_editor->setTextCursor(cur);
+    }
 }
 
 void KPrViewModeOutline::addSlide() {
@@ -348,10 +365,7 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
 {
     switch (event->key()) {
     case Qt::Key_Tab:
-        if(int(event->modifiers()) == Qt::ControlModifier) {
-            outline->placeholderSwitch();
-        }
-        else if (int(event->modifiers()) == 0) {
+        if (int(event->modifiers()) == 0) {
             if(!outline->indent(true)) {
                 // if no indent has been done, a regular tab is inserted
                 QTextEdit::keyPressEvent(event);
@@ -392,6 +406,9 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
                 targetCur.setPosition(cur.position() - cur.currentFrame()->firstPosition());
                 targetCur.insertText("\n");
             }
+        } else if(int(event->modifiers()) == Qt::ControlModifier) {
+            qDebug() << "placeholderSwitch";
+            outline->placeholderSwitch();
         }
         else {
             QTextEdit::keyPressEvent(event);
