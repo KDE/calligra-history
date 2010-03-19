@@ -41,6 +41,7 @@ KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas )
     , m_link()
 {
     m_editor->hide();
+    //m_editor->document()->setUndoRedoEnabled(false);
 
     // sets text format
     m_titleCharFormat.setFontWeight(QFont::Bold);
@@ -334,12 +335,11 @@ void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAd
 
      qDebug() << "Event on pos " << position << ", frame " << frame << "(" << frameBegin << " => " << frame->lastPosition() << ") "<< (m_link.contains(frame)?"(known)":"(unknown)");
      qDebug() << charsAdded << " chars added; " << charsRemoved << " chars removed";
-     while(cur.currentFrame() == frame) cur.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
-     qDebug() << "Frame contents: " << cur.selectedText();
 
      QTextDocument* targetDocument = m_link[frame].textDocument;
      if(!targetDocument) {  // event on an unknown frame (parasite blank line ?)
          qDebug() << "Incorrect action";
+         m_editor->document()->undo(&cur);
          return;
      }
 

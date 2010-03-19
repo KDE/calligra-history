@@ -101,7 +101,6 @@ protected:
         KPrViewModeOutline *outline;
     };
 
-
 private:
 
     QTextFrame * currentFrame() {
