@@ -20,10 +20,13 @@
 
 #include "KPrViewModeOutline.h"
 #include "KPresenter.h"
+#include <KoPACanvas.h>
 #include <KoPADocument.h>
 #include <KoPAView.h>
 #include <KoTextShapeData.h>
+#include <KoToolBase.h>
 #include <KPrPage.h>
+#include <tools/KPrPlaceholderTool.h>
 #include <pagelayout/KPrPageLayout.h>
 #include <pagelayout/KPrPageLayouts.h>
 #include <QTextDocumentFragment>
@@ -148,28 +151,27 @@ void KPrViewModeOutline::populate() {
 
         // Copy relevant content of the page in the frame
         foreach (OutlinePair pair, page->placeholders().outlineData()) {
-            // gets text format
-            QTextFrameFormat *frameFormat;
-            QTextCharFormat *charFormat;
             if (pair.first == "title") {
-                frameFormat = &m_titleFrameFormat;
-                charFormat = &m_titleCharFormat;
+                QTextFrame *frame = cursor.insertFrame(m_titleFrameFormat);
+                FrameData frameData = {pair.second->document(), numSlide, pair.first};
+                m_link.insert(frame, frameData); // Create frame and save the link
+                cursor.setCharFormat(m_titleCharFormat);
+                // insert text (create lists where needed)
+                insertText(pair.second->document(), frame, &m_titleCharFormat);
+                cursor.setPosition(slideFrame->lastPosition());
             }
-            else if (pair.first == "subtitle" || pair.first == "outline") {
-                frameFormat = &m_defaultFrameFormat;
-                charFormat = &m_defaultCharFormat;
+        }
+        // Copy relevant content of the page in the frame
+        foreach (OutlinePair pair, page->placeholders().outlineData()) {
+            if (pair.first == "subtitle" || pair.first == "outline") {
+                QTextFrame *frame = cursor.insertFrame(m_defaultFrameFormat);
+                FrameData frameData = {pair.second->document(), numSlide, pair.first};
+                m_link.insert(frame, frameData); // Create frame and save the link
+                cursor.setCharFormat(m_defaultCharFormat);
+                // insert text (create lists where needed)
+                insertText(pair.second->document(), frame, &m_defaultCharFormat);
+                cursor.setPosition(slideFrame->lastPosition());
             }
-            else {
-                continue;
-            }
-
-            QTextFrame *frame = cursor.insertFrame(*frameFormat);
-            FrameData frameData = {pair.second->document(), numSlide, pair.first};
-            m_link.insert(frame, frameData); // Create frame and save the link
-            cursor.setCharFormat(*charFormat);
-            // insert text (create lists where needed)
-            insertText(pair.second->document(), frame, charFormat);
-            cursor.setPosition(slideFrame->lastPosition());
         }
         cursor.movePosition(QTextCursor::End);
         ++numSlide;
@@ -322,6 +324,11 @@ void KPrViewModeOutline::addSlide() {
     //TODO Find constant for 1
     KPrPage * page = static_cast<KPrPage *>(m_view->kopaDocument()->pages()[numSlide + 1]);
     page->setLayout(layoutMap[1], m_view->kopaDocument());
+    // Create shapes
+    KPrPlaceholderTool tool(static_cast<KoCanvasBase *>(m_canvas));
+    foreach (KoShape * shape, page->placeholders().placeholderShape()) {
+        tool.activate(KoToolBase::DefaultActivation, QSet<KoShape *>() << shape);
+    }
     // Reload the editor
     populate();
 }

@@ -233,6 +233,16 @@ OutlineData KPrPlaceholders::outlineData() const {
     return outline;
 }
 
+QList<KoShape *> KPrPlaceholders::placeholderShape() {
+    QList<KoShape *> shapes;
+    for ( Placeholders::iterator it( m_placeholders.begin() ) ; it != m_placeholders.end(); ++it ) {
+        KPrPlaceholderShape * shape = dynamic_cast<KPrPlaceholderShape *>(it->shape);
+        if ( shape ) {
+            shapes.append(shape);
+        }
+    }
+    return shapes;
+}
 
 void KPrPlaceholders::applyStyle( KPrPlaceholderShape * shape, const QString & presentationClass, const QMap<QString, KoTextShapeData*> & styles )
 {

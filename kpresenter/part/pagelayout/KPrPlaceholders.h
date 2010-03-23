@@ -114,6 +114,8 @@ public:
      */
     OutlineData outlineData() const;
 
+    QList<KoShape *> placeholderShape();
+
 private:
     void add( const QList<KoShape *> & shapes );
 
