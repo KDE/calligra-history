@@ -436,13 +436,15 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
     case Qt::Key_Backspace:
         if (int(event->modifiers()) == 0) {
             if (outline->m_link[outline->currentFrame()].type == "title") {
-                if(outline->currentFrame()->firstPosition() ==  textCursor().position())
-                        outline->deleteSlide();
+                if(outline->currentFrame()->firstPosition() ==  textCursor().position()) {
+                    outline->deleteSlide();
+                    break;
+                }
             }
         }
-        outline->disableSync();
+        //outline->disableSync();
         QTextEdit::keyPressEvent(event);
-        outline->enableSync();
+        //outline->enableSync();
         break;
     default:
         qDebug()<< event->key();
