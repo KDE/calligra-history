@@ -248,6 +248,7 @@ bool KPrViewModeOutline::indent(bool indent)
         return true;
     }
 
+    disableSync();
     int frameOffset = cursor.currentFrame()->firstPosition();
 
     cursor.setPosition(selectionStart);
@@ -286,6 +287,7 @@ bool KPrViewModeOutline::indent(bool indent)
         cursor.document()->undo();
         targetCursor.document()->undo();
     }
+    enableSync();
 
     return true;
 }
