@@ -78,6 +78,7 @@ protected:
     void placeholderSwitch();
 
     void addSlide();
+    void deleteSlide();
 
     /**
      * Fills the editor with presentation data

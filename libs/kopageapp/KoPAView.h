@@ -166,6 +166,9 @@ public slots:
     /// Insert a new page after the current one
     void insertPage();
 
+    /// Delete the current page
+    void deletePage();
+
 signals:
     /// Emitted every time the active page is changed
     void activePageChanged();
@@ -212,9 +215,6 @@ protected slots:
 
     /// Copy Page
     void copyPage();
-
-    /// Delete the current page
-    void deletePage();
 
     /// Called when the clipboard changed
     virtual void clipboardDataChanged();

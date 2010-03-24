@@ -46,6 +46,7 @@ KPrViewModeOutline::KPrViewModeOutline( KoPAView * view, KoPACanvas * canvas )
     m_editor->hide();
     //m_editor->document()->setUndoRedoEnabled(false);
 
+
     // sets text format
     m_titleCharFormat.setFontWeight(QFont::Bold);
     m_titleCharFormat.setFontPointSize(14.0);
@@ -316,6 +317,7 @@ void KPrViewModeOutline::addSlide() {
     // Active the current page and insert page
     m_view->setActivePage(m_view->kopaDocument()->pageByIndex(numSlide, false));
     m_view->insertPage();
+
     // Search layouts
     KPrPageLayouts * layouts = m_view->kopaDocument()->resourceManager()->resource(KPresenter::PageLayouts).value<KPrPageLayouts*>();
     Q_ASSERT( layouts );
@@ -331,6 +333,16 @@ void KPrViewModeOutline::addSlide() {
     }
     // Reload the editor
     populate();
+}
+
+void KPrViewModeOutline::deleteSlide() {
+    if(m_view->kopaDocument()->pageCount() != 1){
+        int numSlide = m_link[currentFrame()].numSlide;
+        m_view->setActivePage(m_view->kopaDocument()->pageByIndex(numSlide, false));
+        m_view->deletePage();
+        populate();
+    }
+
 }
 
 void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAdded)
@@ -420,6 +432,17 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
         else {
             QTextEdit::keyPressEvent(event);
         }
+        break;
+    case Qt::Key_Backspace:
+        if (int(event->modifiers()) == 0) {
+            if (outline->m_link[outline->currentFrame()].type == "title") {
+                if(outline->currentFrame()->firstPosition() ==  textCursor().position())
+                        outline->deleteSlide();
+            }
+        }
+        outline->disableSync();
+        QTextEdit::keyPressEvent(event);
+        outline->enableSync();
         break;
     default:
         qDebug()<< event->key();
