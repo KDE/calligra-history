@@ -26,6 +26,8 @@ KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap 
 : m_effect( effect )
 , m_data( oldPage, newPage, w )
 {
+    m_data.m_graphicsView = 0;
+    m_data.m_scene = 0;
     if(m_effect->useGraphicsView()){
         m_data.m_scene = new QGraphicsScene();
         m_data.m_graphicsView = new QGraphicsView(m_data.m_scene, m_data.m_widget);
@@ -34,10 +36,15 @@ KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap 
         m_data.m_graphicsView->resize(m_data.m_widget->size());
         m_data.m_graphicsView->setFrameShape(QFrame::Panel);
         m_data.m_graphicsView->setLineWidth(0);
+
         m_data.m_oldPageItem = new QGraphicsPixmapItem(m_data.m_oldPage, 0, m_data.m_scene);
         m_data.m_newPageItem = new QGraphicsPixmapItem(m_data.m_newPage, 0, m_data.m_scene);
         m_data.m_oldPageItem->hide();
         m_data.m_newPageItem->hide();
+
+        // set a black background
+        m_data.m_graphicsView->setBackgroundBrush(Qt::black);
+
         m_data.m_graphicsView->show();
 
         // Do some optimization
@@ -62,8 +69,10 @@ KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap 
 
 KPrPageEffectRunner::~KPrPageEffectRunner()
 {
-    delete m_data.m_graphicsView;
-    delete m_data.m_scene;
+    if(m_data.m_graphicsView){
+        delete m_data.m_graphicsView;
+        delete m_data.m_scene;
+    }
 }
 
 bool KPrPageEffectRunner::paint( QPainter &painter )

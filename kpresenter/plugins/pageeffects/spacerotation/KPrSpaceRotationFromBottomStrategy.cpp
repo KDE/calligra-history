@@ -22,7 +22,6 @@
 
 #include <QWidget>
 #include <QPainter>
-#include <QDebug>
 
 KPrSpaceRotationFromBottomStrategy::KPrSpaceRotationFromBottomStrategy()
 : KPrPageEffectStrategy( KPrSpaceRotationEffectFactory::FromBottom, "spaceRotation", "topToBottom", false, true )
