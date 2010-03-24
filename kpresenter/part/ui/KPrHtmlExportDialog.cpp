@@ -170,33 +170,32 @@ void KPrHtmlExportDialog::addFavoriteCSS(){
     QString basePath = KStandardDirs::locateLocal("data","kpresenter/templates/exportHTML");
     QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
 	// test if the css already exits
-        QFile fileCss(cssPath);
-        QStringList list = cssPath.split("/");
-        QString shortName = list[list.count()-1];
-        shortName.remove(QString(".css"),Qt::CaseInsensitive);
-        QDir newdir(basePath);
-        basePath.append("/" + shortName);
-        basePath.append("/style.css");
-        QFile newfile(basePath);
-        if(newdir.mkpath(shortName)){
-            if(! (QFile::copy(fileCss.fileName(),newfile.fileName()))){
-            	// error copy
-            }
+    QFile fileCss(cssPath);
+    QStringList list = cssPath.split("/");
+    QString shortName = list[list.count()-1];
+    shortName.remove(QString(".css"),Qt::CaseInsensitive);
+    QDir newdir(basePath);
+    basePath.append("/" + shortName);
+    basePath.append("/style.css");
+    QFile newfile(basePath);
+    if(newdir.mkpath(shortName)){
+        if(! (QFile::copy(fileCss.fileName(),newfile.fileName()))){
+        	// error copy
         }
-        updateCssListOnAdd(basePath);
+    }
+    updateCssListOnAdd(basePath);
 }
 
 void KPrHtmlExportDialog::delFavoriteCSS(){
-
-    if (this->cssIsFavorite()){
         QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
         QStringList list = cssPath.split("/");
         QString shortName = list[list.count()-1];
-        cssPath = cssPath.remove(cssPath.size()-shortName.size()-1,shortName.size()+1);
+        if(shortName == "style.css"){
+	        cssPath = cssPath.remove(cssPath.size()-shortName.size()-1,shortName.size()+1);
+	    }
         QDir dir = QDir(cssPath);
 		delDirectory(dir);
         updateCssListOnDelete();
-    }
 }
 
 // delete recursively all files into the selected directory
@@ -204,7 +203,6 @@ void KPrHtmlExportDialog::delDirectory(QDir dir){
 	dir.setFilter(QDir::AllDirs);
 	QStringList dirList = dir.entryList();
     for (QStringList::ConstIterator element = dirList.begin(); element != dirList.end(); ++element) {
-		QString test = *element;
 		if(*element != "." && *element !=  ".."){
 			delDirectory(QDir(dir.filePath(*element)));
 		}
@@ -380,7 +378,6 @@ bool KPrHtmlExportDialog::cssIsFavorite() {
 bool KPrHtmlExportDialog::cssIsSystemFavorite() {
     QString cssPath(ui.kcombobox->itemData(ui.kcombobox->currentIndex()).toString());
     QString dir;
-    qDebug() << cssPath;
 
     QStringList dirs(KStandardDirs().findDirs("data", "kpresenter/templates/exportHTML"));
     for (QStringList::ConstIterator path=dirs.begin(); path!=dirs.end(); ++path) {
@@ -388,7 +385,6 @@ bool KPrHtmlExportDialog::cssIsSystemFavorite() {
             dir = *path;
         }
     }
-    qDebug() << dir;
 
     return (!dir.isNull()) && cssPath.contains(dir);
 }

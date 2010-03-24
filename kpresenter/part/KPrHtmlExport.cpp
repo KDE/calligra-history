@@ -28,7 +28,7 @@
 #include "KPrHtmlExportUiDelegate.h"
 #include "KPrView.h"
 #include <KoPADocument.h>
-
+#include <QDir>
 #include <kdebug.h>
 KPrHtmlExport::KPrHtmlExport()
 {
@@ -104,10 +104,44 @@ void KPrHtmlExport::generateHtml()
     }
     QString style = m_parameters.cssUrl.pathOrUrl();
     QFile styleFile;
-    styleFile.setFileName(style);
-    styleFile.open(QIODevice::ReadOnly);
-    writeHtmlFileToTmpDir("style.css", styleFile.readAll());
-    styleFile.close();
+
+
+
+    KStandardDirs std;
+    QStringList dirs = std.findDirs("data", "kpresenter/templates/exportHTML"); 
+    bool isFavorite = false;
+    for(int i=0; i<dirs.count() && !isFavorite; i++){
+        if(style.contains(dirs[i],Qt::CaseInsensitive)){
+            isFavorite = true;
+        }
+    }
+    if(isFavorite){
+        QStringList list = style.split("/");
+        QString shortName = list[list.count()-1];
+        if(shortName=="style.css"){
+            style = style.remove(style.size()-shortName.size()-1,shortName.size()+1);
+        }
+        QDir dir(style);
+	    dir.setFilter(QDir::Files);
+	    QStringList dirList = dir.entryList();
+        for (QStringList::ConstIterator element = dirList.begin(); element != dirList.end(); ++element) {
+		    QString file(dir.absolutePath()+"/"+*element);
+            styleFile.setFileName(file);
+            qDebug() << "byte avaible" <<styleFile.QIODevice::bytesAvailable();
+            styleFile.open(QIODevice::ReadOnly);
+            qDebug() << "DONNEES DU FICHIER " <<styleFile.readAll();
+            writeHtmlFileToTmpDir(*element, styleFile.readAll());
+
+
+	    }
+    }
+    else
+    {
+        styleFile.setFileName(style);
+        styleFile.open(QIODevice::ReadOnly);
+        writeHtmlFileToTmpDir("style.css", styleFile.readAll());
+        styleFile.close();
+    }
 }
 
 void KPrHtmlExport::generateToc()
@@ -134,6 +168,7 @@ void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString
     QFile file(fileUrl.toLocalFile());
     file.open(QIODevice::WriteOnly);
     QTextStream stream(&file);
+
     stream << htmlBody;
     stream.flush();
     file.close();
