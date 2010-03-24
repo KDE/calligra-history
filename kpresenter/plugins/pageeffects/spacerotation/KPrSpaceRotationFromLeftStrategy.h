@@ -1,6 +1,7 @@
 /* This file is part of the KDE project
    Copyright (C) 2010 Benjamin Port <port.benjamin@gmail.com>
 
+
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
@@ -17,24 +18,26 @@
  * Boston, MA 02110-1301, USA.
 */
 
-#ifndef KPRSPACEROTATIONEFFECTFACTORY_H
-#define KPRSPACEROTATIONEFFECTFACTORY_H
+#ifndef KPRSPACEROTATIONFROMLEFTSTRATEGY_H
+#define KPRSPACEROTATIONFROMLEFTSTRATEGY_H
 
-#include "pageeffects/KPrPageEffectFactory.h"
-
-class KPrSpaceRotationEffectFactory : public KPrPageEffectFactory
+#include "pageeffects/KPrPageEffectStrategy.h"
+#include <QTransform>
+class KPrSpaceRotationFromLeftStrategy : public KPrPageEffectStrategy
 {
 public:
-    KPrSpaceRotationEffectFactory();
-    virtual ~KPrSpaceRotationEffectFactory();
-    virtual QString subTypeName(int subType) const;
+    KPrSpaceRotationFromLeftStrategy();
+    virtual ~KPrSpaceRotationFromLeftStrategy();
 
-    enum SubType {
-        FromBottom,
-        FromTop,
-        FromLeft,
-        FromRight
-    };
+    virtual void setup( const KPrPageEffect::Data &data, QTimeLine &timeLine );
+
+    virtual void paintStep( QPainter &p, int currPos, const KPrPageEffect::Data &data );
+
+    virtual void next( const KPrPageEffect::Data &data );
+
+    virtual void finish(const KPrPageEffect::Data &data);
+private:
+    QTransform m_transform;
 };
 
-#endif /* KPRSPACEROTATIONEFFECTFACTORY_H */
+#endif // KPRSPACEROTATIONFROMLEFTSTRATEGY_H

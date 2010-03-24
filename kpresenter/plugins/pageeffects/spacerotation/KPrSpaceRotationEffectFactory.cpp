@@ -22,6 +22,9 @@
 #include <klocale.h>
 
 #include "KPrSpaceRotationFromBottomStrategy.h"
+#include "KPrSpaceRotationFromTopStrategy.h"
+#include "KPrSpaceRotationFromLeftStrategy.h"
+#include "KPrSpaceRotationFromRightStrategy.h"
 
 #define SpaceRotationEffectId "SpaceRotationEffect"
 
@@ -29,6 +32,9 @@ KPrSpaceRotationEffectFactory::KPrSpaceRotationEffectFactory()
 : KPrPageEffectFactory( SpaceRotationEffectId, i18n( "Space Rotation" ) )
 {
     addStrategy( new KPrSpaceRotationFromBottomStrategy() );
+    addStrategy( new KPrSpaceRotationFromTopStrategy() );
+    addStrategy( new KPrSpaceRotationFromLeftStrategy() );
+    addStrategy( new KPrSpaceRotationFromRightStrategy() );
 }
 
 KPrSpaceRotationEffectFactory::~KPrSpaceRotationEffectFactory()
@@ -36,7 +42,10 @@ KPrSpaceRotationEffectFactory::~KPrSpaceRotationEffectFactory()
 }
 
 static const char* s_subTypes[] = {
-    I18N_NOOP( "From Bottom" )
+    I18N_NOOP( "From Bottom" ),
+    I18N_NOOP( "From Top" ),
+    I18N_NOOP( "From Left" ),
+    I18N_NOOP( "From Right" )
 };
 
 QString KPrSpaceRotationEffectFactory::subTypeName(int subType) const

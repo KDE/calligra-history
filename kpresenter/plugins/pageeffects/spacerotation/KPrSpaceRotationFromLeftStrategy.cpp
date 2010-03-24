@@ -17,40 +17,40 @@
  * Boston, MA 02110-1301, USA.
 */
 
-#include "KPrSpaceRotationFromBottomStrategy.h"
+#include "KPrSpaceRotationFromLeftStrategy.h"
 #include "KPrSpaceRotationEffectFactory.h"
 
 #include <QWidget>
 #include <QPainter>
 
-KPrSpaceRotationFromBottomStrategy::KPrSpaceRotationFromBottomStrategy()
-: KPrPageEffectStrategy( KPrSpaceRotationEffectFactory::FromBottom, "spaceRotation", "bottomToTop", false, true )
+KPrSpaceRotationFromLeftStrategy::KPrSpaceRotationFromLeftStrategy()
+: KPrPageEffectStrategy( KPrSpaceRotationEffectFactory::FromLeft, "spaceRotation", "leftToRight", false, true )
 {
 }
 
-KPrSpaceRotationFromBottomStrategy::~KPrSpaceRotationFromBottomStrategy()
+KPrSpaceRotationFromLeftStrategy::~KPrSpaceRotationFromLeftStrategy()
 {
 }
 
-void KPrSpaceRotationFromBottomStrategy::setup( const KPrPageEffect::Data &data, QTimeLine &timeLine )
+void KPrSpaceRotationFromLeftStrategy::setup( const KPrPageEffect::Data &data, QTimeLine &timeLine )
 {
-    timeLine.setFrameRange( 0, 180 );
+    timeLine.setFrameRange( 180, 0 );
     data.m_oldPageItem->show();
 }
 
-void KPrSpaceRotationFromBottomStrategy::paintStep( QPainter &p, int currPos, const KPrPageEffect::Data &data )
+void KPrSpaceRotationFromLeftStrategy::paintStep( QPainter &p, int currPos, const KPrPageEffect::Data &data )
 {
     Q_UNUSED(p);
     Q_UNUSED(currPos);
     Q_UNUSED(data);
 }
 
-void KPrSpaceRotationFromBottomStrategy::next( const KPrPageEffect::Data &data )
+void KPrSpaceRotationFromLeftStrategy::next( const KPrPageEffect::Data &data )
 {
     int frame = data.m_timeLine.frameForTime( data.m_currentTime );
     data.m_oldPageItem->hide();
     data.m_newPageItem->hide();
-    if(frame<=90){
+    if(frame>=90){
         data.m_oldPageItem->show();
     } else {
         data.m_newPageItem->show();
@@ -60,15 +60,15 @@ void KPrSpaceRotationFromBottomStrategy::next( const KPrPageEffect::Data &data )
     int degree = (frame <= 90) ? frame : frame + 180;
     int h = data.m_widget->size().height()/2;
     int w = data.m_widget->size().width()/2;
-    m_transform.translate(w,h).rotate(degree,Qt::XAxis).translate(-w,-h);
-    if(frame<=90){
+    m_transform.translate(w,h).rotate(degree,Qt::YAxis).translate(-w,-h);
+    if(frame>=90){
         data.m_oldPageItem->setTransform(m_transform);
     } else {
         data.m_newPageItem->setTransform(m_transform);
     }
 }
 
-void KPrSpaceRotationFromBottomStrategy::finish(const KPrPageEffect::Data &data)
+void KPrSpaceRotationFromLeftStrategy::finish(const KPrPageEffect::Data &data)
 {
     data.m_graphicsView->hide();
     data.m_oldPageItem->hide();
