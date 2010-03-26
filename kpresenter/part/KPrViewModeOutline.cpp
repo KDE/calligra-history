@@ -335,6 +335,7 @@ void KPrViewModeOutline::addSlide() {
     }
     // Reload the editor
     populate();
+    setCursorTo(numSlide+1, "title");
 }
 
 void KPrViewModeOutline::deleteSlide() {
@@ -343,8 +344,18 @@ void KPrViewModeOutline::deleteSlide() {
         m_view->setActivePage(m_view->kopaDocument()->pageByIndex(numSlide, false));
         m_view->deletePage();
         populate();
+        setCursorTo(numSlide-1, "title", false);
     }
 
+}
+
+void KPrViewModeOutline::setCursorTo(int slide, QString type, bool atBegin) {
+    QMapIterator<QTextFrame*, FrameData> it(m_link);
+    for(; it.hasNext() && (it.value().numSlide != slide || it.value().type != type); it.next());
+
+    if(it.value().numSlide == slide || it.value().type == type) {
+        m_editor->setTextCursor(atBegin ? it.key()->firstCursorPosition() : it.key()->lastCursorPosition());
+    }
 }
 
 void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAdded)

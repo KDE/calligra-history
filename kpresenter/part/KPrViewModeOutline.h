@@ -81,6 +81,14 @@ protected:
     void deleteSlide();
 
     /**
+     * Try to put editor's cursor on the frame that corresponds to given description.
+     * @param  slide    slide number
+     * @param  type     shape's class
+     * @param  atBegin  if true cursot will be on first frame position, otherwise on last position
+     */
+    void setCursorTo(int slide, QString type, bool atBegin=true);
+
+    /**
      * Fills the editor with presentation data
      */
     void populate();
