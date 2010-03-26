@@ -239,9 +239,9 @@ bool KPrViewModeOutline::indent(bool indent)
     // if selection is through several frames, no indent should be done, but normal tab key
     // should not be handled either
     cursor.setPosition(selectionStart);
-    QTextDocument *targetShape = m_link[cursor.currentFrame()].textDocument;
+    QTextDocument *targetShape = m_link.value(cursor.currentFrame()).textDocument;
     cursor.setPosition(selectionEnd);
-    QTextDocument *selectionEndShape = m_link[cursor.currentFrame()].textDocument;
+    QTextDocument *selectionEndShape = m_link.value(cursor.currentFrame()).textDocument;
 
     if (targetShape == 0 || targetShape != selectionEndShape) {
         qDebug("Incorrect indent");
@@ -296,7 +296,7 @@ void KPrViewModeOutline::placeholderSwitch()
 {
     QTextCursor cur = m_editor->textCursor();
     QTextFrame* currentFrame = cur.currentFrame();
-    FrameData &currentFrameData = m_link[currentFrame];
+    const FrameData &currentFrameData = m_link.value(currentFrame);
 
     if (!currentFrameData.textDocument || currentFrameData.type == "title") {
         return;
@@ -304,18 +304,18 @@ void KPrViewModeOutline::placeholderSwitch()
 
     // we search the next known frame
     while((cur.currentFrame() == currentFrame ||
-           !(m_link[cur.currentFrame()].textDocument)) &&
+           !(m_link.value(cur.currentFrame()).textDocument)) &&
           !cur.atEnd()) {
         cur.movePosition(QTextCursor::NextCharacter);
     }
 
-    if(!cur.atEnd() && m_link[cur.currentFrame()].numSlide == currentFrameData.numSlide) {
+    if(!cur.atEnd() && m_link.value(cur.currentFrame()).numSlide == currentFrameData.numSlide) {
         m_editor->setTextCursor(cur);
     }
 }
 
 void KPrViewModeOutline::addSlide() {
-    int numSlide = m_link[currentFrame()].numSlide;
+    int numSlide = m_link.value(currentFrame()).numSlide;
     // Active the current page and insert page
     m_view->setActivePage(m_view->kopaDocument()->pageByIndex(numSlide, false));
     m_view->insertPage();
@@ -340,7 +340,7 @@ void KPrViewModeOutline::addSlide() {
 
 void KPrViewModeOutline::deleteSlide() {
     if(m_view->kopaDocument()->pageCount() != 1){
-        int numSlide = m_link[currentFrame()].numSlide;
+        int numSlide = m_link.value(currentFrame()).numSlide;
         m_view->setActivePage(m_view->kopaDocument()->pageByIndex(numSlide, false));
         m_view->deletePage();
         populate();
@@ -368,10 +368,10 @@ void KPrViewModeOutline::synchronize(int position, int charsRemoved, int charsAd
      qDebug() << "Event on pos " << position << ", frame " << frame << "(" << frameBegin << " => " << frame->lastPosition() << ") "<< (m_link.contains(frame)?"(known)":"(unknown)");
      qDebug() << charsAdded << " chars added; " << charsRemoved << " chars removed";
 
-     QTextDocument* targetDocument = m_link[frame].textDocument;
+     QTextDocument* targetDocument = m_link.value(frame).textDocument;
      if(!targetDocument) {  // event on an unknown frame (parasite blank line ?)
          qDebug() << "Incorrect action";
-         m_editor->document()->undo(&cur);
+         populate();  // we can't just undo last action because frame stucture may be changed
          return;
      }
 
@@ -419,13 +419,14 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
     case Qt::Key_Return:
         qDebug() << "Qt::Key_Return";
         if (int(event->modifiers()) == 0) {
-            if (outline->m_link[outline->m_editor->textCursor().currentFrame()].type == "title") {
+            
+            if (outline->m_link.value(outline->m_editor->textCursor().currentFrame()).type == "title") {
                 outline->addSlide();
             }
             else {
                 // the native behaviour whan adding an item is buggy as hell !
                 QTextCursor cur = textCursor();
-                QTextDocument* target = outline->m_link[cur.currentFrame()].textDocument;
+                QTextDocument* target = outline->m_link.value(cur.currentFrame()).textDocument;
                 if (!(cur.currentList() && target)) {
                     QTextEdit::keyPressEvent(event);
                     break;
@@ -435,7 +436,7 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
                 QTextEdit::keyPressEvent(event);
                 outline->enableSync();
                 QTextCursor targetCur(target);
-                targetCur.setPosition(cur.position() - cur.currentFrame()->firstPosition());
+                targetCur.setPosition(cur.position() - cur.currentFrame()->firstPosition() - 1);
                 targetCur.insertText("\n");
             }
         } else if(int(event->modifiers()) == Qt::ControlModifier) {
@@ -448,7 +449,7 @@ void KPrViewModeOutline::KPrOutlineEditor::keyPressEvent(QKeyEvent *event)
         break;
     case Qt::Key_Backspace:
         if (int(event->modifiers()) == 0) {
-            if (outline->m_link[outline->currentFrame()].type == "title") {
+            if (outline->m_link.value(outline->currentFrame()).type == "title") {
                 if(outline->currentFrame()->firstPosition() ==  textCursor().position()) {
                     outline->deleteSlide();
                     break;
