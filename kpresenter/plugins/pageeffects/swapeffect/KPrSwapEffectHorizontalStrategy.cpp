@@ -48,9 +48,8 @@ void KPrSwapEffectHorizontalStrategy::paintStep( QPainter &p, int currPos, const
 
 void KPrSwapEffectHorizontalStrategy::next( const KPrPageEffect::Data &data )
 {
-    float scaleMini= 0.5;
+    float scaleMini= 0.3;
     int degreeMax = 25;
-    int dxMax = 500;
     int frame = data.m_timeLine.frameForTime( data.m_currentTime );
 
     float factor = (float)(data.m_timeLine.endFrame()-frame)/(data.m_timeLine.endFrame());
@@ -69,6 +68,7 @@ void KPrSwapEffectHorizontalStrategy::next( const KPrPageEffect::Data &data )
 
     // Item 1
     QSize size = data.m_oldPageItem->pixmap().size();
+    int dxMax = size.width()/1.8;
     m_transform.reset();
     scaleFactor = 1-(1-factor)*(1-scaleMini);
     m_transform.translate(size.width()/2,size.height()/2).scale(scaleFactor, scaleFactor).translate(-size.width()/2,-size.height()/2);
