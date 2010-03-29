@@ -59,7 +59,7 @@ KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap 
             m_data.m_graphicsView->setRenderHints( QPainter::SmoothPixmapTransform );
             m_data.m_graphicsView->setRenderHints( QPainter::Antialiasing );
             m_data.m_graphicsView->setRenderHints( QPainter::HighQualityAntialiasing );
-            QGLWidget *openGLWidget = new QGLWidget(QGLFormat(QGL::SampleBuffers));
+            QGLWidget *openGLWidget = new QGLWidget();
             openGLWidget->format().setSwapInterval(0);
             m_data.m_graphicsView->setViewport(openGLWidget);
         }
