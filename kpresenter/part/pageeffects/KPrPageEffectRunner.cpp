@@ -84,6 +84,11 @@ void KPrPageEffectRunner::next( int currentTime )
 {
     m_data.m_lastTime = m_data.m_currentTime;
     m_data.m_currentTime = currentTime;
+    int currPos = m_data.m_timeLine.frameForTime( m_data.m_currentTime );
+
+    if ( currPos >= m_data.m_timeLine.endFrame() ) {
+        finish();
+    }
     m_effect->next( m_data );
 }
 
