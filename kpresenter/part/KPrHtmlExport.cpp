@@ -105,8 +105,6 @@ void KPrHtmlExport::generateHtml()
     QString style = m_parameters.cssUrl.pathOrUrl();
     QFile styleFile;
 
-
-
     KStandardDirs std;
     QStringList dirs = std.findDirs("data", "kpresenter/templates/exportHTML"); 
     bool isFavorite = false;
@@ -125,14 +123,11 @@ void KPrHtmlExport::generateHtml()
 	    dir.setFilter(QDir::Files);
 	    QStringList dirList = dir.entryList();
         for (QStringList::ConstIterator element = dirList.begin(); element != dirList.end(); ++element) {
-		    QString file(dir.absolutePath()+"/"+*element);
+            QString file(dir.absolutePath()+"/"+*element);
             styleFile.setFileName(file);
-            qDebug() << "byte avaible" <<styleFile.QIODevice::bytesAvailable();
             styleFile.open(QIODevice::ReadOnly);
-            qDebug() << "DONNEES DU FICHIER " <<styleFile.readAll();
             writeHtmlFileToTmpDir(*element, styleFile.readAll());
-
-
+            styleFile.close();
 	    }
     }
     else
