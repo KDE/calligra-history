@@ -1537,7 +1537,7 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
 {
     KoOdfLineNumberingConfiguration *lineNumberingConfiguration
             = KoTextDocument(m_parent->document()).lineNumberingConfiguration();
-    if (lineNumberingConfiguration->enabled()) {
+    if (lineNumberingConfiguration && lineNumberingConfiguration->enabled()) {
         // Set the font to the right style
         // Calculate x, based on the place of the line numbers (depending on page number and setting)
         // Get the right line-number
