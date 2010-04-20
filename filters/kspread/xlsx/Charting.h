@@ -132,6 +132,13 @@ namespace Charting
     public:
         virtual QByteArray name() const { return "line"; }
     };
+    
+    class RadarImpl : public ChartImpl
+    {
+    public:
+        RadarImpl() : ChartImpl() {}
+        virtual QByteArray name() const { return "radar"; }
+    };
 
     class AreaImpl : public ChartImpl
     {

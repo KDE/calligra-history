@@ -195,6 +195,8 @@ KoFilter::ConversionStatus XlsxXmlChartReader::read_plotArea()
             ELSE_TRY_READ_IF(line3DChart)
             ELSE_TRY_READ_IF(scatterChart)
             ELSE_TRY_READ_IF(scatter3DChart)
+            ELSE_TRY_READ_IF(radarChart)
+            ELSE_TRY_READ_IF(radar3DChart)
             ELSE_TRY_READ_IF(barDir)
             ELSE_TRY_READ_IF(grouping)
             ELSE_TRY_READ_IF(firstSliceAng)
@@ -502,6 +504,27 @@ KoFilter::ConversionStatus XlsxXmlChartReader::read_scatter3DChart()
 {
     if(!m_context->m_chart->m_impl) {
         m_context->m_chart->m_impl = new Charting::ScatterImpl();
+        m_context->m_chart->m_is3d = true;
+    }
+    return KoFilter::OK;
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL radarChart
+KoFilter::ConversionStatus XlsxXmlChartReader::read_radarChart()
+{
+    if(!m_context->m_chart->m_impl) {
+        m_context->m_chart->m_impl = new Charting::RadarImpl();
+    }
+    return KoFilter::OK;
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL radar3DChart
+KoFilter::ConversionStatus XlsxXmlChartReader::read_radar3DChart()
+{
+    if(!m_context->m_chart->m_impl) {
+        m_context->m_chart->m_impl = new Charting::RadarImpl();
         m_context->m_chart->m_is3d = true;
     }
     return KoFilter::OK;
