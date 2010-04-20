@@ -806,7 +806,7 @@ void Axis::Private::createBubbleDiagram()
     Q_ASSERT( kdBubbleDiagram == 0 );
 
     kdBubbleDiagramModel = new KDChartModel;
-    kdBubbleDiagramModel->setDataDimensions( 2 );
+    kdBubbleDiagramModel->setDataDimensions( 3 );
 
     kdBubbleDiagram = new KDChart::Plotter( plotArea->kdChart(), kdPlane );
     kdBubbleDiagram->setModel( kdBubbleDiagramModel );
