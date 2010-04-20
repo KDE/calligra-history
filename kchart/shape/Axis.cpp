@@ -735,9 +735,11 @@ void Axis::Private::createRadarDiagram()
     Q_ASSERT( kdRadarDiagram == 0 );
 
     kdRadarDiagramModel = new KDChartModel;
+    kdRadarDiagramModel->setDataDimensions( 2 );
 
     kdRadarDiagram = new KDChart::PolarDiagram( plotArea->kdChart(), kdPolarPlane );
     kdRadarDiagram->setModel( kdRadarDiagramModel );
+    kdRadarDiagram->setCloseDatasets(true);
     registerDiagram( kdRadarDiagram );
 
 #if 0  // Stacked and Percent not supported by KDChart.
