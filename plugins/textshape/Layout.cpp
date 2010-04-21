@@ -1536,14 +1536,33 @@ void Layout::drawUnderlines(QPainter *painter, const QTextFragment &currentFragm
 void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFragment,
         const QTextLine &line, qreal x1, qreal x2) const
 {
+    Q_UNUSED(x2);
+
     KoOdfLineNumberingConfiguration *lineNumberingConfiguration
             = KoTextDocument(m_parent->document()).lineNumberingConfiguration();
+
+    if (!m_data) {
+        return;
+    }
+
+
     if (lineNumberingConfiguration && lineNumberingConfiguration->enabled()) {
 
         // empty lines
         if (!lineNumberingConfiguration->countEmptyLines() && line.textLength() < 1) {
             return;
         }
+
+        // don't number header/footer text
+        if (!(m_data->textShapeType() == KoTextShapeData::MainText || m_data->textShapeType() == KoTextShapeData::OddPagesFooterText)) {
+            return;
+        }
+
+        // only number other text if we count lines in textboxes
+        if (m_data->textShapeType() == KoTextShapeData::OtherText && !lineNumberingConfiguration->countLinesInTextBoxes()) {
+            return;
+        }
+
 
         // get the page number
         int pageNumber = 0;
