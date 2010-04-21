@@ -165,6 +165,19 @@ public:
      */
     KoText::Direction pageDirection() const;
 
+    /// Each text frame set can be catogorized in one of these items
+    enum TextShapeType {
+        OddPagesHeaderText,  ///< header for the odd pages
+        EvenPagesHeaderText, ///< header for the even pages
+        OddPagesFooterText,  ///< footer for the odd pages
+        EvenPagesFooterText, ///< footer for the even pages
+        MainText,            ///< contains part of the main text
+        OtherText            ///< Any other text shape
+    };
+
+    void setTextShapeType(TextShapeType textShapeType);
+    TextShapeType textShapeType() const;
+
 signals:
     /**
      * emitted when the shape thinks it should be relayouted, for example after

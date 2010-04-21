@@ -60,7 +60,8 @@ public:
             position(-1),
             endPosition(-1),
             direction(KoText::AutoDirection),
-            textpage(0)
+            textpage(0),
+            textShapeType(KoTextShapeData::OtherText)
     {
     }
 
@@ -71,6 +72,8 @@ public:
     KoInsets margins;
     KoText::Direction direction;
     KoTextPage *textpage;
+    KoTextShapeData::TextShapeType textShapeType;
+
 };
 
 
@@ -236,6 +239,16 @@ void KoTextShapeData::relayoutFor(KoTextPage &textPage)
     layout->interruptLayout();
     layout->layout();
     d->textpage = oldPage;
+}
+
+void KoTextShapeData::setTextShapeType(KoTextShapeData::TextShapeType textShapeType)
+{
+    d->textShapeType = textShapeType;
+}
+
+KoTextShapeData::TextShapeType KoTextShapeData::textShapeType() const
+{
+    return d->textShapeType;
 }
 
 #include <KoTextShapeData.moc>
