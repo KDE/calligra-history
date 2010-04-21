@@ -31,6 +31,7 @@
 
 #include <KoTextDocumentLayout.h>
 #include <KoTextShapeData.h>
+#include <KoTextPage.h>
 #include <KoParagraphStyle.h>
 #include <KoCharacterStyle.h>
 #include <KoListStyle.h>
@@ -1462,7 +1463,7 @@ void Layout::drawStrikeOuts(QPainter *painter, const QTextFragment &currentFragm
             (KoCharacterStyle::LineMode) fmt.intProperty(KoCharacterStyle::StrikeOutMode);
 
         QString strikeOutText = fmt.stringProperty(KoCharacterStyle::StrikeOutText);
-        qreal width = 0; // line thickness
+       qreal width = 0; // line thickness
         if (strikeOutText.isEmpty()) {
             width = computeWidth(
                         (KoCharacterStyle::LineWeight) fmt.intProperty(KoCharacterStyle::StrikeOutWeight),
@@ -1538,10 +1539,62 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
     KoOdfLineNumberingConfiguration *lineNumberingConfiguration
             = KoTextDocument(m_parent->document()).lineNumberingConfiguration();
     if (lineNumberingConfiguration && lineNumberingConfiguration->enabled()) {
-        // Set the font to the right style
+
+        // empty lines
+        if (!lineNumberingConfiguration->countEmptyLines() && line.textLength() < 1) {
+            return;
+        }
+
+        // get the page number
+        int pageNumber = 0;
+        if (m_data) {
+            pageNumber = m_data->page()->pageNumber();
+        }
+
         // Calculate x, based on the place of the line numbers (depending on page number and setting)
+        qreal x = x1;
+        switch (lineNumberingConfiguration->position()) {
+        case KoOdfLineNumberingConfiguration::Left:
+            x -= lineNumberingConfiguration->offset();
+            break;
+        case KoOdfLineNumberingConfiguration::Right:
+            qDebug() << "Right";
+            x = line.width() + lineNumberingConfiguration->offset();
+            break;
+        case KoOdfLineNumberingConfiguration::Inner:
+            qDebug() << "Inner";
+            if (pageNumber & 1) {
+                // right page
+                x -= lineNumberingConfiguration->offset();
+            }
+            else {
+                qDebug() << "Outer";
+                // left page
+                x  = line.width() + lineNumberingConfiguration->offset();
+            }
+            break;
+        case KoOdfLineNumberingConfiguration::Outer:
+            if (pageNumber & 1) {
+                // right page
+                x  = line.width() + lineNumberingConfiguration->offset();
+            }
+            else {
+                // left page
+                x -= 20 + lineNumberingConfiguration->offset();
+            }
+        };
+
+        // Get the baseline of the line
+
+        // Set the font to the right style
+        QFont oldFont = painter->font();
+        painter->setFont(m_styleManager->defaultParagraphStyle()->characterStyle()->font());
+
         // Get the right line-number
-        painter->drawText(line.position().x() - 20, line.position().y(), QString("%1").arg(line.lineNumber()));
+
+        painter->drawText(x, line.position().y(), QString("%1").arg(line.lineNumber()));
+
+        painter->setFont(oldFont);
     }
 }
 
