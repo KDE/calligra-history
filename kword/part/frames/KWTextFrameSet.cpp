@@ -164,6 +164,29 @@ void KWTextFrameSet::setupFrame(KWFrame *frame)
     if (frame->shape() && m_pageStyle.isValid()) {
         frame->shape()->setBackground(m_pageStyle.background());
     }
+
+    switch(m_textFrameSetType) {
+    case KWord::OddPagesHeaderTextFrameSet:
+        data->setTextShapeType(KoTextShapeData::OddPagesHeaderText);
+        break;
+    case KWord::EvenPagesHeaderTextFrameSet:
+        data->setTextShapeType(KoTextShapeData::EvenPagesHeaderText);
+        break;
+    case KWord::OddPagesFooterTextFrameSet:
+        data->setTextShapeType(KoTextShapeData::OddPagesFooterText);
+        break;
+    case KWord::EvenPagesFooterTextFrameSet:
+        data->setTextShapeType(KoTextShapeData::EvenPagesFooterText);
+        break;
+    case KWord::MainTextFrameSet:
+        data->setTextShapeType(KoTextShapeData::MainText);
+        break;
+    case KWord::OtherTextFrameSet:
+        data->setTextShapeType(KoTextShapeData::OtherText);
+    };
+
+
+
     connect(data, SIGNAL(relayout()), this, SLOT(updateTextLayout()));
 }
 
