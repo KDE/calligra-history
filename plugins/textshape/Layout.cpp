@@ -1554,7 +1554,7 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
         }
 
         // don't number header/footer text
-        if (!(m_data->textShapeType() == KoTextShapeData::MainText || m_data->textShapeType() == KoTextShapeData::OddPagesFooterText)) {
+        if (!(m_data->textShapeType() == KoTextShapeData::MainText || m_data->textShapeType() == KoTextShapeData::OtherText)) {
             return;
         }
 
