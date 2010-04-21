@@ -1585,6 +1585,11 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
         };
 
         // Get the baseline of the line
+        QTextCharFormat fmt = currentFragment.charFormat();
+        QFont font(fmt.font());
+        QFontMetricsF metrics(font, m_parent->paintDevice());
+        qreal y = line.position().y();
+        y += line.height() - metrics.descent();
 
         // Set the font to the right style
         QFont oldFont = painter->font();
@@ -1592,7 +1597,7 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
 
         // Get the right line-number
 
-        painter->drawText(x, line.position().y(), QString("%1").arg(line.lineNumber()));
+        painter->drawText(x, y, QString("%1").arg(line.lineNumber()));
 
         painter->setFont(oldFont);
     }
