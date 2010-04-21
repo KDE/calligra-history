@@ -116,9 +116,9 @@ bool ChartExport::saveContent(KoStore* store, KoXmlWriter* manifestWriter)
     bodyWriter->addAttributePt("svg:height", m_height);
 
     KoGenStyle style(KoGenStyle::GraphicAutoStyle, "chart");
-    if(chart()->m_areaFormat && chart()->m_areaFormat->m_fill) {
+    if(!chart()->m_areaFormat || chart()->m_areaFormat->m_fill) {
         style.addProperty("draw:fill", "solid");
-        style.addProperty("draw:fill-color", chart()->m_areaFormat->m_foreground.name());
+        style.addProperty("draw:fill-color", chart()->m_areaFormat ? chart()->m_areaFormat->m_foreground.name() : "#FFFFFF");
     }
     bodyWriter->addAttribute("chart:style-name", styles.insert(style, "ch"));
 
