@@ -99,8 +99,8 @@ public:
     Private(KoTextDocumentLayout *parent_)
             : inlineTextObjectManager(0),
             scheduled(false),
-            parent(parent_),
-            resizeMethod(KoTextDocument::NoResize) {
+            resizeMethod(KoTextDocument::NoResize),
+            parent(parent_) {
     }
 
     void relayoutPrivate() {
