@@ -1534,10 +1534,8 @@ void Layout::drawUnderlines(QPainter *painter, const QTextFragment &currentFragm
 
 
 void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFragment,
-        const QTextLine &line, qreal x1, qreal x2) const
+        const QTextLine &line, qreal x1, int blockLineNumber) const
 {
-    Q_UNUSED(x2);
-
     KoOdfLineNumberingConfiguration *lineNumberingConfiguration
             = KoTextDocument(m_parent->document()).lineNumberingConfiguration();
 
@@ -1616,7 +1614,7 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
 
         // Get the right line-number
 
-        painter->drawText(x, y, QString("%1").arg(line.lineNumber()));
+        painter->drawText(x, y, QString("%1").arg(line.lineNumber() + blockLineNumber));
 
         painter->setFont(oldFont);
     }
@@ -1663,7 +1661,7 @@ void Layout::decorateParagraph(QPainter *painter, const QTextBlock &block, int s
                     drawStrikeOuts(painter, currentFragment, line, x1, x2, startOfFragmentInBlock, fragmentToLineOffset);
                     drawUnderlines(painter, currentFragment, line, x1, x2, startOfFragmentInBlock, fragmentToLineOffset);
                     decorateTabs(painter, tabList, line, currentFragment, startOfBlock);
-                    drawLineNumbers(painter, currentFragment, line, x1, x2);
+                    drawLineNumbers(painter, currentFragment, line, x1, block.firstLineNumber());
 
                     bool misspelled = fmt.boolProperty(KoCharacterStyle::Spelling);
                     if (misspelled) {
