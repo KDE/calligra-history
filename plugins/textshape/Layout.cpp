@@ -54,6 +54,7 @@
 #include <KoImageCollection.h>
 #include <KoOdfLineNumberingConfiguration.h>
 #include <KDebug>
+#include <KoPostscriptPaintDevice.h>
 
 #include <QTextList>
 #include <QStyle>
@@ -1561,7 +1562,6 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
             return;
         }
 
-
         // get the page number
         int pageNumber = 0;
         if (m_data) {
@@ -1569,10 +1569,12 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
         }
 
         // Calculate x, based on the place of the line numbers (depending on page number and setting)
+        // XXX: hard-coded extra offset of 5 -- need to figure out how to really place the line numbers
+        // correctly in the margin.
         qreal x = x1;
         switch (lineNumberingConfiguration->position()) {
         case KoOdfLineNumberingConfiguration::Left:
-            x -= lineNumberingConfiguration->offset();
+            x -= (lineNumberingConfiguration->offset() + 5);
             break;
         case KoOdfLineNumberingConfiguration::Right:
             qDebug() << "Right";
@@ -1582,7 +1584,7 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
             qDebug() << "Inner";
             if (pageNumber & 1) {
                 // right page
-                x -= lineNumberingConfiguration->offset();
+                x -= (lineNumberingConfiguration->offset() + 5);
             }
             else {
                 qDebug() << "Outer";
@@ -1602,19 +1604,23 @@ void Layout::drawLineNumbers(QPainter *painter, const QTextFragment &currentFrag
         };
 
         // Get the baseline of the line
+        KoPostscriptPaintDevice postscriptDevice;
         QTextCharFormat fmt = currentFragment.charFormat();
-        QFont font(fmt.font());
+        QFont font(fmt.font(), &postscriptDevice);
         QFontMetricsF metrics(font, m_parent->paintDevice());
         qreal y = line.position().y();
         y += line.height() - metrics.descent();
 
-        // Set the font to the right style
+        // Set the font to the right style (and make it a bit smaller for prettiness)
         QFont oldFont = painter->font();
-        painter->setFont(m_styleManager->defaultParagraphStyle()->characterStyle()->font());
 
-        // Get the right line-number
+        QFont lineNumberFont = QFont(m_styleManager->defaultParagraphStyle()->characterStyle()->font(), &postscriptDevice);
+        lineNumberFont.setPointSizeF(lineNumberFont.pointSizeF() * 0.5);
+        painter->setFont(lineNumberFont);
 
-        painter->drawText(x, y, QString("%1").arg(line.lineNumber() + blockLineNumber));
+        // Get the right line-number: block, plus line in block, plus 1 because normal
+        // people aren't zero-based
+        painter->drawText(x, y, QString("%1").arg(line.lineNumber() + blockLineNumber + 1));
 
         painter->setFont(oldFont);
     }
