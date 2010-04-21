@@ -243,7 +243,8 @@ unsigned FormulaToken::size() const
         s = (d->ver == Excel97) ? 10 : 20; break;
 
     case MemArea:
-        s = 7; break;
+        s = 6; break;
+
     case MemErr:
         s = 6; break;
 
@@ -973,6 +974,41 @@ UString FormulaToken::area3d(const std::vector<UString>& externSheets, unsigned 
     return result;
 }
 
+std::pair<unsigned, QRect> FormulaToken::filterArea3d() const
+{
+    if (version() != Excel97) {
+        return std::make_pair(0, QRect());
+    }
+
+    unsigned sheetRef = readU16(&d->data[0]);
+
+    // FIXME check data size !
+    unsigned char buf[2];
+    int row1Ref, row2Ref, col1Ref, col2Ref;
+
+    buf[0] = d->data[2];
+    buf[1] = d->data[3];
+    row1Ref = readU16(buf);
+
+    buf[0] = d->data[4];
+    buf[1] = d->data[5];
+    row2Ref = readU16(buf);
+
+    buf[0] = d->data[6];
+    buf[1] = d->data[7];
+    col1Ref = readU16(buf);
+
+    buf[0] = d->data[8];
+    buf[1] = d->data[9];
+    col2Ref = readU16(buf);
+
+    col1Ref &= 0x3fff;
+    col2Ref &= 0x3fff;
+
+    QRect range(col1Ref, row1Ref, col2Ref - col1Ref + 1, row2Ref - row1Ref + 1);
+    return std::make_pair(sheetRef, range);
+}
+
 UString FormulaToken::areaMap(unsigned row, unsigned col)
 {
     unsigned char buf[4];
@@ -1552,11 +1588,9 @@ UString FormulaDecoder::decodeFormula(unsigned row, unsigned col, bool isShared,
             break;
         }
 
-        case FormulaToken::MemArea: {
-            UString s = token.areaMap(row, col);
-            stack.push_back(s);
+        case FormulaToken::MemArea:
+            // does nothing
             break;
-        }
 
         case FormulaToken::AreaErr:
         case FormulaToken::AreaErr3d:
