@@ -124,6 +124,7 @@ KoFilter::ConversionStatus XlsxXmlChartReader::read(MSOOXML::MsooXmlReaderContex
             TRY_READ_IF(plotArea)
             ELSE_TRY_READ_IF(title)
             ELSE_TRY_READ_IF(legend)
+            ELSE_TRY_READ_IF(spPr)
             if (qualifiedName() == QLatin1String(QUALIFIED_NAME(autoTitleDeleted))) {
                 const QXmlStreamAttributes attrs(attributes());
                 TRY_READ_ATTR_WITHOUT_NS(val)
@@ -231,8 +232,10 @@ KoFilter::ConversionStatus XlsxXmlChartReader::read_ser()
                 const QXmlStreamAttributes attrs(attributes());
                 TRY_READ_ATTR_WITHOUT_NS(val)
                 const int explosion = val.toInt();
-                if(Charting::PieImpl* pie = dynamic_cast<Charting::PieImpl*>(m_context->m_chart->m_impl))
+                if(Charting::PieImpl* pie = dynamic_cast<Charting::PieImpl*>(m_context->m_chart->m_impl)) {
+                    Q_UNUSED(pie);
                     m_currentSeries->m_datasetFormat << new Charting::PieFormat(explosion);
+                }
             }
         }
         BREAK_IF_END_OF(CURRENT_EL);
@@ -390,8 +393,47 @@ KoFilter::ConversionStatus XlsxXmlChartReader::read_numCache()
 #define CURRENT_EL legend
 KoFilter::ConversionStatus XlsxXmlChartReader::read_legend()
 {
-    //TODO
-    return KoFilter::OK;
+    READ_PROLOGUE
+    while (!atEnd()) {
+        readNext();
+        //TODO
+        BREAK_IF_END_OF(CURRENT_EL);
+    }
+    READ_EPILOGUE
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL spPr
+// Visual shape properties that can be applied to a shape.
+KoFilter::ConversionStatus XlsxXmlChartReader::read_spPr()
+{
+    enum State { Start, NoFill, InFill };
+    State state = Start;
+    READ_PROLOGUE
+    int level = 0;
+    while (!atEnd()) {
+        readNext();
+        if(isStartElement()) ++level;
+        else if(isEndElement()) --level;
+
+        if (qualifiedName() == "a:solidFill" || qualifiedName() == "a:pattFill" || qualifiedName() == "a:gradFill") {
+            if (level == 1)
+                state = isStartElement() ? InFill : Start;
+        } else if (qualifiedName() == "a:noFill") {
+            if (level == 1)
+                state = isStartElement() ? NoFill : Start;
+        } else if ((state == NoFill || state == InFill) && qualifiedName() == "a:srgbClr") {
+            const QXmlStreamAttributes attrs(attributes());
+            TRY_READ_ATTR_WITHOUT_NS(val)
+            if(!val.isEmpty() && !m_context->m_chart->m_areaFormat) {
+                if(!val.startsWith('#')) val.prepend('#');
+                m_context->m_chart->m_areaFormat = new Charting::AreaFormat(QColor(val), QColor(), state == InFill);
+            }
+            state = Start; // job done
+        }
+        BREAK_IF_END_OF(CURRENT_EL);
+    }
+    READ_EPILOGUE
 }
 
 #undef CURRENT_EL

@@ -104,6 +104,7 @@ ChartSubStreamHandler::ChartSubStreamHandler(GlobalsSubStreamHandler* globals, S
         Q_ASSERT(m_chartObject);
         m_chart = m_chartObject->m_chart;
         Q_ASSERT(m_chart);
+        m_currentObj = m_chart;
 
         //unsigned long m_colL, m_dxL, m_rwT, m_dyT, m_colR, m_dxR, m_rwB, m_dyB;
         Cell* cell = m_sheet->cell(m_chartObject->drawingObject()->m_colL, m_chartObject->drawingObject()->m_rwT, true);
@@ -321,10 +322,10 @@ void ChartSubStreamHandler::handleChart(ChartRecord *record)
 {
     if(!record) return;
     DEBUG << "x=" << record->x() << " y=" << record->y() << " width=" << record->width() << " height=" << record->height() <<  std::endl;
-    m_chart->m_total_x = record->x();
-    m_chart->m_total_y = record->y();
-    m_chart->m_total_width = record->width();
-    m_chart->m_total_height = record->height();
+    m_chart->m_x1 = record->x();
+    m_chart->m_y1 = record->y();
+    m_chart->m_x2 = record->width() - m_chart->m_x1;
+    m_chart->m_y2 = record->height() - m_chart->m_y1;
 }
 
 // secifies the begin of a collection of records
@@ -345,12 +346,12 @@ void ChartSubStreamHandler::handleFrame(FrameRecord *record)
 {
     if(!record) return;
     if(record->isAutoPosition()) {
-        m_chart->m_total_x = -1;
-        m_chart->m_total_y = -1;
+        m_chart->m_x1 = -1;
+        m_chart->m_y1 = -1;
     }
     if(record->isAutoSize()) {
-        m_chart->m_total_width = -1;
-        m_chart->m_total_height = -1;
+        m_chart->m_x2 = -1;
+        m_chart->m_y2 = -1;
     }
 }
 
@@ -448,8 +449,11 @@ void ChartSubStreamHandler::handleLineFormat(LineFormatRecord *record)
 
 void ChartSubStreamHandler::handleAreaFormat(AreaFormatRecord *record)
 {
-    if(!record) return;
-    DEBUG << std::endl;
+    if(!record || !m_currentObj || m_currentObj->m_areaFormat) return;
+    QColor foreground(record->redForeground(), record->greenForeground(), record->blueForeground());
+    QColor background(record->redBackground(), record->greenBackground(), record->blueBackground());
+    DEBUG << "foreground=" << foreground.name().toUtf8().data() << " background=" << background.name().toUtf8().data() << " fillStyle=" << record->fls() << std::endl;
+    m_currentObj->m_areaFormat = new Charting::AreaFormat(foreground, background, record->fls() != 0x0000);
 }
 
 void ChartSubStreamHandler::handlePieFormat(PieFormatRecord *record)
@@ -533,6 +537,7 @@ void ChartSubStreamHandler::handleSeriesText(SeriesTextRecord* record)
         t->m_text = string(record->text());
     } else if(Charting::Legend *l = dynamic_cast<Charting::Legend*>(m_currentObj)) {
         //TODO
+        Q_UNUSED(l);
     } else if(Charting::Series* series = dynamic_cast<Charting::Series*>(m_currentObj)) {
         series->m_texts << new Charting::Text(string(record->text()));
     } else {
