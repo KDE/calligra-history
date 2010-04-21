@@ -738,7 +738,8 @@ void Axis::Private::createRadarDiagram()
     Q_ASSERT( kdRadarDiagram == 0 );
 
     kdRadarDiagramModel = new KDChartModel;
-    kdRadarDiagramModel->setDataDimensions( 2 );
+    //kdRadarDiagramModel->setDataDimensions( 2 );
+    //kdRadarDiagramModel->setDataDirection( Qt::Horizontal );
 
     kdRadarDiagram = new KDChart::PolarDiagram( plotArea->kdChart(), kdPolarPlane );
     kdRadarDiagram->setModel( kdRadarDiagramModel );
@@ -905,6 +906,10 @@ Axis::Axis( PlotArea *parent )
     gridAttributes = d->kdPolarPlane->gridAttributes( Qt::Horizontal );
     gridAttributes.setGridVisible( false );
     d->kdPolarPlane->setGridAttributes( Qt::Horizontal, gridAttributes );
+    
+    gridAttributes = d->kdPolarPlane->gridAttributes( Qt::Vertical );
+    gridAttributes.setGridVisible( false );
+    d->kdPolarPlane->setGridAttributes( Qt::Vertical, gridAttributes );
 
     d->title = KoShapeRegistry::instance()->value( TextShapeId )->createDefaultShape(parent->parent()->resourceManager());
     if ( d->title ) {
