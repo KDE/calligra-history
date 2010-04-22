@@ -127,7 +127,10 @@ private:
     void handleTextPropsStream(TextPropsStreamRecord *);
     void handleObjectLink(ObjectLinkRecord *);
     void handlePlotArea(PlotAreaRecord *);
-
+    void handleValueRange(ValueRangeRecord *);
+    void handleTick(TickRecord *);
+    void handleAxcExt(AxcExtRecord *);
+    void handleCatSerRange(CatSerRangeRecord *);
 };
 
 } // namespace Swinder
