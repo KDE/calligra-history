@@ -29,6 +29,13 @@ class ToCGenerator : public QObject
 {
     Q_OBJECT
 public:
+    enum State {
+        DirtyState,
+        NeverGeneratedState,
+        WithoutPageNumbersState,
+        GeneratedState
+    };
+
     explicit ToCGenerator(QTextFrame *tocFrame);
 
     QTextFrame *tocFrame() const { return m_ToCFrame; }
@@ -44,13 +51,6 @@ public slots:
 private:
     void generate();
     void update();
-
-    enum State {
-        DirtyState,
-        NeverGeneratedState,
-        WithoutPageNumbersState,
-        GeneratedState
-    };
 
     State m_state;
     QTextFrame *m_ToCFrame;

@@ -595,7 +595,9 @@ void KoTextWriter::Private::writeBlocks(QTextDocument *document, int from, int t
     while (block.isValid() && ((to == -1) || (block.position() <= to))) {
         QTextCursor cursor(block);
         QTextFrame *cursorFrame = cursor.currentFrame();
-        if (cursorFrame != currentFrame && cursorFrame->format().hasProperty(KoText::TableOfContents)) {
+        if (cursorFrame != currentFrame &&
+                (cursorFrame->format().hasProperty(KoText::TableOfContents)
+                        || cursorFrame->format().hasProperty(KoText::TableOfContentsImported))) {
             int frameBegin = cursorFrame->firstPosition();
             int frameEnd = cursorFrame->lastPosition();
             saveTableOfContents(document, frameBegin, frameEnd, listStyles, currentTable, cursor.currentFrame());
@@ -618,13 +620,13 @@ void KoTextWriter::Private::writeBlocks(QTextDocument *document, int from, int t
             headingLevel = blockFormat.intProperty(KoParagraphStyle::OutlineLevel);
             numberedParagraphLevel = blockFormat.intProperty(KoParagraphStyle::ListLevel);
         }
-        
+
         bool isValidListItem = true, isValidList = true;
         if (textList && deleteChangeBlocks) {
             isValidListItem = block.blockFormat().property(KoDeleteChangeMarker::DeletedListItem).toBool();
             isValidList = textList->format().property(KoDeleteChangeMarker::DeletedList).toBool();
         }
-        
+
         if (textList && !headingLevel && !numberedParagraphLevel) {
             if (!textLists.contains(textList)) {
                 KoList *list = textDocument.list(block);
@@ -767,8 +769,8 @@ QString KoTextWriter::Private::generateDeleteChangeXml(KoDeleteChangeMarker *mar
 }
 
 void KoTextWriter::write(QTextDocument *document, int from, int to)
-{ 
-    d->document = document;  
+{
+    d->document = document;
     d->styleManager = KoTextDocument(document).styleManager();
     d->layout = qobject_cast<KoTextDocumentLayout*>(document->documentLayout());
 
