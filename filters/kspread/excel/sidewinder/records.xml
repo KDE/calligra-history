@@ -754,6 +754,9 @@
 </record>
 
 <record name="Surf" id="0x103f">
+  <field name="fFillSurface" type="bool" size="1" />
+  <field name="f3DPhongShade" type="bool" size="1" />
+  <field name="reserved" size="14" />
 </record>
 
 <record name="RadarArea" id="0x1040">

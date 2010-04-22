@@ -821,10 +821,8 @@ void Axis::Private::createBubbleDiagram()
 
 void Axis::Private::createSurfaceDiagram()
 {
-    // This is a so far unsupported chart type.  So we implement the
-    // model, but cannot implement the diagram since it's not yet
-    // supported by KDChart.
-
+    // This is a so far a by KDChart unsupported chart type.
+#if 0
     // The model.
     if ( kdSurfaceDiagramModel == 0 ) {
         kdSurfaceDiagramModel = new KDChartModel;
@@ -832,19 +830,22 @@ void Axis::Private::createSurfaceDiagram()
     }
 
     // No KDChart::Diagram since KDChart doesn't support this type
-#if 0
     if ( kdSurfaceDiagram == 0 ) {
         ...
     }
+#else // fallback to bar diagram for now
+    createBarDiagram();
+    kdSurfaceDiagramModel = kdBarDiagramModel;
+    kdBarDiagramModel = 0;
+    kdSurfaceDiagram = kdBarDiagram;
+    kdBarDiagram = 0;
 #endif
 }
 
 void Axis::Private::createGanttDiagram()
 {
-    // This is a so far unsupported chart type.  So we implement the
-    // model, but cannot implement the diagram since it's not yet
-    // supported by KDChart.
-
+    // This is a so far a by KDChart unsupported chart type (through KDGantt got merged into KDChart with 2.3)
+#if 0
     // The model.
     if ( kdGanttDiagramModel == 0 ) {
         kdGanttDiagramModel = new KDChartModel;
@@ -852,13 +853,17 @@ void Axis::Private::createGanttDiagram()
     }
 
     // No KDChart::Diagram since KDChart doesn't support this type
-#if 0
     if ( kdGanttDiagram == 0 ) {
         ...
     }
+#else // fallback to bar diagram for now
+    createBarDiagram();
+    kdSurfaceDiagramModel = kdBarDiagramModel;
+    kdBarDiagramModel = 0;
+    kdSurfaceDiagram = kdBarDiagram;
+    kdBarDiagram = 0;
 #endif
 }
-
 
 /**
  * Automatically adjusts the diagram so that all currently displayed

@@ -220,6 +220,8 @@ void ChartSubStreamHandler::handleRecord(Record* record)
         handleRadar(static_cast<RadarRecord*>(record));
     else if (type == RadarAreaRecord::id)
         handleRadarArea(static_cast<RadarAreaRecord*>(record));
+    else if (type == SurfRecord::id)
+        handleSurf(static_cast<SurfRecord*>(record));
     else if (type == AxisRecord::id)
         handleAxis(static_cast<AxisRecord*>(record));
     else if (type == AxisLineRecord::id)
@@ -658,12 +660,20 @@ void ChartSubStreamHandler::handleRadar(RadarRecord *record)
     m_chart->m_impl = new Charting::RadarImpl();
 }
 
-// specifies that the chartgroup is a radar chart
+// specifies that the chartgroup is a filled radar chart
 void ChartSubStreamHandler::handleRadarArea(RadarAreaRecord *record)
 {
     if(!record || m_chart->m_impl) return;
     DEBUG << std::endl;
     m_chart->m_impl = new Charting::RadarImpl();
+}
+
+// specifies that the chartgroup is a surface chart
+void ChartSubStreamHandler::handleSurf(SurfRecord *record)
+{
+    if(!record || m_chart->m_impl) return;
+    DEBUG << std::endl;
+    m_chart->m_impl = new Charting::SurfaceImpl(record->isFFillSurface());
 }
 
 void ChartSubStreamHandler::handleAxis(AxisRecord* record)
