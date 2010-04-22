@@ -1988,7 +1988,8 @@ Duration ResourceRequestCollection::duration(const QList<ResourceRequest*> &lst,
     Duration e1;
     Duration d(1, 0, 0); // 1 day
     int nDays = numDays(lst, time, backward) + 1;
-    for (int i=0; !match && i <= nDays; ++i) {
+    int day = 0;
+    for (day=0; !match && day <= nDays; ++day) {
         // days
         end = end.addDays(inc);
         e1 = effort(lst, start, d, ns, backward, &sts);
@@ -2004,7 +2005,7 @@ Duration ResourceRequestCollection::duration(const QList<ResourceRequest*> &lst,
             break;
         }
     }
-    if ( ! match ) {
+    if ( ! match && day <= nDays ) {
 #ifndef NDEBUG
         if ( ns ) ns->logDebug( "Days: duration " + logtime.toString() + " - " + end.toString() + " e=" + e.toString() + " (" + (_effort - e).toString() + ')' );
 #endif
@@ -2028,7 +2029,7 @@ Duration ResourceRequestCollection::duration(const QList<ResourceRequest*> &lst,
         }
         //kDebug()<<"duration"<<(backward?"backward":"forward:")<<start.toString()<<" e="<<e.toString()<<" ("<<e.milliseconds()<<")  match="<<match<<" sts="<<sts;
     }
-    if ( ! match ) {
+    if ( ! match && day <= nDays ) {
 #ifndef NDEBUG
         if ( ns ) ns->logDebug( "Hours: duration " + logtime.toString() + " - " + end.toString() + " e=" + e.toString() + " (" + (_effort - e).toString() + ')' );
 #endif
@@ -2052,7 +2053,15 @@ Duration ResourceRequestCollection::duration(const QList<ResourceRequest*> &lst,
         }
         //kDebug()<<"duration"<<(backward?"backward":"forward:")<<"  start="<<start.toString()<<" e="<<e.toString()<<" match="<<match<<" sts="<<sts;
     }
-    if ( ! match ) {
+    // FIXME: better solution
+    // If effort to match is reasonably large, accept a match if deviation <= 1 min
+    if ( ! match && _effort > 5 * 60000 ) {
+        if ( ( _effort - e ) <= 60000 ){
+            match = true;
+            if ( ns ) ns->logDebug( "Deviation match:" + logtime.toString() + " - " + end.toString() + " e=" + e.toString() + " (" + (_effort - e).toString() + ')' );
+        }
+    }
+    if ( ! match && day <= nDays ) {
 #ifndef NDEBUG
         if ( ns ) ns->logDebug( "Minutes: duration " + logtime.toString() + " - " + end.toString() + " e=" + e.toString() + " (" + (_effort - e).toString() + ')' );
 #endif
@@ -2075,7 +2084,7 @@ Duration ResourceRequestCollection::duration(const QList<ResourceRequest*> &lst,
             //kDebug()<<"duration(s)["<<i<<"]"<<(backward?"backward":"forward:")<<" time="<<start.time().toString()<<" e="<<e.toString()<<" ("<<e.milliseconds()<<")";
         }
     }
-    if ( ! match ) {
+    if ( ! match && day <= nDays ) {
 #ifndef NDEBUG
         if ( ns ) ns->logDebug( "Seconds: duration " + logtime.toString() + " - " + end.toString() + " e=" + e.toString() + " (" + (_effort - e).toString() + ')' );
 #endif

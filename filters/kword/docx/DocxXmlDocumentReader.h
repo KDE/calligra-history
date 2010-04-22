@@ -109,6 +109,7 @@ protected:
     KoFilter::ConversionStatus read_dstrike();
     KoFilter::ConversionStatus read_caps();
     KoFilter::ConversionStatus read_smallCaps();
+    KoFilter::ConversionStatus read_w();
     KoFilter::ConversionStatus read_color();
     KoFilter::ConversionStatus read_highlight();
     KoFilter::ConversionStatus read_vertAlign();
@@ -123,6 +124,27 @@ protected:
     KoFilter::ConversionStatus read_tc();
     KoFilter::ConversionStatus read_tcPr();
 
+    enum posOffsetCaller {
+        posOffset_positionH,
+        posOffset_positionV
+    };
+
+    enum alignCaller {
+        align_positionH,
+        align_positionV
+    };
+    KoFilter::ConversionStatus read_align(alignCaller caller);
+
+    KoFilter::ConversionStatus read_inline();
+    KoFilter::ConversionStatus read_docPr();
+    KoFilter::ConversionStatus read_anchor();
+    KoFilter::ConversionStatus read_positionH();
+    KoFilter::ConversionStatus read_positionV();
+    KoFilter::ConversionStatus read_posOffset(posOffsetCaller caller);
+    KoFilter::ConversionStatus read_wrapSquare();
+    KoFilter::ConversionStatus read_wrapTight();
+    KoFilter::ConversionStatus read_wrapThrough();
+
     KoGenStyle m_currentPageStyle;
     KoGenStyle m_masterPageStyle;
 
@@ -130,6 +152,10 @@ protected:
 
 private:
     void init();
+
+    //! Writes text:p/draw:rect elements.
+    //! Uses m_currentObjectWidthCm and m_currentObjectHeightCm for size (defaults to 2cm/2cm)
+    void writeRect();
 
     enum BorderSide {
         TopBorder, BottomBorder, LeftBorder, RightBorder
@@ -175,11 +201,30 @@ private:
     //! State of fldChar
     ComplexCharStatus m_complexCharStatus;
 
-    uint m_tablesCount; //!< table counter, from 0
+    uint m_currentTableNumber; //!< table counter, from 0
+    uint m_currentTableRowNumber; //!< row counter, from 0, initialized in read_tbl()
+    uint m_currentTableColumnNumber; //!< column counter, from 0, initialized in read_tr()
     KoGenStyle m_currentTableStyle;
+    KoGenStyle m_currentTableRowStyle;
+    KoGenStyle m_currentTableCellStyle;
     QString m_currentTableName;
     qreal m_currentTableWidth; //!< in cm
-    
+
+    /*! true if w:object/v:shape or w:object/o:OLEObject has been handled, .
+     When w:object/o:OLEObject is visited and m_objectRectInitialized is true, handling
+     w:object/o:OLEObject is (except for copying the OLE binary) skipped because
+     w:object/v:shape is of higher priority.
+     This flag is reset to false each time read_object() is called. */
+    bool m_objectRectInitialized;
+
+    //!< Width of the object. Set in read_OLEObject() or read_shape(). Used in writeRect().
+    //! If both w:object/v:shape and w:object/o:OLEObject exist, information from v:shape is used.
+    QString m_currentObjectWidthCm;
+
+    QString m_currentObjectHeightCm; //!< See m_currentObjectWidthCm for description
+    QString m_currentObjectXCm; //!< See m_currentObjectWidthCm for description
+    QString m_currentObjectYCm; //!< See m_currentObjectWidthCm for description
+
 #include <MsooXmlCommonReaderMethods.h>
 #include <MsooXmlCommonReaderDrawingMLMethods.h>
 

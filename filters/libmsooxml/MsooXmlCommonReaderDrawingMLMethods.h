@@ -51,24 +51,6 @@ KoFilter::ConversionStatus read_fillRect();
 KoFilter::ConversionStatus read_graphic();
 KoFilter::ConversionStatus read_graphicData();
 KoFilter::ConversionStatus read_blipFill();
-KoFilter::ConversionStatus read_anchor();
-KoFilter::ConversionStatus read_positionH();
-KoFilter::ConversionStatus read_positionV();
-enum posOffsetCaller {
-    posOffset_positionH,
-    posOffset_positionV
-};
-KoFilter::ConversionStatus read_posOffset(posOffsetCaller caller);
-enum alignCaller {
-    align_positionH,
-    align_positionV
-};
-KoFilter::ConversionStatus read_align(alignCaller caller);
-KoFilter::ConversionStatus read_inline();
-KoFilter::ConversionStatus read_docPr();
-KoFilter::ConversionStatus read_wrapSquare();
-KoFilter::ConversionStatus read_wrapTight();
-KoFilter::ConversionStatus read_wrapThrough();
 
 KoFilter::ConversionStatus read_DrawingML_p();
 read_p_args m_read_DrawingML_p_args;
@@ -110,7 +92,7 @@ void readWrap();
 KoFilter::ConversionStatus copyFile(
     const QString& sourceName, const QString& destinationDir, QString& destinationName);
 
-KoGenStyle m_currentDrawStyle; //!< set by read_drawing(), used by read_pic()
+KoGenStyle m_currentDrawStyle; //!< set by read_drawing() and read_object(), used by read_pic() and read_object()
 bool m_drawing_anchor; //! set by read_drawing() to indicate if we have encountered drawing/anchor, used by read_pic()
 bool m_drawing_inline; //! set by read_drawing() to indicate if we have encountered drawing/inline, used by read_pic()
 
