@@ -780,7 +780,7 @@ static QString convertFormula(const QString& formula)
 {
     if (formula.isEmpty())
         return QString();
-    enum { Start, InArguments, InString, InSheetOrAreaName } state;
+    enum { Start, InArguments, InParenthesizedArgument, InString, InSheetOrAreaName } state;
     state = Start;
     QString result = '=' + formula;
     for(int i = 1; i < result.length(); ++i) {
@@ -797,6 +797,14 @@ static QString convertFormula(const QString& formula)
                 state = InSheetOrAreaName;
             else if (ch == ',')
                 result[i] = ';'; // replace argument delimiter
+            else if (ch == '(')
+                state = InParenthesizedArgument;
+            break;
+        case InParenthesizedArgument:
+            if (ch == ',')
+                result[i] = '~'; // union operator
+            else if (ch == ')')
+                state = InArguments;
             break;
         case InString:
             if (ch == '"')
