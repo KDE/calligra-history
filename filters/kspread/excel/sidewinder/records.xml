@@ -757,6 +757,9 @@
 </record>
 
 <record name="RadarArea" id="0x1040">
+  <field name="fRdrAxLab" type="bool" size="1" />
+  <field name="fHasShadow" type="bool" size="1" />
+  <field name="reserved" size="14" />
 </record>
 
 <record name="AxisParent" id="0x1041">

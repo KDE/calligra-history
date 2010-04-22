@@ -218,6 +218,8 @@ void ChartSubStreamHandler::handleRecord(Record* record)
         handleScatter(static_cast<ScatterRecord*>(record));
     else if (type == RadarRecord::id)
         handleRadar(static_cast<RadarRecord*>(record));
+    else if (type == RadarAreaRecord::id)
+        handleRadarArea(static_cast<RadarAreaRecord*>(record));
     else if (type == AxisRecord::id)
         handleAxis(static_cast<AxisRecord*>(record));
     else if (type == AxisLineRecord::id)
@@ -650,6 +652,14 @@ void ChartSubStreamHandler::handleScatter(ScatterRecord* record)
 
 // specifies that the chartgroup is a radar chart
 void ChartSubStreamHandler::handleRadar(RadarRecord *record)
+{
+    if(!record || m_chart->m_impl) return;
+    DEBUG << std::endl;
+    m_chart->m_impl = new Charting::RadarImpl();
+}
+
+// specifies that the chartgroup is a radar chart
+void ChartSubStreamHandler::handleRadarArea(RadarAreaRecord *record)
 {
     if(!record || m_chart->m_impl) return;
     DEBUG << std::endl;

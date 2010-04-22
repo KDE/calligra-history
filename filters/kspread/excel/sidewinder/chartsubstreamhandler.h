@@ -117,6 +117,7 @@ private:
     void handleLine(LineRecord *);
     void handleScatter(ScatterRecord *);
     void handleRadar(RadarRecord *);
+    void handleRadarArea(RadarAreaRecord *);
     void handleAxis(AxisRecord* record);
     void handleAxisLine(AxisLineRecord* record);
     void handleSIIndex(SIIndexRecord *);
