@@ -25,7 +25,7 @@
 
 #include <kdebug.h>
 
-Paragraph::Paragraph(KoGenStyles* mainStyles, bool inStylesDotXml, bool isHeading, bool inHeader, int outlineLevel)
+Paragraph::Paragraph(KoGenStyles* mainStyles, bool inStylesDotXml, bool isHeading, bool inHeaderFooter, int outlineLevel)
         : m_paragraphProperties(0),
         m_paragraphProperties2(0),
         m_odfParagraphStyle(0),
@@ -36,9 +36,8 @@ Paragraph::Paragraph(KoGenStyles* mainStyles, bool inStylesDotXml, bool isHeadin
         m_inStylesDotXml(inStylesDotXml),
         m_isHeading(isHeading),
         m_outlineLevel(0),
-        m_inHeader(inHeader),
-        m_containsPageNumberField(false)/*,
-        m_alignSet(false)*/
+        m_inHeaderFooter(inHeaderFooter),
+        m_containsPageNumberField(false)
 {
     kDebug(30513);
     m_mainStyles = mainStyles;
@@ -146,7 +145,7 @@ void Paragraph::writeToFile(KoXmlWriter* writer)
     kDebug(30513);
 
     // Set up the paragraph style.
-    applyParagraphProperties(*m_paragraphProperties, m_odfParagraphStyle, m_paragraphStyle, m_inHeader && m_containsPageNumberField);
+    applyParagraphProperties(*m_paragraphProperties, m_odfParagraphStyle, m_paragraphStyle, m_inHeaderFooter && m_containsPageNumberField);
 
     QString textStyleName;
     //add paragraph style to the collection and its name to the content
