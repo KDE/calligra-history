@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright (C) 2009 Benjamin Port <port.benjamin@gmail.com>
+   Copyright (C) 2009-2010 Benjamin Port <port.benjamin@gmail.com>
    Copyright (C) 2009 Yannick Motta <yannick.motta@gmail.com>
 
    This library is free software; you can redistribute it and/or
@@ -29,6 +29,7 @@
 #include "KPrView.h"
 #include <KoPADocument.h>
 #include <QDir>
+#include <KZip>
 #include <kdebug.h>
 KPrHtmlExport::KPrHtmlExport()
 {
@@ -46,10 +47,17 @@ void KPrHtmlExport::exportHtml(const KPrHtmlExport::Parameter & parameters)
     KTempDir tmpDir;
     m_tmpDirPath = tmpDir.name();
     tmpDir.setAutoRemove(false);
+    extractStyle();
     exportImageToTmpDir();
     generateHtml();
     generateToc();
     copyFromTmpToDest();
+}
+
+void KPrHtmlExport::extractStyle(){
+    KZip zip(m_parameters.zippedStyleUrl.toLocalFile());
+    zip.open(QIODevice::ReadOnly);
+    zip.directory()->copyTo(m_tmpDirPath, true);
 }
 
 KUrl KPrHtmlExport::exportPreview(Parameter parameters) {
@@ -58,7 +66,7 @@ KUrl KPrHtmlExport::exportPreview(Parameter parameters) {
     // Create a temporary dir
     KTempDir tmpDir;
     m_tmpDirPath = tmpDir.name();
-    tmpDir.setAutoRemove(false);
+    extractStyle();
     exportImageToTmpDir();
     generateHtml();
 
@@ -77,7 +85,6 @@ void KPrHtmlExport::exportImageToTmpDir()
         fileUrl.addPath(QString( "slide%1.png" ).arg(i));
         KoPAPageBase* slide = m_parameters.slides.at(i);
         m_parameters.kprView->exportPageThumbnail(slide,fileUrl, slide->size().toSize(),"PNG",-1);
-        m_fileUrlList.append(fileUrl);
     }
 }
 
@@ -87,6 +94,7 @@ void KPrHtmlExport::generateHtml()
     file.open(QIODevice::ReadOnly);
     QString slideContent = file.readAll();
     file.close();
+    // Create html slide file
     int nbSlides = m_parameters.slides.size();
     for(int i=0; i < m_parameters.slidesNames.size();i++){
         QString content = slideContent;
@@ -101,41 +109,6 @@ void KPrHtmlExport::generateHtml()
         content.replace("::PREVIOUS_PATH::", QString("slide%1.html").arg((i>0) ? i-1 : 0));
         content.replace("::FIRST_PATH::", QString("slide%1.html").arg(0));
         writeHtmlFileToTmpDir(QString("slide%1.html").arg(i), content);
-    }
-    QString style = m_parameters.cssUrl.pathOrUrl();
-    QFile styleFile;
-
-    KStandardDirs std;
-    QStringList dirs = std.findDirs("data", "kpresenter/templates/exportHTML"); 
-    bool isFavorite = false;
-    for(int i=0; i<dirs.count() && !isFavorite; i++){
-        if(style.contains(dirs[i],Qt::CaseInsensitive)){
-            isFavorite = true;
-        }
-    }
-    if(isFavorite){
-        QStringList list = style.split("/");
-        QString shortName = list[list.count()-1];
-        if(shortName=="style.css"){
-            style = style.remove(style.size()-shortName.size()-1,shortName.size()+1);
-        }
-        QDir dir(style);
-	    dir.setFilter(QDir::Files);
-	    QStringList dirList = dir.entryList();
-        for (QStringList::ConstIterator element = dirList.begin(); element != dirList.end(); ++element) {
-            QString file(dir.absolutePath()+"/"+*element);
-            styleFile.setFileName(file);
-            styleFile.open(QIODevice::ReadOnly);
-            writeHtmlFileToTmpDir(*element, styleFile.readAll());
-            styleFile.close();
-	    }
-    }
-    else
-    {
-        styleFile.setFileName(style);
-        styleFile.open(QIODevice::ReadOnly);
-        writeHtmlFileToTmpDir("style.css", styleFile.readAll());
-        styleFile.close();
     }
 }
 
@@ -167,12 +140,12 @@ void KPrHtmlExport::writeHtmlFileToTmpDir(const QString &fileName, const QString
     stream << htmlBody;
     stream.flush();
     file.close();
-    m_fileUrlList.append(fileUrl);
 }
 
 void KPrHtmlExport::copyFromTmpToDest()
-{
-    KIO::CopyJob *job = KIO::move(m_fileUrlList, m_parameters.destination);
+{  
+    KIO::CopyJob *job = KIO::moveAs(m_tmpDirPath, m_parameters.destination);
+    job->setWriteIntoExistingDirectories(true);
     job->setUiDelegate(new KPrHtmlExportUiDelegate);
     connect(job, SIGNAL(result(KJob *)), this, SLOT(moveResult(KJob *)));
     job->exec();

@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
  * Copyright (C) 2009 Yannick Motta <yannick.motta@gmail.com>
- * Copyright (C) 2009 Benjamin Port <port.benjamin@gmail.com>
+ * Copyright (C) 2009-2010 Benjamin Port <port.benjamin@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -26,6 +26,7 @@
 #include <QWebPage>
 #include "ui_KPrHtmlExport.h"
 #include <QDir>
+#include <KUrl>
 
 class KPrHtmlExportDialog  : public KDialog
 {
@@ -37,7 +38,7 @@ public:
     KUrl css();
     QString title();
     QString author();
-    
+
 private slots:
     void checkAllItems();
     void uncheckAllItems();
@@ -48,25 +49,22 @@ private slots:
     void generatePrevious();
     void generatePreview(int item=-1);
     void browserAction();
-    void addFavoriteCSS();
-    void delFavoriteCSS();
-    void updateCssListOnAdd(QString basePath);
-    void updateCssListOnDelete();
-    void delDirectory(QDir dir);
-    bool addZipFavorite(QString & zipFile);
 
 
 private:
     QList<KoPAPageBase*> m_allSlides;
     QString m_title;
     Ui::KPrHtmlExport ui;
-    void generateSlidesNames(QList<KoPAPageBase*> slides);
-    void loadCssList();
     QWebPage preview;
     int frameToRender;
-    bool cssIsFavorite();
-    bool cssIsSystemFavorite();
 
+    void generateSlidesNames(QList<KoPAPageBase*> slides);
+    void loadCssList();
+    bool selectedCssIsFavorite();
+    bool selectedCssIsSystemFavorite();
+    bool verifyZipFile(QString zipLocalPath);
+    void addSelectedCssToFavorite();
+    void delSelectedCssFromFavorite();
 };
 
 

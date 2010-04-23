@@ -1,5 +1,5 @@
 /* This file is part of the KDE project
-   Copyright (C) 2009 Benjamin Port <port.benjamin@gmail.com>
+   Copyright (C) 2009-2010 Benjamin Port <port.benjamin@gmail.com>
    Copyright (C) 2009 Yannick Motta <yannick.motta@gmail.com>
 
    This library is free software; you can redistribute it and/or
@@ -39,9 +39,9 @@ public:
         {
         }
 
-        Parameter(KUrl cssUrl, KPrView *kprView, QList<KoPAPageBase*> slides, KUrl destination,
+        Parameter(KUrl zippedStyleUrl, KPrView *kprView, QList<KoPAPageBase*> slides, KUrl destination,
                   QString author, QString title, QStringList slidesNames)
-                      : cssUrl(cssUrl)
+                      : zippedStyleUrl(zippedStyleUrl)
                       , kprView(kprView)
                       , slides(slides)
                       , destination(destination)
@@ -51,7 +51,7 @@ public:
         {
         }
 
-        KUrl cssUrl;
+        KUrl zippedStyleUrl;
         KPrView *kprView;
         QList<KoPAPageBase*> slides;
         KUrl destination;
@@ -72,6 +72,7 @@ public:
     KUrl exportPreview(Parameter parameters);
 
 protected:
+    void extractStyle();
     void generateHtml();
     void generateToc();
     void exportImageToTmpDir();
@@ -82,7 +83,6 @@ private slots:
     void moveResult(KJob *job);
 
 private:
-    KUrl::List m_fileUrlList;
     QString m_tmpDirPath;
     Parameter m_parameters;
 };
