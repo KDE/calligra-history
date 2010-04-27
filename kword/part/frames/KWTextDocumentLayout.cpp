@@ -351,6 +351,7 @@ void KWTextDocumentLayout::layout()
 #endif
 
     QList<Outline*> outlines;
+    QMap<KoShape *, KWFrame *> anchoredFrames;
     class End
     {
     public:
@@ -513,14 +514,15 @@ void KWTextDocumentLayout::layout()
                                 isChild = true;
                             parent = parent->parent();
                         }
-                        //if (isChild)
-                         //  continue;
                         QMatrix matrix = (frame->outlineShape()
                                 ? frame->outlineShape()
                                 : frame->shape())->absoluteTransformation(0);
                         matrix = matrix * currentShape->absoluteTransformation(0).inverted();
                         matrix.translate(0, m_state->documentOffsetInShape());
-                        outlines.append(new Outline(frame, matrix));
+                        if (isChild)
+                            anchoredFrames[frame->shape()] = frame;
+                        else
+                            outlines.append(new Outline(frame, matrix));
                     }
                 }
                 // set the page for the shape.
@@ -578,8 +580,10 @@ void KWTextDocumentLayout::layout()
                 QMatrix matrix = strategy->anchoredShape()->absoluteTransformation(0);
                 matrix = matrix * currentShape->absoluteTransformation(0).inverted();
                 matrix.translate(0, m_state->documentOffsetInShape());
-                outlines.append(new Outline(strategy->anchoredShape(), matrix));
-
+                KWFrame *frame = anchoredFrames[strategy->anchoredShape()];
+                if (frame) {
+                    outlines.append(new Outline(frame, matrix));
+                }
                 // if the anchor occupies the first character of our block, create one line for it.
                 const int cursorPosition = m_state->cursorPosition();
                 if (cursorPosition == startOfBlockText && strategy->anchor()->positionInDocument() == cursorPosition) {
