@@ -1045,9 +1045,9 @@ void KoTextLoader::loadSpan(const KoXmlElement &element, QTextCursor &cursor, bo
                 linkCf.setAnchorHref(target);
 
                 // TODO make configurable ? Ho, and it will interfere with saving :/
+
                 QBrush foreground = linkCf.foreground();
                 foreground.setColor(Qt::blue);
-                foreground.setStyle(Qt::Dense1Pattern);
                 linkCf.setForeground(foreground);
                 linkCf.setProperty(KoCharacterStyle::UnderlineStyle, KoCharacterStyle::SolidLine);
                 linkCf.setProperty(KoCharacterStyle::UnderlineType, KoCharacterStyle::SingleLine);
