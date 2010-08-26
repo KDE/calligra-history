@@ -50,6 +50,9 @@ public:
     qreal docOffsetInShape() const {
         return 0;
     }
+    QRectF expandVisibleRect(const QRectF &rect) const {
+        return rect;
+    }
     bool addLine(QTextLine &line) {
         if (line.height() > 20)
             m_y += line.height();

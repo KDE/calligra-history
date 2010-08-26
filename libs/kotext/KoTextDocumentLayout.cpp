@@ -66,6 +66,9 @@ public:
     qreal docOffsetInShape() const {
         return 0;
     }
+    QRectF expandVisibleRect(const QRectF &rect) const {
+        return rect;
+    }
     bool addLine(QTextLine &) {
         return false;
     }
@@ -243,6 +246,11 @@ QSizeF KoTextDocumentLayout::documentSize() const
     // nobody calls this code and I have no way of implementing it anyway...
     //kWarning() << "KoTextDocumentLayout::documentSize is not implemented";
     return QSizeF(10, 10);
+}
+
+QRectF KoTextDocumentLayout::expandVisibleRect(const QRectF &rect) const
+{
+    return m_state->expandVisibleRect(rect);
 }
 
 void KoTextDocumentLayout::draw(QPainter *painter, const QAbstractTextDocumentLayout::PaintContext &context)
