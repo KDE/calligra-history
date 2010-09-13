@@ -1,5 +1,5 @@
 #! /bin/sh
-$EXTRACTRC `find . -name \*.ui` >> rc.cpp 
+$EXTRACTRC `find . -name \*.ui | grep -v '/tests/'` >> rc.cpp
 $EXTRACTRC `find . -name \*.rc` >> rc.cpp
 $EXTRACTATTR --attr=collection,text --attr=collection,comment --attr=script,text --attr=script,comment plugins/extensions/scripting/scripts/*.rc >> rc.cpp || exit 12
 $EXTRACTATTR --attr=info,name plugins/colorspaces/ctlcs/ctlcolorspaces/*.ctlcs >> rc.cpp || exit 12
