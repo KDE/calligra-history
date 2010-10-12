@@ -28,6 +28,7 @@
 
 #include "msooxml_export.h"
 
+#include <QSize>
 #include <QColor>
 #include <QBuffer>
 #include <KoFilterChain.h>
@@ -84,11 +85,15 @@ public:
 
     void setIndent(qreal indent);
 
+    void setPicturePath(const QString& picturePath);
+
+    void setPictureSize(const QSize& size);
+
     int m_level;
     int m_startValue;
 
 private:
-    enum ParagraphBulletType {BulletType, NumberType};
+    enum ParagraphBulletType {BulletType, NumberType, PictureType};
     ParagraphBulletType m_type;
 
     QString m_bulletChar;
@@ -96,6 +101,8 @@ private:
     QString m_suffix;
     QString m_align;
     qreal m_indent;
+    QString m_picturePath;
+    QSize m_pictureSize;
 };
 
 //! Container autodeleter. Works for QList, QHash and QMap.
@@ -183,6 +190,9 @@ MSOOXML_EXPORT bool convertBooleanAttr(const QString& value, bool defaultValue =
 //! @todo create whole class keeping the data
 MSOOXML_EXPORT KoFilter::ConversionStatus loadContentTypes(const KoXmlDocument& contentTypesXML,
         QMultiHash<QByteArray, QByteArray>& contentTypes);
+
+//! Loads content types from "docProps/app.xml"
+MSOOXML_EXPORT KoFilter::ConversionStatus loadDocumentProperties(const KoXmlDocument& appXML, QMap<QString, QVariant>& properties);
 
 //! @return device for file @a fileName of @a zip archive. Status @a status is written on error.
 //! The device is already opened for reading and should be deleted after use.

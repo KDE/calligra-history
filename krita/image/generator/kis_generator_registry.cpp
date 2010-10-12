@@ -46,9 +46,10 @@ KisGeneratorRegistry::KisGeneratorRegistry(QObject *parent)
 
 KisGeneratorRegistry::~KisGeneratorRegistry()
 {
-    foreach(QString id, keys()) {
-        remove(id);
-    }   
+    foreach(KisGeneratorSP generator, values()) {
+        remove(generator->id());
+        generator.clear();
+    }
     dbgRegistry << "deleting KisGeneratorRegistry";
 }
 
@@ -57,7 +58,7 @@ KisGeneratorRegistry* KisGeneratorRegistry::instance()
     KisGeneratorRegistry *reg = qApp->findChild<KisGeneratorRegistry *>("");
     if (!reg) {
         reg = new KisGeneratorRegistry(qApp);
-        KoPluginLoader::instance()->load("Krita/Generator", "Type == 'Service' and ([X-Krita-Version] == 3)");
+        KoPluginLoader::instance()->load("Krita/Generator", "Type == 'Service' and ([X-Krita-Version] == 4)");
     }
     return reg;
 }

@@ -17,10 +17,11 @@
  */
 #include "kis_paintop_factory.h"
 
+#include <klocale.h>
 #include <KoColorSpace.h>
 
 KisPaintOpFactory::KisPaintOpFactory(const QStringList & whiteListedCompositeOps)
-    : m_whiteListedCompositeOps(whiteListedCompositeOps)
+    : m_whiteListedCompositeOps(whiteListedCompositeOps), m_priority(100)
 {
 }
 
@@ -38,6 +39,28 @@ QString KisPaintOpFactory::pixmap()
 {
     return "";
 }
+
+QString KisPaintOpFactory::categoryExperimental()
+{
+    return i18nc("Category of brush engines", "Experimental");
+}
+
+QString KisPaintOpFactory::categoryStable()
+{
+    return i18nc("Category of brush engines", "Stable");
+}
+
+void KisPaintOpFactory::setPriority(int newPriority)
+{
+    m_priority = newPriority;
+}
+
+
+int KisPaintOpFactory::priority() const
+{
+    return m_priority;
+}
+
 
 #include "kis_paintop_factory.moc"
 

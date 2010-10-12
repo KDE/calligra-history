@@ -16,8 +16,8 @@ cmake_minimum_required(VERSION 2.6.2 FATAL_ERROR)
 
 # define the generic version of the KOffice libraries here
 # this makes it easy to advance it when the next KOffice release comes
-set(GENERIC_KOFFICE_LIB_VERSION "7.0.0")
-set(GENERIC_KOFFICE_LIB_SOVERSION "7")
+set(GENERIC_KOFFICE_LIB_VERSION "8.0.0")
+set(GENERIC_KOFFICE_LIB_SOVERSION "8")
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules )
 
@@ -48,7 +48,6 @@ IF (TINY)
     set(SHOULD_BUILD_KOUNAVAIL FALSE)
     set(SHOULD_BUILD_SCRIPTING FALSE)
     set(SHOULD_BUILD_F_OFFICE TRUE)
-    set(SHOULD_BUILD_KOREPORT FALSE)
 ELSE(TINY)
     set(SHOULD_BUILD_KWORD TRUE)
     set(SHOULD_BUILD_KPRESENTER TRUE)
@@ -64,7 +63,6 @@ ELSE(TINY)
     set(SHOULD_BUILD_KOUNAVAIL TRUE)
     set(SHOULD_BUILD_SCRIPTING TRUE)
     set(SHOULD_BUILD_F_OFFICE TRUE)
-    set(SHOULD_BUILD_KOREPORT TRUE)
 ENDIF(TINY)
 
 if(KDE4_BUILD_TESTS)
@@ -101,6 +99,12 @@ endif(KDE_VERSION LESS "4.4.0")
 find_package(Perl REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(PNG REQUIRED)
+
+if(QT_QMAEMO5_LIBRARY)
+    target_link_libraries(FreOffice ${QT_LIBRARIES} ${QT_QMAEMO5_LIBRARY} ${QT_QTNETWORK_LIBRARIES} ${QT_QTOPENGL_LIBRARY} ${X11_X11_LIB} komain kopageapp kwordprivate kspreadcommon x${LIBXML2_LIBRARIES} ${OPENSSL_LIBRARIES} ${SOPRANO_LIBRARIES} )
+else(QT_QMAEMO5_LIBRARY)
+    target_link_libraries(FreOffice ${QT_LIBRARIES} ${QT_QTNETWORK_LIBRARIES} ${QT_QTOPENGL_LIBRARY} ${OPENGL_LIBRARIES} ${X11_X11_LIB} komain kopageapp kwordprivate kspreadcommon ${LIBXML2_LIBRARIES} ${OPENSSL_LIBRARIES} )
+endif(QT_QMAEMO5_LIBRARY)
 
 if (APPLE)
    find_package(Carbon REQUIRED)
@@ -358,28 +362,15 @@ endif(NOT KdepimLibs_FOUND)
 
 ### HACK ###
 # Those BUILD_ are illegally used below before they are defined, which cause problem on a first build
-option(BUILD_kchart "Build directory kchart" OFF)
 option(BUILD_kexi   "Build directory kexi" ON)
-option(BUILD_kplato "Build directory kplato" ON)
 option(BUILD_koreport "Build directory libs/koreport" ON)
 ### HACK ###
-
-# Disabled since the chartshape, and thereby also kdchart, is now in a plugin.
-#if(NOT BUILD_kchart OR NOT SHOULD_BUILD_KCHART)
-#    message(STATUS "WARNING: KoReport component will not be built because KChart is not available.")
-#    if(BUILD_kplato AND SHOULD_BUILD_KPLATO)
-#        message(STATUS "WARNING: KPlato will not be built because KoReport component is not available.")
-#    endif(BUILD_kplato AND SHOULD_BUILD_KPLATO)
-## no, Kexi can work without reports    set(SHOULD_BUILD_KEXI FALSE)
-#    set(SHOULD_BUILD_KPLATO FALSE)
-#    set(SHOULD_BUILD_KOREPORT FALSE)
-#endif(NOT BUILD_kchart OR NOT SHOULD_BUILD_KCHART)
 
 if(BUILD_kexi AND SHOULD_BUILD_KEXI)
     ##
     ## Test for sqlite
     ##
-    set(SQLITE_RECOMMENDED_VERSION "3.6.23")
+    set(SQLITE_RECOMMENDED_VERSION "3.7.3")
     find_package(KofficeSqlite 3.6.16)
     macro_log_feature(SQLITE_FOUND "SQLite" "Embedded SQL database engine" "http://www.sqlite.org"
                       FALSE ${SQLITE_MIN_VERSION} "Required by Kexi (for its default database driver).")
@@ -389,16 +380,6 @@ if(BUILD_kexi AND SHOULD_BUILD_KEXI)
         message(STATUS "WARNING: Kexi will not be built.")
     endif(NOT SQLITE_FOUND)
 endif(BUILD_kexi AND SHOULD_BUILD_KEXI)
-
-# koreport component not needed if no app is using it
-if(BUILD_koreport AND SHOULD_BUILD_KOREPORT)
-    if(NOT BUILD_kexi AND NOT SHOULD_BUILD_KEXI)
-        if(NOT BUILD_kplato AND NOT SHOULD_BUILD_KPLATO)
-            message(STATUS "KoReport component will not be built because is unused.")
-            set(SHOULD_BUILD_KOREPORT FALSE)
-        endif(NOT BUILD_kplato AND NOT SHOULD_BUILD_KPLATO)
-    endif(NOT BUILD_kexi AND NOT SHOULD_BUILD_KEXI)
-endif(BUILD_koreport AND SHOULD_BUILD_KOREPORT)
 
  ###################
 ####################
@@ -489,10 +470,6 @@ macro_display_application_enabled(karbon ${SHOULD_BUILD_KARBON})
 macro_display_application_enabled(kformula ${SHOULD_BUILD_KFORMULA})
 macro_display_application_enabled(kchart ${SHOULD_BUILD_KCHART})
 macro_display_application_enabled(f-office ${SHOULD_BUILD_F_OFFICE})
-
-message(STATUS "---------------- The following components will be built ----------------" )
-
-macro_display_application_enabled(koreport ${SHOULD_BUILD_KOREPORT})
 
 message(STATUS "--------------------------------------------------------------------------" )
 

@@ -154,6 +154,10 @@ Canvas::Canvas(View *view)
 
 Canvas::~Canvas()
 {
+    foreach (QAction* action, actions()) {
+        removeAction(action);
+    }
+
     delete cd;
 }
 
@@ -281,6 +285,14 @@ void Canvas::mouseDoubleClickEvent(QMouseEvent* event)
     if (layoutDirection() == Qt::RightToLeft) {
        // delete event;
     }
+}
+
+bool Canvas::event(QEvent *e)
+{
+    if(toolProxy()) {
+        toolProxy()->processEvent(e);
+    }
+    return QWidget::event(e);
 }
 
 void Canvas::paintEvent(QPaintEvent* event)

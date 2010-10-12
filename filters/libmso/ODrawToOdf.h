@@ -26,9 +26,11 @@
 class DrawStyle;
 class QColor;
 
-class ODrawToOdf {
+class ODrawToOdf
+{
 public:
-    class Client {
+    class Client
+    {
     public:
         virtual ~Client() {}
         /**
@@ -61,8 +63,8 @@ public:
          * or 'chart'.
          **/
         virtual KoGenStyle createGraphicStyle(
-                const MSO::OfficeArtClientTextBox* ct,
-                const MSO::OfficeArtClientData* cd, Writer& out) = 0;
+            const MSO::OfficeArtClientTextBox* ct,
+            const MSO::OfficeArtClientData* cd, Writer& out) = 0;
         /**
          * Add text properties to the style.
          * Host application specific style properties are added. These
@@ -70,14 +72,21 @@ public:
          * or style:text-properties.
          **/
         virtual void addTextStyles(
-                const MSO::OfficeArtClientTextBox* clientTextbox,
-                const MSO::OfficeArtClientData* clientData,
-                Writer& out, KoGenStyle& style) = 0;
+            const MSO::OfficeArtClientTextBox* clientTextbox,
+            const MSO::OfficeArtClientData* clientData,
+            Writer& out, KoGenStyle& style) = 0;
         /**
          * Retrieve the OfficeArtDggContainer that contains global information
          * relating to the drawings.
          **/
         virtual const MSO::OfficeArtDggContainer* getOfficeArtDggContainer() = 0;
+
+        /**
+         * Retrieve the OfficeArtSpContainer of the master shape.
+         * @param spid identifier of the master shape.
+         **/
+        virtual const MSO::OfficeArtSpContainer* getMasterShapeContainer(quint32 spid) = 0;
+
         /**
          * Convert the OfficeArtCOLORREF to a QColor.
          * This conversion requires color scheme information.
@@ -107,6 +116,8 @@ private:
     void processUturnArrow(const MSO::OfficeArtSpContainer& o, Writer& out);
     void processFreeLine(const MSO::OfficeArtSpContainer& o, Writer& out);
     void processPictureFrame(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processNotPrimitive(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void processNotchedCircularArrow(const MSO::OfficeArtSpContainer& o, Writer& out);
     void processWedgeRectCallout(const MSO::OfficeArtSpContainer& o, Writer& out);
     void processWedgeEllipseCallout(const MSO::OfficeArtSpContainer& o, Writer& out);
     void processCircularArrow(const MSO::OfficeArtSpContainer& o, Writer& out);
@@ -132,14 +143,26 @@ private:
     * @brief set the width, height rotation and starting point for the given container
     */
     void set2dGeometry(const MSO::OfficeArtSpContainer& o, Writer& out);
+    void setEnhancedGeometry(const MSO::OfficeArtSpContainer& o, Writer& out);
 
 public:
     ODrawToOdf(Client& c) :client(&c) {}
+    void processGroupShape(const MSO::OfficeArtSpgrContainer& o, Writer& out);
     void processDrawing(const MSO::OfficeArtSpgrContainerFileBlock& o, Writer& out);
     void processDrawingObject(const MSO::OfficeArtSpContainer& o, Writer& out);
-    void defineGraphicProperties(KoGenStyle& style, const DrawStyle& ds,
-                                           const QString& listStyle=QString());
+    void defineGraphicProperties(KoGenStyle& style, const DrawStyle& ds, KoGenStyles& styles);
     void addGraphicStyleToDrawElement(Writer& out, const MSO::OfficeArtSpContainer& o);
+    void defineGradientStyle(KoGenStyle& style, const DrawStyle& ds);
+
+    /**
+     * Apply the logic defined in MS-ODRAW subsection 2.2.2 to the provided
+     * OfficeArtCOLORREF record.
+     *
+     * @param c OfficeArtCOLORREF record
+     * @param ds DrawStyle to access shape properties and client specific f.
+     * @return final color
+     */
+    QColor processOfficeArtCOLORREF(const MSO::OfficeArtCOLORREF& c, const DrawStyle& ds);
 };
 
 /**
@@ -151,5 +174,6 @@ inline qreal toQReal(const MSO::FixedPoint& f)
 }
 const char* getFillType(quint32 fillType);
 const char* getRepeatStyle(quint32 fillType);
+const char* getGradientRendering(quint32 fillType);
 
 #endif

@@ -312,7 +312,6 @@ void ListItemsHelper::recalculate()
                   } */
                 KoTextBlockData *otherData = dynamic_cast<KoTextBlockData*>(b.userData());
                 if (! otherData) {
-                    //sebsauer, 2007-09-21, happens on loading the odf 1.1 draft odt in kword
                     kWarning(32500) << "Missing KoTextBlockData, Skipping textblock";
                     continue;
                 }
@@ -419,6 +418,8 @@ void ListItemsHelper::recalculate()
         default:  // others we ignore.
             calcWidth = false;
         }
+
+        data->setCounterIsImage(listStyle == KoListStyle::ImageItem);
         data->setPartialCounterText(partialCounterText);
         data->setCounterIndex(index);
         item += partialCounterText;

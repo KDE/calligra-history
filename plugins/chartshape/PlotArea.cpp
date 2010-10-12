@@ -279,7 +279,7 @@ void PlotArea::proxyModelStructureChanged()
     // there should be exactly one x axis and one region for categories.
     // See note in Axis::setCategoryDataRegion()
     // Categories might have been inserted or removed from the proxy model.
-    xAxis()->setCategoryDataRegion( proxyModel()->categoryDataRegion() );
+//     xAxis()->setCategoryDataRegion( proxyModel()->categoryDataRegion() );
 
     // Now add the new list of data sets to the axis they belong to
     foreach( DataSet *dataSet, dataSets ) {
@@ -624,6 +624,7 @@ bool PlotArea::loadOdf( const KoXmlElement &plotAreaElement,
     CellRegion cellRangeAddress;
     if ( plotAreaElement.hasAttributeNS( KoXmlNS::table, "cell-range-address" ) ) {
         cellRangeAddress = CellRegion( helper->tableSource, plotAreaElement.attributeNS( KoXmlNS::table, "cell-range-address" ) );
+//         setCellRangeAddress( cellRangeAddress );
     }
 
     // Find out about things that are in the plotarea style.

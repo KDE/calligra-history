@@ -50,6 +50,7 @@
 
 #include <MsooXmlReader.h>
 #include <MsooXmlCommonReader.h>
+#include <QScopedPointer>
 
 // ================================================================
 
@@ -62,25 +63,6 @@ void MSOOXML_CURRENT_CLASS::initDrawingML()
     m_inGrpSpPr = false;
     m_fillImageRenderingStyleStretch = false;
 }
-
-
-void MSOOXML_CURRENT_CLASS::pushCurrentDrawStyle(KoGenStyle *newStyle)
-{
-    m_drawStyleStack.append(m_currentDrawStyle);
-
-    // This step also takes ownership, so we have to delete it when popping.
-    m_currentDrawStyle = newStyle;
-}
-
-void MSOOXML_CURRENT_CLASS::popCurrentDrawStyle()
-{
-    Q_ASSERT(!m_drawStyleStack.isEmpty());
-
-    delete m_currentDrawStyle;
-    m_currentDrawStyle = m_drawStyleStack.last();
-    m_drawStyleStack.removeLast();
-}
-
 
 // ----------------------------------------------------------------
 
@@ -107,21 +89,6 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::copyFile(const QString& source
     }
     return KoFilter::OK;
 }
-
-QSize MSOOXML_CURRENT_CLASS::imageSize(const QString& sourceName)
-{
-    const QMap<QString, QSize>::ConstIterator it(m_imageSizes.constFind(sourceName));
-    if (it == m_imageSizes.constEnd()) {
-        QSize size;
-        const KoFilter::ConversionStatus status = m_context->import->imageSize(sourceName, &size);
-        if (status != KoFilter::OK)
-            size = QSize(-1, -1);
-        m_imageSizes.insert(sourceName, size);
-        return size;
-    }
-    return it.value();
-}
-
 
 // ================================================================
 // DrawingML tags
@@ -842,6 +809,21 @@ void MSOOXML_CURRENT_CLASS::generateFrameSp()
             body->addAttribute("draw:transform", rotString);
         }
     }
+#elif defined(XLSXXMLDRAWINGREADER_CPP)
+    if (m_currentDrawingObject->m_positions.contains(XlsxDrawingObject::FromAnchor)) {
+        XlsxDrawingObject::Position f = m_currentDrawingObject->m_positions[XlsxDrawingObject::FromAnchor];
+        body->addAttributePt("svg:x", EMU_TO_POINT(f.m_colOff));
+        body->addAttributePt("svg:y", EMU_TO_POINT(f.m_rowOff));
+        if (m_currentDrawingObject->m_positions.contains(XlsxDrawingObject::ToAnchor)) {
+            f = m_currentDrawingObject->m_positions[XlsxDrawingObject::ToAnchor];
+            body->addAttribute("table:end-cell-address", KSpread::Util::encodeColumnLabelText(f.m_col+1) + QString::number(f.m_row+1));
+            body->addAttributePt("table:end-x", EMU_TO_POINT(f.m_colOff));
+            body->addAttributePt("table:end-y", EMU_TO_POINT(f.m_rowOff));
+        } else {
+            body->addAttributePt("svg:width", EMU_TO_POINT(m_svgWidth));
+            body->addAttributePt("svg:height", EMU_TO_POINT(m_svgHeight));
+        }
+    }
 #else
 #ifdef __GNUC__
 #warning TODO: docx
@@ -1091,6 +1073,9 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_sp()
     if (m_context->type == SlideLayout) {
         body = &layoutWriter;
     }
+#elif defined(XLSXXMLDRAWINGREADER_CPP)
+    KoXmlWriter *bodyBackup = body;
+    body = m_currentDrawingObject->setShape(new XlsxShape());
 #endif
 
     preReadSp();
@@ -1109,11 +1094,15 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_sp()
             TRY_READ_IF(nvSpPr)
             ELSE_TRY_READ_IF(spPr)
             ELSE_TRY_READ_IF(style)
-#ifdef PPTXXMLSLIDEREADER_H
-            else {
-                TRY_READ_IF(txBody)
-            }
+#if defined(PPTXXMLSLIDEREADER_H)
+            ELSE_TRY_READ_IF(txBody)
 #endif
+            else if (qualifiedName() == QLatin1String(QUALIFIED_NAME(txBody))) {
+                KoXmlWriter* w = body;
+                body->startElement("draw:text-box");
+                TRY_READ(DrawingML_txBody)
+                w->endElement();
+            }
 //! @todo add ELSE_WRONG_FORMAT
         }
     }
@@ -1153,7 +1142,9 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_sp()
             m_context->slideLayoutProperties->layoutFrames.push_back(elementContents);
         }
         body = bodyBackup;
-    }
+    }    
+#elif defined(XLSXXMLDRAWINGREADER_CPP)
+    body = bodyBackup;
 #endif
 
     READ_EPILOGUE
@@ -1182,7 +1173,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_style()
 
     // We don't want to overlap the current style
     if (!m_currentDrawStyle->isEmpty()) {
-        SKIP_EVERYTHING
+        skipCurrentElement();
         READ_EPILOGUE
     }
 
@@ -1266,7 +1257,6 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_spPr()
                 TRY_READ(ln)
             }
             else if (qualifiedName() == QLatin1String("a:noFill")) {
-                SKIP_EVERYTHING // safely skip
                 m_noFill = true;
             }
             else if (qualifiedName() == QLatin1String("a:prstGeom")) {
@@ -1351,26 +1341,42 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_chart()
         const QString filepath = m_context->relationships->target(m_context->path, m_context->file, r_id);
 
         Charting::Chart* chart = new Charting::Chart;
-
         ChartExport* chartexport = new ChartExport(chart, m_context->themes);
+#if defined(XLSXXMLDRAWINGREADER_CPP)
+        chart->m_sheetName = m_context->worksheetReaderContext->worksheetName;
+        chartexport->setSheetReplacement( false );
+        if(m_currentDrawingObject->m_positions.contains(XlsxDrawingObject::FromAnchor)) {
+            XlsxDrawingObject::Position f = m_currentDrawingObject->m_positions[XlsxDrawingObject::FromAnchor];
+            chart->m_fromRow = f.m_row;
+            chart->m_fromColumn = f.m_col;
+            if(m_currentDrawingObject->m_positions.contains(XlsxDrawingObject::ToAnchor)) {
+                f = m_currentDrawingObject->m_positions[XlsxDrawingObject::ToAnchor];
+                chart->m_toRow = f.m_row;
+                chart->m_toColumn = f.m_col;
+            }
+        }
+#else
         chartexport->m_drawLayer = true;
         chartexport->m_x = EMU_TO_POINT(qMax(0, m_svgX));
         chartexport->m_y = EMU_TO_POINT(qMax(0, m_svgY));
         chartexport->m_width = m_svgWidth > 0 ? EMU_TO_POINT(m_svgWidth) : 100;
         chartexport->m_height = m_svgHeight > 0 ? EMU_TO_POINT(m_svgHeight) : 100;
-
-        kDebug()<<"r:id="<<r_id<<"filepath="<<filepath<<"position="<<QString("%1:%2").arg(chartexport->m_x).arg(chartexport->m_y)<<"size="<<QString("%1x%2").arg(chartexport->m_width).arg(chartexport->m_height);
+#endif
         
         KoStore* storeout = m_context->import->outputStore();
-        XlsxXmlChartReaderContext context(storeout, chartexport );
+        QScopedPointer<XlsxXmlChartReaderContext> context(new XlsxXmlChartReaderContext(storeout, chartexport));
         XlsxXmlChartReader reader(this);
-        const KoFilter::ConversionStatus result = m_context->import->loadAndParseDocument(&reader, filepath, &context);
+        const KoFilter::ConversionStatus result = m_context->import->loadAndParseDocument(&reader, filepath, context.data());
         if (result != KoFilter::OK) {
             raiseError(reader.errorString());
             return result;
         }
 
+#if defined(XLSXXMLDRAWINGREADER_CPP)
+        m_currentDrawingObject->setChart(context.take());
+#else
         chartexport->saveIndex(body);
+#endif
     }
 
     while (!atEnd()) {
@@ -1477,10 +1483,8 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_lnRef()
         }
     }
 
-#ifdef PPTXXMLSLIDEREADER_H
     m_currentPen.setColor(m_currentColor);
     KoOdfGraphicStyles::saveOdfStrokeStyle(*m_currentDrawStyle, *mainStyles, m_currentPen);
-#endif
 
     READ_EPILOGUE
 }
@@ -2061,7 +2065,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_hlinkClick()
   - rtl (Right To Left)
  Child elements:
   - [done] buAutoNum (Auto-Numbered Bullet) §21.1.2.4.1
-  - buBlip (Picture Bullet) §21.1.2.4.2
+  - [done] buBlip (Picture Bullet) §21.1.2.4.2
   - [done] buChar (Character Bullet) §21.1.2.4.3
   - buClr (Color Specified) §21.1.2.4.4
   - buClrTx (Follow Text) §21.1.2.4.5
@@ -2103,6 +2107,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_DrawingML_pPr()
     TRY_READ_ATTR_WITHOUT_NS(marL)
     TRY_READ_ATTR_WITHOUT_NS(marR)
     TRY_READ_ATTR_WITHOUT_NS(indent)
+    TRY_READ_ATTR_WITHOUT_NS(defTabSz)
 
     bool ok = false;
 
@@ -2118,6 +2123,10 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_DrawingML_pPr()
         const qreal firstInd = qreal(EMU_TO_POINT(indent.toDouble(&ok)));
         m_currentParagraphStyle.addPropertyPt("fo:text-indent", firstInd);
     }
+    if (!defTabSz.isEmpty()) {
+        const qreal tabSize = qreal(EMU_TO_POINT(defTabSz.toDouble(&ok)));
+        m_currentParagraphStyle.addPropertyPt("style:tab-stop-distance", tabSize);
+    }
 
     m_bulletFont = "";
 
@@ -2129,6 +2138,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_DrawingML_pPr()
             ELSE_TRY_READ_IF(buNone)
             ELSE_TRY_READ_IF(buChar)
             ELSE_TRY_READ_IF(buFont)
+            ELSE_TRY_READ_IF(buBlip)
             else if (QUALIFIED_NAME_IS(spcBef)) {
                 m_currentSpacingType = spacingMarginTop;
                 TRY_READ(spcBef)
@@ -2424,7 +2434,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_chExt()
     - blipFill (§20.2.2.1) - DrawingML, p. 3456
     - blipFill (§20.5.2.2) - DrawingML, p. 3518
     - [done] blipFill (§19.3.1.4) - PresentationML, p. 2818
-    - buBlip (§21.1.2.4.2)
+    - [done] buBlip (§21.1.2.4.2)
 
  Child elements:
     - alphaBiLevel (Alpha Bi-Level Effect) §20.1.8.1
@@ -2467,16 +2477,32 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_blip()
         const QString sourceName(m_context->relationships->target(m_context->path,
                                                                   m_context->file, r_embed));
         kDebug() << "sourceName:" << sourceName;
+
+        m_context->import->imageSize(sourceName, m_imageSize);
+
         if (sourceName.isEmpty()) {
             return KoFilter::FileNotFound;
         }
-
+#if defined(XLSXXMLDRAWINGREADER_CPP)
+        QString destinationName = QLatin1String("Pictures/") + sourceName.mid(sourceName.lastIndexOf('/') + 1);;
+        if(m_context->import->copyFile(sourceName, destinationName, false) == KoFilter::OK) {
+            XlsxXmlEmbeddedPicture *picture = new XlsxXmlEmbeddedPicture(destinationName);
+            if (m_currentDrawingObject->m_positions.contains(XlsxDrawingObject::FromAnchor)) {  // if we got 'from' cell
+                picture->m_fromCell = m_currentDrawingObject->m_positions[XlsxDrawingObject::FromAnchor]; // store the starting cell
+                if (m_currentDrawingObject->m_positions.contains(XlsxDrawingObject::ToAnchor)) {   // if we got 'to' cell
+                    picture->m_toCell = m_currentDrawingObject->m_positions[XlsxDrawingObject::ToAnchor]; // store the ending cell
+                }
+            }
+            m_currentDrawingObject->setPicture(picture);
+        }
+#else
         QString destinationName;
         RETURN_IF_ERROR( copyFile(sourceName, QLatin1String("Pictures/"), destinationName) )
-
+        addManifestEntryForFile(destinationName);
         m_recentSourceName = sourceName;
         addManifestEntryForPicturesDir();
         m_xlinkHref = destinationName;
+#endif
     }
 
     // Read child elements
@@ -2863,6 +2889,12 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_blipFill(blipFillCaller c
     else {
         ns = QChar((char)caller);
     }
+#elif defined(XLSXXMLDRAWINGREADER_CPP)
+    if (caller == blipFill_pic) {
+        ns = QLatin1String("xdr");
+    } else {
+        ns = QChar((char)caller);
+    }
 #else
     ns = QChar((char)caller);
 #endif
@@ -3093,7 +3125,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_latin()
     if (documentReaderMode) {
         defaultLatinFonts[defaultLatinFonts.size() - 1] = typeface;
 
-        SKIP_EVERYTHING
+        skipCurrentElement();
         READ_EPILOGUE
     }
 #endif
@@ -3499,7 +3531,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_noFill(noFillCaller calle
  - [done] spPr (§21.4.3.7)
  - [done] spPr (§20.1.2.2.35)
  - [done] spPr (§20.2.2.6)
- - [done] spPr (§20.5.2.30)
+ - [done] spPr (§20.5.2.30)
  - [done] spPr (§19.3.1.44)
 
  Child elements:
@@ -3625,7 +3657,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_schemeClr()
     if (documentReaderMode) {
         defaultTextColors[defaultTextColors.size() - 1] = val;
 
-        SKIP_EVERYTHING
+        skipCurrentElement();
         READ_EPILOGUE
     }
 #endif
@@ -3960,9 +3992,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_ln()
         m_currentPen = QPen();
     }
 
-#ifdef PPTXXMLSLIDEREADER_H
     KoOdfGraphicStyles::saveOdfStrokeStyle(*m_currentDrawStyle, *mainStyles, m_currentPen);
-#endif
 
     READ_EPILOGUE
 }
@@ -4172,6 +4202,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::lvlHelper(const QString& level
     TRY_READ_ATTR_WITHOUT_NS(marL)
     TRY_READ_ATTR_WITHOUT_NS(marR)
     TRY_READ_ATTR_WITHOUT_NS(indent)
+    TRY_READ_ATTR_WITHOUT_NS(defTabSz)
 
     bool ok = false;
 
@@ -4189,11 +4220,13 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::lvlHelper(const QString& level
         const qreal firstInd = qreal(EMU_TO_POINT(indent.toDouble(&ok)));
         m_currentParagraphStyle.addPropertyPt("fo:text-indent", firstInd);
     }
+    if (!defTabSz.isEmpty()) {
+        const qreal tabSize = qreal(EMU_TO_POINT(defTabSz.toDouble(&ok)));
+        m_currentParagraphStyle.addPropertyPt("style:tab-stop-distance", tabSize);
+    }
 
     TRY_READ_ATTR_WITHOUT_NS(algn)
     algnToODF("fo:text-align", algn);
-
-    TRY_READ_ATTR(defTabSz)
 
     m_currentTextStyle = KoGenStyle(KoGenStyle::TextAutoStyle, "text");
 
@@ -4202,12 +4235,16 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::lvlHelper(const QString& level
     while (!atEnd()) {
         readNext();
         kDebug() << *this;
+        if (isEndElement() && qualifiedName() == QString("a:%1").arg(level)) {
+            break;
+        }
         if (isStartElement()) {
             TRY_READ_IF(defRPr) // fills m_currentTextStyleProperties
             ELSE_TRY_READ_IF(buNone)
             ELSE_TRY_READ_IF(buAutoNum)
             ELSE_TRY_READ_IF(buChar)
             ELSE_TRY_READ_IF(buFont)
+            ELSE_TRY_READ_IF(buBlip)
             else if (QUALIFIED_NAME_IS(spcBef)) {
                 m_currentSpacingType = spacingMarginTop;
                 TRY_READ(spcBef)
@@ -4221,9 +4258,6 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::lvlHelper(const QString& level
                 TRY_READ(lnSpc)
             }
 //! @todo add ELSE_WRONG_FORMAT
-        }
-        if (isEndElement() && qualifiedName() == QString("a:%1").arg(level)) {
-            break;
         }
     }
 
@@ -4262,7 +4296,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::lvlHelper(const QString& level
 
  Child elements:
   - [done] buAutoNum (Auto-Numbered Bullet)     §21.1.2.4.1
-  - buBlip (Picture Bullet)              §21.1.2.4.2
+  - [done] buBlip (Picture Bullet)              §21.1.2.4.2
   - [done] buChar (Character Bullet)            §21.1.2.4.3
   - buClr (Color Specified)              §21.1.2.4.4
   - buClrTx (Follow Text)                §21.1.2.4.5
@@ -4365,6 +4399,52 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_lvl9pPr()
 {
     READ_PROLOGUE
     lvlHelper("lvl9pPr");
+    READ_EPILOGUE
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL buBlip
+//! buBlip - bullet picture
+/*!
+ Parent elements:
+ - defPPr (§21.1.2.2.2)
+ - [done] lvl1pPr (§21.1.2.4.13)
+ - [done] lvl2pPr (§21.1.2.4.14)
+ - [done] lvl3pPr (§21.1.2.4.15)
+ - [done] lvl4pPr (§21.1.2.4.16)
+ - [done] lvl5pPr (§21.1.2.4.17)
+ - [done] lvl6pPr (§21.1.2.4.18)
+ - [done] lvl7pPr (§21.1.2.4.19)
+ - [done] lvl8pPr (§21.1.2.4.20)
+ - [done] lvl9pPr (§21.1.2.4.21)
+ - [done] pPr (§21.1.2.2.7)
+
+ Child elements:
+ - [done] blip
+*/
+//! @todo support all attributes
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_buBlip()
+{
+    READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
+
+    m_xlinkHref.clear();
+
+    while (!atEnd()) {
+        readNext();
+        BREAK_IF_END_OF(CURRENT_EL);
+        if (isStartElement()) {
+            TRY_READ_IF(blip)
+        }
+    }
+
+    if (!m_xlinkHref.isEmpty()) {
+        m_currentBulletProperties.setPicturePath(m_xlinkHref);
+        m_currentBulletProperties.setPictureSize(m_imageSize);
+        m_lstStyleFound = true;
+        m_listStylePropertiesAltered = true;
+    }
+
     READ_EPILOGUE
 }
 
@@ -5060,7 +5140,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_bodyPr()
     m_currentPresentationStyle.addProperty("fo:wrap-option",
         wrap == QLatin1String("none") ? QLatin1String("no-wrap") : QLatin1String("wrap"), KoGenStyle::GraphicType);
     if (normAutoFit) {
-        m_currentPresentationStyle.addProperty("draw:fit-to-size", "shrink-to-fit", KoGenStyle::GraphicType);
+        m_currentPresentationStyle.addProperty("draw:fit-to-size", "true", KoGenStyle::GraphicType);
     }
 #endif
     READ_EPILOGUE
@@ -5083,9 +5163,16 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_bodyPr()
 KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_spAutoFit()
 {
     READ_PROLOGUE
-    SKIP_EVERYTHING
+    skipCurrentElement();
     READ_EPILOGUE
 }
+
+#undef MSOOXML_CURRENT_NS
+#ifdef DRAWINGML_TXBODY_NS
+#define MSOOXML_CURRENT_NS DRAWINGML_TXBODY_NS
+#else
+#define MSOOXML_CURRENT_NS DRAWINGML_NS
+#endif
 
 #undef CURRENT_EL
 #define CURRENT_EL txBody

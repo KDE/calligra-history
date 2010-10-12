@@ -18,17 +18,20 @@
 */
 #include "ODrawToOdf.h"
 #include "drawstyle.h"
+#include "generated/leinputstream.h"
 
 #include <KoXmlWriter.h>
 #include <kdebug.h>
 
 #include <QTransform>
+#include <qbuffer.h>
 
 #include <cmath>
 
 using namespace MSO;
 
-namespace {
+namespace
+{
 enum {
     msosptMin = 0,
     msosptNotPrimitive = msosptMin,
@@ -1165,7 +1168,8 @@ void ODrawToOdf::processCallout2(const MSO::OfficeArtSpContainer &o, Writer &out
     out.xml.addAttribute("svg:viewBox", "0 0 21600 21600");
     out.xml.addAttribute("draw:type", "mso-spt42");
     processModifiers(o, out);
-    out.xml.addAttribute("draw:enhanced-path", "M 0 0 S L 21600 0 21600 21600 0 21600 Z N M ?f0 ?f1 L ?f2 ?f3 N M ?f2 ?f3 L ?f4 ?f5 N M");
+    // TODO: uncomment the bit of the path once EnhancedPathShape supports S
+    out.xml.addAttribute("draw:enhanced-path", "M 0 0 M 21600 21600 "/*S L 21600 0 21600 21600 0 21600 Z N*/ "M ?f0 ?f1 L ?f2 ?f3 N M ?f2 ?f3 L ?f4 ?f5 N M");
     equation(out, "f0", "$0 ");
     equation(out, "f1", "$1 ");
     equation(out, "f2", "$2 ");
@@ -1242,6 +1246,31 @@ void ODrawToOdf::processPictureFrame(const OfficeArtSpContainer& o, Writer& out)
     out.xml.endElement(); // image
     out.xml.endElement(); // frame
 }
+
+void ODrawToOdf::processNotPrimitive(const OfficeArtSpContainer& o, Writer& out)
+{
+    out.xml.startElement("draw:custom-shape");
+    processStyleAndText(o, out);
+
+    out.xml.startElement("draw:enhanced-geometry");
+    setEnhancedGeometry(o, out);
+    out.xml.endElement(); //draw:enhanced-geometry
+
+    out.xml.endElement(); //draw:custom-shape
+}
+
+void ODrawToOdf::processNotchedCircularArrow(const MSO::OfficeArtSpContainer& o, Writer& out)
+{
+    out.xml.startElement("draw:custom-shape");
+    processStyleAndText(o, out);
+
+    out.xml.startElement("draw:enhanced-geometry");
+    setEnhancedGeometry(o, out);
+    out.xml.endElement(); //draw:enhanced-geometry
+
+    out.xml.endElement(); //draw:custom-shape
+}
+
 void ODrawToOdf::processDrawingObject(const OfficeArtSpContainer& o, Writer& out)
 {
     quint16 shapeType = o.shapeProp.rh.recInstance;
@@ -1312,6 +1341,10 @@ void ODrawToOdf::processDrawingObject(const OfficeArtSpContainer& o, Writer& out
     } else if (shapeType == msosptPictureFrame
                || shapeType == msosptHostControl) {
         processPictureFrame(o, out);
+    } else if (shapeType == msosptNotPrimitive) {
+        processNotPrimitive(o, out);
+    } else if (shapeType == msosptNotchedCircularArrow) {
+        processNotchedCircularArrow(o, out);
     } else {
         qDebug() << "cannot handle object of type " << shapeType;
     }
@@ -1324,7 +1357,7 @@ void ODrawToOdf::processStyleAndText(const MSO::OfficeArtSpContainer& o,
 }
 
 void ODrawToOdf::processStyle(const MSO::OfficeArtSpContainer& o,
-                                     Writer& out)
+                              Writer& out)
 {
     addGraphicStyleToDrawElement(out, o);
     out.xml.addAttribute("draw:layer", "layout");
@@ -1332,13 +1365,13 @@ void ODrawToOdf::processStyle(const MSO::OfficeArtSpContainer& o,
 }
 
 void ODrawToOdf::processText(const MSO::OfficeArtSpContainer& o,
-                                         Writer& out)
+                             Writer& out)
 {
     if (o.clientData && client && client->onlyClientData(*o.clientData)) {
         client->processClientData(*o.clientData, out);
     } else if (o.clientTextbox) {
         client->processClientTextBox(*o.clientTextbox,
-                                 o.clientData.data(), out);
+                                     o.clientData.data(), out);
     }
 }
 
@@ -1386,31 +1419,130 @@ void ODrawToOdf::set2dGeometry(const OfficeArtSpContainer& o, Writer& out)
 
     out.xml.addAttribute("svg:width", client->formatPos(out.hLength(rect.width())));
     out.xml.addAttribute("svg:height", client->formatPos(out.vLength(rect.height())));
- 
+
     const Rotation* rotation = get<Rotation>(o);
     if (rotation) {
-        qreal rotationAngle = toQReal(rotation->rotation) / 180 * M_PI;
-
-        QTransform t;
-        t.rotateRadians(-rotationAngle);
-
-        QPointF figureCenter(rect.width()/2.0, rect.height()/2.0);
-
-        QPointF originInDocument( rect.x(), rect.y() );
-
-        QPointF rotatedCenterPoint = t.map( figureCenter );
-
-        QPointF translatedPoint( figureCenter - rotatedCenterPoint + originInDocument );
-
         static const QString transformString("rotate(%1) translate(%2 %3)");
 
-        out.xml.addAttribute("draw:transform", transformString.arg(rotationAngle).arg( client->formatPos(out.hOffset(translatedPoint.x()))).arg(client->formatPos(out.vOffset(translatedPoint.y()))));
-    }
-    else {
+        qreal xPos = out.hOffset(rect.x());
+        qreal yPos = out.vOffset(rect.y());
+        qreal angle = -(toQReal(rotation->rotation) / 180 * M_PI);;
+        qreal width = out.hLength(rect.width());
+        qreal height = out.hLength(rect.height());
+
+        qreal newX = xPos + width/2 - cos(-angle)*width/2 + sin(-angle)*height/2;
+        qreal newY = yPos + height/2 - sin(-angle)*width/2 - cos(-angle)*height/2;
+
+        out.xml.addAttribute("draw:transform", transformString.arg(angle).arg(client->formatPos(newX)).arg(client->formatPos(newY)));
+    } else {
         out.xml.addAttribute("svg:x", client->formatPos(out.hOffset(rect.x())));
         out.xml.addAttribute("svg:y", client->formatPos(out.vOffset(rect.y())));
     }
 }
+
+void ODrawToOdf::setEnhancedGeometry(const MSO::OfficeArtSpContainer& o, Writer& out)
+{
+    const OfficeArtDggContainer* drawingGroup = 0;
+    const OfficeArtSpContainer* master = 0;
+    const DrawStyle ds(*drawingGroup, master, &o);
+
+    IMsoArray _v = ds.pVertices_complex();
+    IMsoArray _c = ds.pSegmentInfo_complex();
+
+    if (!_v.data.isEmpty() && !_c.data.isEmpty()) {
+
+        QVector<QPoint> verticesPoints;
+
+        //_v.data is an array of POINTs, MS-ODRAW, page 89
+        QByteArray xArray(sizeof(int),0), yArray(sizeof(int),0);
+        int step = _v.cbElem;
+        if (step == 0xfff0) {
+            step = 4;
+        }
+
+        int maxX=0,minX=INT_MAX,maxY=0,minY=INT_MAX;
+        int x,y;
+        //get vertice points
+        for (int i = 0, offset = 0; i < _v.nElems; i++, offset += step) {
+            // x coordinate of this point
+            xArray.replace(0,step/2,_v.data.mid(offset, step/2));
+            x = *(int*)xArray.data();
+
+            // y coordinate of this point
+            yArray.replace(0,step/2,_v.data.mid(offset + step/2, step/2));
+            y = *(int*)yArray.data();
+
+            verticesPoints.append(QPoint(x, y));
+
+            // find maximum and minimum coordinates
+            if (maxY < y) {
+                maxY = y;
+            }
+            if (minY > y) {
+                minY = y ;
+            }
+            if (maxX < x) {
+                maxX = x;
+            }
+            if (minX > x) {
+                minX = x;
+            }
+        }
+
+        QString viewBox = QString::number(minX) + ' ' + QString::number(minY) + ' '
+                          + QString::number(maxX) + ' ' + QString::number(maxY);
+
+        // combine segmentationInfoData and verticePoints into enhanced-path string
+        int verticesIndex = 0;
+        QString enhancedPath;
+        for (int i = 0; i < _c.nElems; i++) {
+
+            switch ((((*(ushort *)(_c.data.data()+i*2)) >> 13) & 0x7)) { //MSOPATHINFO.type
+            case 0: { //msopathLineTo
+                enhancedPath = enhancedPath + "L " + QString::number(verticesPoints[verticesIndex].x()) + ' '
+                               + QString::number(verticesPoints[verticesIndex].y()) + ' ';
+                verticesIndex++;
+                break;
+            }
+            case 1: { // msopathCurveTo
+                enhancedPath = enhancedPath + "C " + QString::number(verticesPoints[verticesIndex].x()) + ' '
+                               + QString::number(verticesPoints[verticesIndex].y()) + ' '
+                               + QString::number(verticesPoints[verticesIndex+1].x()) + ' '
+                               + QString::number(verticesPoints[verticesIndex+1].y()) + ' '
+                               + QString::number(verticesPoints[verticesIndex+2].x()) + ' '
+                               + QString::number(verticesPoints[verticesIndex+2].y()) + ' ';
+                verticesIndex = verticesIndex + 3;
+                break;
+            }
+            case 2: { // msopathMoveTo
+                enhancedPath = enhancedPath + "M " + QString::number(verticesPoints[verticesIndex].x()) + ' '
+                               + QString::number(verticesPoints[verticesIndex].y()) + ' ';
+                verticesIndex++;
+                break;
+            }
+            case 3: { // msopathClose
+                enhancedPath = enhancedPath + "Z ";
+                break;
+            }
+            case 4: { // msopathEnd
+                enhancedPath = enhancedPath + "N ";
+                break;
+            }
+            case 5: { // msopathEscape
+                break;
+            }
+            case 6: { // msopathClientEscape
+                break;
+            }
+            }
+        }
+        out.xml.addAttribute("svg:viewBox", viewBox);
+        out.xml.addAttribute("draw:type", "non-primitive");
+        out.xml.addAttribute("draw:enhanced-path", enhancedPath);
+    }
+
+}
+
 void defineArrow(KoGenStyles& styles)
 {
     KoGenStyle marker(KoGenStyle::MarkerStyle);

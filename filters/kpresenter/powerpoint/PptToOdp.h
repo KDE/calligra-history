@@ -118,7 +118,7 @@ private:
     // we assume that these functions are the same for all style families
     void defineDefaultTextProperties(KoGenStyle& style);
     void defineDefaultParagraphProperties(KoGenStyle& style);
-    void defineDefaultGraphicProperties(KoGenStyle& style);
+    void defineDefaultGraphicProperties(KoGenStyle& style, KoGenStyles& styles);
 
     /* Extract data from TextCFException into the style */
     void defineTextProperties(KoGenStyle& style, const MSO::TextCFException* cf,
@@ -136,11 +136,12 @@ private:
      *
      * @param KoGenStyle
      * @param DrawStyle
+     * @param KoGenStyles
      * @param pointer to a HeadersFootersAtom
      * @param pointer to a MainMasterContainer or NotesContainer
      * @param pointer to a SlideContainer or NotesContainer
      */
-    void defineDrawingPageStyle(KoGenStyle& style, const DrawStyle& ds,
+    void defineDrawingPageStyle(KoGenStyle& style, const DrawStyle& ds, KoGenStyles& styles,
                                 const MSO::HeadersFootersAtom* hf,
                                 const MSO::StreamOffset* master = NULL,
                                 const MSO::StreamOffset* common = NULL);
@@ -591,6 +592,13 @@ private:
     * @param QString notes text to displayed.
     */
     void insertNotesDeclaration(DeclarationType type, const QString &name, const QString &text);
+
+    /**
+     * @brief retrieve the OfficeArtSpContainer of the master shape
+     * @param spid identifier of the master shape
+     * @return pointer to the OfficeArtSpContainer
+     */
+    const MSO::OfficeArtSpContainer* retrieveMasterShape(quint32 spid) const;
 };
 
 /**

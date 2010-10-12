@@ -25,144 +25,6 @@
 #define MSOOXMLVMLREADER_IMPL_H
 
 #undef MSOOXML_CURRENT_NS
-#define MSOOXML_CURRENT_NS "w"
-//#define MSOOXML_CALL_STACK m_vmlCalls
-#include "MsooXmlReader_p.h"
-#include "MsooXmlUtils.h"
-
-#undef CURRENT_EL
-#define CURRENT_EL pict
-//! pict handler (VML Object)
-/*! ECMA-376 Part 4, 9.2.2.2, p.31.
-
- This element specifies that an object is located at this position
- in the run’s contents. The layout properties of this object are specified using the VML syntax (§14.1).
-
- Parent elements:
- - r (Part 1, §22.1.2.87) - Shared ML
- - [done] r (Part 1, §17.3.2.25) - Shared ML
-
- Child elements:
- - control (Floating Embedded Control) §9.2.2.1
- - movie (Embedded Video) Part 1, §17.3.3.17
- - Any element in the urn:schemas-microsoft-com:vml namespace §14.1
- - Any element in the urn:schemas-microsoft-com:office:office namespace §14.2
-*/
-//! @todo support all elements
-KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_pict()
-{
-    READ_PROLOGUE
-
-    body->startElement("draw:frame");
-
-    m_currentDrawStyle = new KoGenStyle(KoGenStyle::GraphicAutoStyle, "graphic");
-
-    MSOOXML::Utils::XmlWriteBuffer drawFrameBuf;
-    body = drawFrameBuf.setWriter(body);
-
-    while (!atEnd()) {
-        readNext();
-        BREAK_IF_END_OF(CURRENT_EL);
-        if (isStartElement()) {
-            if (qualifiedName() == "v:rect") {
-                TRY_READ(rect)
-            }
-            ELSE_TRY_READ_IF_NS(v, shapetype)
-            ELSE_TRY_READ_IF_NS(v, shape)
-//! @todo add ELSE_WRONG_FORMAT
-        }
-    }
-
-    body = drawFrameBuf.originalWriter();
-
-    const QString width(m_vmlStyle.value("width")); // already in "...cm" format
-    const QString height(m_vmlStyle.value("height")); // already in "...cm" format
-    const QString x_mar(m_vmlStyle.value("margin-left"));
-    const QString y_mar(m_vmlStyle.value("margin-top"));
-    if (!width.isEmpty()) {
-        body->addAttribute("svg:width", width);
-    }
-    if (!height.isEmpty()) {
-        body->addAttribute("svg:height", height);
-    }
-    if (!x_mar.isEmpty()) {
-        body->addAttribute("svg:x", x_mar);
-    }
-    if (!y_mar.isEmpty()) {
-        body->addAttribute("svg:y", y_mar);
-    }
-    if (!m_shapeColor.isEmpty()) {
-        m_currentDrawStyle->addProperty("fo:background-color", m_shapeColor);
-    }
-
-    if (!m_imagedataPath.isEmpty()) {
-        body->startElement("draw:image");
-        body->addAttribute("xlink:type", "simple");
-        body->addAttribute("xlink:show", "embed");
-        body->addAttribute("xlink:actuate", "onLoad");
-        body->addAttribute("xlink:href", m_imagedataPath);
-        body->endElement(); // draw:image
-    }
-
-    if (!m_currentDrawStyle->isEmpty()) {
-        const QString drawStyleName( mainStyles->insert(*m_currentDrawStyle, "gr") );
-        body->addAttribute("draw:style-name", drawStyleName);
-    }
-
-    {
-        {
-            const QString rId(m_vmlStyle.value("v:fill@r:id"));
-            if (!rId.isEmpty()) {
-                body->startElement("draw:image");
-                const QString sourceName(m_context->relationships->target(m_context->path, m_context->file, rId));
-                kDebug() << "sourceName:" << sourceName;
-                if (sourceName.isEmpty()) {
-                    return KoFilter::FileNotFound;
-                }
-                QString destinationName;
-                RETURN_IF_ERROR( copyFile(sourceName, QLatin1String("Pictures/"), destinationName) )
-                addManifestEntryForPicturesDir();
-                body->addAttribute("xlink:href", destinationName);
-                body->endElement(); //draw:image
-            }
-        }
-    }
-
-    (void)drawFrameBuf.releaseWriter();
-
-    body->endElement(); //draw:frame
-
-    READ_EPILOGUE
-}
-
-#undef CURRENT_EL
-#define CURRENT_EL txbxContent
-/*! txbxContent handler (Textbox content)
-
- Parent elements:
- - [done] textbox (§14.1.2.19)
-
-*/
-//! @todo support all elements
-KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_txbxContent()
-{
-    READ_PROLOGUE
-
-    const QXmlStreamAttributes attrs(attributes());
-
-    while (!atEnd()) {
-        readNext();
-        BREAK_IF_END_OF(CURRENT_EL);
-        if (isStartElement()) {
-            TRY_READ_IF(p)
-        }
-    }
-
-    READ_EPILOGUE
-}
-
-// ---------------------------------------------------------
-#undef MSOOXML_CURRENT_NS
 #define MSOOXML_CURRENT_NS "v"
 
 //! Used by read_rect() to parse CSS2.
@@ -184,6 +46,126 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::parseCSS(const QString& style)
         m_vmlStyle.insert(name, value);
         kDebug() << "name:" << name << "value:" << value;
     }
+    return KoFilter::OK;
+}
+
+void MSOOXML_CURRENT_CLASS::createFrameStart()
+{
+    body->startElement("draw:frame");
+
+    pushCurrentDrawStyle(new KoGenStyle(KoGenStyle::GraphicAutoStyle, "graphic"));
+
+    QString width(m_vmlStyle.value("width")); // already in "...cm" format
+    QString height(m_vmlStyle.value("height")); // already in "...cm" format
+    QString x_mar(m_vmlStyle.value("margin-left"));
+    QString y_mar(m_vmlStyle.value("margin-top"));
+    QString leftPos(m_vmlStyle.value("left"));
+    QString topPos(m_vmlStyle.value("top"));
+    const QString hor_pos(m_vmlStyle.value("mso-position-horizontal"));
+    const QString ver_pos(m_vmlStyle.value("mso-position-vertical"));
+    const QString hor_pos_rel(m_vmlStyle.value("mso-position-horizontal-relative"));
+    const QString ver_pos_rel(m_vmlStyle.value("mso-position-vertical-relative"));
+
+    if (!width.isEmpty()) {
+        if (m_insideGroup) {
+            width = QString("%1%2").arg(width.toInt() * m_real_groupWidth / m_groupWidth).arg(m_groupUnit);
+        }
+        body->addAttribute("svg:width", width);
+    }
+    if (!height.isEmpty()) {
+        if (m_insideGroup) {
+            height = QString("%1%2").arg(height.toInt() * m_real_groupHeight / m_groupHeight).arg(m_groupUnit);
+        }
+        body->addAttribute("svg:height", height);
+    }
+    if (!x_mar.isEmpty()) {
+        if (m_insideGroup) {
+            x_mar = QString("%1%2").arg((x_mar.toInt() - m_groupX) * m_real_groupWidth / m_groupWidth).arg(m_groupUnit);
+        }
+        body->addAttribute("svg:x", x_mar);
+    }
+    else if (!leftPos.isEmpty()) {
+        if (m_insideGroup) {
+            leftPos = QString("%1%2").arg((leftPos.toInt() - m_groupX) * m_real_groupWidth / m_groupWidth).arg(m_groupUnit);
+        }
+        body->addAttribute("svg:x", leftPos);
+    }
+    if (!y_mar.isEmpty()) {
+        if (m_insideGroup) {
+            y_mar = QString("%1%2").arg((y_mar.toInt() - m_groupY) * m_real_groupHeight / m_groupHeight).arg(m_groupUnit);
+        }
+        body->addAttribute("svg:y", y_mar);
+    }
+    else if (!topPos.isEmpty()) {
+        if (m_insideGroup) {
+            topPos = QString("%1%2").arg((topPos.toInt() - m_groupY) * m_real_groupHeight / m_groupHeight).arg(m_groupUnit);
+        }
+        body->addAttribute("svg:y", topPos);
+    }
+    if (!m_shapeColor.isEmpty()) {
+        m_currentDrawStyle->addProperty("draw:fill", "solid");
+        m_currentDrawStyle->addProperty("draw:fill-color", m_shapeColor);
+    }
+
+    if (!hor_pos.isEmpty()) {
+        m_currentDrawStyle->addProperty("style:horizontal-pos", hor_pos);
+    }
+    if (!ver_pos.isEmpty()) {
+        m_currentDrawStyle->addProperty("style:vertical-pos", ver_pos);
+    }
+    if (!hor_pos_rel.isEmpty()) {
+        m_currentDrawStyle->addProperty("style:horizontal-rel", hor_pos_rel);
+    }
+    if (!ver_pos_rel.isEmpty()) {
+        m_currentDrawStyle->addProperty("style:vertical-rel", ver_pos_rel);
+    }
+
+    if (!m_currentDrawStyle->isEmpty()) {
+        const QString drawStyleName( mainStyles->insert(*m_currentDrawStyle, "gr") );
+        if (m_moveToStylesXml) {
+            mainStyles->markStyleForStylesXml(drawStyleName);
+        }
+
+        body->addAttribute("draw:style-name", drawStyleName);
+    }
+}
+
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::createFrameEnd()
+{
+    if (!m_imagedataPath.isEmpty()) {
+        body->startElement("draw:image");
+        body->addAttribute("xlink:type", "simple");
+        body->addAttribute("xlink:show", "embed");
+        body->addAttribute("xlink:actuate", "onLoad");
+        body->addAttribute("xlink:href", m_imagedataPath);
+        body->endElement(); // draw:image
+    }
+
+    {
+        {
+            const QString rId(m_vmlStyle.value("v:fill@r:id"));
+            if (!rId.isEmpty()) {
+                body->startElement("draw:image");
+                const QString sourceName(m_context->relationships->target(m_context->path, m_context->file, rId));
+                kDebug() << "sourceName:" << sourceName;
+                if (sourceName.isEmpty()) {
+                    return KoFilter::FileNotFound;
+                }
+
+                QString destinationName = QLatin1String("Pictures/") + sourceName.mid(sourceName.lastIndexOf('/') + 1);;
+                RETURN_IF_ERROR( m_context->import->copyFile(sourceName, destinationName, false ) )
+                addManifestEntryForFile(destinationName);
+                addManifestEntryForPicturesDir();
+                body->addAttribute("xlink:href", destinationName);
+                body->endElement(); //draw:image
+            }
+        }
+    }
+
+    body->endElement(); //draw:frame
+
+    popCurrentDrawStyle();
+
     return KoFilter::OK;
 }
 
@@ -221,7 +203,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::parseCSS(const QString& style)
  - signatureline (Digital Signature Line) §14.2.2.30
  - skew (Skew Transform) §14.2.2.31
  - stroke (Line Stroke Settings) §14.1.2.21
- - textbox (Text Box) §14.1.2.22
+ - [done] textbox (Text Box) §14.1.2.22
  - textdata (VML Diagram Text) §14.5.2.2
  - textpath (Text Layout Path) §14.1.2.23
  - wrap (Text Wrapping) §14.3.2.6
@@ -231,18 +213,152 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_rect()
 {
     READ_PROLOGUE
     const QXmlStreamAttributes attrs(attributes());
-//! @todo support more attrs
-    // CSS2 styling properties of the shape, http://www.w3.org/TR/REC-CSS2
+
     TRY_READ_ATTR_WITHOUT_NS(style)
     RETURN_IF_ERROR(parseCSS(style))
+
+    TRY_READ_ATTR_WITHOUT_NS(fillcolor)
+
+    m_shapeColor.clear();
+
+    if (!fillcolor.isEmpty()) {
+        // It is possible that fillcolor is eg #abcdef [adddd], this removes the extra end
+        if (fillcolor.indexOf(' ') > 0) {
+            fillcolor = fillcolor.left(fillcolor.indexOf(' '));
+        }
+        m_shapeColor = MSOOXML::Utils::rgbColor(fillcolor);
+    }
+
+    createFrameStart();
+
     while (!atEnd()) {
         readNext();
         BREAK_IF_END_OF(CURRENT_EL);
         if (isStartElement()) {
             TRY_READ_IF(fill)
+            ELSE_TRY_READ_IF(textbox)
 //! @todo add ELSE_WRONG_FORMAT
         }
     }
+
+    createFrameEnd();
+
+    READ_EPILOGUE
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL group
+//! Vml group handler
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_group()
+{
+    READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
+    TRY_READ_ATTR_WITHOUT_NS(style)
+    RETURN_IF_ERROR(parseCSS(style))
+
+    body->startElement("draw:g");
+
+    pushCurrentDrawStyle(new KoGenStyle(KoGenStyle::GraphicAutoStyle, "graphic"));
+
+    const QString hor_pos(m_vmlStyle.value("mso-position-horizontal"));
+    const QString ver_pos(m_vmlStyle.value("mso-position-vertical"));
+    const QString hor_pos_rel(m_vmlStyle.value("mso-position-horizontal-relative"));
+    const QString ver_pos_rel(m_vmlStyle.value("mso-position-vertical-relative"));
+
+    if (!hor_pos.isEmpty()) {
+        m_currentDrawStyle->addProperty("style:horizontal-pos", hor_pos);
+    }
+    if (!ver_pos.isEmpty()) {
+        m_currentDrawStyle->addProperty("style:vertical-pos", ver_pos);
+    }
+    if (!hor_pos_rel.isEmpty()) {
+        m_currentDrawStyle->addProperty("style:horizontal-rel", hor_pos_rel);
+    }
+    if (!ver_pos_rel.isEmpty()) {
+        m_currentDrawStyle->addProperty("style:vertical-rel", ver_pos_rel);
+    }
+
+    if (!m_currentDrawStyle->isEmpty()) {
+        const QString drawStyleName( mainStyles->insert(*m_currentDrawStyle, "gr") );
+        if (m_moveToStylesXml) {
+            mainStyles->markStyleForStylesXml(drawStyleName);
+        }
+
+        body->addAttribute("draw:style-name", drawStyleName);
+    }
+
+    const QString width(m_vmlStyle.value("width"));
+    const QString height(m_vmlStyle.value("height"));
+
+    m_groupUnit = width.right(2); // pt, cm etc.
+    m_real_groupWidth = width.left(width.length() - 2).toDouble();
+    m_real_groupHeight = height.left(height.length() - 2).toDouble();
+
+    m_groupX = 0;
+    m_groupY = 0;
+    m_groupWidth = 0;
+    m_groupHeight = 0;
+
+    TRY_READ_ATTR_WITHOUT_NS(coordsize)
+
+    if (!coordsize.isEmpty()) {
+        m_groupWidth = coordsize.mid(0, coordsize.indexOf(',')).toInt();
+        m_groupHeight = coordsize.mid(coordsize.indexOf(',') + 1).toInt();
+    }
+
+    TRY_READ_ATTR_WITHOUT_NS(coordorigin)
+    if (!coordorigin.isEmpty()) {
+        m_groupX = coordorigin.mid(0, coordorigin.indexOf(',')).toInt();
+        m_groupY = coordorigin.mid(coordorigin.indexOf(',') + 1).toInt();
+    }
+
+    m_insideGroup = true;
+
+    while (!atEnd()) {
+        readNext();
+        BREAK_IF_END_OF(CURRENT_EL);
+        if (isStartElement()) {
+            TRY_READ_IF(rect)
+//! @todo add ELSE_WRONG_FORMAT
+        }
+    }
+
+    body->endElement(); // draw:g
+
+    m_insideGroup = false;
+
+    popCurrentDrawStyle();
+
+    READ_EPILOGUE
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL roundrect
+//! roundrect handler (Rouned rectangle)
+// For parents, children, look from rect
+// Note: this is atm. simplified, should in reality make a round rectangle
+KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_roundrect()
+{
+    READ_PROLOGUE
+    const QXmlStreamAttributes attrs(attributes());
+//! @todo support more attrs
+    TRY_READ_ATTR_WITHOUT_NS(style)
+    RETURN_IF_ERROR(parseCSS(style))
+
+    createFrameStart();
+
+    while (!atEnd()) {
+        readNext();
+        BREAK_IF_END_OF(CURRENT_EL);
+        if (isStartElement()) {
+            TRY_READ_IF(fill)
+            ELSE_TRY_READ_IF(textbox)
+//! @todo add ELSE_WRONG_FORMAT
+        }
+    }
+
+    createFrameEnd();
+
     READ_EPILOGUE
 }
 
@@ -348,8 +464,9 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_VML_background()
         if (sourceName.isEmpty()) {
             return KoFilter::FileNotFound;
         }
-        QString destinationName;
-        RETURN_IF_ERROR( copyFile(sourceName, QLatin1String("Pictures/"), destinationName) )
+        QString destinationName = QLatin1String("Pictures/") + sourceName.mid(sourceName.lastIndexOf('/') + 1);;
+        RETURN_IF_ERROR( m_context->import->copyFile(sourceName, destinationName, false ) )
+        addManifestEntryForFile(destinationName);
         addManifestEntryForPicturesDir();
         if (m_pDocBkgImageWriter) {
             delete m_pDocBkgImageWriter->device();
@@ -429,7 +546,7 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_shapetype()
  - background (Part 1, §17.2.1)
  - group (§14.1.2.7)
  - [done] object (Part 1, §17.3.3.19)
- - pict (§9.2.2.2); pict (§9.5.1)
+ - [done] pict (§9.2.2.2); pict (§9.5.1)
 
  Child elements:
  - anchorlock (Anchor Location Is Locked) §14.3.2.1
@@ -468,6 +585,9 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_shape()
            </v:shape>*/
     const QXmlStreamAttributes attrs(attributes());
 
+    TRY_READ_ATTR_WITHOUT_NS(id)
+    m_currentShapeId = id;
+
     // CSS2 styling properties of the shape, http://www.w3.org/TR/REC-CSS2
     TRY_READ_ATTR_WITHOUT_NS(style)
     RETURN_IF_ERROR(parseCSS(style))
@@ -482,13 +602,17 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_shape()
     if (!heightCm.isEmpty()) {
         m_currentObjectHeightCm = heightCm;
     }
-    const QString xCmMar(MSOOXML::Utils::ST_PositiveUniversalMeasure_to_cm(m_vmlStyle.value("margin-left")));
-    if (!xCmMar.isEmpty()) {
-        m_currentObjectXCm = xCmMar;
+    if (!m_vmlStyle.value("margin-left").isEmpty()) {
+        const QString xCmMar(MSOOXML::Utils::ST_PositiveUniversalMeasure_to_cm(m_vmlStyle.value("margin-left")));
+        if (!xCmMar.isEmpty()) {
+            m_currentObjectXCm = xCmMar;
+        }
     }
-    const QString yCmMar(MSOOXML::Utils::ST_PositiveUniversalMeasure_to_cm(m_vmlStyle.value("margin-top")));
-    if (!yCmMar.isEmpty()) {
-        m_currentObjectYCm = yCmMar;
+    if (!m_vmlStyle.value("margin-top").isEmpty()) {
+        const QString yCmMar(MSOOXML::Utils::ST_PositiveUniversalMeasure_to_cm(m_vmlStyle.value("margin-top")));
+        if (!yCmMar.isEmpty()) {
+            m_currentObjectYCm = yCmMar;
+        }
     }
     // override x or y after 'object' element is possible
     const QString xCm(MSOOXML::Utils::ST_PositiveUniversalMeasure_to_cm(m_vmlStyle.value("left")));
@@ -503,23 +627,37 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_shape()
     TRY_READ_ATTR_WITHOUT_NS_INTO(alt, m_shapeAltText)
     TRY_READ_ATTR_WITHOUT_NS_INTO(title, m_shapeTitle)
     TRY_READ_ATTR_WITHOUT_NS(fillcolor)
+    TRY_READ_ATTR_WITHOUT_NS(strokecolor)
+
+    m_shapeColor.clear();
+    m_strokeColor.clear();
 
     if (!fillcolor.isEmpty()) {
         m_shapeColor = MSOOXML::Utils::rgbColor(fillcolor);
     }
 
-    m_imagedataPath.clear();
+    if (!strokecolor.isEmpty()) {
+        m_strokeColor = MSOOXML::Utils::rgbColor(strokecolor);
+    }
+
+    if (m_outputFrames) {
+        createFrameStart();
+    }
 
     while (!atEnd()) {
         readNext();
         BREAK_IF_END_OF(CURRENT_EL);
         if (isStartElement()) {
             TRY_READ_IF(imagedata)
-            ELSE_TRY_READ_IF_NS(v, textbox)
+            ELSE_TRY_READ_IF(textbox)
         }
     }
 
     m_objectRectInitialized = true;
+
+    if (m_outputFrames) {
+        createFrameEnd();
+    }
 
     READ_EPILOGUE
 }
@@ -559,16 +697,24 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_imagedata()
     if (!r_id.isEmpty()) {
         imagedata = m_context->relationships->target(m_context->path, m_context->file, r_id);
     }
+    else {
+        TRY_READ_ATTR_WITH_NS(o, relid)
+        if (!o_relid.isEmpty()) {
+            imagedata = m_context->relationships->target(m_context->path, m_context->file, o_relid);
+        }
+    }
 
     kDebug() << "imagedata:" << imagedata;
-    m_imagedataPath.clear();
     if (!imagedata.isEmpty()) {
 //! @todo ooo saves binaries to the root dir; should we?
-        RETURN_IF_ERROR( copyFile(imagedata, QLatin1String("Pictures/"), m_imagedataPath) )
+        m_context->import->imageSize(imagedata, m_imageSize);
+
+        m_imagedataPath = QLatin1String("Pictures/") + imagedata.mid(imagedata.lastIndexOf('/') + 1);;
+        RETURN_IF_ERROR( m_context->import->copyFile(imagedata, m_imagedataPath, false ) )
+        addManifestEntryForFile(m_imagedataPath);
         m_imagedataFile = imagedata;
         addManifestEntryForPicturesDir();
     }
-    kDebug() << "m_imagedataPath:" << m_imagedataPath;
 
     while (!atEnd()) {
         readNext();
@@ -599,7 +745,9 @@ KoFilter::ConversionStatus MSOOXML_CURRENT_CLASS::read_textbox()
         readNext();
         BREAK_IF_END_OF(CURRENT_EL);
         if (isStartElement()) {
+#ifdef DOCXXMLDOCREADER_CPP
             TRY_READ_IF_NS(w, txbxContent)
+#endif
         }
     }
 

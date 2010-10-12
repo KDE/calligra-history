@@ -224,6 +224,59 @@ ChartConfigWidget::Private::~Private()
 // TODO:
 // 1) Allow user to change axis' "visible" property
 
+/**
+ * Returns, if existent, the name of the icon representing
+ * a given chart type, following the KDE4 icon naming convention.
+ */
+static QString chartTypeIcon( ChartType type, ChartSubtype subtype )
+{
+    switch( type ) {
+    case BarChartType:
+        switch( subtype ) {
+        case NormalChartSubtype:
+            return "office-chart-bar";
+        case StackedChartSubtype:
+            return "office-chart-bar-stacked";
+        case PercentChartSubtype:
+            return "office-chart-bar-percentage";
+        default:
+            Q_ASSERT( "Invalid bar chart subtype!" );
+        }
+    case LineChartType:
+        switch( subtype ) {
+        case NormalChartSubtype:
+            return "office-chart-line";
+        case StackedChartSubtype:
+            return "office-chart-line-stacked";
+        case PercentChartSubtype:
+            return "office-chart-line-percentage";
+        default:
+            Q_ASSERT( "Invalid line chart subtype!" );
+        }
+    case AreaChartType:
+        switch( subtype ) {
+        case NormalChartSubtype:
+            return "office-chart-area";
+        case StackedChartSubtype:
+            return "office-chart-area-stacked";
+        case PercentChartSubtype:
+            return "office-chart-area-percentage";
+        default:
+            Q_ASSERT( "Invalid area chart subtype!" );
+        }
+    case CircleChartType:
+        return "office-chart-pie";
+    case RingChartType:
+        return "office-chart-ring";
+    case RadarChartType:
+        return "office-chart-polar";
+    default:
+        return "";
+    }
+
+    return "";
+}
+
 ChartConfigWidget::ChartConfigWidget()
     : d( new Private( this ) )
 {
@@ -278,6 +331,7 @@ ChartConfigWidget::ChartConfigWidget()
     d->ganttChartAction->setEnabled( false );
 
     d->ui.chartTypeMenu->setMenu( chartTypeMenu );
+    d->ui.chartTypeMenu->setIconSize( QSize( 32, 32 ) );
 
     connect( chartTypeMenu, SIGNAL( triggered( QAction* ) ),
              this,          SLOT( chartTypeSelected( QAction* ) ) );
@@ -733,86 +787,9 @@ void ChartConfigWidget::dataSetChartTypeSelected( QAction *action )
     if ( !dataSet )
         return;
 
-    switch ( subtype ) {
-    case NormalChartSubtype:
-        switch ( type ) {
-        case BarChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_bar_beside" ) );
-            break;
-        case LineChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_line_normal" ) );
-            break;
-        case AreaChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_area_normal" ) );
-            break;
-        case CircleChartType:
-        case RingChartType:
-        case RadarChartType:
-        case StockChartType:
-        case BubbleChartType:
-        case SurfaceChartType:
-        case GanttChartType:
-        case LastChartType:
-        default:
-            break;
-        }
-        break;
-    case StackedChartSubtype:
-        //d->ui.subtypeStacked->blockSignals( true );
-        //d->ui.subtypeStacked->setChecked( true );
-        //d->ui.subtypeStacked->blockSignals( false );
-        switch ( type ) {
-        case BarChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_bar_layer" ) );
-            break;
-        case LineChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_line_stacked" ) );
-            break;
-        case AreaChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_area_stacked" ) );
-            break;
-        case CircleChartType:
-        case RingChartType:
-        case RadarChartType:
-        case StockChartType:
-        case BubbleChartType:
-        case SurfaceChartType:
-        case GanttChartType:
-        case LastChartType:
-        default:
-            break;
-        }
-        break;
-    case PercentChartSubtype:
-        //d->ui.subtypePercent->blockSignals( true );
-        //d->ui.subtypePercent->setChecked( true );
-        //d->ui.subtypePercent->blockSignals( false );
-        switch ( type ) {
-        case BarChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_bar_percent" ) );
-            break;
-        case LineChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_line_percent" ) );
-            break;
-        case AreaChartType:
-            d->ui.dataSetChartTypeMenu->setIcon( KIcon( "chart_area_percent" ) );
-            break;
-        case CircleChartType:
-        case RingChartType:
-        case RadarChartType:
-        case StockChartType:
-        case BubbleChartType:
-        case SurfaceChartType:
-        case GanttChartType:
-        case LastChartType:
-        default:
-            break;
-        }
-        break;
-    case NoChartSubtype:
-    default:
-        break;
-    }
+    QString iconName = chartTypeIcon( type, subtype );
+    if ( !iconName.isEmpty() )
+        d->ui.dataSetChartTypeMenu->setIcon( KIcon( iconName ) );
 
     emit dataSetChartTypeChanged( dataSet, type );
     emit dataSetChartSubTypeChanged( dataSet, subtype );
@@ -847,10 +824,13 @@ void ChartConfigWidget::update()
 
     // We only want to update this widget according to the current
     // state of the shape
+    // Note that this does not recursively block signals but only those
+    // of ChartConfigWidget.
     blockSignals( true );
 
     // Update cartesian diagram-specific properties
-    if ( d->axes != d->shape->plotArea()->axes() ) {
+    // Always update, as e.g. name of axis could have changed
+    // if ( d->axes != d->shape->plotArea()->axes() ) {
         // Remove old items from the combo box
         d->ui.axes->clear();
         d->ui.dataSetAxes->clear();
@@ -860,26 +840,20 @@ void ChartConfigWidget::update()
 
         if ( !d->axes.isEmpty() ) {
             foreach ( Axis *axis, d->axes ) {
+                // This automatically calls ui_axisSelectionChanged()
+                // after first insertion
                 d->ui.axes->addItem( axis->titleText() );
                 if ( axis->dimension() == YAxisDimension ) {
                     d->dataSetAxes.append( axis );
                     d->ui.dataSetAxes->blockSignals( true );
                     QString title = axis->titleText();
+                    // TODO (post-2.3): Use "Y Axis" as default label instead
                     if ( title.isEmpty() )
                         title = i18n( "Axis %1", d->ui.dataSetAxes->count() + 1 );
                     d->ui.dataSetAxes->addItem( title );
                     d->ui.dataSetAxes->blockSignals( false );
                 }
             }
-
-            const Axis *selectedAxis = d->shape->plotArea()->axes().first();
-
-            d->ui.axisShowGridLines->setEnabled( true );
-            d->ui.axisShowGridLines->setChecked( selectedAxis->showMajorGrid() || selectedAxis->showMinorGrid() );
-            d->ui.axisShowTitle->setEnabled( true );
-            d->ui.axisShowTitle->setChecked( selectedAxis->title()->isVisible() );
-            d->ui.axisTitle->setEnabled( true );
-            d->ui.axisTitle->setText( selectedAxis->titleText() );
         } else {
             d->ui.axisShowGridLines->blockSignals( true );
             d->ui.axisShowGridLines->setChecked( false );
@@ -896,7 +870,7 @@ void ChartConfigWidget::update()
             d->ui.axisTitle->setEnabled( false );
             d->ui.axisTitle->blockSignals( false );
         }
-    }
+    // }
 
     // Update "Labels" section in "Plot Area" tab
     d->ui.showTitle->setChecked( d->shape->title()->isVisible() );
@@ -931,83 +905,9 @@ void ChartConfigWidget::update()
         d->ui.propertiesSeparator->setVisible( needSeparator );
 
         // Set the chart type icon in the chart type button.
-        switch ( d->shape->chartType() ) {
-        case BarChartType:
-            switch ( d->shape->chartSubType() ) {
-            case NormalChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_bar_beside" ) );
-                break;
-            case StackedChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_bar_layer" ) );
-                break;
-            case PercentChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_bar_percent" ) );
-                break;
-            case NoChartSubtype:
-            default:
-                break;
-            }
-            break;
-        case LineChartType:
-            switch ( d->shape->chartSubType() ) {
-            case NormalChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_line_normal" ) );
-                break;
-            case StackedChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_line_stacked" ) );
-                break;
-            case PercentChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_line_percent" ) );
-                break;
-            case NoChartSubtype:
-            default:
-                break;
-            }
-            break;
-        case AreaChartType:
-            switch ( d->shape->chartSubType() ) {
-            case NormalChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_area_normal" ) );
-                break;
-            case StackedChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_area_stacked" ) );
-                break;
-            case PercentChartSubtype:
-                d->ui.chartTypeMenu->setIcon( KIcon( "chart_area_percent" ) );
-                break;
-            case NoChartSubtype:
-            default:
-                break;
-            }
-            break;
-        case CircleChartType:
-            d->ui.chartTypeMenu->setIcon( KIcon( "chart_pie_normal" ) );
-            break;
-        case RingChartType:
-            d->ui.chartTypeMenu->setIcon( KIcon( "chart_ring_normal" ) );
-            break;
-        case RadarChartType:
-            d->ui.chartTypeMenu->setIcon( KIcon( "chart_polar_normal" ) );
-            break;
-        case StockChartType:
-            d->ui.chartTypeMenu->setIcon( KIcon( "chart_stock_normal" ) );
-            break;
-        case ScatterChartType:
-            d->ui.chartTypeMenu->setIcon( KIcon( "chart_scatter_normal" ) );
-            break;
-        case BubbleChartType:
-            d->ui.chartTypeMenu->setIcon( KIcon( "chart_bubble_normal" ) );
-            break;
-        case SurfaceChartType:
-            d->ui.chartTypeMenu->setIcon( KIcon( "chart_surface_normal" ) );
-            break;
-        case GanttChartType:
-            d->ui.chartTypeMenu->setIcon( KIcon( "chart_gantt_normal" ) );
-            break;
-        case LastChartType:
-        default:
-            break;
-        }
+        QString iconName = chartTypeIcon( d->shape->chartType(), d->shape->chartSubType() );
+        if ( !iconName.isEmpty() )
+            d->ui.chartTypeMenu->setIcon( KIcon( iconName ) );
 
         // Make sure we only allow legal chart type combinations
         if ( isPolar( d->shape->chartType() ) ) {
@@ -1511,7 +1411,14 @@ void ChartConfigWidget::ui_axisTitleChanged( const QString& title )
     if( d->ui.axes->currentIndex() < 0 || d->ui.axes->currentIndex() >= d->axes.size() )
         return;
 
-    emit axisTitleChanged( d->axes[ d->ui.axes->currentIndex() ], title );
+    const int index = d->ui.axes->currentIndex();
+
+    // TODO: This can surely be done better
+    int dataSetAxisIndex = d->dataSetAxes.indexOf( d->axes[index] );
+    d->ui.dataSetAxes->setItemText( dataSetAxisIndex, title );
+
+    d->ui.axes->setItemText( index, title );
+    emit axisTitleChanged( d->axes[ index ], title );
 }
 
 void ChartConfigWidget::ui_axisShowTitleChanged( bool b )

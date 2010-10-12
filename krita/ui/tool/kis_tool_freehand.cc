@@ -126,15 +126,29 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
     if(mode() == KisTool::PAINT_MODE)
         return;
 
+    m_outlineDocPoint = e->point;
+
+    KisConfig cfg;
+    if(cfg.cursorStyle() == CURSOR_STYLE_OUTLINE) {
+        updateOutlineRect();
+    }
+
+    /**
+     * FIXME: we need some better way to implement modifiers
+     * for a paintop level
+     */
+    currentPaintOpPreset()->settings()->mousePressEvent(e);
+    if (e->isAccepted()) return;
+
+
     if(mode() == KisTool::HOVER_MODE &&
        e->button() == Qt::LeftButton &&
        e->modifiers() == Qt::NoModifier &&
        !specialModifierActive()) {
 
-        currentPaintOpPreset()->settings()->mousePressEvent(e);
-        if (e->isAccepted()) {
+
+        if (!currentNode() || !currentNode()->paintDevice() || currentNode()->systemLocked())
             return;
-        }
 
         setMode(KisTool::PAINT_MODE);
 
@@ -143,13 +157,6 @@ void KisToolFreehand::mousePressEvent(KoPointerEvent *e)
                                                          pressureToCurve(e->pressure()), e->xTilt(), e->yTilt(),
                                                          KisVector2D::Zero(),
                                                          e->rotation(), e->tangentialPressure(), m_strokeTimeMeasure.elapsed());
-
-        m_outlineDocPoint = e->point;
-
-        KisConfig cfg;
-        if(cfg.cursorStyle() == CURSOR_STYLE_OUTLINE) {
-            updateOutlineRect();
-        }
 
         e->accept();
     }
@@ -274,9 +281,6 @@ void KisToolFreehand::initPaint(KoPointerEvent *)
     KisCanvas2 *canvas2 = dynamic_cast<KisCanvas2 *>(canvas());
     if(canvas2)
         canvas2->view()->disableControls();
-
-    if (!currentNode() || !currentNode()->paintDevice() || currentNode()->systemLocked())
-        return;
 
     setCurrentNodeLocked(true);
     m_hasPaintAtLeastOnce = false;
@@ -532,7 +536,8 @@ void KisToolFreehand::paint(QPainter& gc, const KoViewConverter &converter)
         if(m_explicitShowOutline ||
            mode() == KisTool::GESTURE_MODE ||
            (cfg.cursorStyle() == CURSOR_STYLE_OUTLINE &&
-            (mode() != PAINT_MODE || cfg.showOutlineWhilePainting()))) {
+            (mode() == HOVER_MODE ||
+             (mode() == PAINT_MODE && cfg.showOutlineWhilePainting())))) {
 
             outlineMode = KisPaintOpSettings::CursorIsOutline;
         }

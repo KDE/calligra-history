@@ -101,6 +101,7 @@ const char* const MSOOXML::ContentTypes::presentationComments =      "applicatio
 
 // spreadsheetml-specific content types
 const char* const MSOOXML::ContentTypes::spreadsheetDocument =        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
+const char* const MSOOXML::ContentTypes::spreadsheetMacroDocument =   "application/vnd.ms-excel.sheet.macroEnabled.main+xml";
 const char* const MSOOXML::ContentTypes::spreadsheetPrinterSettings = "application/vnd.openxmlformats-officedocument.spreadsheetml.printerSettings";
 const char* const MSOOXML::ContentTypes::spreadsheetStyles =          "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml";
 const char* const MSOOXML::ContentTypes::spreadsheetWorksheet =       "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml";
@@ -236,7 +237,14 @@ QIODevice* Utils::openDeviceForFile(const KZip* zip, QString& errorMessage, cons
     const KZipFileEntry* f = static_cast<const KZipFileEntry *>(entry);
     kDebug() << "Entry" << fileName << "has size" << f->size();
     status = KoFilter::OK;
-    return f->createDevice();
+    // There seem to be some problems with kde/zlib when trying to read
+    // multiple streams, this functionality is needed in the filter
+    // Until there's another solution for this, this avoids the problem
+    //return f->createDevice();
+    QBuffer *device = new QBuffer();
+    device->setData(f->data());
+    device->open(QIODevice::ReadOnly);
+    return device;
 }
 
 #define BLOCK_SIZE 4096
@@ -455,6 +463,27 @@ KoFilter::ConversionStatus Utils::loadContentTypes(
 //! @todo
             // skip for now...
         }
+    }
+    return KoFilter::OK;
+}
+
+KoFilter::ConversionStatus Utils::loadDocumentProperties(const KoXmlDocument& appXML, QMap<QString, QVariant>& properties)
+{
+    KoXmlElement typesEl(appXML.documentElement());
+    KoXmlElement e, elem, element;
+    forEachElement(element, typesEl) {
+        QVariant v;
+        forEachElement(elem, element) {
+            if(elem.tagName() == "vector") {
+                QVariantList list;
+                forEachElement(e, elem)
+                    list.append(e.text());
+                v = list;
+            }
+        }
+        if(!v.isValid())
+            v = element.text();
+        properties[element.tagName()] = v;
     }
     return KoFilter::OK;
 }
@@ -1251,7 +1280,7 @@ MSOOXML_EXPORT QString Utils::rgbColor(const QString& color)
         newColor = "#0000ff";
     }
     else if (color == "yellow") {
-        newColor = "#ffff00 ";
+        newColor = "#ffff00";
     }
     else {
         newColor = color;
@@ -1319,27 +1348,59 @@ MSOOXML_EXPORT void Utils::ParagraphBulletProperties::setNumFormat(const QString
     m_type = ParagraphBulletProperties::NumberType;
 }
 
+MSOOXML_EXPORT void Utils::ParagraphBulletProperties::setPicturePath(const QString& picturePath)
+{
+    m_picturePath = picturePath;
+    m_type = ParagraphBulletProperties::PictureType;
+}
+
+MSOOXML_EXPORT void Utils::ParagraphBulletProperties::setPictureSize(const QSize& size)
+{
+    m_pictureSize = size;
+}
+
 MSOOXML_EXPORT QString Utils::ParagraphBulletProperties::convertToListProperties() const
 {
     QString returnValue;
+    QString ending;
     if (m_type == ParagraphBulletProperties::NumberType) {
         returnValue = QString("<text:list-level-style-number text:level=\"%1\" ").arg(m_level);
         returnValue += QString("style:num-suffix=\"%1\" style:num-format=\"%2\" ").arg(m_suffix).arg(m_numFormat);
         if (m_startValue != 0) {
             returnValue += QString("style:start-value=\"%1\" ").arg(m_startValue);
         }
+        ending = "</text:list-level-style-number>";
+    }
+    else if (m_type == ParagraphBulletProperties::PictureType) {
+        returnValue = QString("<text:list-level-style-image text:level=\"%1\" ").arg(m_level);
+        returnValue += QString("xlink:href=\"%1\" ").arg(m_picturePath);
+        returnValue += "xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\" ";
+        ending = "</text:list-level-style-image>";
     }
     else {
         returnValue = QString("<text:list-level-style-bullet text:level=\"%1\" ").arg(m_level);
         returnValue += QString("text:bullet-char=\"%1\" ").arg(m_bulletChar);
+        ending = "</text:list-level-style-bullet>";
     }
     if (!m_align.isEmpty()) {
         returnValue += QString("fo:text-align=\"%1\" ").arg(m_align);
     }
+    returnValue += ">";
+
+    returnValue += "<style:list-level-properties ";
+
     if (m_indent > 0) {
         returnValue += QString("text:space-before=\"%1pt\" ").arg(m_indent);
     }
+
+    if (m_type == ParagraphBulletProperties::PictureType) {
+        returnValue += QString("fo:width=\"%1\" fo:height=\"%2\" ").arg(MSOOXML::Utils::cmString(POINT_TO_CM(m_pictureSize.width()))).
+            arg(MSOOXML::Utils::cmString(POINT_TO_CM(m_pictureSize.height())));
+    }
+
     returnValue += "/>";
+
+    returnValue += ending;
 
     return returnValue;
 }

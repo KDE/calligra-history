@@ -51,6 +51,12 @@ protected:
     Q_DECLARE_FLAGS(read_p_args, read_p_arg)
     read_p_args m_read_p_args;
 
+    KoGenStyle* m_currentDrawStyle; //! used by all classes that need a graphics style.
+    QList<KoGenStyle*>  m_drawStyleStack;
+    KoGenStyle m_currentGradientStyle;
+    void pushCurrentDrawStyle(KoGenStyle *newStyle);
+    void popCurrentDrawStyle();
+
     //! Used for creating style in w:pPr (style:style/@style:name attr)
     KoGenStyle m_currentParagraphStyle;
     bool m_currentParagraphStylePredefined; //!< true if m_currentParagraphStyle shouldn't be created in read_pPr
@@ -98,6 +104,12 @@ protected:
     bool m_addManifestEntryForPicturesDirExecuted;
 
     bool m_moveToStylesXml;
+
+    QSize m_imageSize;
+    QString m_recentSourceName; // recent image
+    QPen m_currentPen;
+
+    QSet<QString> m_copiedFiles; //!< collects source names to avoid multiple copying of media files
 
 //    //! Used for creating style names (style:style/@style:name attr)
 //    //! To achieve this, in XSLT it generate-id(.) for w:p is used.

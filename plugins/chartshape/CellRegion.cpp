@@ -239,7 +239,7 @@ QString CellRegion::sheetName() const
 
 bool CellRegion::isValid() const
 {
-    return d->rects.size() > 0;
+    return d->rects.size() > 0 && d->table ;
 }
 
 QString CellRegion::Private::pointToString( const QPoint &point ) const
@@ -299,11 +299,19 @@ bool CellRegion::contains( const QRect &rect, bool proper ) const
     return false;
 }
 
-bool CellRegion::intersects( const QRect &rect ) const
+bool CellRegion::intersects( const CellRegion &other ) const
 {
+    // If both regions lie within only one table and these tables
+    // are different, they trivially do not intersect.
+    if ( table() && other.table() &&
+         table() != other.table() )
+        return false;
+
     foreach ( const QRect &r, d->rects ) {
-        if ( r.intersects( rect ) )
-            return true;
+        foreach( const QRect &_r, other.d->rects ) {
+            if ( r.intersects( _r ) )
+                return true;
+        }
     }
 
     return false;

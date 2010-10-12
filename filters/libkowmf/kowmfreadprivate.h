@@ -181,6 +181,9 @@ private:
     //-----------------------------------------------------------------------------
     // Utilities and conversion Wmf -> Qt
 
+    // Create a boundingbox from all set{Window,Viewport}{Org,Ext} records.
+    void createBoundingBox(QDataStream &st);
+
     /** Handle win-object-handles */
     bool addHandle(KoWmfHandle*);
     void deleteHandle(int);
@@ -236,10 +239,14 @@ private:
     // The current window.  The union of all windows in the file is the bounding box.
     //
     // We can't use a QRect here because width/height may be negative -- see mBBox* above.
-    qint16   mWindowTop;
     qint16   mWindowLeft;
+    qint16   mWindowTop;
     qint16   mWindowWidth;
     qint16   mWindowHeight;
+    qint16   mViewportLeft;
+    qint16   mViewportTop;
+    qint16   mViewportWidth;
+    qint16   mViewportHeight;
 
     // Current state of the drawing
     WmfLayout   mLayout;

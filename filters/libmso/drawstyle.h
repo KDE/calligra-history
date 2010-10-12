@@ -22,93 +22,45 @@
 
 #include "generated/simpleParser.h"
 
-class DrawStyle {
+class IMsoArray
+{
+public:
+    quint16 nElems;
+    quint16 nElemsAlloc;
+    quint16 cbElem;
+    QByteArray data;
+    IMsoArray () :nElems(0), nElemsAlloc(0), cbElem(0) {}
+};
+
+class DrawStyle
+{
 private:
     const MSO::OfficeArtDggContainer& d;
     const MSO::OfficeArtSpContainer* mastersp;
     const MSO::OfficeArtSpContainer* sp;
 public:
-    DrawStyle(const MSO::OfficeArtDggContainer& d_,
-              const MSO::OfficeArtSpContainer* mastersp_ = 0,
-              const MSO::OfficeArtSpContainer* sp_ = 0)
-                  :d(d_), mastersp(mastersp_), sp(sp_) {}
+    explicit DrawStyle(const MSO::OfficeArtDggContainer& d_,
+                       const MSO::OfficeArtSpContainer* mastersp_ = 0,
+                       const MSO::OfficeArtSpContainer* sp_ = 0)
+            : d(d_), mastersp(mastersp_), sp(sp_) {}
 
-    // FillStyleBooleanProperties
-    bool fNoFillHitTest() const;
-    bool fillUseRect() const;
-    bool fillShape() const;
-    bool fHitTestFill() const;
-    bool fFilled() const;
-    bool fUseShapeAnchor() const;
-    bool fRecolorFillAsPicture() const;
-
-    // Fill properties
-    quint32                fillType() const;
-    MSO::OfficeArtCOLORREF fillColor() const;
-    qint32                 fillOpacity() const;
-    quint32                fillBlip() const;
-    qint32                 fillDztype() const;
-
-    // LineEndArrowhead
-    quint32 lineEndArrowhead() const;
-    // LineStartArrowhead
-    quint32 lineStartArrowhead() const;
-    // LineStartArrowWidth
-    quint32 lineStartArrowWidth() const;
-    // LineEndArrowWidth
-    quint32 lineEndArrowWidth() const;
-    // LineWidth
-    quint32 lineWidth() const;
-    // Shadow related
-    quint32 shadowType() const;
-    qint32 shadowOffsetX() const;
-    qint32 shadowOffsetY() const;
-    MSO::FixedPoint shadowOpacity() const;
-    MSO::OfficeArtCOLORREF shadowColor() const;
-    // ShadowStyleBooleanProperties
-    bool fShadowObscured() const;
-    bool fShadow() const;  
-    // LineDashing
-    quint32 lineDashing() const;
-    // LineStyleBooleanProperties
-    bool fNoLineDrawDash() const;
-    bool fLineFillShape() const;
-    bool fHitTestLine() const;
-    bool fLine() const;
-    bool fArrowHeadsOK() const;
-    bool fInsetPenOK() const;
-    bool fInsetPen() const;
-    bool fLineOpaqueBackColor() const;
-    // LineColor
-    MSO::OfficeArtCOLORREF lineColor() const;
-    // LineOpacity
-    qint32 lineOpacity() const;
-    // TxflTextFlow
-    qint32 txflTextFlow() const;
-    // PosH
-    qint32 posH() const;
-    // PosRelH
-    qint32 posRelH() const;
-    // PosV
-    qint32 posV() const;
-    // PosRelV
-    qint32 posRelV() const;
-    // Horizontal rule related
-    quint32 pctHR() const;
-    quint32 alignHR() const;
-    qint32 dxHeightHR() const;
-    qint32 dxWidthHR() const;
-    // Wrapping related
+    // Shape property set
+    quint32 hspMaster() const;
+    // ShapeBooleanProperties
+    // Group Shape property set
     quint32 pWrapPolygonVertices() const;
     qint32 dxWrapDistLeft() const;
     qint32 dyWrapDistTop() const;
     qint32 dxWrapDistRight() const;
     qint32 dyWrapDistBottom() const;
-    // Text margins related
-    qint32 dxTextLeft() const;
-    qint32 dyTextTop() const;
-    qint32 dxTextRight() const;
-    qint32 dyTextBottom() const;
+    qint32 posH() const;
+    qint32 posRelH() const;
+    qint32 posV() const;
+    qint32 posRelV() const;
+    quint32 pctHR() const;
+    quint32 alignHR() const;
+    qint32 dxHeightHR() const;
+    qint32 dxWidthHR() const;
     // GroupShapeBooleanProperties
     bool fPrint() const;
     bool fHidden() const;
@@ -142,7 +94,86 @@ public:
     bool fUsefStandardHR() const;
     bool fUsefIsBullet() const;
     bool fUsefLayoutInCell() const;
+    // Fill Style property set
+    quint32 fillType() const;
+    MSO::OfficeArtCOLORREF fillColor() const;
+    MSO::FixedPoint        fillOpacity() const;
+    MSO::OfficeArtCOLORREF fillBackColor() const;
+    MSO::FixedPoint        fillBackOpacity() const;
+    MSO::OfficeArtCOLORREF fillCrMod() const;
+    quint32 fillBlip() const;
+    quint32 fillBlipName() const;
+    quint32 fillBlipFlags() const;
+    qint32 fillWidth() const;
+    qint32 fillHeight() const;
+    qint32 fillFocus() const;
+    MSO::FixedPoint fillAngle() const;
+    MSO::FixedPoint fillToLeft() const;
+    MSO::FixedPoint fillToTop() const;
+    MSO::FixedPoint fillToRight() const;
+    MSO::FixedPoint fillToBottom() const;
+    qint32 fillRectLeft() const;
+    qint32 fillRectTop() const;
+    qint32 fillRectRight() const;
+    qint32 fillRectBottom() const;
+    qint32 fillDztype() const;
+    qint32 fillShadePreset() const;
+    quint32 fillShadeColors() const;
+    MSO::FixedPoint fillOriginX() const;
+    MSO::FixedPoint fillOriginY() const;
+    MSO::FixedPoint fillShapeOriginX() const;
+    MSO::FixedPoint fillShapeOriginY() const;
+    /*     MSO::MSOSHADETYPE fillShadeType() const; */
+    MSO::OfficeArtCOLORREF fillColorExt() const;
+    MSO::OfficeArtCOLORREF fillBackColorExt() const;
+    // FillStyleBooleanProperties
+    bool fNoFillHitTest() const;
+    bool fillUseRect() const;
+    bool fillShape() const;
+    bool fHitTestFill() const;
+    bool fFilled() const;
+    bool fUseShapeAnchor() const;
+    bool fRecolorFillAsPicture() const;
+    // Line Style property set
+    MSO::OfficeArtCOLORREF lineColor() const;
+    qint32 lineOpacity() const;
+    quint32 lineWidth() const;
+    quint32 lineDashing() const;
+    quint32 lineStartArrowhead() const;
+    quint32 lineEndArrowhead() const;
+    quint32 lineStartArrowWidth() const;
+    quint32 lineEndArrowWidth() const;
+    // LineStyleBooleanProperties
+    bool fNoLineDrawDash() const;
+    bool fLineFillShape() const;
+    bool fHitTestLine() const;
+    bool fLine() const;
+    bool fArrowHeadsOK() const;
+    bool fInsetPenOK() const;
+    bool fInsetPen() const;
+    bool fLineOpaqueBackColor() const;
+    // Shadow Style property set
+    quint32 shadowType() const;
+    MSO::OfficeArtCOLORREF shadowColor() const;
+    MSO::FixedPoint shadowOpacity() const;
+    qint32 shadowOffsetX() const;
+    qint32 shadowOffsetY() const;
+    // ShadowStyleBooleanProperties
+    bool fShadowObscured() const;
+    bool fShadow() const;
+    // Text property set
+    qint32 txflTextFlow() const;
+    qint32 dxTextLeft() const;
+    qint32 dyTextTop() const;
+    qint32 dxTextRight() const;
+    qint32 dyTextBottom() const;
+    // Blip property set
     quint32 pib() const;
+
+    IMsoArray fillShadeColors_complex() const;
+    IMsoArray pVertices_complex() const;
+    IMsoArray pSegmentInfo_complex() const;
+    IMsoArray pWrapPolygonVertices_complex() const;
 };
 
 /**
@@ -219,34 +250,55 @@ get(const T* o)
  *
  * @p b must have a member fopt that is an array of type OfficeArtFOPTEChoice.
  * A is the type of the required option.  The option containers in PPT/DOC have
- * only one instance of each option in an option container.
+ * only one instance of each option in an osption container.
  *
  * @param b class that contains options.
- * @return pointer to an array storing the complex data or NULL if there were
- * no complex data or the option of type A at all.
+ * @return IMsoArray storing complex data
  */
 template <typename A, typename B>
-QByteArray*
+IMsoArray
 getComplexData(const B& b)
 {
     MSO::OfficeArtFOPTE* p = NULL;
-    QByteArray* a = NULL;
+    IMsoArray a;
+    const char* pData = b.complexData.data();
     uint offset = 0;
 
     foreach(const MSO::OfficeArtFOPTEChoice& _c, b.fopt) {
         p = (MSO::OfficeArtFOPTE*) _c.anon.data();
         if (p->opid.fComplex) {
-            if (_c.anon.get<A>()) {
-                a = new QByteArray(b.complexData.mid(offset, p->op));
-                break;
+
+            // there is wrong offset inside PVertices
+            if (_c.anon.is<MSO::PVertices>()) {
+                if (_c.anon.get<A>()) {
+                    if (b.complexData.size() - offset >= 6) {
+                        a.nElems = *(quint16 *)(pData + offset);
+                        a.nElemsAlloc = *(quint16 *)(pData + offset +2);
+                        a.cbElem = *(quint16 *)(pData + offset + 4);
+                        a.data = b.complexData.mid(offset+6, p->op);
+                        break;
+                    }
+                } else {
+                    offset += p->op +6;
+                }
+            } else {
+                if (_c.anon.get<A>()) {
+                    if (b.complexData.size() - offset >= 6) {
+                        a.nElems = *(quint16 *)(pData + offset);
+                        a.nElemsAlloc = *(quint16 *)(pData + offset +2);
+                        a.cbElem = *(quint16 *)(pData + offset + 4);
+                        a.data = b.complexData.mid(offset+6, p->op-6);
+                        break;
+                    }
+                } else {
+                    offset += p->op;
+                }
             }
-            else {
-	        offset += p->op;
-	    }
         }
     }
     return a;
 }
+
 /**
  * Retrieve the complex data for an option from an OfficeArtSpContainer
  *
@@ -254,20 +306,18 @@ getComplexData(const B& b)
  *
  * @param o OfficeArtSpContainer instance which contains options.
 
- * @return pointer to an array storing the complex data or NULL if there were
- * no complex data or the option of type A at all.  The caller takes the
- * ownership of the array reference.
+ * @return IMsoArray storing complex data
  */
 template <typename A>
-QByteArray*
+IMsoArray
 getComplexData(const MSO::OfficeArtSpContainer& o)
 {
-    QByteArray* a = NULL;
+    IMsoArray a;
     if (o.shapePrimaryOptions) a = getComplexData<A>(*o.shapePrimaryOptions);
-    if (!a && o.shapeSecondaryOptions1) a = getComplexData<A>(*o.shapeSecondaryOptions1);
-    if (!a && o.shapeSecondaryOptions2) a = getComplexData<A>(*o.shapeSecondaryOptions2);
-    if (!a && o.shapeTertiaryOptions1) a = getComplexData<A>(*o.shapeTertiaryOptions1);
-    if (!a && o.shapeTertiaryOptions2) a = getComplexData<A>(*o.shapeTertiaryOptions2);
+    if (!a.data.size() && o.shapeSecondaryOptions1) a = getComplexData<A>(*o.shapeSecondaryOptions1);
+    if (!a.data.size() && o.shapeSecondaryOptions2) a = getComplexData<A>(*o.shapeSecondaryOptions2);
+    if (!a.data.size() && o.shapeTertiaryOptions1) a = getComplexData<A>(*o.shapeTertiaryOptions1);
+    if (!a.data.size() && o.shapeTertiaryOptions2) a = getComplexData<A>(*o.shapeTertiaryOptions2);
     return a;
 }
 

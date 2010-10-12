@@ -95,7 +95,6 @@ KexiProjectNavigator::KexiProjectNavigator(QWidget* parent, Features features)
 //    m_list->renameLineEdit()->setValidator(new KexiUtils::IdentifierValidator(this));
     
     connect(m_list, SIGNAL(pressed(const QModelIndex&)), this,SLOT(slotSelectionChanged(const QModelIndex&)));
-    connect(m_list, SIGNAL(contextMenu(QTreeView *, const QModelIndex&, const QPoint &)), this, SLOT(slotContextMenu(QTreeView*, const QModelIndex &, const QPoint&)));
 
     KConfigGroup mainWindowGroup = KGlobal::config()->group("MainWindow");
     if ((m_features & SingleClickOpensItemOptionEnabled) && mainWindowGroup.readEntry("SingleClickOpensItem", false)) {
@@ -279,9 +278,11 @@ void KexiProjectNavigator::slotSelectionChanged(const QModelIndex& i)
 {
     KexiProjectModelItem *it = static_cast<KexiProjectModelItem*>(i.internalPointer());
     if (!it) {
-        m_openAction->setEnabled(false);
-        m_designAction->setEnabled(false);
-        m_deleteAction->setEnabled(false);
+        if (KexiMainWindowIface::global() && !KexiMainWindowIface::global()->userMode()) {
+            m_openAction->setEnabled(false);
+            m_designAction->setEnabled(false);
+            m_deleteAction->setEnabled(false);
+        }
         return;
     }
     KexiPart::Part* part = Kexi::partManager().part(it->partInfo());
@@ -307,58 +308,60 @@ void KexiProjectNavigator::slotSelectionChanged(const QModelIndex& i)
 //todo setAvailable("edit_edititem",gotitem);
 #endif
 
-    m_openAction->setEnabled(gotitem && part && (part->supportedViewModes() & Kexi::DataViewMode));
-    if (m_designAction) {
-//  m_designAction->setVisible(gotitem && part && (part->supportedViewModes() & Kexi::DesignViewMode));
-        m_designAction->setEnabled(gotitem && part && (part->supportedViewModes() & Kexi::DesignViewMode));
-    }
-    if (m_editTextAction)
-        m_editTextAction->setEnabled(gotitem && part && (part->supportedViewModes() & Kexi::TextViewMode));
+    if ( KexiMainWindowIface::global() && !KexiMainWindowIface::global()->userMode() ) {
+        m_openAction->setEnabled(gotitem && part && (part->supportedViewModes() & Kexi::DataViewMode));
+        if (m_designAction) {
+    //  m_designAction->setVisible(gotitem && part && (part->supportedViewModes() & Kexi::DesignViewMode));
+            m_designAction->setEnabled(gotitem && part && (part->supportedViewModes() & Kexi::DesignViewMode));
+        }
+        if (m_editTextAction)
+            m_editTextAction->setEnabled(gotitem && part && (part->supportedViewModes() & Kexi::TextViewMode));
 
-// if (m_features & ContextMenus) {
-//  m_openAction->setVisible(m_openAction->isEnabled());
-//  if (m_designAction)
-    //  m_designAction->setVisible(m_designAction->isEnabled());
-//  if (m_editTextAction)
-//   m_editTextAction->setVisible(part && m_editTextAction->isEnabled());
-//  if (m_executeAction)
-//   m_executeAction->setVisible(gotitem && it->partInfo()->isExecuteSupported());
-//  if (m_exportActionMenu) {
-    //m_exportActionMenu->setVisible(gotitem && it->partInfo()->isDataExportSupported());
-//  }
-//  if (m_printAction)
-//   m_printAction->setVisible(gotitem && it->partInfo()->isPrintingSupported());
-//  if (m_pageSetupAction) {
-//   m_pageSetupAction->setVisible(gotitem && it->partInfo()->isPrintingSupported());
-//  }
-// }
+    // if (m_features & ContextMenus) {
+    //  m_openAction->setVisible(m_openAction->isEnabled());
+    //  if (m_designAction)
+        //  m_designAction->setVisible(m_designAction->isEnabled());
+    //  if (m_editTextAction)
+    //   m_editTextAction->setVisible(part && m_editTextAction->isEnabled());
+    //  if (m_executeAction)
+    //   m_executeAction->setVisible(gotitem && it->partInfo()->isExecuteSupported());
+    //  if (m_exportActionMenu) {
+        //m_exportActionMenu->setVisible(gotitem && it->partInfo()->isDataExportSupported());
+    //  }
+    //  if (m_printAction)
+    //   m_printAction->setVisible(gotitem && it->partInfo()->isPrintingSupported());
+    //  if (m_pageSetupAction) {
+    //   m_pageSetupAction->setVisible(gotitem && it->partInfo()->isPrintingSupported());
+    //  }
+    // }
 
-    if (m_prevSelectedPart != part) {
-        m_prevSelectedPart = part;
-        if (part) {
-          if (m_newObjectAction) {
-            m_newObjectAction->setText(
-              i18n("&Create Object: %1...", part->instanceCaption() ));
-            m_newObjectAction->setIcon( KIcon(part->info()->createItemIcon()) );
-            if (m_features & Toolbar) {
-/*              m_newObjectToolButton->setIcon( KIcon(part->info()->createItemIcon()) );
-              m_newObjectToolButton->setToolTip(
-                i18n("Create object: %1", part->instanceCaption().toLower() ));
-              m_newObjectToolButton->setWhatsThis(
-                i18n("Creates a new object: %1", part->instanceCaption().toLower() ));*/
+        if (m_prevSelectedPart != part) {
+            m_prevSelectedPart = part;
+            if (part) {
+            if (m_newObjectAction) {
+                m_newObjectAction->setText(
+                i18n("&Create Object: %1...", part->instanceCaption() ));
+                m_newObjectAction->setIcon( KIcon(part->info()->createItemIcon()) );
+                if (m_features & Toolbar) {
+    /*              m_newObjectToolButton->setIcon( KIcon(part->info()->createItemIcon()) );
+                m_newObjectToolButton->setToolTip(
+                    i18n("Create object: %1", part->instanceCaption().toLower() ));
+                m_newObjectToolButton->setWhatsThis(
+                    i18n("Creates a new object: %1", part->instanceCaption().toLower() ));*/
+                }
             }
-          }
-        } else {
-          if (m_newObjectAction) {
-            m_newObjectAction->setText(i18n("&Create Object..."));
-      //   m_newObjectToolbarAction->setIcon( KIcon("document-new") );
-      //   m_newObjectToolbarAction->setText(m_newObjectAction->text());
-            if (m_features & Toolbar) {
-/*              m_newObjectToolButton->setIcon( KIcon("document-new") );
-              m_newObjectToolButton->setToolTip(i18n("Create object"));
-              m_newObjectToolButton->setWhatsThis(i18n("Creates a new object"));*/
+            } else {
+            if (m_newObjectAction) {
+                m_newObjectAction->setText(i18n("&Create Object..."));
+        //   m_newObjectToolbarAction->setIcon( KIcon("document-new") );
+        //   m_newObjectToolbarAction->setText(m_newObjectAction->text());
+                if (m_features & Toolbar) {
+    /*              m_newObjectToolButton->setIcon( KIcon("document-new") );
+                m_newObjectToolButton->setToolTip(i18n("Create object"));
+                m_newObjectToolButton->setWhatsThis(i18n("Creates a new object"));*/
+                }
             }
-          }
+            }
         }
     }
     emit selectionChanged(it ? it->partItem() : 0);

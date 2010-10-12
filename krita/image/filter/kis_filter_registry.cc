@@ -49,8 +49,9 @@ KisFilterRegistry::KisFilterRegistry(QObject *parent)
 KisFilterRegistry::~KisFilterRegistry()
 {
     dbgRegistry << "deleting KisFilterRegistry";
-    foreach(QString id, keys()) {
-        remove(id);
+    foreach(KisFilterSP filter, values()) {
+        remove(filter->id());
+        filter.clear();
     }
 }
 
@@ -59,7 +60,7 @@ KisFilterRegistry* KisFilterRegistry::instance()
     KisFilterRegistry *reg = qApp->findChild<KisFilterRegistry *>("");
     if (!reg) {
         reg = new KisFilterRegistry(qApp);
-        KoPluginLoader::instance()->load("Krita/Filter", "Type == 'Service' and ([X-Krita-Version] == 3)");
+        KoPluginLoader::instance()->load("Krita/Filter", "Type == 'Service' and ([X-Krita-Version] == 4)");
     }
     return reg;
 }

@@ -462,6 +462,7 @@ bool Layout::nextParag()
         m_blockData->setCounterText(QString());
         m_blockData->setCounterSpacing(0.0);
         m_blockData->setCounterWidth(0.0);
+        m_blockData->setCounterIsImage(false);
     }
 
     bool pagebreak = m_format.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore;
@@ -923,6 +924,7 @@ void Layout::resetPrivate()
     m_blockData = 0;
     m_newParag = true;
     m_block = m_parent->document()->begin();
+    m_frameStack.clear();
     updateFrameStack();
     m_currentMasterPage.clear();
     m_dropCapsPositionAdjust = 0;

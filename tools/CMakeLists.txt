@@ -6,19 +6,26 @@ macro_optional_add_subdirectory( slidecompare )
 
 macro_optional_find_package(Okular)
 
-if(OKULAR_FOUND)
+if(Okular_FOUND)
     add_subdirectory( okularodpgenerator )
-else(OKULAR_FOUND)
+else(Okular_FOUND)
     message(STATUS "Did NOT find Okular libraries, Okular generator will not be build")
-endif(OKULAR_FOUND)
+endif(Okular_FOUND)
 
 macro_optional_find_package(X11)
 macro_optional_find_package(Qt4)
-if(X11_FOUND)
-if(Q_WS_X11 AND SHOULD_BUILD_KSPREAD)
-  macro_optional_add_subdirectory( f-office )
-endif(Q_WS_X11 AND SHOULD_BUILD_KSPREAD)
-endif(X11_FOUND)
+macro_optional_find_package(LibXml2) # f-office uses xml2 directly
+macro_log_feature(LIBXML2_FOUND "XML2" "A library for handling XML documents" "http://xmlsoft.org" FALSE "" "FreOffice uses XML2 for digital signatures")
+macro_optional_find_package(OpenSSL) # f-office uses ssl directly
+macro_log_feature(OPENSSL_FOUND "OpenSSL" "A toolkit implementing the Secure Sockets Layer (SSL v2/v3) and Transport Layer Security (TLS v1) protocols" "http://openssl.org" FALSE "" 
+"FreOffice uses OpenSSL for digital signatures")
+
+
+if(X11_FOUND AND LIBXML2_FOUND AND OPENSSL_FOUND)
+    if(Q_WS_X11 AND SHOULD_BUILD_KSPREAD)
+      macro_optional_add_subdirectory( f-office )
+    endif(Q_WS_X11 AND SHOULD_BUILD_KSPREAD)
+endif(X11_FOUND AND LIBXML2_FOUND AND OPENSSL_FOUND)
 
 # strigi ships with the odfsaxanalyzer which does already fetch the meta-data of
 # odf files. Also the current implementations of the analyzers are deactivated

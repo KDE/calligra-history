@@ -148,14 +148,15 @@ PptxXmlSlideReaderContext::PptxXmlSlideReaderContext(
     MSOOXML::MsooXmlRelationships& _relationships,
     QMap<int, QString> _commentAuthors,
     MSOOXML::TableStyleList *_tableStyleList,
-    QMap<QString, QString> masterColorMap)
+    QMap<QString, QString> masterColorMap,
+    QMap<QString, QString> _oleReplacements)
         : MSOOXML::MsooXmlReaderContext(&_relationships),
         import(&_import), path(_path), file(_file),
         slideNumber(_slideNumber), themes(_themes), type(_type),
         slideProperties(_slideProperties), slideLayoutProperties(_slideLayoutProperties),
         slideMasterPageProperties(_slideMasterPageProperties),
         commentAuthors(_commentAuthors), tableStyleList(_tableStyleList),
-        colorMap(masterColorMap), firstReadingRound(false)
+        colorMap(masterColorMap), oleReplacements(_oleReplacements), firstReadingRound(false)
 {
 }
 
@@ -650,6 +651,12 @@ KoFilter::ConversionStatus PptxXmlSlideReader::read_oleObj()
     TRY_READ_ATTR_WITHOUT_NS(imgH);
     TRY_READ_ATTR_WITHOUT_NS(progId);
     TRY_READ_ATTR_WITHOUT_NS(name);
+    TRY_READ_ATTR_WITHOUT_NS(spid)
+
+    /*
+    if(!imgW.isEmpty()) m_svgWidth = imgW.toInt();
+    if(!imgH.isEmpty()) m_svgHeight = imgH.toInt();
+    */
 
     while (!atEnd()) {
         readNext();
@@ -664,6 +671,8 @@ KoFilter::ConversionStatus PptxXmlSlideReader::read_oleObj()
         if (sourceName.isEmpty()) {
             return KoFilter::FileNotFound;
         }
+
+        // As it is primary an ole ole object, this one should have the highest priority
         QString destinationName;
 
         body->startElement("draw:object-ole");
@@ -671,6 +680,15 @@ KoFilter::ConversionStatus PptxXmlSlideReader::read_oleObj()
         body->addAttribute("xlink:href", destinationName);
         body->endElement(); // draw:object-ole
 
+        // Replacement
+        body->startElement("draw:image");
+        body->addAttribute("xlink:type", "simple");
+        body->addAttribute("xlink:show", "embed");
+        body->addAttribute("xlink:actuate", "onLoad");
+        body->addAttribute("xlink:href", m_context->oleReplacements.value(spid));
+        body->endElement(); // draw:image
+
+        // These should be one day part of ole shape functionality wise
         if (progId == "Paint.Picture" || name == "Bitmap Image") {
             body->startElement("draw:image");
             RETURN_IF_ERROR( copyFile(sourceName, QLatin1String("Pictures/"), destinationName, true) )
@@ -691,6 +709,9 @@ KoFilter::ConversionStatus PptxXmlSlideReader::read_oleObj()
             RETURN_IF_ERROR( copyFile(sourceName, "", destinationName, true ))
             body->addAttribute("xlink:href", destinationName);
             body->endElement(); // draw:object
+        }
+        else {
+            kWarning() << "Unhandled oleObj with progId=" << progId;
         }
     }
 
@@ -1067,7 +1088,8 @@ KoFilter::ConversionStatus PptxXmlSlideReader::read_bgPr()
         m_currentDrawStyle->addProperty("draw:fill-image-name", fillImageName, KoGenStyle::DrawingPageType);
         if (m_context->type != SlideMaster) {
             if (!m_recentSourceName.isEmpty()) {
-                const QSize size(imageSize(m_recentSourceName));
+                QSize size;
+                m_context->import->imageSize(m_recentSourceName, size);
                 kDebug() << "SIZE:" << size;
                 if (size.isValid()) {
                     m_currentDrawStyle->addProperty("draw:fill-image-width",

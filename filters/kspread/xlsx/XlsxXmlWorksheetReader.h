@@ -37,6 +37,7 @@ class XlsxXmlDocumentReaderContext;
 class XlsxComments;
 class XlsxStyles;
 class XlsxImport;
+class Sheet;
 
 //! A class reading MSOOXML XLSX markup - xl/worksheets/sheet*.xml part.
 class XlsxXmlWorksheetReader : public MSOOXML::MsooXmlCommonReader
@@ -121,10 +122,12 @@ public:
         const XlsxStyles& _styles,
         MSOOXML::MsooXmlRelationships& _relationships,
         XlsxImport* _import,
-        int& numberOfOleObjects);
+        QMap<QString, QString> _oleReplacements);
+    virtual ~XlsxXmlWorksheetReaderContext();
 
+    Sheet* sheet;
     const uint worksheetNumber;
-    QString worksheetName;
+    const QString worksheetName;
     QString state;
     /*QMap<QString, */MSOOXML::DrawingMLTheme*/*>**/ themes;
     const XlsxSharedStringVector *sharedStrings;
@@ -135,7 +138,7 @@ public:
     const QString path;
     const QString file;
 
-    int &numberOfOleObjects;
+    QMap<QString, QString> oleReplacements;
 };
 
 #endif

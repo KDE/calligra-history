@@ -354,14 +354,14 @@ public slots:
 signals:
     //! Emitted to make sure the project can be close.
     //! Connect a slot here and set \a cancel to true to cancel the closing.
-    virtual void acceptProjectClosingRequested(bool& cancel);
+    void acceptProjectClosingRequested(bool& cancel);
 
     //! Emitted before closing the project (and destroying all it's data members).
     //! You can do you cleanup of your structures here.
-    virtual void beforeProjectClosing();
+    void beforeProjectClosing();
 
     //! Emitted after closing the project.
-    virtual void projectClosed();
+    void projectClosed();
 
     //! Emitted after opening a project, even after slotAutoOpenObjectsLater().
     void projectOpened();
@@ -445,7 +445,7 @@ protected:
     /*! Performs lookup like in KexiSharedActionHost::focusWindow()
      but starting from \a w instead of a widget returned by QWidget::focusWidget().
      \return NULL if no widget matches acceptsSharedActions() or if \a w is NULL. */
-    QWidget* findWindow(QWidget *w);
+    virtual QWidget* findWindow(QWidget *w);
 
     /*! Updates application's caption - also shows project's name. */
     void updateAppCaption();

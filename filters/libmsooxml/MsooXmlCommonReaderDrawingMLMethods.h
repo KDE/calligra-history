@@ -150,6 +150,7 @@ QString m_shapeTextRightOff;
 bool m_listStylePropertiesAltered;
 
 KoFilter::ConversionStatus read_buChar();
+KoFilter::ConversionStatus read_buBlip();
 KoFilter::ConversionStatus read_buNone();
 QString m_bulletFont; // set by buFont;
 KoFilter::ConversionStatus read_buFont();
@@ -189,17 +190,6 @@ void readWrap();
 KoFilter::ConversionStatus copyFile(
     const QString& sourceName, const QString& destinationDir, QString& destinationName, bool oleType=false);
 
-/*! @return size of image file @a sourceName read from input.
- Can be invalid is the size cannot be determined.
- This method caches the result for efficiency. */
-QSize imageSize(const QString& sourceName);
-
-QList<KoGenStyle*>  m_drawStyleStack;
-KoGenStyle         *m_currentDrawStyle; //! used by all classes that need a graphics style.
-KoGenStyle m_currentGradientStyle;
-void pushCurrentDrawStyle(KoGenStyle *newStyle);
-void popCurrentDrawStyle();
-
 bool m_drawing_anchor; //! set by read_drawing() to indicate if we have encountered drawing/anchor, used by read_pic()
 bool m_drawing_inline; //! set by read_drawing() to indicate if we have encountered drawing/inline, used by read_pic()
 
@@ -237,13 +227,9 @@ int m_rot; //! set by read_xfrm()
 bool m_noFill;
 
 QString m_xlinkHref; //!< set by read_blip()
-QString m_recentSourceName; //!< set by read_blip()
 QString m_cNvPrId; //!< set by read_cNvPr()
 QString m_cNvPrName; //!< set by read_cNvPr()
 QString m_cNvPrDescr; //!< set by read_cNvPr()
-
-QSet<QString> m_copiedFiles; //!< collects source names to avoid multiple copying of media files
-QMap<QString, QSize> m_imageSizes; //!< collects image sizes to avoid multiple checks
 
 //! When dealing with colors there's no way to know what type of attribute
 //! we are setting. While MSOOXML doesn't need to know the context in which a
@@ -257,7 +243,6 @@ enum ColorType {
 
 //! set by one of the color readers, read by read_solidFill. Read and set by one of the color transformations.
 QColor m_currentColor;
-QPen   m_currentPen;
 
 qreal* m_currentDoubleValue;
 

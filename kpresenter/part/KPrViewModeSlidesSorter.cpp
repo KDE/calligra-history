@@ -23,6 +23,7 @@
 #include <QtCore/QEvent>
 #include <QtGui/QPainter>
 #include <QVariant>
+#include <QScrollBar>
 
 #include <KoResourceManager.h>
 #include <KoRuler.h>
@@ -72,16 +73,25 @@ void KPrViewModeSlidesSorter::KPrSlidesSorter::paintEvent( QPaintEvent* event )
     QListWidget::paintEvent(event);
 
     // Paint the line where the slide should go
-    int currentItemNumber = m_viewModeSlidesSorter->lastItemNumber();
+    bool before = true;
+    int lastItemNumber = m_viewModeSlidesSorter->lastItemNumber();
+    int currentItemNumber = lastItemNumber;
+    /* The page is going to the beginning */
+    if (lastItemNumber <= m_movingPageNumber) {
+        currentItemNumber = lastItemNumber - 1;
+    }
+
     if (m_viewModeSlidesSorter->isDraging() && currentItemNumber >= 0) {
         QSize size(m_viewModeSlidesSorter->itemSize().width(), m_viewModeSlidesSorter->itemSize().height());
 
         int numberMod = currentItemNumber%4;
-        if (numberMod == 0) {
-            numberMod = 4;
+        /* The page is going to the end */
+        if (lastItemNumber > m_movingPageNumber) {
+            numberMod = currentItemNumber%4 > 0 ? currentItemNumber%4 : 4;
         }
-        QPoint point1(numberMod * size.width(), (currentItemNumber - numberMod) / 4 * size.height() );
-        QPoint point2(numberMod * size.width(), ((currentItemNumber - numberMod) / 4 + 1) * size.height());
+        int verticalValue = (currentItemNumber - numberMod) / 4 * size.height() - verticalScrollBar()->value();
+        QPoint point1(numberMod * size.width(), verticalValue );
+        QPoint point2(numberMod * size.width(), verticalValue + size.height() );
         QLineF line(point1, point2);
 
         QPainter painter(this->viewport());
@@ -219,9 +229,21 @@ void KPrViewModeSlidesSorter::KPrSlidesSorter::dropEvent(QDropEvent* ev)
         newIndex = m_viewModeSlidesSorter->pageCount() - 1;
     }
 
-    m_viewModeSlidesSorter->movePage(oldIndex, newIndex);
-    QListWidgetItem *sourceItem = takeItem(oldIndex);
-    insertItem(newIndex, sourceItem);
+    if (oldIndex != newIndex) {
+        if (oldIndex > newIndex) {
+            m_viewModeSlidesSorter->movePage(oldIndex, newIndex - 1);
+        } else {
+            m_viewModeSlidesSorter->movePage(oldIndex, newIndex);
+        }
+
+        QListWidgetItem *sourceItem = takeItem(oldIndex);
+        insertItem(newIndex, sourceItem);
+        // This selection helps the user
+        clearSelection();
+        item(newIndex)->setSelected(true);
+    }
+
+    m_movingPageNumber = -1;
 }
 
 QMimeData* KPrViewModeSlidesSorter::KPrSlidesSorter::mimeData(const QList<QListWidgetItem*> items) const
@@ -244,13 +266,17 @@ QStringList KPrViewModeSlidesSorter::KPrSlidesSorter::mimeTypes() const
 int KPrViewModeSlidesSorter::KPrSlidesSorter::pageBefore(QPoint point)
 {
     QListWidgetItem *item = itemAt(point);
+    int pageBeforeNumber = -1;
     if (item) {
-        m_viewModeSlidesSorter->setLastItemNumber(row(item) + 1);
-        return row(item) + 1;
+        pageBeforeNumber = row(item) + 1;
+    } else {
+        pageBeforeNumber = m_viewModeSlidesSorter->pageCount();
     }
-    int lastPage = m_viewModeSlidesSorter->pageCount();
-    m_viewModeSlidesSorter->setLastItemNumber(lastPage);
-    return lastPage;
+    if (m_movingPageNumber == -1) {
+        m_movingPageNumber = pageBeforeNumber;
+    }
+    m_viewModeSlidesSorter->setLastItemNumber(pageBeforeNumber);
+    return pageBeforeNumber;
 }
 
 void KPrViewModeSlidesSorter::populate()
@@ -263,8 +289,8 @@ void KPrViewModeSlidesSorter::populate()
     //Load the available slides
     foreach( KoPAPageBase* page, m_view->kopaDocument()->pages() )
     {
-        //TODO find the good name for the slides
-        QString slideName = i18n("Slide %1", currentPage++);
+        currentPage++;
+        QString slideName = page->name().isEmpty() ? i18n("Slide %1", currentPage) : page->name();
         item = new QListWidgetItem( QIcon( page->thumbnail( m_iconSize ) ), slideName, m_slidesSorter );
         item->setFlags((item->flags() | Qt::ItemIsDragEnabled ) & ~Qt::ItemIsDropEnabled);
     }
@@ -278,26 +304,30 @@ void KPrViewModeSlidesSorter::movePage(int pageNumber, int pageAfterNumber)
     KoPAPageBase * page = 0;
     KoPAPageBase * pageAfter = 0;
 
-    page = m_view->kopaDocument()->pageByIndex(pageNumber,false);
-    pageAfter = m_view->kopaDocument()->pageByIndex(pageAfterNumber,false);
+    if (pageNumber >= 0) {
+        page = m_view->kopaDocument()->pageByIndex(pageNumber,false);
+    }
+    if (pageAfterNumber >= 0) {
+        pageAfter = m_view->kopaDocument()->pageByIndex(pageAfterNumber,false);
+    }
 
-    if (page && pageAfter) {
+    if (page) {
         KoPAPageMoveCommand *command = new KoPAPageMoveCommand( m_view->kopaDocument(), page, pageAfter );
         m_view->kopaDocument()->addCommand( command );
     }
 }
 
-int KPrViewModeSlidesSorter::pageCount()
+int KPrViewModeSlidesSorter::pageCount() const
 {
     return m_pageCount;
 }
 
-QSize KPrViewModeSlidesSorter::iconSize()
+QSize KPrViewModeSlidesSorter::iconSize() const
 {
     return m_iconSize;
 }
 
-QRect KPrViewModeSlidesSorter::itemSize()
+QRect KPrViewModeSlidesSorter::itemSize() const
 {
     return m_itemSize;
 }
@@ -307,7 +337,7 @@ void KPrViewModeSlidesSorter::setItemSize(QRect size)
     m_itemSize = size;
 }
 
-bool KPrViewModeSlidesSorter::isDraging()
+bool KPrViewModeSlidesSorter::isDraging() const
 {
     return m_dragingFlag;
 }
@@ -317,7 +347,7 @@ void KPrViewModeSlidesSorter::setDragingFlag(bool flag)
     m_dragingFlag = flag;
 }
 
-int KPrViewModeSlidesSorter::lastItemNumber()
+int KPrViewModeSlidesSorter::lastItemNumber() const
 {
     return m_lastItemNumber;
 }

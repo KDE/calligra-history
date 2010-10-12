@@ -74,7 +74,7 @@ ImportTableWizard::ImportTableWizard ( KexiDB::Connection* curDB, QWidget* paren
 
 
 ImportTableWizard::~ImportTableWizard() {
-
+  delete m_migrateManager;
 }
 
 void ImportTableWizard::back() {
@@ -237,7 +237,7 @@ void ImportTableWizard::setupFinishPage()
     m_finishLbl = new QLabel(m_finishPageWidget);
     m_finishLbl->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     m_finishLbl->setWordWrap(true);
-    
+
     vbox->addWidget(m_finishLbl);
     vbox->addStretch(1);
 
@@ -270,25 +270,21 @@ void ImportTableWizard::arriveSrcConnPage()
 
 void ImportTableWizard::arriveTableSelectPage()
 {
-    if (m_migrateDriver) {
-        delete m_migrateDriver;
-        m_migrateDriver = 0;
-    }
     Kexi::ObjectStatus result;
     KexiUtils::WaitCursor wait;
     m_migrateDriver = prepareImport(result);
-    
+
     if (m_migrateDriver) {
         if (!m_migrateDriver->connectSource())
             return;
-        
+
         QStringList tableNames;
+        m_tableListWidget->clear();
         if (m_migrateDriver->tableNames(tableNames)) {
             m_tableListWidget->addItems(tableNames);
         }
     }
     KexiUtils::removeWaitCursor();
-    
 }
 
 void ImportTableWizard::arriveAlterTablePage()
@@ -313,6 +309,9 @@ void ImportTableWizard::arriveAlterTablePage()
     }
 
     kDebug() << ts->fieldCount();
+    
+    setValid(m_alterTablePageItem, ts->fieldCount() > 0);
+    
     m_alterSchemaWidget->setTableSchema(ts);
 
     if (!m_migrateDriver->readFromTable(m_importTableName))

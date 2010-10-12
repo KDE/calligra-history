@@ -124,6 +124,7 @@ protected:
     KoFilter::ConversionStatus read_tblBorders();
     KoFilter::ConversionStatus read_tblCellMar();
     KoFilter::ConversionStatus read_fldSimple();
+    KoFilter::ConversionStatus read_br();
     KoFilter::ConversionStatus read_lastRenderedPageBreak();
     KoFilter::ConversionStatus read_instrText();
     KoFilter::ConversionStatus read_fldChar();
@@ -132,6 +133,7 @@ protected:
     KoFilter::ConversionStatus read_caps();
     KoFilter::ConversionStatus read_smallCaps();
     KoFilter::ConversionStatus read_w();
+    KoFilter::ConversionStatus read_txbxContent();
     KoFilter::ConversionStatus read_color();
     KoFilter::ConversionStatus read_highlight();
     KoFilter::ConversionStatus read_vertAlign();
@@ -162,6 +164,8 @@ protected:
     };
     KoFilter::ConversionStatus read_align(alignCaller caller);
 
+    KoFilter::ConversionStatus read_pict();
+
     KoFilter::ConversionStatus read_inline();
     KoFilter::ConversionStatus read_extent();
     KoFilter::ConversionStatus read_docPr();
@@ -172,12 +176,15 @@ protected:
     KoFilter::ConversionStatus read_wrapSquare();
     KoFilter::ConversionStatus read_wrapTight();
     KoFilter::ConversionStatus read_wrapThrough();
-    
+
     // docx specifix read_graphics and read_graphics data methods to ensure that draw:frame is written correclty
     KoFilter::ConversionStatus read_graphic2();
     KoFilter::ConversionStatus read_graphicData2();
     KoFilter::ConversionStatus read_chart2();
 
+    bool m_createSectionStyle;
+    QString m_currentSectionStyleName;
+    bool m_createSectionToNext;
     KoGenStyle m_currentPageStyle;
     KoGenStyle m_masterPageStyle;
 
@@ -255,7 +262,7 @@ private:
     DropCapStatus m_dropCapStatus;
 
     //! Buffer where first letters of drop cap are read
-    QBuffer m_dropCapBuffer;
+    QBuffer* m_dropCapBuffer;
     KoXmlWriter* m_dropCapWriter;
     QString m_dropCapLines;
     qreal   m_dropCapDistance;
@@ -273,21 +280,6 @@ private:
     bool m_closeHyperlink; // should read_r close hyperlink
     bool m_listFound; // was there numPr element in ppr
     QString m_currentListStyleName;
-
-    /*! true if w:object/v:shape or w:object/o:OLEObject has been handled, .
-     When w:object/o:OLEObject is visited and m_objectRectInitialized is true, handling
-     w:object/o:OLEObject is (except for copying the OLE binary) skipped because
-     w:object/v:shape is of higher priority.
-     This flag is reset to false each time read_object() is called. */
-    bool m_objectRectInitialized;
-
-    //!< Width of the object. Set in read_OLEObject() or read_shape(). Used in writeRect().
-    //! If both w:object/v:shape and w:object/o:OLEObject exist, information from v:shape is used.
-    QString m_currentObjectWidthCm;
-
-    QString m_currentObjectHeightCm; //!< See m_currentObjectWidthCm for description
-    QString m_currentObjectXCm; //!< See m_currentObjectWidthCm for description
-    QString m_currentObjectYCm; //!< See m_currentObjectWidthCm for description
 
     QMap<QString, QString> m_headers;
     QMap<QString, QString> m_footers;

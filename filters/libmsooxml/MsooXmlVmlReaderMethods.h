@@ -21,9 +21,6 @@
  *
  */
 
-#ifndef MSOOXMLCMLREADERMETHODS_H
-#define MSOOXMLCMLREADERMETHODS_H
-
 /*! @file MsooXmlVmlReaderMethods.h
     @brief Collects MS VML parser code.
 
@@ -37,10 +34,9 @@
 */
 
 protected:
-    // w namespace:
-    KoFilter::ConversionStatus read_pict();
 
     // v namespace:
+    KoFilter::ConversionStatus read_roundrect();
     KoFilter::ConversionStatus read_rect();
     KoFilter::ConversionStatus read_fill();
     KoFilter::ConversionStatus read_VML_background();
@@ -48,7 +44,10 @@ protected:
     KoFilter::ConversionStatus read_shape();
     KoFilter::ConversionStatus read_imagedata();
     KoFilter::ConversionStatus read_textbox();
-    KoFilter::ConversionStatus read_txbxContent();
+    KoFilter::ConversionStatus read_group();
+
+    void createFrameStart();
+    KoFilter::ConversionStatus createFrameEnd();
 
     // utils:
     KoFilter::ConversionStatus parseCSS(const QString& style);
@@ -58,9 +57,43 @@ protected:
     //writer where style:background-image is stored for style:page-layout-properties
     KoXmlWriter* m_pDocBkgImageWriter;
 
+    /*! true if w:object/v:shape or w:object/o:OLEObject has been handled, .
+     When w:object/o:OLEObject is visited and m_objectRectInitialized is true, handling
+     w:object/o:OLEObject is (except for copying the OLE binary) skipped because
+     w:object/v:shape is of higher priority.
+     This flag is reset to false each time read_object() is called. */
+    bool m_objectRectInitialized;
+
+    //!< Width of the object. Set in read_OLEObject() or read_shape(). Used in writeRect().
+    //! If both w:object/v:shape and w:object/o:OLEObject exist, information from v:shape is used.
+    QString m_currentObjectWidthCm;
+
+    QString m_currentObjectHeightCm; //!< See m_currentObjectWidthCm for description
+    QString m_currentObjectXCm; //!< See m_currentObjectWidthCm for description
+    QString m_currentObjectYCm; //!< See m_currentObjectWidthCm for description
+
     QString m_imagedataPath; //!< set in read_shape()
     QString m_imagedataFile; //!< set in read_shape()
     QString m_shapeAltText; //!< set in read_shape()
     QString m_shapeTitle; //!< set in read_shape()
     QString m_shapeColor; //!< set in read_shape()
-#endif
+    QString m_currentShapeId; //!< set in read_shape()
+
+    QString m_strokeColor; // stroke color
+
+    bool m_outputFrames; // Whether read_shape should output something to shape
+
+    // For group shape situation
+    bool m_insideGroup;
+
+    // Relative group widths
+    int m_groupWidth;
+    int m_groupHeight;
+
+    // Relative group original
+    int m_groupX;
+    int m_groupY;
+
+    QString m_groupUnit; // pt, cm etc.
+    qreal m_real_groupWidth;
+    qreal m_real_groupHeight;

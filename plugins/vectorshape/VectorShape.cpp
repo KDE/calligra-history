@@ -44,7 +44,7 @@
 #include <KoShapeLoadingContext.h>
 #include <KoOdfLoadingContext.h>
 #include <KoShapeSavingContext.h>
-#include <WmfPainter.h>
+#include "kowmfpaint.h"
 
 // Vector shape
 #include "libemf/EmfParser.h"
@@ -152,7 +152,7 @@ void VectorShape::drawWmf(QPainter &painter) const
     // Debug
     //drawNull(painter);
 
-    WmfPainter  wmfPainter;
+    KoWmfPaint  wmfPainter;
     QByteArray  emfArray(m_bytes, m_size);
 
     // FIXME: Switch name from emfArray
@@ -164,10 +164,11 @@ void VectorShape::drawWmf(QPainter &painter) const
     painter.save();
 
     // Position the bitmap to the right place and resize it to fit.
-    QRect   wmfBoundingRect = wmfPainter.boundingRect(); // FIXME: Should this be made QRectF?
+    QRect   wmfBoundingRect = wmfPainter.boundingRect(); // Not QRectF because a wmf contains only ints.
     QSizeF  shapeSize       = size();
 
 #if DEBUG_VECTORSHAPE
+    kDebug(31000) << "-------------------------------- Starting WMF --------------------------------";
     kDebug(31000) << "wmfBoundingRect: " << wmfBoundingRect;
     kDebug(31000) << "shapeSize: "       << shapeSize;
 #endif
@@ -186,9 +187,9 @@ void VectorShape::drawWmf(QPainter &painter) const
 void VectorShape::drawEmf(QPainter &painter) const
 {
     // FIXME: Make emfOutput use QSizeF
-    QSize  sizeInt( size().width(), size().height() );
+    QSize  shapeSizeInt( size().width(), size().height() );
     //kDebug(31000) << "-------------------------------------------";
-    //kDebug(31000) << "size:     " << sizeInt << size();
+    //kDebug(31000) << "size:     " << shapeSizeInt << size();
     //kDebug(31000) << "position: " << position();
     //kDebug(31000) << "-------------------------------------------";
 
@@ -206,7 +207,7 @@ void VectorShape::drawEmf(QPainter &painter) const
     Libemf::Parser  emfParser;
 #if 1
     // Create a new painter output strategy.  Last param = true means keep aspect ratio. 
-    Libemf::OutputPainterStrategy  emfPaintOutput( painter, sizeInt, true );
+    Libemf::OutputPainterStrategy  emfPaintOutput( painter, shapeSizeInt, true );
     emfParser.setOutput( &emfPaintOutput );
 #else
     Libemf::OutputDebugStrategy  emfDebugOutput;

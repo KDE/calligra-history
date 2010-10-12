@@ -24,6 +24,7 @@
 
 #include "XlsxXmlDrawingReader.h"
 #include "XlsxXmlWorksheetReader.h"
+#include "XlsxXmlWorksheetReader_p.h"
 #include "XlsxXmlChartReader.h"
 #include "XlsxImport.h"
 #include "Charting.h"
@@ -41,6 +42,8 @@
 #include <KoUnit.h>
 #include <QFontMetricsF>
 
+#include <kspread/Util.h>
+
 #define MSOOXML_CURRENT_NS "xdr"
 #define MSOOXML_CURRENT_CLASS XlsxXmlDrawingReader
 #define BIND_READ_CLASS MSOOXML_CURRENT_CLASS
@@ -50,29 +53,6 @@
 #include <MsooXmlContentTypes.h>
 #include <MsooXmlRelationships.h>
 #include <KoXmlWriter.h>
-
-XlsxXmlDrawingReaderContext::XlsxXmlDrawingReaderContext(XlsxXmlWorksheetReaderContext* _worksheetReaderContext, const QString& _path, const QString& _file)
-    : MSOOXML::MsooXmlReaderContext(_worksheetReaderContext->relationships)
-    , import(_worksheetReaderContext->import)
-    , path(_path)
-    , file(_file)
-    , themes((_worksheetReaderContext->themes))
-    , worksheetReaderContext(_worksheetReaderContext)
-{
-}
-
-XlsxXmlDrawingReaderContext::~XlsxXmlDrawingReaderContext()
-{
-    foreach(XlsxXmlChartReaderContext* c, charts) {
-        delete c;
-    }
-    foreach(MSOOXML::MsooXmlDiagramReaderContext* c, diagrams) {
-        delete c;
-    }
-    foreach(XlsxXmlEmbeddedPicture* p, pictures) {  // delete all pictures from the QList
-        delete p;
-    }
-}
 
 // calculates the column width in pixels
 int columnWidth2(unsigned long col, unsigned long dx = 0, qreal defaultColumnWidth = 8.43) {
@@ -102,7 +82,49 @@ QString columnName2(uint column)
     return s;
 }
 
-QRect XlsxXmlDrawingReaderContext::positionRect() const
+KoXmlWriter* XlsxDrawingObject::setShape(XlsxShape* shape)
+{
+    m_type = Shape;
+    m_shape = shape;
+    
+    delete m_shapeBody;
+    m_shapeBody = new KoXmlWriter(new QBuffer);
+    return m_shapeBody;
+}
+
+void XlsxDrawingObject::save(KoXmlWriter* xmlWriter)
+{
+    switch(m_type) {
+        case Unknown: {
+            // nothing to do for us
+        } break;
+        case Chart: {
+            m_chart->m_chartExport->saveIndex(xmlWriter);
+        } break;
+        case Diagram: {
+            xmlWriter->startElement("draw:g");
+            xmlWriter->addAttribute("draw:name", "SmartArt Shapes Group");
+            xmlWriter->addAttribute("draw:z-index", "0");
+            xmlWriter->addAttribute("table:end-cell-address", fromCellAddress());
+            //xmlWriter->addAttribute("table:end-x", "0.6016in");
+            //xmlWriter->addAttribute("table:end-y", "0.1339in");
+            m_diagram->saveIndex(xmlWriter, positionRect());
+            xmlWriter->endElement(); // draw:g
+        } break;
+        case Picture: {
+            m_picture->saveXml(xmlWriter);
+        } break;
+        case Shape: {
+            Q_ASSERT(m_shapeBody);
+            QByteArray data = static_cast<QBuffer*>(m_shapeBody->device())->buffer().constData();
+            xmlWriter->addCompleteElement(data);
+            delete m_shapeBody;
+            m_shapeBody = 0;
+        } break;
+    }
+}
+
+QRect XlsxDrawingObject::positionRect() const
 {
     QRect rect(QPoint(0,0),QSize(0,0));
     if(m_positions.contains(FromAnchor)) {
@@ -123,7 +145,7 @@ QRect XlsxXmlDrawingReaderContext::positionRect() const
     return rect;
 }
 
-QString XlsxXmlDrawingReaderContext::cellAddress(const QString &sheetname, int row, int column) const
+QString XlsxDrawingObject::cellAddress(const QString &sheetname, int row, int column) const
 {
     QString result;
     if(!sheetname.isEmpty())
@@ -132,48 +154,47 @@ QString XlsxXmlDrawingReaderContext::cellAddress(const QString &sheetname, int r
     return result;
 }
 
-QString XlsxXmlDrawingReaderContext::fromCellAddress() const
+QString XlsxDrawingObject::fromCellAddress() const
 {
     if(!m_positions.contains(FromAnchor)) return QString();
     Position f = m_positions[FromAnchor];
-    return cellAddress(worksheetReaderContext->worksheetName, f.m_row, f.m_col);
+    return cellAddress(m_sheet->m_name, f.m_row, f.m_col);
 }
 
-QString XlsxXmlDrawingReaderContext::toCellAddress() const
+QString XlsxDrawingObject::toCellAddress() const
 {
     if(!m_positions.contains(ToAnchor)) return QString();
     Position f = m_positions[ToAnchor];
-    return cellAddress(worksheetReaderContext->worksheetName, f.m_row, f.m_col);
+    return cellAddress(m_sheet->m_name, f.m_row, f.m_col);
 }
-    
-void XlsxXmlDrawingReaderContext::saveIndexes(KoXmlWriter* xmlWriter)
+
+XlsxXmlDrawingReaderContext::XlsxXmlDrawingReaderContext(XlsxXmlWorksheetReaderContext* _worksheetReaderContext, Sheet* _sheet, const QString& _path, const QString& _file)
+    : MSOOXML::MsooXmlReaderContext(_worksheetReaderContext->relationships)
+    , import(_worksheetReaderContext->import)
+    , path(_path)
+    , file(_file)
+    , themes((_worksheetReaderContext->themes))
+    , worksheetReaderContext(_worksheetReaderContext)
+    , sheet(_sheet)
 {
-    foreach(XlsxXmlChartReaderContext* c, charts) {
-        c->m_chartExport->saveIndex(xmlWriter);
-        // the embedded object file was written by the XlsxXmlChartReader already
-        //chart->m_chartExport->saveContent(m_context->import->outputStore(), manifest);
-    }
-    foreach(MSOOXML::MsooXmlDiagramReaderContext* c, diagrams) {
-        xmlWriter->startElement("draw:g");
-        xmlWriter->addAttribute("draw:name", "SmartArt Shapes Group");
-        xmlWriter->addAttribute("draw:z-index", "0");
-        xmlWriter->addAttribute("table:end-cell-address", fromCellAddress());
-        //xmlWriter->addAttribute("table:end-x", "0.6016in");
-        //xmlWriter->addAttribute("table:end-y", "0.1339in");
-        c->saveIndex(xmlWriter, positionRect());
-        xmlWriter->endElement(); // draw:g
-    }
+}
+
+XlsxXmlDrawingReaderContext::~XlsxXmlDrawingReaderContext()
+{
 }
 
 XlsxXmlDrawingReader::XlsxXmlDrawingReader(KoOdfWriters *writers)
     : MSOOXML::MsooXmlCommonReader(writers)
-    , m_anchorType(XlsxXmlDrawingReaderContext::NoAnchor)
+    , m_context(0)
+    , m_currentDrawingObject(0)
+    , m_anchorType(XlsxDrawingObject::NoAnchor)
     , m_chartNumber(0)
 {
 }
 
 XlsxXmlDrawingReader::~XlsxXmlDrawingReader()
 {
+    Q_ASSERT(!m_currentDrawingObject);
 }
 
 KoFilter::ConversionStatus XlsxXmlDrawingReader::read(MSOOXML::MsooXmlReaderContext* context)
@@ -195,9 +216,47 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read(MSOOXML::MsooXmlReaderCont
         QXmlStreamReader::TokenType tokenType = readNext();
         if(tokenType == QXmlStreamReader::Invalid || tokenType == QXmlStreamReader::EndDocument) break;
         if (isStartElement()) {
+            const QStringRef s = qualifiedName();
+            if ( s == "xdr:oneCellAnchor" || s == "xdr:twoCellAnchor" || s == "xdr:absoluteAnchor" || s == "xdr:grpSp" ) {
+                read_anchor(s);
+            }
+        }
+    }
+#if 0
+    m_context->saveCurrentCellData();
+#endif
+    m_context = 0;
+    return KoFilter::OK;
+}
+
+#undef CURRENT_EL
+#define CURRENT_EL twoCellAnchor
+KoFilter::ConversionStatus XlsxXmlDrawingReader::read_anchor(const QStringRef&)
+{
+    READ_PROLOGUE
+    
+    class DrawingObjectGuard { // like QScopedPointer but sets the pointer to NULL afterwards
+        public:
+            DrawingObjectGuard(XlsxDrawingObject** obj) : m_obj(obj) {}
+            ~DrawingObjectGuard() { delete *m_obj; *m_obj = 0; }
+        private:
+            XlsxDrawingObject** m_obj;
+    };
+
+    Q_ASSERT(!m_currentDrawingObject);
+    m_currentDrawingObject = new XlsxDrawingObject(m_context->sheet);
+    DrawingObjectGuard _guard(&m_currentDrawingObject);
+    
+    while (!atEnd()) {
+        QXmlStreamReader::TokenType tokenType = readNext();
+        if(tokenType == QXmlStreamReader::Invalid || tokenType == QXmlStreamReader::EndDocument) break;
+        BREAK_IF_END_OF(CURRENT_EL);
+        if (isStartElement()) {
             // twoCellAnchor does define the 'from' and 'to' elements which do define the anchor-points
             TRY_READ_IF(from)
             ELSE_TRY_READ_IF(to)
+            // a shape
+            ELSE_TRY_READ_IF(sp)
             // the reference to a picture
             ELSE_TRY_READ_IF(pic)
             // a graphic-frame
@@ -205,8 +264,16 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read(MSOOXML::MsooXmlReaderCont
         }
     }
 
-    m_context = 0;
-    return KoFilter::OK;
+    if (m_currentDrawingObject->m_type != XlsxDrawingObject::Unknown) {
+        if (m_currentDrawingObject->m_positions.contains(XlsxDrawingObject::FromAnchor)) {
+            XlsxDrawingObject::Position pos = m_currentDrawingObject->m_positions[XlsxDrawingObject::FromAnchor];
+            Cell* cell = m_context->sheet->cell(pos.m_col, pos.m_row, true);
+            cell->drawings.append(m_currentDrawingObject);
+            m_currentDrawingObject = 0;
+        }
+    }
+    
+    READ_EPILOGUE
 }
 
 #undef CURRENT_EL
@@ -214,7 +281,10 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read(MSOOXML::MsooXmlReaderCont
 KoFilter::ConversionStatus XlsxXmlDrawingReader::read_from()
 {
     READ_PROLOGUE
-    m_anchorType = XlsxXmlDrawingReaderContext::FromAnchor;
+#if 0
+    m_context->saveCurrentCellData();
+#endif
+    m_anchorType = XlsxDrawingObject::FromAnchor;
     while (!atEnd()) {
         readNext();
         BREAK_IF_END_OF(CURRENT_EL);
@@ -225,7 +295,7 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_from()
             ELSE_TRY_READ_IF(rowOff)
         }
     }
-    m_anchorType = XlsxXmlDrawingReaderContext::NoAnchor;
+    m_anchorType = XlsxDrawingObject::NoAnchor;
     READ_EPILOGUE
 }
 
@@ -234,7 +304,7 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_from()
 KoFilter::ConversionStatus XlsxXmlDrawingReader::read_to()
 {
     READ_PROLOGUE
-    m_anchorType = XlsxXmlDrawingReaderContext::ToAnchor;
+    m_anchorType = XlsxDrawingObject::ToAnchor;
     while (!atEnd()) {
         readNext();
         BREAK_IF_END_OF(CURRENT_EL);
@@ -245,7 +315,7 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_to()
             ELSE_TRY_READ_IF(rowOff)
         }
     }
-    m_anchorType = XlsxXmlDrawingReaderContext::NoAnchor;
+    m_anchorType = XlsxDrawingObject::NoAnchor;
     READ_EPILOGUE
 }
 
@@ -253,7 +323,7 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_to()
 #define CURRENT_EL col
 KoFilter::ConversionStatus XlsxXmlDrawingReader::read_col()
 {
-    m_context->m_positions[m_anchorType].m_col = readElementText().toInt(); // default value is zero
+    m_currentDrawingObject->m_positions[m_anchorType].m_col = readElementText().toInt(); // default value is zero
     return KoFilter::OK;
 }
 
@@ -261,7 +331,7 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_col()
 #define CURRENT_EL row
 KoFilter::ConversionStatus XlsxXmlDrawingReader::read_row()
 {
-    m_context->m_positions[m_anchorType].m_row = readElementText().toInt(); // default value is zero
+    m_currentDrawingObject->m_positions[m_anchorType].m_row = readElementText().toInt(); // default value is zero
     return KoFilter::OK;
 }
 
@@ -269,7 +339,7 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_row()
 #define CURRENT_EL colOff
 KoFilter::ConversionStatus XlsxXmlDrawingReader::read_colOff()
 {
-    m_context->m_positions[m_anchorType].m_colOff = readElementText().toInt(); // default value is zero
+    m_currentDrawingObject->m_positions[m_anchorType].m_colOff = readElementText().toInt(); // default value is zero
     return KoFilter::OK;
 }
 
@@ -277,133 +347,7 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_colOff()
 #define CURRENT_EL rowOff
 KoFilter::ConversionStatus XlsxXmlDrawingReader::read_rowOff()
 {
-    m_context->m_positions[m_anchorType].m_rowOff = readElementText().toInt(); // default value is zero
-    return KoFilter::OK;
-}
-
-#undef CURRENT_EL
-#define CURRENT_EL chart
-KoFilter::ConversionStatus XlsxXmlDrawingReader::read_chart2()
-{
-    Q_ASSERT(m_context);
-    Q_ASSERT(m_context->worksheetReaderContext);
-    Q_ASSERT(m_context->worksheetReaderContext->import);
-
-    const QXmlStreamAttributes attrs(attributes());
-    TRY_READ_ATTR_WITH_NS(r, id)
-    if(!r_id.isEmpty()) {
-        //! @todo use MSOOXML::MsooXmlRelationships
-        const QString path = "/xl/charts";
-        const QString file = QString("chart%1.xml").arg(++m_chartNumber);
-        const QString filepath = path + "/" + file;
-
-        Charting::Chart* chart = new Charting::Chart;
-        chart->m_sheetName = m_context->worksheetReaderContext->worksheetName;
-        if(m_context->m_positions.contains(XlsxXmlDrawingReaderContext::FromAnchor)) {
-            XlsxXmlDrawingReaderContext::Position f = m_context->m_positions[XlsxXmlDrawingReaderContext::FromAnchor];
-            chart->m_fromRow = f.m_row;
-            chart->m_fromColumn = f.m_col;
-            if(m_context->m_positions.contains(XlsxXmlDrawingReaderContext::ToAnchor)) {
-                f = m_context->m_positions[XlsxXmlDrawingReaderContext::ToAnchor];
-                chart->m_toRow = f.m_row;
-                chart->m_toColumn = f.m_col;
-            }
-        }
-        ChartExport* chartexport = new ChartExport(chart, m_context->themes);
-
-        KoStore* storeout = m_context->worksheetReaderContext->import->outputStore();
-        XlsxXmlChartReaderContext* context = new XlsxXmlChartReaderContext(storeout, chartexport);
-        
-        XlsxXmlChartReader reader(this);
-        const KoFilter::ConversionStatus result = m_context->worksheetReaderContext->import->loadAndParseDocument(&reader, filepath, context);
-        if (result != KoFilter::OK) {
-            raiseError(reader.errorString());
-            delete context;
-            return result;
-        }
-
-        m_context->charts << context;
-    }
-
-    return KoFilter::OK;
-}
-
-#undef CURRENT_EL
-#define CURRENT_EL pic
-//! pic handler (Picture)
-/*! ECMA-376, 19.3.1.37, p. 2848; 20.1.2.2.30, p.3049 - DrawingML
-    This element specifies the existence of a picture object within the document.
-*/
-//! @todo reuse the read_pic() from MsooXmlCommonReaderDrawing* instead
-/*!
- Parent elements:
- - xdr:twoCellAnchor
- - xdr:wsDr
-
- Child elements:
- - [done] blipFill (Picture Fill) §19.3.1.4
- - [done] blipFill (Picture Fill) §20.1.8.14 - DrawingML
-*/
-
-KoFilter::ConversionStatus XlsxXmlDrawingReader::read_pic()
-{
-    Q_ASSERT(m_context);
-    Q_ASSERT(m_context->relationships);
-
-    if (!expectEl("xdr:pic")) {         // to read pic, we expect this element
-        return KoFilter::WrongFormat;
-    }
-
-    while (!atEnd()) {                  // go through the xml and watch for the right elements
-        readNext();                     // move to the next element
-
-        if (qualifiedName() == QString("xdr:blipFill")) {
-
-            while (!atEnd()) {          // try to read other elements if there are still some
-                readNext();
-
-                if (qualifiedName() == QString("a:blip")) {
-                    QXmlStreamAttributes attrs(attributes());
-                    const QString r_id = attrs.value("r:embed").toString();     // take r:embed attribute out of a:blip element
-
-                    // now try to get the real file path from r_id (e:embed) attribute
-                    QString link = m_context->relationships->target(m_context->m_path, m_context->m_file, r_id);
-
-                    /* Please note!
-                    1. The picture->m_path will now contain a path in the xlsx (i.e. 'xl/media/image1.jpg')
-                    you have to copy the file to .ods and replace it with the proper one in .ods (i.e. 'Pictures/image1.jpeg')
-                    2. The f_from and f_to contain from and to cell, this has to be recalculated to x,y, width,height in pt.
-                    The things mentioned above are done in XlsxXmlWorksheetReader.cpp and they have to be done before calling
-                    the picture->saveXml(...) method.
-                    */
-
-                    XlsxXmlEmbeddedPicture *picture = new XlsxXmlEmbeddedPicture(link);
-
-                    if (m_context->m_positions.contains(XlsxXmlDrawingReaderContext::FromAnchor)) {  // if we got 'from' cell
-                        XlsxXmlDrawingReaderContext::Position f_from, f_to;
-                        f_from = m_context->m_positions[XlsxXmlDrawingReaderContext::FromAnchor];
-
-                        if (f_from.m_col > 0 && f_from.m_row > 0) {
-                            picture->m_fromCell = f_from;           // store the starting cell
-                            if (m_context->m_positions.contains(XlsxXmlDrawingReaderContext::ToAnchor)) {   // if we got 'to' cell
-                                f_to = m_context->m_positions[XlsxXmlDrawingReaderContext::ToAnchor];
-                                if (f_to.m_col > 0 && f_to.m_row > 0){
-                                    picture->m_toCell = f_to;       // store the ending cell
-                                }
-                            }
-                        }
-                    }
-
-                    // put this picture in the QList. It will be later used (stored) in XlsxXmlWorksheetReader.cpp
-                    m_context->pictures << picture;
-                    break;
-                }
-            }
-
-            break;
-        }
-    }
-
+    m_currentDrawingObject->m_positions[m_anchorType].m_rowOff = readElementText().toInt(); // default value is zero
     return KoFilter::OK;
 }
 
@@ -470,8 +414,9 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_graphicData2()
         BREAK_IF_END_OF(CURRENT_EL);
         if (isStartElement()) {
             //TRY_READ_IF_NS(pic, pic)
+            TRY_READ_IF_NS(pic, pic)
             if (qualifiedName() == "c:chart") {
-                read_chart2();
+                read_chart();
             }
             else if (qualifiedName() == QLatin1String("dgm:relIds")) {
                 read_diagram(); // DrawingML diagram
@@ -540,7 +485,7 @@ XlsxXmlEmbeddedPicture::XlsxXmlEmbeddedPicture()
 
 }
 
-XlsxXmlEmbeddedPicture::XlsxXmlEmbeddedPicture(QString &filePath)
+XlsxXmlEmbeddedPicture::XlsxXmlEmbeddedPicture(const QString &filePath)
     : m_x(0.0)
     , m_y(0.0)
     , m_width(0.0)
@@ -553,8 +498,13 @@ bool XlsxXmlEmbeddedPicture::saveXml(KoXmlWriter *xmlWriter)   // save all neede
 {
     xmlWriter->startElement("draw:frame");
 
-    xmlWriter->addAttributePt("svg:x", m_x);
-    xmlWriter->addAttributePt("svg:y", m_y);
+    if (m_fromCell.m_col > 0) {
+        xmlWriter->addAttributePt("svg:x", EMU_TO_POINT(m_fromCell.m_colOff));
+        xmlWriter->addAttributePt("svg:y", EMU_TO_POINT(m_fromCell.m_rowOff));
+    } else {
+        xmlWriter->addAttributePt("svg:x", m_x);
+        xmlWriter->addAttributePt("svg:y", m_y);
+    }
 
     // use width and height only if they are non-zero
     if (m_width > 0) {
@@ -562,6 +512,12 @@ bool XlsxXmlEmbeddedPicture::saveXml(KoXmlWriter *xmlWriter)   // save all neede
     }
     if (m_height > 0) {
         xmlWriter->addAttributePt("svg:height", m_height);
+    }
+
+    if (m_toCell.m_col > 0) {
+        xmlWriter->addAttribute("table:end-cell-address", KSpread::Util::encodeColumnLabelText(m_toCell.m_col+1) + QString::number(m_toCell.m_row+1));
+        xmlWriter->addAttributePt("table:end-x", EMU_TO_POINT(m_toCell.m_colOff));
+        xmlWriter->addAttributePt("table:end-y", EMU_TO_POINT(m_toCell.m_rowOff));
     }
 
     xmlWriter->startElement("draw:image");
@@ -586,10 +542,12 @@ void XlsxXmlEmbeddedPicture::setPath(QString &newPath)
     m_path = newPath;
 }
 
-// // in PPTX we do not have pPr, so p@text:style-name should be added earlier
-// //#define SETUP_PARA_STYLE_IN_READ_P
-// #include <MsooXmlCommonReaderImpl.h> // this adds a:p, a:pPr, a:t, a:r, etc.
-// #define DRAWINGML_NS "a"
-// #define DRAWINGML_PIC_NS "p" // DrawingML/Picture
-// #include <MsooXmlCommonReaderDrawingMLImpl.h> // this adds p:pic, etc.
-// //#include <MsooXmlDrawingReaderTableImpl.h> //this adds a:tbl
+// in PPTX we do not have pPr, so p@text:style-name should be added earlier
+//#define SETUP_PARA_STYLE_IN_READ_P
+#include <MsooXmlCommonReaderImpl.h> // this adds a:p, a:pPr, a:t, a:r, etc.
+#define DRAWINGML_NS "a"
+#define DRAWINGML_PIC_NS "xdr" // DrawingML/Picture
+#define DRAWINGML_TXBODY_NS "xdr" // DrawingML/Picture
+#define XLSXXMLDRAWINGREADER_CPP
+#include <MsooXmlCommonReaderDrawingMLImpl.h> // this adds p:pic, etc.
+//#include <MsooXmlDrawingReaderTableImpl.h> //this adds a:tbl

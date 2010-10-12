@@ -245,7 +245,7 @@ QVariant KDChartModel::data( const QModelIndex &index,
     // TODO (Johannes): Support for third data dimension
     // We need to implement zData in Dataset first.
 
-    // Should never happen
+    Q_ASSERT( "Error: Known data role wasn't handled." );
     return QVariant();
 }
 
@@ -442,7 +442,11 @@ QVariant KDChartModel::headerData( int section,
 QModelIndex KDChartModel::index( int row, int column,
                                  const QModelIndex &parent ) const
 {
-    Q_UNUSED( parent );
+    // Seems following can happen in which case we shouldn't return a QModelIndex with an invalid
+    // position cause else other things may go wrong.
+    if( row >= rowCount(parent) || column >= columnCount(parent) ) {
+        return QModelIndex();
+    }
 
     return createIndex( row, column, 0 );
 }
@@ -490,7 +494,7 @@ int KDChartModel::dataDimensions() const
     return d->dataDimensions;
 }
 
-void KDChartModel::addDataSet( DataSet *dataSet, bool silent )
+void KDChartModel::addDataSet( DataSet *dataSet )
 {
     if ( d->dataSets.contains( dataSet ) ) {
         qWarning() << "KDChartModel::addDataSet(): Attempting to insert already-contained data set";
@@ -501,11 +505,7 @@ void KDChartModel::addDataSet( DataSet *dataSet, bool silent )
 
     int dataSetIndex = d->dataSetIndex( dataSet );
 
-    if ( silent ) {
-        d->dataSets.insert( dataSetIndex, dataSet );
-        d->biggestDataSetSize = d->calcMaxDataSetSize();
-    }
-    else if ( !d->dataSets.isEmpty() ) {
+    if ( !d->dataSets.isEmpty() ) {
         const int columnAboutToBeInserted = dataSetIndex * d->dataDimensions;
         if ( d->dataDirection == Qt::Vertical ) {
             beginInsertColumns( QModelIndex(), columnAboutToBeInserted,

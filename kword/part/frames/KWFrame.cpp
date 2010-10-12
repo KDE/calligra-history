@@ -61,10 +61,9 @@ KWFrame::~KWFrame()
     delete m_outline;
 }
 
-void KWFrame::setTextRunAround(KWord::TextRunAround runAround, KWord::Through runThrought)
+void KWFrame::setTextRunAround(KWord::TextRunAround runAround)
 {
     m_runAround = runAround;
-    m_runThrough = runThrought;
 }
 
 void KWFrame::setFrameSet(KWFrameSet *fs)
@@ -87,7 +86,6 @@ void KWFrame::copySettings(const KWFrame *frame)
     setRunAroundSide(frame->runAroundSide());
     setTextRunAround(frame->textRunAround());
     shape()->copySettings(frame->shape());
-    // TODO copy-shape
 }
 
 void KWFrame::saveOdf(KoShapeSavingContext &context, const KWPage &page, int pageZIndexOffset) const
@@ -136,17 +134,15 @@ void KWFrame::saveOdf(KoShapeSavingContext &context, const KWPage &page, int pag
     if (!value.isEmpty())
         m_shape->setAdditionalStyleAttribute("style:overflow-behavior", value);
 
-    if (frameBehavior() != KWord::IgnoreContentFrameBehavior) {
-        switch (newFrameBehavior()) {
-        case KWord::ReconnectNewFrame: value = "followup"; break;
-        case KWord::NoFollowupFrame: value.clear(); break; // "none" is the default
-        case KWord::CopyNewFrame: value = "copy"; break;
-        }
-        if (!value.isEmpty()) {
-            m_shape->setAdditionalStyleAttribute("koffice:frame-behavior-on-new-page", value);
-            if (!frameOnBothSheets())
-                m_shape->setAdditionalAttribute("koffice:frame-copy-to-facing-pages", "true");
-        }
+    switch (newFrameBehavior()) {
+    case KWord::ReconnectNewFrame: value = "followup"; break;
+    case KWord::NoFollowupFrame: value.clear(); break; // "none" is the default
+    case KWord::CopyNewFrame: value = "copy"; break;
+    }
+    if (!value.isEmpty()) {
+        m_shape->setAdditionalStyleAttribute("koffice:frame-behavior-on-new-page", value);
+        if (!frameOnBothSheets())
+            m_shape->setAdditionalAttribute("koffice:frame-copy-to-facing-pages", "true");
     }
 
     // shape properties

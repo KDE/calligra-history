@@ -1,5 +1,6 @@
 [Desktop Entry]
 Name=ColorSelectorNG
+Name[da]=ColorSelectorNG
 Name[en_GB]=ColourSelectorNG
 Name[es]=Selector de colores de nueva generación
 Name[et]=Uue põlvkonna värvivalija
@@ -17,4 +18,4 @@ Name[zh_TW]=ColorSelectorNG
 X-KDE-ServiceTypes=Krita/Dock
 Type=Service
 X-KDE-Library=kritacolorselectorng
-X-Krita-Version=3
+X-Krita-Version=4

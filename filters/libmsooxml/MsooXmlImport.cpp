@@ -134,18 +134,32 @@ KoFilter::ConversionStatus MsooXmlImport::copyFile(const QString& sourceName,
     const KoFilter::ConversionStatus status = Utils::copyFile(
                 m_zip, errorMessage, sourceName, m_outputStore, destinationName, oleFile);
 //! @todo transmit the error to the GUI...
-    kDebug() << errorMessage;
+    if(status != KoFilter::OK)
+        kWarning() << "Failed to copyFile:" << errorMessage;
     return status;
 }
 
-KoFilter::ConversionStatus MsooXmlImport::imageSize(const QString& sourceName, QSize* size)
+KoFilter::ConversionStatus MsooXmlImport::imageSize(const QString& sourceName, QSize& size)
 {
     if (!m_zip) {
         return KoFilter::UsageError;
     }
+
     QString errorMessage;
-    const KoFilter::ConversionStatus status = Utils::imageSize(
-        m_zip, errorMessage, sourceName, size);
+    KoFilter::ConversionStatus status = KoFilter::OK;
+
+    const QMap<QString, QSize>::ConstIterator it(m_imageSizes.constFind(sourceName));
+    if (it == m_imageSizes.constEnd()) {
+        status = Utils::imageSize(m_zip, errorMessage, sourceName, &size);
+
+        if (status != KoFilter::OK)
+            size = QSize(-1, -1);
+        m_imageSizes.insert(sourceName, size);
+    }
+    else {
+        size = it.value();
+    }
+
 //! @todo transmit the error to the GUI...
     kDebug() << errorMessage;
     return status;
@@ -258,14 +272,26 @@ KoFilter::ConversionStatus MsooXmlImport::loadAndParseDocument(
 
 KoFilter::ConversionStatus MsooXmlImport::openFile(KoOdfWriters *writers, QString& errorMessage)
 {
-    static const char *Content_Types_xml =  "[Content_Types].xml";
+    static const char *Content_Types_xml = "[Content_Types].xml";
     KoFilter::ConversionStatus status = loadAndParse(Content_Types_xml, m_contentTypesXML, errorMessage);
     if (status != KoFilter::OK) {
         kDebug() << Content_Types_xml << "could not be parsed correctly! Aborting!";
         return status;
     }
-
     RETURN_IF_ERROR( Utils::loadContentTypes(m_contentTypesXML, m_contentTypes) )
+
+    static const char *docPropy_core_xml = "docProps/core.xml";
+    KoXmlDocument coreXML;
+    if (loadAndParse(docPropy_core_xml, coreXML, errorMessage) == KoFilter::OK) {
+        RETURN_IF_ERROR( Utils::loadDocumentProperties(coreXML, m_documentProperties) )
+    }
+
+    static const char *docPropy_app_xml = "docProps/app.xml";
+    KoXmlDocument appXML;
+    if (loadAndParse(docPropy_app_xml, appXML, errorMessage) == KoFilter::OK) {
+        RETURN_IF_ERROR( Utils::loadDocumentProperties(appXML, m_documentProperties) )
+    }
+
     MsooXmlRelationships relationships(*this, writers, errorMessage);
     RETURN_IF_ERROR( parseParts(writers, &relationships, errorMessage) )
 //! @todo sigProgress()
