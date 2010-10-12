@@ -40,11 +40,8 @@ void KoDockRegistry::init()
 
 KoDockRegistry::~KoDockRegistry()
 {
-    foreach (const QString &id, keys()) {
-        KoDockFactoryBase* dw = get(id);
-        remove(id);
-        delete dw;
-    }
+    qDeleteAll(doubleEntries());
+    qDeleteAll(values());
 }
 
 KoDockRegistry* KoDockRegistry::instance()
@@ -55,5 +52,3 @@ KoDockRegistry* KoDockRegistry::instance()
     }
     return s_instance;
 }
-
-#include <KoDockRegistry.moc>

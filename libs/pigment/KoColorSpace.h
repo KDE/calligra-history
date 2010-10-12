@@ -44,7 +44,7 @@ class QBitArray;
 
 enum Deletability {
     OwnedByRegistryDoNotDelete,
-    OwnedByRegistryRegistyDeletes,
+    OwnedByRegistryRegistryDeletes,
     NotOwnedByRegistry
 };
 
@@ -591,8 +591,6 @@ protected:
     const KoColorConversionTransformation* fromLabA16Converter() const;
     const KoColorConversionTransformation* toRgbA16Converter() const;
     const KoColorConversionTransformation* fromRgbA16Converter() const;
-
-protected:
 
     /**
      * Returns the thread-local conversion cache. If it doesn't exist

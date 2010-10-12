@@ -49,7 +49,6 @@
 #include <KoOdfLoadingContext.h>
 #include <KoShape.h>
 #include <KoDocumentInfo.h>
-#include <KoTextDocument.h>
 
 #include <DocBase.h>
 #include <kspread/Sheet.h>
@@ -196,10 +195,12 @@ ExcelImport::ExcelImport(QObject* parent, const QStringList&)
         : KoFilter(parent)
 {
     d = new Private;
+    d->storeout = 0;
 }
 
 ExcelImport::~ExcelImport()
 {
+    delete d->storeout;
     delete d;
 }
 
@@ -232,6 +233,7 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     
     
     QBuffer storeBuffer; // TODO: use temporary file instead
+    delete d->storeout;
     d->storeout = KoStore::createStore(&storeBuffer, KoStore::Write);
 
     // open inputFile
@@ -319,6 +321,7 @@ KoFilter::ConversionStatus ExcelImport::convert(const QByteArray& from, const QB
     }
 
     delete d->storeout;
+    d->storeout = 0;
     storeBuffer.close();
 
     KoStore *store = KoStore::createStore(&storeBuffer, KoStore::Read);
@@ -879,7 +882,6 @@ void ExcelImport::Private::processCell(Cell* ic, KSpread::Cell oc)
             formatRuns[txt.length()] = ic->format().font();
 
             QSharedPointer<QTextDocument> doc(new QTextDocument(txt));
-            KoTextDocument(doc.data()).setStyleManager(oc.sheet()->map()->textStyleManager());
             QTextCursor c(doc.data());
             for (std::map<unsigned, FormatFont>::iterator it = formatRuns.begin(); it != formatRuns.end(); ++it) {
                 std::map<unsigned, FormatFont>::iterator it2 = it; it2++;

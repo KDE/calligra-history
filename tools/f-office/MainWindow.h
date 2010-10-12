@@ -44,14 +44,6 @@
 #include "VirtualKeyBoard.h"
 #include "FoCellToolFactory.h"
 #include "DigitalSignatureDialog.h"
-#include "KoApplicationHelper.h"
-
-#include <KoPAView.h>
-#include <KoPACanvas.h>
-#include <KoTextShapeData.h>
-#include <KoTextDocument.h>
-#include <KoShapeFactoryBase.h>
-#include <KoShapeRegistry.h>
 
 #include <KoPAView.h>
 #include <KoPACanvas.h>
@@ -86,9 +78,7 @@ class QDialog;
 class QListWidget;
 class QListWidgetItem;
 class SlidingMotionDialog;
-#ifdef HAVE_OPENGL
 class GLPresenter;
-#endif
 class FoCellTooFactory;
 
 class KUndoStack;
@@ -112,13 +102,17 @@ class MainWindow;
  * \brief Main window of the application. KoCanvasController is set as
  * the central widget. It displays the loaded documents.
  */
-class MainWindow : public QMainWindow, private KoApplicationHelper
+class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
     MainWindow(Splash *aSplash, QWidget *parent = 0);
     ~MainWindow();
+    /*!
+     * Opened file
+     */
+    QString m_fileName;
     //void tabletEvent ( QTabletEvent * event );
     void mousePressEvent ( QMouseEvent * event );
     void mouseMoveEvent ( QMouseEvent * event );
@@ -381,6 +375,10 @@ private:
      */
     QTextDocument *m_textDocument;
     /*!
+     * Pointer to KoDocument
+     */
+    KoDocument *m_doc;
+    /*!
      * Pointer to KoTextEditor
      */
     KoTextEditor *m_editor;
@@ -516,9 +514,7 @@ private:
      * /param pointer to QTextDocument
      * /param reference to text to be searched
      */
-#ifdef HAVE_OPENGL
     GLPresenter *presenter;
-#endif
     /*!
      * Open GL Class , to handle the slide show.
      */
@@ -632,18 +628,6 @@ private:
      * Handle the Spreadsheet sheet information
      */
     void spreadSheetInfo();
-
-    //! Implemented for KoApplicationHelper
-    virtual void showMessage(KoApplicationHelper::MessageType type, const QString& messageText = QString());
-
-    //! Implemented for KoApplicationHelper
-    virtual void startNewInstance(const QString& fileName, bool isNewDocument);
-
-    //! Implemented for KoApplicationHelper
-    virtual void setProgressIndicatorVisible(bool visible);
-
-    //! Implemented for KoApplicationHelper
-    virtual void showUiOnDocumentOpening();
 
 private slots:
 
@@ -941,14 +925,14 @@ public slots:
      * Slot to update current slide in the presentation, when the slide changed in the notes dialog
      */
     void moveSLideFromNotesSLide(bool flag);
-#ifdef HAVE_OPENGL
+
     void glPresenter();
     void glPresenterSet(int,int);
-#endif
 private:
 
     QMap<QString, OfficeInterface*> loadedPlugins;
 
+    void setShowProgressIndicator(bool visible);
     /*!
      * true if document is modified
      */
@@ -989,6 +973,10 @@ private:
      * True if slide can be changed by panning document
      */
     bool m_slideChangePossible;
+    /*!
+     * Is document is currently being loaded
+     */
+    bool m_isLoading;
     /*!
      * pointer to preview button store
      */

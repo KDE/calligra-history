@@ -350,6 +350,9 @@ void KWFrameLayout::layoutFramesOnPage(int pageNumber)
         default:;
         }
     }
+
+    pageBackground = frameOn(m_backgroundFrameSet, pageNumber);
+
     if (minZIndex < INT_MAX) {
         --minZIndex;
         if (endnote)
@@ -788,7 +791,7 @@ void KWFrameLayout::mainframeRemoved(KWFrame *frame)
     // delete them!
     foreach (KWFrame *frame, framesToDelete) {
         // first remove if from the frameset to make sure the doc gets a signal and removes the page if needed
-        frame->frameSet()->removeFrame(frame);
+        //frame->frameSet()->removeFrame(frame);
         // then actually delete the frame itself.
         delete frame->shape();
     }

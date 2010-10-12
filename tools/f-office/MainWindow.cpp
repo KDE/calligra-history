@@ -33,10 +33,9 @@
 #include "AboutDialog.h"
 #include "PresentationTool.h"
 #include "MainWindowAdaptor.h"
+#include "FoCellToolFactory.h"
 #include "FoExternalEditor.h"
-#ifdef HAVE_OPENGL
 #include "GlPresenter.h"
-#endif
 #include "FoCellTool.h"
 #include "RemoveSheet.h"
 
@@ -201,6 +200,7 @@ MainWindow::MainWindow(Splash *aSplash, QWidget *parent)
         m_removeSheet(0),
         m_sheetName(0),
         m_search(0),
+        m_doc(0),
         m_editor(0),
         m_kwview(0),
         m_view(0),
@@ -223,6 +223,7 @@ MainWindow::MainWindow(Splash *aSplash, QWidget *parent)
         m_dbus( new MainWindowAdaptor(this)),
         m_isDocModified(false),
         m_panningCount(0),
+        m_isLoading(false),
         storeButtonPreview(0),
         m_slideNotesButton(0),
         m_slideNotesIcon(VIEW_NOTES_PIXMAP)
@@ -335,9 +336,7 @@ void MainWindow::init()
 #endif
 
     connect(m_ui->actionMathOp,SIGNAL(toggled(bool)),this,SLOT(startMathMode(bool)));
-#ifdef HAVE_OPENGL
     connect(m_ui->actionPresentation,SIGNAL(triggered()),this,SLOT(glPresenter()));
-#endif
 
     connect(m_search, SIGNAL(returnPressed()), SLOT(nextWord()));
     connect(m_search, SIGNAL(textEdited(QString)), SLOT(startSearch()));
@@ -1384,6 +1383,7 @@ void MainWindow::doStyle(KoListStyle::Style style, KoTextEditor *editor)
 
 void MainWindow::saveFile()
 {
+    QMessageBox msgBox;
     if(m_doc) {
         if(m_fileName.isEmpty()) {
             saveFileAs();
@@ -1394,14 +1394,26 @@ void MainWindow::saveFile()
                 !QString::compare(ext, EXT_ODS, Qt::CaseInsensitive)) {
 
                 if(m_doc->saveNativeFormat(m_fileName)) {
-                    showMessage(InformationWithTimeoutMessage, i18n("The document has been saved successfully"));
+#ifdef Q_WS_MAEMO_5
+                    QMaemo5InformationBox::information(0, i18n("The document has been saved successfully"),
+                                                       QMaemo5InformationBox::DefaultTimeout);
+#else
+                    msgBox.setText(i18n("The document has been saved successfully"));
+                    msgBox.exec();
+#endif
                     m_isDocModified = false;
 
                     if(m_confirmationdialog) {
                         closeDocument();
                     }
                 } else {
-                    showMessage(InformationWithTimeoutMessage, i18n("The document could not be saved"));
+#ifdef Q_WS_MAEMO_5
+                    QMaemo5InformationBox::information(0, i18n("The document could not be saved"),
+                                                       QMaemo5InformationBox::DefaultTimeout);
+#else
+                    msgBox.setText(i18n("The document could not be saved"));
+                    msgBox.exec();
+#endif
                 }
             } else if (!QString::compare(ext, EXT_DOC, Qt::CaseInsensitive)||
                       !QString::compare(ext, EXT_DOCX, Qt::CaseInsensitive)||
@@ -1411,12 +1423,24 @@ void MainWindow::saveFile()
                       !QString::compare(ext, EXT_PPTX, Qt::CaseInsensitive) ||
                       !QString::compare(ext, EXT_PPS, Qt::CaseInsensitive) ||
                       !QString::compare(ext, EXT_PPT, Qt::CaseInsensitive))  {
-                showMessage(InformationWithTimeoutMessage, i18n("File will be saved in ODF"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("File will be saved in ODF"),
+                                                   QMaemo5InformationBox::NoTimeout);
+#else
+                msgBox.setText(i18n("File will be saved in ODF"));
+                msgBox.exec();
+#endif
                 QString fileName;
                 fileName = getFileSavePath(m_type);
 
                 if (fileName.isEmpty()) {
-                    showMessage(InformationWithTimeoutMessage, i18n("File name not specified"));
+#ifdef Q_WS_MAEMO_5
+                    QMaemo5InformationBox::information(0, i18n("File name not specified"),
+                                                       QMaemo5InformationBox::NoTimeout);
+#else
+                    msgBox.setText(i18n("File name not specified"));
+                    msgBox.exec();
+#endif
                     return;
                 }
                 KUrl newURL;
@@ -1426,26 +1450,52 @@ void MainWindow::saveFile()
                 m_doc->setOutputMimeType(outputFormatString.toLatin1(), 0);
 
                 if(m_doc->saveAs(newURL)) {
-                    showMessage(InformationMessage, i18n("The document has been saved successfully"));
+#ifdef Q_WS_MAEMO_5
+                    QMaemo5InformationBox::information(0, i18n("The document has been saved successfully"),
+                                                       QMaemo5InformationBox::DefaultTimeout);
+#else
+                    msgBox.setText(i18n("The document has been saved successfully"));
+                    msgBox.exec();
+#endif
                     m_isDocModified = false;
 
                     if(m_confirmationdialog) {
                         closeDocument();
                     }
                 } else {
-                    showMessage(InformationMessage, i18n("The document could not be saved"));
+#ifdef Q_WS_MAEMO_5
+                    QMaemo5InformationBox::information(0, i18n("The document could not be saved"),
+                                                       QMaemo5InformationBox::DefaultTimeout);
+#else
+                    msgBox.setText(i18n("The document could not be saved"));
+                    msgBox.exec();
+#endif
                 }
             } else {
-                showMessage(InformationMessage, i18n("Saving operation supports only open document formats currently, sorry"));
+
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("Saving operation supports only open document formats currently,Sorry"),
+                                                   QMaemo5InformationBox::DefaultTimeout);
+#else
+                msgBox.setText(i18n("Saving operation supports only open document formats currently,Sorry"));
+                msgBox.exec();
+#endif
             }
         }
     } else {
-        showMessage(InformationMessage, i18n("No document is open to perform save operation, invalid try"));
+#ifdef Q_WS_MAEMO_5
+        QMaemo5InformationBox::information(0, i18n("No document is open to perform save operation , invalid try"),
+                                           QMaemo5InformationBox::DefaultTimeout);
+#else
+        msgBox.setText(i18n("No document is open to perform save operation , invalid try"));
+        msgBox.exec();
+#endif
     }
 }
 
 void MainWindow::saveFileAs()
 {
+    QMessageBox msgBox;
     if(m_doc) {
         QString ext;
         if(m_fileName.isEmpty()) {
@@ -1463,11 +1513,23 @@ void MainWindow::saveFileAs()
             m_fileName = fileName;
 
             if (fileName.isEmpty()) {
-                showMessage(InformationWithTimeoutMessage, i18n("File name not specified"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("File name not specified"),
+                                                   QMaemo5InformationBox::NoTimeout);
+#else
+                msgBox.setText(i18n("File name not specified"));
+                msgBox.exec();
+#endif
                 return;
             }
             if(m_doc->saveNativeFormat(m_fileName)) {
-                showMessage(InformationMessage, i18n("The document has been saved successfully"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("The document has been saved successfully"),
+                                                   QMaemo5InformationBox::DefaultTimeout);
+#else
+                msgBox.setText(i18n("The document has been saved successfully"));
+                msgBox.exec();
+#endif
                 m_fileName = fileName;
                 m_isDocModified = false;
 
@@ -1475,7 +1537,13 @@ void MainWindow::saveFileAs()
                     closeDocument();
                 }
             } else {
-                showMessage(InformationMessage, i18n("The document could not be saved"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("The document could not be saved"),
+                                                   QMaemo5InformationBox::DefaultTimeout);
+#else
+                msgBox.setText(i18n("The document could not be saved"));
+                msgBox.exec();
+#endif
             }
 
         } else if (!QString::compare(ext, EXT_DOC, Qt::CaseInsensitive)||
@@ -1486,12 +1554,24 @@ void MainWindow::saveFileAs()
                    !QString::compare(ext, EXT_PPTX, Qt::CaseInsensitive) ||
                    !QString::compare(ext, EXT_PPS, Qt::CaseInsensitive) ||
                    !QString::compare(ext, EXT_PPT, Qt::CaseInsensitive))  {
-            showMessage(InformationWithTimeoutMessage, i18n("File will be saved in ODF"));
+#ifdef Q_WS_MAEMO_5
+            QMaemo5InformationBox::information(0, i18n("File will be saved in ODF"),
+                                               QMaemo5InformationBox::NoTimeout);
+#else
+            msgBox.setText(i18n("File will be saved in ODF"));
+            msgBox.exec();
+#endif
             QString fileName;
             fileName = getFileSavePath(m_type);
 
             if (fileName.isEmpty()) {
-                showMessage(InformationWithTimeoutMessage, i18n("File name not specified"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("File name not specified"),
+                                                   QMaemo5InformationBox::NoTimeout);
+#else
+                msgBox.setText(i18n("File name not specified"));
+                msgBox.exec();
+#endif
                 return;
             }
             KUrl newURL;
@@ -1501,7 +1581,13 @@ void MainWindow::saveFileAs()
             m_doc->setOutputMimeType(outputFormatString.toLatin1(), 0);
 
             if(m_doc->saveAs(newURL)) {
-                showMessage(InformationMessage, i18n("The document has been saved successfully"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("The document has been saved successfully"),
+                                                   QMaemo5InformationBox::DefaultTimeout);
+#else
+                msgBox.setText(i18n("The document has been saved successfully"));
+                msgBox.exec();
+#endif
                 m_fileName = fileName;
                 m_isDocModified = false;
 
@@ -1509,18 +1595,36 @@ void MainWindow::saveFileAs()
                     closeDocument();
                 }
             } else {
-                showMessage(InformationMessage, i18n("The document could not be saved"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("The document could not be saved"),
+                                                   QMaemo5InformationBox::DefaultTimeout);
+#else
+                msgBox.setText(i18n("The document could not be saved"));
+                msgBox.exec();
+#endif
             }
         }else if (!QString::compare(ext, EXT_DOC, Qt::CaseInsensitive)||
                   !QString::compare(ext, EXT_XLS, Qt::CaseInsensitive)||
                   !QString::compare(ext, EXT_PPT, Qt::CaseInsensitive))  {
-            showMessage(InformationWithTimeoutMessage, i18n("File will be saved in ODF"));
+#ifdef Q_WS_MAEMO_5
+            QMaemo5InformationBox::information(0, i18n("File will be saved in ODF"),
+                                               QMaemo5InformationBox::NoTimeout);
+#else
+            msgBox.setText(i18n("File will be saved in ODF"));
+            msgBox.exec();
+#endif
             QString fileName;
             fileName = getFileSavePath(m_type);
             m_fileName = fileName;
 
             if (fileName.isEmpty()) {
-                showMessage(InformationWithTimeoutMessage, i18n("File name not specified"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("File name not specified"),
+                                                   QMaemo5InformationBox::NoTimeout);
+#else
+                msgBox.setText(i18n("File name not specified"));
+                msgBox.exec();
+#endif
                 return;
             }
             KUrl newURL;
@@ -1530,21 +1634,45 @@ void MainWindow::saveFileAs()
             m_doc->setOutputMimeType(outputFormatString.toLatin1(), 0);
 
             if(m_doc->saveAs(newURL)) {
-                showMessage(InformationMessage, i18n("The document has been saved successfully"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("The document has been saved successfully"),
+                                                   QMaemo5InformationBox::DefaultTimeout);
+#else
+                msgBox.setText(i18n("The document has been saved successfully"));
+                msgBox.exec();
+
+#endif
                 m_isDocModified = false;
 
                 if(m_confirmationdialog) {
                     closeDocument();
                 }
             } else {
-                showMessage(InformationMessage, i18n("The document could not be saved"));
+#ifdef Q_WS_MAEMO_5
+                QMaemo5InformationBox::information(0, i18n("The document could not be saved"),
+                                                   QMaemo5InformationBox::DefaultTimeout);
+#else
+                msgBox.setText(i18n("The document could not be saved"));
+                msgBox.exec();
+#endif
             }
         }else {
-            showMessage(InformationMessage,
-                i18n("Saving operation supports only open document formats currently,Sorry"));
+#ifdef Q_WS_MAEMO_5
+            QMaemo5InformationBox::information(0, i18n("Saving operation supports only open document formats currently,Sorry"),
+                                               QMaemo5InformationBox::DefaultTimeout);
+#else
+            msgBox.setText(i18n("Saving operation supports only open document formats currently,Sorry"));
+            msgBox.exec();
+#endif
         }
     }  else {
-        showMessage(InformationMessage, i18n("No document is open to perform save operation , invalid try"));
+#ifdef Q_WS_MAEMO_5
+        QMaemo5InformationBox::information(0, i18n("No document is open to perform save operation , invalid try"),
+                                           QMaemo5InformationBox::DefaultTimeout);
+#else
+        msgBox.setText(i18n("No document is open to perform save operation , invalid try"));
+        msgBox.exec();
+#endif
     }
 }
 
@@ -1675,6 +1803,7 @@ void MainWindow::selectedTemplatePreview(int number)
         store->close();
         m_templatepreview->setPixmap(thumbnail);
     }
+    delete store;
 }
 
 void MainWindow::openSelectedTemplate()
@@ -1720,6 +1849,236 @@ QToolButton * MainWindow ::addNewDocument(const QString &docname)
     return toolbutton;
 }
 
+void MainWindow::openDocument(const QString &fileName, bool isNewDocument)
+{
+
+    if(m_type == Presentation)
+    {
+        m_ui->actionInsertTextShape->setVisible(true);
+        m_ui->actionInsertTable->setVisible(true);
+    }
+    //check if the file exists
+    if(!QFile(fileName).exists()) {
+#ifdef Q_WS_MAEMO_5
+        QMaemo5InformationBox::information(0, i18n("No such file exists"),
+                                                       QMaemo5InformationBox::DefaultTimeout);
+#endif
+        return;
+    }
+
+    //check if the format is supported for opening
+    if (!checkFiletype(fileName)) {
+        qDebug()<<"Currently this file format is not supported";
+        return;
+    }
+
+    //if the current instance has a document open start a new one
+    if (m_doc) {
+        QStringList args;
+        args << fileName;
+        isNewDocument ? (args << "true") : (args << "false");
+        QProcess::startDetached(FREOFFICE_APPLICATION_PATH, args);
+        return;
+    }
+
+    m_ui->viewToolBar->show();
+    m_ui->actionSlidingMotion->setVisible(false);
+    raiseWindow();
+
+    setShowProgressIndicator(true);
+    QString mimetype = KMimeType::findByPath(fileName)->name();
+    int errorCode = 0;
+    m_isLoading = true;
+
+    m_doc = KParts::ComponentFactory::createPartInstanceFromQuery<KoDocument>(
+                mimetype, QString(),
+                0, 0, QStringList(),
+                &errorCode);
+
+    if (!m_doc) {
+        setShowProgressIndicator(false);
+        return;
+    }
+
+    //for new files the condition to be checked is m_fileName.isEmpty()
+    if(isNewDocument) {
+        m_fileName="";
+    } else {
+        m_fileName=fileName;
+    }
+
+    KUrl fileUrl;
+    fileUrl.setPath(fileName);
+
+    m_doc->setCheckAutoSaveFile(false);
+    m_doc->setAutoErrorHandlingEnabled(true);
+
+    //actual opening of the document happens here.
+    if (!m_doc->openUrl(fileUrl)) {
+        setShowProgressIndicator(false);
+        return;
+    }
+
+    m_doc->setReadWrite(true);
+    m_doc->setAutoSave(0);
+
+    // registering tools
+    m_cellToolFactory=new FoCellToolFactory();
+   // m_spreadEdit->setCellTool(m_focelltool);
+    KoToolRegistry::instance()->add(m_cellToolFactory);
+
+    m_view = m_doc->createView();
+    QList<KoCanvasControllerWidget*> controllers = m_view->findChildren<KoCanvasControllerWidget*>();
+    if (controllers.isEmpty()) {
+        setShowProgressIndicator(false);
+        return;// Panic
+    }
+
+    m_controller = controllers.first();
+
+    if (!m_controller) {
+        setShowProgressIndicator(false);
+        return;
+    }
+
+    QString fname = fileUrl.fileName();
+    QString ext = KMimeType::extractKnownExtension(fname);
+    if (ext.length()) {
+        fname.chop(ext.length() + 1);
+    }
+
+    //file type of the document
+    if (!QString::compare(ext, EXT_ODP, Qt::CaseInsensitive) ||
+            !QString::compare(ext, EXT_PPS, Qt::CaseInsensitive) ||
+            !QString::compare(ext, EXT_PPSX, Qt::CaseInsensitive) ||
+            !QString::compare(ext, EXT_PPTX, Qt::CaseInsensitive) ||
+            !QString::compare(ext, EXT_PPT, Qt::CaseInsensitive)) {
+        m_type = Presentation;
+    } else if (!QString::compare(ext, EXT_ODS, Qt::CaseInsensitive) ||
+               !QString::compare(ext, EXT_XLSX, Qt::CaseInsensitive) ||
+               !QString::compare(ext, EXT_XLS, Qt::CaseInsensitive)) {
+        m_type = Spreadsheet;
+    } else {
+        m_type = Text;
+        // We need to get the page count again after layout rounds.
+        connect(m_doc, SIGNAL(pageSetupChanged()), this, SLOT(updateUI()));
+    }
+
+    m_ui->actionMathOp->setVisible(false);
+    m_ui->actionFormat->setVisible(false);
+    m_ui->actionSlidingMotion->setVisible(false);
+
+    if (m_type == Spreadsheet) {
+        m_ui->actionEdit->setVisible(true);
+        KoToolManager::instance()->addController(m_controller);
+        QApplication::sendEvent(m_view, new KParts::GUIActivateEvent(true));
+        m_focelltool = dynamic_cast<FoCellTool *>(KoToolManager::instance()->toolById(((View*)m_view)->selection()->canvas(),CellTool_ID));
+        ((View *)m_view)->showTabBar(false);
+        ((View *)m_view)->setStyleSheet("* { color:white; } ");
+
+        //set the central widget. Note: The central widget for spreadsheet is m_view.
+        setCentralWidget(((View *)m_view));
+        setUpSpreadEditorToolBar();
+    } else if((m_type==Text) && ((!QString::compare(ext,EXT_ODT,Qt::CaseInsensitive)) ||
+                                (!QString::compare(ext,EXT_DOC,Qt::CaseInsensitive)) ||
+                                (!QString::compare(ext,EXT_DOCX,Qt::CaseInsensitive)))) {
+        m_kwview = qobject_cast<KWView *>(m_view);
+        m_editor = qobject_cast<KoTextEditor *>(m_kwview->canvasBase()->toolProxy()->selection());
+        m_ui->actionFormat->setVisible(true);
+        m_ui->actionEdit->setVisible(true);
+
+        //set the central widget here
+        setCentralWidget(m_controller);
+    } else if(m_type == Presentation) {
+        m_ui->actionFormat->setVisible(true);
+        m_ui->actionEdit->setVisible(true);
+        m_ui->actionSlidingMotion->setVisible(true);
+        //set the central widget here
+        setCentralWidget(m_controller);
+
+        //code related to the button previews
+        if(storeButtonPreview!=0) {
+            disconnect(storeButtonPreview,SIGNAL(gotoPage(int)),this,SLOT(gotoPage(int)));
+            delete storeButtonPreview;
+        }
+        storeButtonPreview=new StoreButtonPreview(m_doc,m_view);
+        connect(storeButtonPreview,SIGNAL(gotoPage(int)),this,SLOT(gotoPage(int)));
+    } else {
+        //condition required for plain text document that is opened.
+        setCentralWidget(m_controller);
+    }
+
+    setWindowTitle(QString("%1 - %2").arg(i18n("FreOffice"), fname));
+
+    m_controller->setProperty("FingerScrollable", true);
+
+    QTimer::singleShot(250, this, SLOT(updateUI()));
+
+    KoCanvasBase *canvas = m_controller->canvas();
+    connect(canvas->resourceManager(),
+            SIGNAL(resourceChanged(int, const QVariant &)),
+            this,
+            SLOT(resourceChanged(int, const QVariant &)));
+    connect(KoToolManager::instance(),
+            SIGNAL(changedTool(KoCanvasController*, int)),
+            SLOT(activeToolChanged(KoCanvasController*, int)));
+
+    setShowProgressIndicator(false);
+    m_isLoading = false;
+
+    if (m_splash && !this->isActiveWindow()) {
+        this->show();
+        m_splash->finish(m_controller);
+        m_splash = 0;
+   }
+
+   //This is a hack for the uppercase problem.
+   m_firstChar=true;
+
+   //When the user opens a new document it should open in the edit mode directly
+   if(isNewDocument) {
+       //This timer is required, otherwise a new spread sheet will
+       //have an unwanted widget in the view.
+       QTimer::singleShot(1,this,SLOT(editToolBar()));
+       if(m_type==Text) {
+           centralWidget()->setInputMethodHints(Qt::ImhNoAutoUppercase);
+       }
+   } else {
+       //activate the pan tool.
+       editToolBar(false);
+   }
+
+   m_ui->actionSearch->setChecked(false);
+   m_undostack = m_doc->undoStack();
+   if(m_type==Text && !isNewDocument){
+       digitalSignatureDialog=new DigitalSignatureDialog(this->m_fileName);
+        if(digitalSignatureDialog->verifySignature()){
+            QMenuBar* menu = menuBar();
+            menu->insertAction(m_ui->actionClose,m_ui->actionDigitalSignature);
+            connect(m_ui->actionDigitalSignature,SIGNAL(triggered()),this,SLOT(showDigitalSignatureInfo()));
+        }
+   }
+#ifdef Q_WS_MAEMO_5
+   if(m_type==Text)
+   {
+       /*
+        * intialising the rdf
+        */
+       KoStore::Backend backend = KoStore::Auto;
+       KoStore * store = KoStore::createStore(fileName, KoStore::Read, "", backend);
+
+       foDocumentRdf=new FoDocumentRdf(m_doc,m_editor);
+       if (!foDocumentRdf->loadOasis(store)) {
+           delete foDocumentRdf;
+           foDocumentRdf = 0;
+           return;
+       }
+       delete store;
+       rdfShortcut= new QShortcut(QKeySequence(("Ctrl+R")),this);
+       connect(rdfShortcut,SIGNAL(activated()),foDocumentRdf,SLOT(highlightRdf()));
+   }
+#endif
+}
 
 void MainWindow::closeDoc(bool isWindowClosed)
 {
@@ -1728,7 +2087,10 @@ void MainWindow::closeDoc(bool isWindowClosed)
 
     if(m_doc == 0) {
         if(!isWindowClosed) {
-            showMessage(InformationWithTimeoutMessage, i18n("Please close the window if you want to quit"));
+#ifdef Q_WS_MAEMO_5
+            QMaemo5InformationBox::information(0, i18n("Please close the window if you want to quit"),
+                                                       QMaemo5InformationBox::DefaultTimeout);
+#endif
         }
         return;
     }
@@ -2123,9 +2485,7 @@ void MainWindow::slideTransitionDialog(){
     m_slidingmotiondialog->m_select = gl_style ;
     m_slidingmotiondialog->m_time = gl_showtime / 1000;
     m_slidingmotiondialog->showDialog(this);
-#ifdef HAVE_OPENGL
     connect(m_slidingmotiondialog, SIGNAL(startglshow(int,int)), SLOT(glPresenterSet(int,int)));
-#endif
 #ifdef Q_WS_MAEMO_5
    connect(m_slidingmotiondialog->m_opengl, SIGNAL(clicked()),&acceleratorForScrolAndSlide,SLOT(startSlideSettings()));
    connect(m_slidingmotiondialog->m_acceleration,SIGNAL(clicked()),&acceleratorForScrolAndSlide,SLOT(startScrollSettings()));
@@ -2173,10 +2533,10 @@ void MainWindow::openFileDialog()
                        QDesktopServices::DocumentsLocation),
                    FILE_CHOOSER_FILTER);
 
-    if (!file.isEmpty() && !isFileSupported(file)) {
+    if (!file.isNull() && !checkFiletype(file)) {
         return;
     }
-    if (!file.isEmpty() && !m_isLoading) {
+    if (!file.isNull() && !m_isLoading) {
         m_fileName = file;
         QTimer::singleShot(100, this, SLOT(doOpenDocument()));
 #ifdef Q_WS_MAEMO_5
@@ -2379,7 +2739,31 @@ void MainWindow::raiseWindow(void)
 void MainWindow::doOpenDocument()
 {
     openDocument(m_fileName,false);
-    m_search->setText(QString());
+    m_search->setText("");
+}
+
+bool MainWindow::checkFiletype(const QString &fileName)
+{
+    bool ret = false;
+    QList<QString> extensions;
+
+    //Add Txt extension after adding ascii filter to koffice package
+    /*extensions << EXT_DOC << EXT_DOCX << EXT_ODT << EXT_TXT \*/
+    extensions << EXT_DOC << EXT_DOCX << EXT_ODT << EXT_TXT \
+    << EXT_PPT << EXT_PPTX << EXT_ODP << EXT_PPS << EXT_PPSX \
+    << EXT_ODS << EXT_XLS << EXT_XLSX;
+
+    QString ext = KMimeType::extractKnownExtension(fileName);
+
+    for (int i = 0; i < extensions.size(); i++) {
+        if (extensions.at(i) == ext)
+            ret = true;
+    }
+    if (!ret) {
+        NotifyDialog dialog(this);
+        dialog.exec();
+    }
+    return ret;
 }
 
 void MainWindow::updateUI()
@@ -2592,9 +2976,15 @@ void MainWindow::prevPage()
 
     if(m_currentPage == 1) {
         if(m_type == Presentation) {
-            showMessage(InformationWithTimeoutMessage, i18n("First slide reached"));
+#ifdef Q_WS_MAEMO_5
+            QMaemo5InformationBox::information(0, i18n("First slide reached"),
+                                                       QMaemo5InformationBox::DefaultTimeout);
+#endif
         } else if(m_type == Text) {
-            showMessage(InformationWithTimeoutMessage, i18n("First page reached"));
+#ifdef Q_WS_MAEMO_5
+            QMaemo5InformationBox::information(0, i18n("First page reached"),
+                                                       QMaemo5InformationBox::DefaultTimeout);
+#endif
         }
         return;
     }
@@ -2620,9 +3010,15 @@ void MainWindow::nextPage()
    }
    if(m_currentPage == m_doc->pageCount()) {
        if(m_type == Presentation) {
-           showMessage(InformationWithTimeoutMessage, i18n("Last slide reached"));
+#ifdef Q_WS_MAEMO_5
+           QMaemo5InformationBox::information(0, i18n("Last slide reached"),
+                                                      QMaemo5InformationBox::DefaultTimeout);
+#endif
        } else if(m_type == Text) {
-           showMessage(InformationWithTimeoutMessage, i18n("Last page reached"));
+#ifdef Q_WS_MAEMO_5
+           QMaemo5InformationBox::information(0, i18n("Last page reached"),
+                                                      QMaemo5InformationBox::DefaultTimeout);
+#endif
        }
       return;
    }
@@ -3182,6 +3578,16 @@ void MainWindow::activeToolChanged(KoCanvasControllerWidget* canvas, int)
     canvas->setProperty("FingerScrollable", true);
 }
 
+void MainWindow::setShowProgressIndicator(bool visible)
+{
+    unsigned long val = visible ? 1 : 0;
+    Atom atom = XInternAtom(QX11Info::display(),
+                            "_HILDON_WM_WINDOW_PROGRESS_INDICATOR", False);
+    XChangeProperty(QX11Info::display(), winId(), atom, XA_INTEGER,
+                    32, PropModeReplace,
+                    (unsigned char *) &val, 1);
+}
+
 //Function to check if application has been started by DBus
 void MainWindow::checkDBusActivation()
 {
@@ -3640,7 +4046,6 @@ void MainWindow::collabOpenFile(const QString &filename) {
 
 ///////////////////////////
 ///////////////////////////
-#ifdef HAVE_OPENGL
 void MainWindow::glPresenter()
 {
     if(m_type == Presentation){
@@ -3664,7 +4069,7 @@ void MainWindow::glPresenterSet(int a , int b)
     gl_showtime = b * 1000;
     gl_style = a;
 }
-#endif
+
 void MainWindow::showDigitalSignatureInfo()
 {
     if(digitalSignatureDialog){
@@ -3801,57 +4206,4 @@ void MainWindow::insertNewTable()
     KoPAView *m_kopaview = qobject_cast<KoPAView *>(m_view);
     m_kopaview->kopaCanvas()->toolProxy()->actions()["insert_table"]->trigger();
     }
-}
-
-// KoApplicationHelper implementation
-
-void MainWindow::showMessage(KoApplicationHelper::MessageType type, const QString& messageText)
-{
-    switch (type) {
-    case UnsupportedFileTypeMessage: {
-        NotifyDialog dialog(this);
-        dialog.exec();
-        break;
-    }
-    case InformationMessage:
-    case InformationWithTimeoutMessage: {
-#ifdef Q_WS_MAEMO_5
-        const int timeout = (type == InformationMessage) ? QMaemo5InformationBox::DefaultTimeout
-            : QMaemo5InformationBox::NoTimeout;
-        QMaemo5InformationBox::information(0, messageText, timeout);
-#else
-        QMessageBox msgBox;
-        msgBox.setText(messageText);
-        msgBox.exec();
-#endif
-        break;
-    }
-    default:
-        break;
-    }
-}
-
-void MainWindow::startNewInstance(const QString& fileName, bool isNewDocument)
-{
-    QStringList args;
-    args << fileName;
-    args << (isNewDocument ? "true" : "false");
-    QProcess::startDetached(FREOFFICE_APPLICATION_PATH, args);
-}
-
-void MainWindow::setProgressIndicatorVisible(bool visible)
-{
-    unsigned long val = visible ? 1 : 0;
-    Atom atom = XInternAtom(QX11Info::display(),
-                            "_HILDON_WM_WINDOW_PROGRESS_INDICATOR", False);
-    XChangeProperty(QX11Info::display(), winId(), atom, XA_INTEGER,
-                    32, PropModeReplace,
-                    (unsigned char *) &val, 1);
-}
-
-void MainWindow::showUiOnDocumentOpening()
-{
-    m_ui->viewToolBar->show();
-    m_ui->actionSlidingMotion->setVisible(false);
-    raiseWindow();
 }

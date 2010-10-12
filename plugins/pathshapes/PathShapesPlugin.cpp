@@ -34,11 +34,12 @@ K_EXPORT_COMPONENT_FACTORY(pathshapes,
 PathShapesPlugin::PathShapesPlugin(QObject *parent, const QStringList&)
     : QObject(parent)
 {
-    KoShapeRegistry::instance()->add(new StarShapeFactory(parent));
-    KoShapeRegistry::instance()->add(new RectangleShapeFactory(parent));
-    KoShapeRegistry::instance()->add(new EllipseShapeFactory(parent));
-    KoShapeRegistry::instance()->add(new SpiralShapeFactory(parent));
-    KoShapeRegistry::instance()->add(new EnhancedPathShapeFactory(parent));
+    KoShapeRegistry::instance()->add(new StarShapeFactory());
+    KoShapeRegistry::instance()->add(new RectangleShapeFactory());
+    KoShapeRegistry::instance()->add(new SpiralShapeFactory());
+    KoShapeRegistry::instance()->add(new EnhancedPathShapeFactory());
+    KoShapeRegistry::instance()->add(new EllipseShapeFactory());
+
 }
 
 #include <PathShapesPlugin.moc>

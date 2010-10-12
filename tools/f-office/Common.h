@@ -126,7 +126,7 @@ const QString NEW_SPREADSHEET("/usr/share/freoffice-templates/.templates/NewSpre
 /*!
 * extensions
 */
-static const QLatin1String EXT_PPS("pps");
+const QString EXT_PPS("pps");
 const QString EXT_PPSX("ppsx");
 const QString EXT_PPT("ppt");
 const QString EXT_PPTX("pptx");

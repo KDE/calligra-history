@@ -28,7 +28,6 @@ public:
     Private()
         : counterWidth(0),
         counterSpacing(0),
-        counterIsImage(false),
         counterIndex(1),
         border(0),
         paintStrategy(0)
@@ -44,7 +43,6 @@ public:
     qreal counterSpacing;
     QString counterText;
     QString partialCounterText;
-    bool counterIsImage;
     int counterIndex;
     QPointF counterPos;
     KoTextBlockBorderData *border;
@@ -64,7 +62,7 @@ KoTextBlockData::~KoTextBlockData()
 
 bool KoTextBlockData::hasCounterData() const
 {
-    return d->counterWidth >= 0 && (!d->counterText.isNull() || d->counterIsImage);
+    return d->counterWidth >= 0 && !d->counterText.isNull();
 }
 
 qreal KoTextBlockData::counterWidth() const
@@ -114,16 +112,6 @@ void KoTextBlockData::setPartialCounterText(const QString &text)
 QString KoTextBlockData::partialCounterText() const
 {
     return d->partialCounterText;
-}
-
-void KoTextBlockData::setCounterIsImage(bool isImage)
-{
-    d->counterIsImage = isImage;
-}
-
-bool KoTextBlockData::counterIsImage() const
-{
-    return d->counterIsImage;
 }
 
 void KoTextBlockData::setCounterIndex(int index)

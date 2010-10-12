@@ -36,8 +36,8 @@
 #include <QMimeData>
 #include <QBuffer>
 
-CollectionShapeFactory::CollectionShapeFactory(QObject *parent, const QString &id, KoShape* shape)
-    : KoShapeFactoryBase(parent, id, shape->name()), m_shape(shape)
+CollectionShapeFactory::CollectionShapeFactory(const QString &id, KoShape* shape)
+    : KoShapeFactoryBase(id, shape->name()), m_shape(shape)
 {
 }
 
@@ -65,11 +65,12 @@ KoShape *CollectionShapeFactory::createDefaultShape(KoResourceManager *documentR
     if ( !arr.isEmpty() ) {
         QBuffer buffer( &arr );
         KoStore * store = KoStore::createStore( &buffer, KoStore::Read );
-        KoOdfReadStore odfStore( store );
+        KoOdfReadStore odfStore( store ); // Note: KoDfReadstore will not delete the KoStore *store;
 
         QString errorMessage;
         if ( ! odfStore.loadAndParse( errorMessage ) ) {
             kError() << "loading and parsing failed:" << errorMessage << endl;
+            delete store;
             return 0;
         }
 
@@ -78,6 +79,7 @@ KoShape *CollectionShapeFactory::createDefaultShape(KoResourceManager *documentR
 
         if ( realBody.isNull() ) {
             kError() << "No body tag found!" << endl;
+            delete store;
             return 0;
         }
 
@@ -85,6 +87,7 @@ KoShape *CollectionShapeFactory::createDefaultShape(KoResourceManager *documentR
 
         if ( body.isNull() ) {
             kError() << "No" << KoOdf::bodyContentElement(KoOdf::Text, true ) << "tag found!" << endl;
+            delete store;
             return 0;
         }
 
@@ -98,9 +101,11 @@ KoShape *CollectionShapeFactory::createDefaultShape(KoResourceManager *documentR
             KoShape * shape = KoShapeRegistry::instance()->createShapeFromOdf( element, context );
             if ( shape ) {
                 delete data;
+                delete store;
                 return shape;
             }
         }
+        delete store;
     }
 
     delete data;

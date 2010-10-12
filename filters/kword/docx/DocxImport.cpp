@@ -291,63 +291,49 @@ KoFilter::ConversionStatus DocxImport::parseParts(KoOdfWriters *writers, MSOOXML
 
     // 4. parse numbering
     {
-        const QString numberingPathAndFile(relationships->targetForType(documentPath, documentFile,
+        const QString numberingPath(relationships->targetForType(documentPath, documentFile,
         QLatin1String(MSOOXML::Schemas::officeDocument::relationships) + "/numbering"));
+        kDebug() << "numberingPath:" << numberingPath;
         DocxXmlNumberingReader numberingReader(writers);
-        if (!numberingPathAndFile.isEmpty()) {
-            QString numberingPath, numberingFile;
-            MSOOXML::Utils::splitPathAndFile(numberingPathAndFile, &numberingPath, &numberingFile);
-            DocxXmlDocumentReaderContext context(*this, numberingPath, numberingFile, *relationships, &themes);
-
+        if (!numberingPath.isEmpty()) {
             RETURN_IF_ERROR( loadAndParseDocumentFromFileIfExists(
-                numberingPathAndFile, &numberingReader, writers, errorMessage, &context) )
+                numberingPath, &numberingReader, writers, errorMessage) )
         }
     }
 
     // 5. parse footnotes
     {
-        const QString footnotePathAndFile(relationships->targetForType(documentPath, documentFile,
+        const QString footnotePath(relationships->targetForType(documentPath, documentFile,
         QLatin1String(MSOOXML::Schemas::officeDocument::relationships) + "/footnotes"));
         //! @todo use m_contentTypes.values() when multiple paths are expected, e.g. for ContentTypes::wordHeader
+        DocxXmlDocumentReaderContext context(
+            *this, documentPath, documentFile, *relationships, &themes);
         DocxXmlFootnoteReader footnoteReader(writers);
-        if (!footnotePathAndFile.isEmpty()) {
-            QString footnotePath, footnoteFile;
-            MSOOXML::Utils::splitPathAndFile(footnotePathAndFile, &footnotePath, &footnoteFile);
-            DocxXmlDocumentReaderContext context(*this, footnotePath, footnoteFile, *relationships, &themes);
-
+        if (!footnotePath.isEmpty()) {
             RETURN_IF_ERROR( loadAndParseDocumentFromFileIfExists(
-                footnotePathAndFile, &footnoteReader, writers, errorMessage, &context) )
+                footnotePath, &footnoteReader, writers, errorMessage, &context) )
         }
 
     // 6. parse comments
-        const QString commentPathAndFile(relationships->targetForType(documentPath, documentFile,
+        const QString commentPath(relationships->targetForType(documentPath, documentFile,
         QLatin1String(MSOOXML::Schemas::officeDocument::relationships) + "/comments"));
         DocxXmlCommentReader commentReader(writers);
-        if (!commentPathAndFile.isEmpty()) {
-            QString commentPath, commentFile;
-            MSOOXML::Utils::splitPathAndFile(commentPathAndFile, &commentPath, &commentFile);
-            DocxXmlDocumentReaderContext context(*this, commentPath, commentFile, *relationships, &themes);
-
+        if (!commentPath.isEmpty()) {
             RETURN_IF_ERROR( loadAndParseDocumentFromFileIfExists(
-                commentPathAndFile, &commentReader, writers, errorMessage, &context) )
+                commentPath, &commentReader, writers, errorMessage, &context) )
         }
 
     // 7. parse endnotes
-        const QString endnotePathAndFile(relationships->targetForType(documentPath, documentFile,
+        const QString endnotePath(relationships->targetForType(documentPath, documentFile,
         QLatin1String(MSOOXML::Schemas::officeDocument::relationships) + "/endnotes"));
         DocxXmlEndnoteReader endnoteReader(writers);
-        if (!endnotePathAndFile.isEmpty()) {
-            QString endnotePath, endnoteFile;
-            MSOOXML::Utils::splitPathAndFile(endnotePathAndFile, &endnotePath, &endnoteFile);
-            DocxXmlDocumentReaderContext context(*this, endnotePath, endnoteFile, *relationships, &themes);
-
+        if (!endnotePath.isEmpty()) {
             RETURN_IF_ERROR( loadAndParseDocumentFromFileIfExists(
-                endnotePathAndFile, &endnoteReader, writers, errorMessage, &context) )
+                endnotePath, &endnoteReader, writers, errorMessage, &context) )
         }
 
     // 8. parse document
         DocxXmlDocumentReader documentReader(writers);
-        DocxXmlDocumentReaderContext context(*this, documentPath, documentFile, *relationships, &themes);
         RETURN_IF_ERROR( loadAndParseDocument(
             d->mainDocumentContentType(), &documentReader, writers, errorMessage, &context) )
     }

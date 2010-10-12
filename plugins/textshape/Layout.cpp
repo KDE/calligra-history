@@ -3,7 +3,7 @@
  * Copyright (C) 2008 Thorsten Zachmann <zachmann@kde.org>
  * Copyright (C) 2008 Girish Ramakrishnan <girish@forwardbias.in>
  * Copyright (C) 2008 Roopesh Chander <roop@forwardbias.in>
- * Copyright (C) 2009 KO GmbH <cbo@kogmbh.com>
+ * Copyright (C) 2009-2010 KO GmbH <cbo@kogmbh.com>
  * Copyright (C) 2009-2010 Casper Boemann <cbo@boemann.dk>
  *
  * This library is free software; you can redistribute it and/or
@@ -83,7 +83,9 @@ Layout::Layout(KoTextDocumentLayout *parent)
         m_y_justBelowDropCaps(0),
         m_dropCapsPositionAdjust(0),
         m_restartingAfterTableBreak(false),
-        m_restartingFirstCellAfterTableBreak(false)
+        m_restartingFirstCellAfterTableBreak(false),
+        m_allTimeMinimumLeft(0),
+        m_maxLineHeight(0)
 {
     m_frameStack.reserve(5); // avoid reallocs
     setTabSpacing(MM_TO_POINT(15));
@@ -132,7 +134,7 @@ qreal Layout::width()
         ptWidth -= m_blockData->counterWidth() + m_blockData->counterSpacing();
     ptWidth -= m_format.leftMargin() + m_format.rightMargin();
     ptWidth -= m_borderInsets.left + m_borderInsets.right + m_shapeBorder.right;
-    if (m_block.layout()->lineCount() > 1)
+    if (m_dropCapsNChars == 0)
         ptWidth -= m_dropCapsAffectedLineWidthAdjust;
     return ptWidth;
 }
@@ -140,13 +142,15 @@ qreal Layout::width()
 qreal Layout::x()
 {
     qreal result = m_newParag ? resolveTextIndent() : 0.0;
+    result += m_isRtl ? m_format.rightMargin() : (m_format.leftMargin() + listIndent());
+    result += m_borderInsets.left + m_shapeBorder.left;
+//    if (m_block.layout()->lineCount() > 1)
+    if (m_dropCapsNChars == 0)
+        result += m_dropCapsAffectedLineWidthAdjust;
+    m_allTimeMinimumLeft = qMin(m_allTimeMinimumLeft, result);
     if (m_inTable) {
         result += m_tableLayout.cellContentRect(m_tableCell).x();
     }
-    result += m_isRtl ? m_format.rightMargin() : (m_format.leftMargin() + listIndent());
-    result += m_borderInsets.left + m_shapeBorder.left;
-    if (m_block.layout()->lineCount() > 1)
-        result += m_dropCapsAffectedLineWidthAdjust;
     return result;
 }
 
@@ -173,7 +177,20 @@ qreal Layout::docOffsetInShape() const
     return m_data->documentOffset();
 }
 
-bool Layout::addLine(QTextLine &line)
+QRectF Layout::expandVisibleRect(const QRectF &rect) const
+{
+    return rect.adjusted(m_allTimeMinimumLeft, 0.0, 50.0, 0.0);
+}
+
+//local type for temporary use in addLine
+struct LineKeeper
+{
+    int columns;
+    qreal lineWidth;
+    QPointF position;
+};
+
+bool Layout::addLine(QTextLine &line, bool processingLine)
 {
     if (m_blockData && m_block.textList() && m_block.layout()->lineCount() == 1) {
         // first line, lets check where the line ended up and adjust the positioning of the counter.
@@ -253,10 +270,9 @@ bool Layout::addLine(QTextLine &line)
             && m_parent->resizeMethod() == KoTextDocument::NoResize
             // line does not fit.
             && m_data->documentOffset() + shape->size().height() - footnoteHeight
-              < m_y + line.height() + m_shapeBorder.bottom
+              < line.y() + line.height() + m_shapeBorder.bottom
             // but make sure we don't leave the shape empty.
             && m_block.position() + line.textStart() > m_data->position()) {
-
         if (oldFootnoteDocLength >= 0) {
             QTextCursor cursor(m_textShape->footnoteDocument());
             cursor.setPosition(oldFootnoteDocLength);
@@ -266,14 +282,37 @@ bool Layout::addLine(QTextLine &line)
 
         m_data->setEndPosition(m_block.position() + line.textStart() - 1);
 
-        bool ignoreParagraph = false;
+        bool entireParagraphMoved = false;
         if (! m_newParag && m_format.nonBreakableLines()) { // then revert layouting of parag
             // TODO check height of parag so far; and if it does not fit in the rest of the shapes, just continue.
             m_data->setEndPosition(m_block.position() - 1);
             m_block.layout()->endLayout();
             m_block.layout()->beginLayout();
-            line = m_block.layout()->createLine();
-            ignoreParagraph = true;
+            line = m_block.layout()->createLine(); //TODO should probably not create this line
+            entireParagraphMoved = true;
+        } else {
+            // unfortunately we can't undo a single line, so we undo entire paragraph
+            // and redo all previous lines
+            QList<LineKeeper> lineKeeps;
+            m_block.layout()->endLayout();
+            for(int i = 0; i < m_block.layout()->lineCount()-1; i++) {
+                QTextLine l = m_block.layout()->lineAt(i);
+                LineKeeper lk;
+                lk.lineWidth = l.width();
+                lk.columns = l.textLength();
+                lk.position = l.position();
+                lineKeeps.append(lk);
+            }
+            m_block.layout()->clearLayout();
+            m_block.layout()->beginLayout();
+            foreach(const LineKeeper &lk, lineKeeps) {
+                line = m_block.layout()->createLine();
+                line.setNumColumns(lk.columns, lk.lineWidth);
+                line.setPosition(lk.position);
+            }
+            if(lineKeeps.isEmpty()) {
+                entireParagraphMoved = true;
+            }
         }
         if (m_data->endPosition() == -1) // no text at all fit in the shape!
             m_data->setEndPosition(m_data->position());
@@ -282,7 +321,7 @@ bool Layout::addLine(QTextLine &line)
             m_textShape->markLayoutDone();
         nextShape();
         if (m_data)
-            m_data->setPosition(m_block.position() + (ignoreParagraph ? 0 : line.textStart()));
+            m_data->setPosition(m_block.position() + (entireParagraphMoved ? 0 : line.textStart()));
 
         // the demo-text feature means we have exactly the same amount of text as we have frame-space
         if (m_demoText)
@@ -302,14 +341,19 @@ bool Layout::addLine(QTextLine &line)
         }
         height = qMax(height, objectHeight) + linespacing;
     }
-
     qreal minimum = m_format.doubleProperty(KoParagraphStyle::MinimumLineHeight);
     if (minimum > 0.0)
         height = qMax(height, minimum);
-    if (qAbs(m_y - line.y()) < 0.126) // rounding problems due to Qt-scribe internally using ints.
-        m_y += height;
-    else
-        m_y = line.y() + height; // The line got a pos <> from y(), follow that lead.
+    //rounding problems due to Qt-scribe internally using ints.
+    //also used when line was moved down because of intersections with other shapes
+    if (qAbs(m_y - line.y()) >= 0.126) {
+        m_y = line.y();
+    }
+    m_maxLineHeight = qMax(m_maxLineHeight, height);
+    if (! processingLine) {
+        m_y += m_maxLineHeight;
+        m_maxLineHeight = 0;
+    }
     m_newShape = false;
     m_newParag = false;
 
@@ -462,7 +506,6 @@ bool Layout::nextParag()
         m_blockData->setCounterText(QString());
         m_blockData->setCounterSpacing(0.0);
         m_blockData->setCounterWidth(0.0);
-        m_blockData->setCounterIsImage(false);
     }
 
     bool pagebreak = m_format.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore;
@@ -505,7 +548,7 @@ bool Layout::nextParag()
             KoText::Tab koTab = tv.value<KoText::Tab>();
             QTextOption::Tab tab;
 
-            // convertion here is required because Qt thinks in device units and we don't
+            // conversion here is required because Qt thinks in device units and we don't
             tab.position = (koTab.position - tabOffset) * qt_defaultDpiY() / 72.;
             tab.type = koTab.type;
             tab.delimiter = koTab.delimiter;
@@ -582,9 +625,7 @@ bool Layout::nextParag()
         KoCharacterStyle *dropCapsCharStyle = 0;
         if (dropCapsStyleId > 0 && m_styleManager) {
             dropCapsCharStyle = m_styleManager->characterStyle(dropCapsStyleId);
-            if (dropCapsCharStyle) {
-                dropCapsCharStyle->applyStyle(dropCapsFormatRange.format);
-            }
+            dropCapsCharStyle->applyStyle(dropCapsFormatRange.format);
         }
         QFont f(dropCapsFormatRange.format.font(), m_parent->paintDevice());
         QString dropCapsText(m_block.text().left(dropCapsLength));
@@ -1722,7 +1763,6 @@ void Layout::drawListItem(QPainter *painter, const QTextBlock &block, KoImageCol
         if (! data->counterText().isEmpty()) {
             QFont font(cf.font(), m_parent->paintDevice());
             QTextLayout layout(data->counterText(), font, m_parent->paintDevice());
-            layout.setCacheEnabled(true);
             QList<QTextLayout::FormatRange> layouts;
             QTextLayout::FormatRange format;
             format.start = 0;
@@ -2046,7 +2086,7 @@ void Layout::updateFrameStack()
     for (int i = changedFrameFrom ; i < m_frameStack.count(); ++i) {
         QTextFrame *frame = m_frameStack.at(i);
         QTextFrameFormat ff = frame->frameFormat();
-        if (false && ff.hasProperty(KoText::TableOfContents) && ff.property(KoText::TableOfContents).toBool() == true) {
+        if (ff.hasProperty(KoText::TableOfContents) && ff.property(KoText::TableOfContents).toBool() == true) {
             // this frame is a TOC
             bool found = false;
             QList<QWeakPointer<ToCGenerator> >::Iterator iter = m_tocGenerators.begin();

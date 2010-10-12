@@ -435,7 +435,6 @@ namespace defines the contents of a DrawingML diagram.
 */
 KoFilter::ConversionStatus XlsxXmlDrawingReader::read_diagram()
 {
-#if 0
     const QXmlStreamAttributes attrs(attributes());
 
     TRY_READ_ATTR_WITH_NS(r, cs) // colors
@@ -451,28 +450,26 @@ KoFilter::ConversionStatus XlsxXmlDrawingReader::read_diagram()
     //kDebug()<<"colorsfile="<<colorsfile<<"datafile="<<datafile<<"layoutfile="<<layoutfile<<"quickstylefile="<<quickstylefile;
 
     //KoStore* storeout = m_context->import->outputStore();
-    MSOOXML::MsooXmlDiagramReaderContext* context = new MSOOXML::MsooXmlDiagramReaderContext(mainStyles);
+    QScopedPointer<MSOOXML::MsooXmlDiagramReaderContext> context(new MSOOXML::MsooXmlDiagramReaderContext(mainStyles));
 
     // first read the data-model
     MSOOXML::MsooXmlDiagramReader dataReader(this);
-    const KoFilter::ConversionStatus dataReaderResult = m_context->import->loadAndParseDocument(&dataReader, datafile, context);
+    const KoFilter::ConversionStatus dataReaderResult = m_context->import->loadAndParseDocument(&dataReader, datafile, context.data());
     if (dataReaderResult != KoFilter::OK) {
        raiseError(dataReader.errorString());
-       delete context;
        return dataReaderResult;
     }
     
     // then read the layout definition
     MSOOXML::MsooXmlDiagramReader layoutReader(this);
-    const KoFilter::ConversionStatus layoutReaderResult = m_context->import->loadAndParseDocument(&layoutReader, layoutfile, context);
+    const KoFilter::ConversionStatus layoutReaderResult = m_context->import->loadAndParseDocument(&layoutReader, layoutfile, context.data());
     if (layoutReaderResult != KoFilter::OK) {
        raiseError(layoutReader.errorString());
-       delete context;
        return layoutReaderResult;
     }
     
-    m_context->diagrams << context;
-#endif
+    m_currentDrawingObject->setDiagram(context.take());
+
     return KoFilter::OK;
 }
 

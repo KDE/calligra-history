@@ -17,7 +17,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "kis_linear_curve_widget.h"
+#include "kis_line_curve_widget.h"
 
 #include <QPainter>
 #include <QPainterPath>

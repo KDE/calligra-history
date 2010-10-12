@@ -50,10 +50,13 @@ KWFrame::KWFrame(KoShape *shape, KWFrameSet *parent, int pageNumber)
 
 KWFrame::~KWFrame()
 {
+    KoShape *ourShape = m_shape;
     m_shape = 0; // no delete is needed as the shape deletes us.
     if (m_frameSet) {
         bool justMe = m_frameSet->frameCount() == 1;
-        m_frameSet->removeFrame(this); // first remove me so we won't get double deleted.
+        m_frameSet->removeFrame(this, ourShape); // first remove me so we won't get double
+                                                 // deleted. ourShape is needed to mark any
+                                                 // copyShapes as retired
         if (justMe)
             delete m_frameSet;
         m_frameSet = 0;
@@ -61,9 +64,10 @@ KWFrame::~KWFrame()
     delete m_outline;
 }
 
-void KWFrame::setTextRunAround(KWord::TextRunAround runAround)
+void KWFrame::setTextRunAround(KWord::TextRunAround runAround, KWord::Through runThrought)
 {
     m_runAround = runAround;
+    m_runThrough = runThrought;
 }
 
 void KWFrame::setFrameSet(KWFrameSet *fs)

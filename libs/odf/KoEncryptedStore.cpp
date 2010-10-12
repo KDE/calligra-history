@@ -301,7 +301,6 @@ bool KoEncryptedStore::init(Mode mode, const QByteArray & appIdentification)
             KMessage::message(KMessage::Error, i18n("QCA has currently no support for SHA1 or PBKDF2 using SHA1. The document can not be opened."));
         }
     }
-
     return d->good;
 }
 
@@ -593,8 +592,9 @@ bool KoEncryptedStore::openRead(const QString& name)
         d->stream = resultDevice;
         d->size = encData.filesize;
     }
-    d->stream->open(QIODevice::ReadOnly);
-
+    if (!d->stream->isOpen()) {
+        d->stream->open(QIODevice::ReadOnly);
+    }
     return true;
 }
 

@@ -19,9 +19,7 @@
 */
 
 #include "KPrPageEffectRunner.h"
-#ifdef HAVE_OPENGL
 #include <QGLFormat>
-#endif
 #include <QGraphicsScene>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsView>
@@ -58,7 +56,6 @@ KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap 
         m_data.m_graphicsView->setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
 
         // If computer support openGL
-#ifdef HAVE_OPENGL
         if (QGLFormat::hasOpenGL()) {
             m_data.m_graphicsView->setRenderHints(QPainter::SmoothPixmapTransform);
             m_data.m_graphicsView->setRenderHints(QPainter::Antialiasing);
@@ -67,7 +64,6 @@ KPrPageEffectRunner::KPrPageEffectRunner( const QPixmap &oldPage, const QPixmap 
             openGLWidget->format().setSwapInterval(0);
             m_data.m_graphicsView->setViewport(openGLWidget);
         }
-#endif
     }
     m_effect->setup( m_data, m_data.m_timeLine );
 }

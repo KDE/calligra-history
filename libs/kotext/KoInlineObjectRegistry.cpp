@@ -109,6 +109,8 @@ KoInlineObject *KoInlineObjectRegistry::createFromOdf(const KoXmlElement &elemen
 
 KoInlineObjectRegistry::~KoInlineObjectRegistry()
 {
+    qDeleteAll(doubleEntries());
+    qDeleteAll(values());
     delete d;
 }
 
@@ -116,5 +118,3 @@ KoInlineObjectRegistry::KoInlineObjectRegistry()
         : d(new Private())
 {
 }
-
-#include <KoInlineObjectRegistry.moc>

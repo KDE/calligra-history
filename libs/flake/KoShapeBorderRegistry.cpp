@@ -20,6 +20,7 @@
 #include <KoPluginLoader.h>
 
 #include <KGlobal>
+#include <KDebug>
 
 KoShapeBorderRegistry::KoShapeBorderRegistry()
 {
@@ -41,6 +42,8 @@ void KoShapeBorderRegistry::init()
 
 KoShapeBorderRegistry::~KoShapeBorderRegistry()
 {
+    qDeleteAll(doubleEntries());
+    qDeleteAll(values());
 }
 
 KoShapeBorderRegistry* KoShapeBorderRegistry::instance()
@@ -51,5 +54,3 @@ KoShapeBorderRegistry* KoShapeBorderRegistry::instance()
     }
     return s_instance;
 }
-
-#include <KoShapeBorderRegistry.moc>

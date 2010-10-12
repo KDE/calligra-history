@@ -49,7 +49,6 @@
 #include <KDChartLegend>
 #include <KDChartCartesianAxis>
 #include <KDChartCartesianCoordinatePlane>
-#include <KDChartRadarCoordinatePlane>
 #include <KDChartGridAttributes>
 #include <KDChartBarDiagram>
 #include <KDChartLineDiagram>
@@ -58,7 +57,6 @@
 #include <KDChartStockDiagram>
 #include <KDChartRingDiagram>
 #include <KDChartPolarDiagram>
-#include <KDChartRadarDiagram>
 #include <KDChartBarAttributes>
 #include <KDChartPieAttributes>
 #include <KDChartThreeDBarAttributes>
@@ -142,15 +140,13 @@ public:
     KDChart::CartesianAxis            *kdAxis;
     KDChart::CartesianCoordinatePlane *kdPlane;
     KDChart::PolarCoordinatePlane     *kdPolarPlane;
-    KDChart::RadarCoordinatePlane     *kdRadarPlane;
 
     KDChart::BarDiagram   *kdBarDiagram;
     KDChart::LineDiagram  *kdLineDiagram;
     KDChart::LineDiagram  *kdAreaDiagram;
     KDChart::PieDiagram   *kdCircleDiagram;
     KDChart::RingDiagram  *kdRingDiagram;
-    KDChart::PolarDiagram *kdPolarDiagram;
-    KDChart::RadarDiagram *kdRadarDiagram;
+    KDChart::PolarDiagram *kdRadarDiagram;
     KDChart::Plotter      *kdScatterDiagram;
     KDChart::StockDiagram *kdStockDiagram;
     KDChart::Plotter      *kdBubbleDiagram;
@@ -255,7 +251,6 @@ Axis::Private::~Private()
 
     delete kdPlane;
     delete kdPolarPlane;
-    delete kdRadarPlane;
 
     delete kdBarDiagram;
     delete kdBarDiagramModel;
@@ -406,15 +401,6 @@ KDChart::AbstractDiagram *Axis::Private::createDiagramIfNeeded( ChartType chartT
     }
 
     // FIXME: What's this supposed to do?
-    // seems the idea was to be sure that we always set the diagram's model even for the case
-    // one of the create*Diagram-methods didn't do that already. This is a bit redundant and
-    // we could probably save some code/logic here but either removing all the setModel()'s
-    // from the create*Diagram-methods (well, if this method is the only one who's able to call
-    // them?) xor remove the following lines and assume that this was done by the create*Diagram-
-    // methods already.
-    // NOTE that each setModel call does lead to lot of stuff done in the backend what is the
-    // reason the additional diagram->model()!=model was added to be sure we don't do that
-    // additional work if not really needed.
     if(diagram && diagram->model() != model)
         diagram->setModel( model );
 
@@ -731,7 +717,7 @@ void Axis::Private::createRadarDiagram()
     //kdRadarDiagramModel->setDataDimensions( 2 );
     //kdRadarDiagramModel->setDataDirection( Qt::Horizontal );
 
-    kdRadarDiagram = new KDChart::RadarDiagram( plotArea->kdChart(), kdRadarPlane );
+    kdRadarDiagram = new KDChart::PolarDiagram( plotArea->kdChart(), kdPolarPlane );
     kdRadarDiagram->setModel( kdRadarDiagramModel );
     kdRadarDiagram->setCloseDatasets(true);
     registerDiagram( kdRadarDiagram );
@@ -743,10 +729,11 @@ void Axis::Private::createRadarDiagram()
         kdRadarDiagram->setType( KDChart::PolarDiagram::Percent );
 #endif
     plotArea->parent()->legend()->kdLegend()->addDiagram( kdRadarDiagram );
-    kdRadarPlane->addDiagram( kdRadarDiagram );
+    kdPolarPlane->addDiagram( kdRadarDiagram );
+    //kdPolarPlane->resetGridAttributes( false );
 
-    if ( !plotArea->kdChart()->coordinatePlanes().contains( kdRadarPlane ) )
-        plotArea->kdChart()->addCoordinatePlane( kdRadarPlane );
+    if ( !plotArea->kdChart()->coordinatePlanes().contains( kdPolarPlane ) )
+        plotArea->kdChart()->addCoordinatePlane( kdPolarPlane );
 }
 
 void Axis::Private::createScatterDiagram()
@@ -958,7 +945,6 @@ Axis::Axis( PlotArea *parent )
     d->kdAxis->setBackgroundAttributes( batt );
     d->kdPlane      = new KDChart::CartesianCoordinatePlane();
     d->kdPolarPlane = new KDChart::PolarCoordinatePlane();
-    d->kdRadarPlane = new KDChart::RadarCoordinatePlane();
     
     //disable non circular axis
     KDChart::GridAttributes gridAttributesNonCircular = d->kdPolarPlane->gridAttributes( false );
@@ -981,7 +967,6 @@ Axis::Axis( PlotArea *parent )
     gridAttributes = d->kdPolarPlane->gridAttributes( true );
     gridAttributes.setGridVisible( false );
     d->kdPolarPlane->setGridAttributes( true, gridAttributes );
-    // FIXME d->kdRadarPlane->setGridAttributes( gridAttributes );
     
 //     gridAttributes = d->kdPolarPlane->gridAttributes( plotArea()->chartType() != RadarChartType );
 //     gridAttributes.setGridVisible( false );
@@ -1050,12 +1035,10 @@ void Axis::setDimension( AxisDimension dimension )
     if ( dimension == ZAxisDimension ) {
         d->kdPolarPlane->setReferenceCoordinatePlane( 0 );
         d->kdPlane->setReferenceCoordinatePlane( 0 );
-        d->kdRadarPlane->setReferenceCoordinatePlane( 0 );
         d->title->setVisible( false );
     } else {
         d->kdPolarPlane->setReferenceCoordinatePlane( d->plotArea->kdPlane() );
         d->kdPlane->setReferenceCoordinatePlane( d->plotArea->kdPlane() );
-        d->kdRadarPlane->setReferenceCoordinatePlane( d->plotArea->kdPlane() );
     }
 
     requestRepaint();
@@ -1612,21 +1595,6 @@ bool Axis::loadOdf( const KoXmlElement &axisElement, KoShapeLoadingContext &cont
 //         d->kdPolarPlane->setGridAttributes( false, gridAttr );
 //     else
     d->kdPolarPlane->setGridAttributes( true, gridAttr );
-    
-    gridAttr = d->kdRadarPlane->globalGridAttributes();
-    gridAttr.setGridVisible( d->showMajorGrid );
-    gridAttr.setSubGridVisible( d->showMinorGrid );
-    if ( gridPen.style() != Qt::NoPen )
-        gridAttr.setGridPen( gridPen );
-    if ( subGridPen.style() != Qt::NoPen )
-        gridAttr.setSubGridPen( subGridPen );
-    d->kdRadarPlane->setGlobalGridAttributes( gridAttr );
-    KDChart::TextAttributes ta( d->kdRadarPlane->textAttributes() );
-    ta.setVisible( true );
-    ta.setFont( font() );
-    ta.setFontSize( 50 );
-    d->kdRadarPlane->setTextAttributes( ta );
-
 
     if ( !loadOdfChartSubtypeProperties( axisElement, context ) )
         return false;
@@ -1856,8 +1824,6 @@ void Axis::plotAreaChartTypeChanged( ChartType newChartType )
     else if ( isPolar( d->plotAreaChartType ) && isCartesian( newChartType ) ) {
         if ( d->plotArea->kdChart()->coordinatePlanes().contains( d->kdPolarPlane ) )
             d->plotArea->kdChart()->takeCoordinatePlane( d->kdPolarPlane );
-        else if ( d->plotArea->kdChart()->coordinatePlanes().contains( d->kdRadarPlane ) )
-            d->plotArea->kdChart()->takeCoordinatePlane( d->kdRadarPlane );
     }
 
     // Get pointers to the new model and diagrams.  Create the new
@@ -2177,7 +2143,6 @@ void Axis::layoutPlanes()
 {
     d->kdPlane->layoutPlanes();
     d->kdPolarPlane->layoutPlanes();
-    d->kdRadarPlane->layoutPlanes();
 }
 
 void Axis::setGapBetweenBars( int percent )

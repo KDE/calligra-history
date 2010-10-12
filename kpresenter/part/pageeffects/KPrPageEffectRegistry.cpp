@@ -90,10 +90,8 @@ KPrPageEffectRegistry::KPrPageEffectRegistry()
 
 KPrPageEffectRegistry::~KPrPageEffectRegistry()
 {
-    foreach ( KPrPageEffectFactory* factory, values() )
-    {
-        delete factory;
-    }
+    qDeleteAll(doubleEntries());
+    qDeleteAll(values());
     delete d;
 }
 
