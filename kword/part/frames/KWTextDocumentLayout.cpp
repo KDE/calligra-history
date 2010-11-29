@@ -653,7 +653,7 @@ void KWTextDocumentLayout::layout()
                 // sure that a line like this always have height so infinite that it
                 // doesn't happen.
                 const int cursorPosition = m_state->cursorPosition();
-                if (cursorPosition == startOfBlockText && strategy->anchor()->positionInDocument() == cursorPosition && !strategy->anchor()->isPositionedInline()) {
+                if (cursorPosition == startOfBlockText && strategy->anchor()->positionInDocument() == cursorPosition && !strategy->anchor()->behavesAsCharacter()) {
                     ADEBUG << "   creating line for anchor";
                     QTextLine line = m_state->layout->createLine();
                     line.setNumColumns(1);

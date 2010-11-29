@@ -95,8 +95,12 @@ private:
     int m_lastknownPosInDoc;
 
     QPointF m_lastOffset;
-    KoTextAnchor::AnchorVertical m_lastVerticalAnchorAlignment;
-    KoTextAnchor::AnchorHorizontal m_lastHorizontalAnchorAlignment;
+//    KoTextAnchor::AnchorVertical m_lastVerticalAnchorAlignment;
+//    KoTextAnchor::AnchorHorizontal m_lastHorizontalAnchorAlignment;
+    KoTextAnchor::VerticalPos m_lastVerticalPos;
+    KoTextAnchor::VerticalRel m_lastVerticalRel;
+    KoTextAnchor::HorizontalPos m_lastHorizontalPos;
+    KoTextAnchor::HorizontalRel m_lastHorizontalRel;
 };
 
 #endif
