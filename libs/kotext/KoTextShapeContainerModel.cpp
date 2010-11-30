@@ -211,6 +211,7 @@ void KoTextShapeContainerModel::proposeMove(KoShape *child, QPointF &move)
             relation.anchor->setOffset(QPointF(relation.anchor->offset().x(), -y));
         }
     } else {
+        //TODO pavolk: handle position type change: absolute to realtive, etc ..
         child->setPosition(newPosition);
         relation.anchor->setOffset(relation.anchor->offset() + move);
     }
