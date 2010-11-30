@@ -212,6 +212,7 @@ void KoTextShapeContainerModel::proposeMove(KoShape *child, QPointF &move)
         }
     } else {
         child->setPosition(newPosition);
+        relation.anchor->setOffset(relation.anchor->offset() + move);
     }
 
     move.setX(0); // let the text layout move it.
