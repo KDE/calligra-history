@@ -526,8 +526,8 @@ bool KoTextAnchor::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &c
     shape()->setPosition(d->distance);
 
     if (element.hasAttributeNS(KoXmlNS::koffice, "anchor-type")) {
-        d->anchorType = element.attributeNS(KoXmlNS::koffice, "anchor-type"); // our enriched properties
-        QStringList types = d->anchorType.split('|');
+        QString anchorType = element.attributeNS(KoXmlNS::koffice, "anchor-type"); // our enriched properties
+        QStringList types = anchorType.split('|');
         if (types.count() > 1) {
             QString vertical = types[0];
             QString horizontal = types[1];
