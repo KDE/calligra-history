@@ -37,8 +37,6 @@ KWAnchorStrategy::KWAnchorStrategy(KoTextAnchor *anchor)
         m_currentLineY(0),
         m_pass(0),
         m_lastknownPosInDoc(-1),
-//        m_lastVerticalAnchorAlignment(KoTextAnchor::TopOfFrame),
-//        m_lastHorizontalAnchorAlignment(KoTextAnchor::Left)
         m_lastVerticalPos(KoTextAnchor::VTop),
         m_lastVerticalRel(KoTextAnchor::VParagraph),
         m_lastHorizontalPos(KoTextAnchor::HLeft),
@@ -116,7 +114,7 @@ qDebug() << "checkState knowledgepoint"<<m_knowledgePoint;
     QRectF containerBoundingRect = m_anchor->shape()->parent()->boundingRect();
     QRectF anchorBoundingRect;
     QPointF newPosition;
-qDebug() << "checkState HERE";
+qDebug() << "checkState HERE"<<m_anchor->horizontalRel();
 
     // set anchor bounding rectangle horizontal position and size
     switch (m_anchor->horizontalRel()) {
@@ -138,6 +136,7 @@ qDebug() << "checkState HERE";
         break;
 
     case KoTextAnchor::HChar:
+qDebug() << "are we HERE";
         if (m_anchor->positionInDocument() == block.position()) { // at first position of parag.
             anchorBoundingRect.setX(state->x() + containerBoundingRect.x());
             anchorBoundingRect.setWidth(0.1); // just some small value
@@ -146,6 +145,7 @@ qDebug() << "checkState HERE";
             QTextLine tl = layout->lineForTextPosition(m_anchor->positionInDocument() - block.position());
             Q_ASSERT(tl.isValid());
             anchorBoundingRect.setX(tl.cursorToX(m_anchor->positionInDocument() - block.position()) + containerBoundingRect.x());
+            anchorBoundingRect.setWidth(0.1); // just some small value
             recalcFrom = 0;
         }
         break;
@@ -194,9 +194,13 @@ qDebug() << "checkState 1"<<anchorBoundingRect;
             anchorBoundingRect.setY(top + containerBoundingRect.y()  - data->documentOffset());
             anchorBoundingRect.setHeight(tl.y() + tl.height() - top);
             recalcFrom = qMax(recalcFrom, block.position());
+        } else {
+            m_finished = false;
+            return false; // lets go for a second round.
         }
         break;
 
+    case KoTextAnchor::VChar:
     case KoTextAnchor::VLine:
         if (layout->lineCount()) {
             Q_ASSERT(layout->lineCount());
@@ -204,10 +208,6 @@ qDebug() << "checkState 1"<<anchorBoundingRect;
             Q_ASSERT(tl.isValid());
             anchorBoundingRect.setY(tl.y() + containerBoundingRect.y() - data->documentOffset());
             anchorBoundingRect.setHeight(tl.height());
-        }
-        else if (block.length() == 2) {
-            // the anchor is the only thing in the block, and not inline
-            anchorBoundingRect.setY(state->y() + containerBoundingRect.y() - data->documentOffset());
         } else {
             m_finished = false;
             return false; // lets go for a second round.

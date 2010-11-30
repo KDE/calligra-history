@@ -58,7 +58,7 @@ public:
             model(0),
             behaveAsCharacter(false),
             verticalPos(KoTextAnchor::VTop),
-            verticalRel(KoTextAnchor::VBaseline),
+            verticalRel(KoTextAnchor::VLine),
             horizontalPos(KoTextAnchor::HLeft),
             horizontalRel(KoTextAnchor::HChar)
     {
@@ -223,8 +223,8 @@ void KoTextAnchor::resize(const QTextDocument *document, QTextInlineObject objec
         object.setDescent(qMax((qreal) 0, d->shape->size().height() + d->distance.y()));
     } else {
         object.setWidth(0);
-        object.setAscent(0);
-        object.setDescent(0);
+        object.setAscent(fm.ascent());
+        object.setDescent(fm.descent());
     }
 }
 

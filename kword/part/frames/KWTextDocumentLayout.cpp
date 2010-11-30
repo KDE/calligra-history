@@ -647,20 +647,6 @@ void KWTextDocumentLayout::layout()
                     outlines.append(outline);
                     line.updateOutline(outline);
                  }
-                // if the anchor occupies the first character of our block,
-                // create one line for it. This can theoretically change currentshape=0
-                // midway through the loop causing crashes. However the textshape makes
-                // sure that a line like this always have height so infinite that it
-                // doesn't happen.
-                const int cursorPosition = m_state->cursorPosition();
-                if (cursorPosition == startOfBlockText && strategy->anchor()->positionInDocument() == cursorPosition && !strategy->anchor()->behavesAsCharacter()) {
-                    ADEBUG << "   creating line for anchor";
-                    QTextLine line = m_state->layout->createLine();
-                    line.setNumColumns(1);
-                    line.setPosition(QPointF(m_state->x(), m_state->y()));
-                    m_state->addLine(line);
-                    ++startOfBlockText;
-                }
                 restartLine = true;
                 ADEBUG << "adding child outline";
             }
