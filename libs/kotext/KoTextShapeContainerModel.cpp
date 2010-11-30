@@ -210,6 +210,8 @@ void KoTextShapeContainerModel::proposeMove(KoShape *child, QPointF &move)
             qreal y = tl.y() - data->documentOffset() - newPosition.y() + child->size().height();
             relation.anchor->setOffset(QPointF(relation.anchor->offset().x(), -y));
         }
+    } else {
+        child->setPosition(newPosition);
     }
 
     move.setX(0); // let the text layout move it.
