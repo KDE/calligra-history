@@ -60,7 +60,8 @@ public:
             verticalPos(KoTextAnchor::VTop),
             verticalRel(KoTextAnchor::VLine),
             horizontalPos(KoTextAnchor::HLeft),
-            horizontalRel(KoTextAnchor::HChar)
+            horizontalRel(KoTextAnchor::HChar),
+            anchorType("char")
     {
         Q_ASSERT(shape);
     }
@@ -126,6 +127,7 @@ public:
     KoTextAnchor::VerticalRel verticalRel;
     KoTextAnchor::HorizontalPos horizontalPos;
     KoTextAnchor::HorizontalRel horizontalRel;
+    QString anchorType;
 };
 
 KoTextAnchor::KoTextAnchor(KoShape *shape)
@@ -303,85 +305,119 @@ void KoTextAnchor::setOffset(const QPointF &offset)
 void KoTextAnchor::saveOdf(KoShapeSavingContext &context)
 {
     Q_D(KoTextAnchor);
-    // the anchor type determines where in the stream the shape is to be saved.
-    enum OdfAnchorType {
-        AsChar,
-        Frame,
-        Paragraph,
-        Undefined
-    };
-    #if 0
-    // ODF is not nearly as powerful as we need it (yet) so lets do some mapping.
-    OdfAnchorType odfAnchorType = Undefined;
-    switch (d->verticalAlignment) {
-    case KoTextAnchor::TopOfFrame:
-    case KoTextAnchor::BottomOfFrame:
-        odfAnchorType = Frame;
-        break;
-    case KoTextAnchor::TopOfParagraph:
-    case KoTextAnchor::AboveCurrentLine:
-    case KoTextAnchor::BelowCurrentLine:
-    case KoTextAnchor::BottomOfParagraph:
-    case KoTextAnchor::TopOfPage:
-    case KoTextAnchor::BottomOfPage:
-    case KoTextAnchor::TopOfPageContent:
-    case KoTextAnchor::BottomOfPageContent:
-        odfAnchorType = Paragraph;
-        break;
-    case KoTextAnchor::VerticalOffset:
-        odfAnchorType = AsChar;
-        break;
+
+    shape()->setAdditionalAttribute("text:anchor-type", d->anchorType);
+
+    // vertical-pos
+    if (d->verticalPos == VBelow) {
+        shape()->setAdditionalStyleAttribute("style:vertical-pos", "below");
+    } else if (d->verticalPos == VBottom) {
+        shape()->setAdditionalStyleAttribute("style:vertical-pos", "bottom");
+    } else if (d->verticalPos == VFromTop) {
+        shape()->setAdditionalStyleAttribute("style:vertical-pos", "from-top");
+    } else if (d->verticalPos == VMiddle) {
+        shape()->setAdditionalStyleAttribute("style:vertical-pos", "middle");
+    } else if (d->verticalPos == VTop) {
+        shape()->setAdditionalStyleAttribute("style:vertical-pos", "top");
     }
-    Q_ASSERT(odfAnchorType != Undefined);
 
-    if (odfAnchorType == AsChar) {
-       if (qAbs(d->distance.y()) > 1E-4)
-           shape()->setAdditionalAttribute("svg:y", QString("%1pt").arg(d->distance.y()));
-
-        // the draw:transform should not have any offset since we put that in the svg:y already.
-        context.addShapeOffset(shape(), shape()->absoluteTransformation(0).inverted());
-
-        shape()->setAdditionalAttribute("text:anchor-type", "as-char");
-        shape()->saveOdf(context);
-        shape()->removeAdditionalAttribute("svg:y");
-    } else {
-        // these don't map perfectly to ODF because we have more functionality
-        shape()->setAdditionalAttribute("koffice:anchor-type", d->anchorPosition());
-
-        QString type;
-        if (odfAnchorType == Frame)
-            type = "frame";
-        else
-            type = "paragraph";
-        shape()->setAdditionalAttribute("text:anchor-type", type);
-        if (shape()->parent()) {// an anchor may not yet have been layout-ed
-            QTransform parentMatrix = shape()->parent()->absoluteTransformation(0).inverted();
-            QTransform shapeMatrix = shape()->absoluteTransformation(0);;
-
-            qreal dx = d->distance.x() - shapeMatrix.dx()*parentMatrix.m11()
-                                       - shapeMatrix.dy()*parentMatrix.m21();
-            qreal dy = d->distance.y() - shapeMatrix.dx()*parentMatrix.m12()
-                                       - shapeMatrix.dy()*parentMatrix.m22();
-            context.addShapeOffset(shape(), QTransform(parentMatrix.m11(),parentMatrix.m12(),
-                                                    parentMatrix.m21(),parentMatrix.m22(),
-                                                    dx,dy));
-        }
-
-        shape()->saveOdf(context);
-        context.removeShapeOffset(shape());
+    // vertical-rel
+    if (d->verticalRel == VBaseline) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "baseline");
+    } else if (d->verticalRel == VChar) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "char");
+    } else if (d->verticalRel == VFrame) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "frame");
+    } else if (d->verticalRel == VFrameContent) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "frame-content");
+    } else if (d->verticalRel == VLine) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "line");
+    } else if (d->verticalRel == VPage) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "page");
+    } else if (d->verticalRel == VPageContent) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "page-content");
+    } else if (d->verticalRel == VParagraph) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "paragraph");
+    } else if (d->verticalRel == VParagraphContent) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "paragraph-content");
+    } else if (d->verticalRel == VText) {
+        shape()->setAdditionalStyleAttribute("style:vertical-rel", "text");
     }
-    #endif
+
+    // horizontal-pos
+    if (d->horizontalPos == HCenter) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-pos", "center");
+    } else if (d->horizontalPos == HFromInside) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-pos", "from-inside");
+    } else if (d->horizontalPos == HFromLeft) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-pos", "from-left");
+    } else if (d->horizontalPos == HInside) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-posl", "inside");
+    } else if (d->horizontalPos == HLeft) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-pos", "left");
+    } else if (d->horizontalPos == HOutside) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-pos", "outside");
+    } else if (d->horizontalPos == HRight) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-pos", "right");
+    }
+
+    // horizontal-rel
+    if (d->horizontalRel == HChar) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "char");
+    } else if (d->horizontalRel == HPage) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "page");
+    } else if (d->horizontalRel == HPageContent) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "page-content");
+    } else if (d->horizontalRel == HPageStartMargin) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "page-start-margin");
+    } else if (d->horizontalRel == HPageEndMargin) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "page-end-margin");
+    } else if (d->horizontalRel == HFrame) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame");
+    } else if (d->horizontalRel == HFrameContent) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-content");
+    } else if (d->horizontalRel == HFrameEndMargin) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-end-margin");
+    } else if (d->horizontalRel == hFrameStartMargin) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-start-margin");
+    } else if (d->horizontalRel == HParagraph) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph");
+    } else if (d->horizontalRel == HParagraphContent) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-content");
+    } else if (d->horizontalRel == HParagraphEndMargin) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-end-margin");
+    } else if (d->horizontalRel == hParagraphStartMargin) {
+        shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-start-margin");
+    }
+
+    if (shape()->parent()) {// an anchor may not yet have been layout-ed
+        QTransform parentMatrix = shape()->parent()->absoluteTransformation(0).inverted();
+        QTransform shapeMatrix = shape()->absoluteTransformation(0);;
+
+        qreal dx = d->distance.x() - shapeMatrix.dx()*parentMatrix.m11()
+                                   - shapeMatrix.dy()*parentMatrix.m21();
+        qreal dy = d->distance.y() - shapeMatrix.dx()*parentMatrix.m12()
+                                   - shapeMatrix.dy()*parentMatrix.m22();
+        context.addShapeOffset(shape(), QTransform(parentMatrix.m11(),parentMatrix.m12(),
+                                                parentMatrix.m21(),parentMatrix.m22(),
+                                                dx,dy));
+    }
+
+    shape()->saveOdf(context);
+
+    context.removeShapeOffset(shape());
 }
 
 bool KoTextAnchor::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &context)
 {
     Q_D(KoTextAnchor);
     d->distance = shape()->position();
+
     if (! shape()->hasAdditionalAttribute("text:anchor-type"))
         return false;
-    QString anchorType = shape()->additionalAttribute("text:anchor-type");
+    d->anchorType = shape()->additionalAttribute("text:anchor-type");
 
-    if (anchorType == "as-char")
+    if (d->anchorType == "as-char")
         d->behaveAsCharacter = true;
 
     // load settings from graphic style
@@ -490,8 +526,8 @@ bool KoTextAnchor::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &c
     shape()->setPosition(d->distance);
 
     if (element.hasAttributeNS(KoXmlNS::koffice, "anchor-type")) {
-        anchorType = element.attributeNS(KoXmlNS::koffice, "anchor-type"); // our enriched properties
-        QStringList types = anchorType.split('|');
+        d->anchorType = element.attributeNS(KoXmlNS::koffice, "anchor-type"); // our enriched properties
+        QStringList types = d->anchorType.split('|');
         if (types.count() > 1) {
             QString vertical = types[0];
             QString horizontal = types[1];
