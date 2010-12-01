@@ -120,6 +120,7 @@ qDebug() << "checkState HERE"<<m_anchor->horizontalRel();
     switch (m_anchor->horizontalRel()) {
     case KoTextAnchor::HPage:
         if (!pageInfo) {
+            m_finished = false;
             return false;
         }
         anchorBoundingRect.setWidth(pageInfo->page().width());
@@ -162,6 +163,7 @@ qDebug() << "checkState 1"<<anchorBoundingRect;
     switch (m_anchor->verticalRel()) {
     case KoTextAnchor::VPage:
         if (!pageInfo) {
+            m_finished = false;
             return false;
         }
         anchorBoundingRect.setY(pageInfo->page().offsetInDocument());
@@ -171,6 +173,7 @@ qDebug() << "checkState 1"<<anchorBoundingRect;
 
     case KoTextAnchor::VPageContent:
         if (!pageInfo) {
+            m_finished = false;
             return false;
         }
         // find main frame
