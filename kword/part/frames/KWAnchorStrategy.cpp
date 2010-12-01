@@ -119,6 +119,9 @@ qDebug() << "checkState HERE"<<m_anchor->horizontalRel();
     // set anchor bounding rectangle horizontal position and size
     switch (m_anchor->horizontalRel()) {
     case KoTextAnchor::HPage:
+        if (!pageInfo) {
+            return false;
+        }
         anchorBoundingRect.setWidth(pageInfo->page().width());
         recalcFrom = block.position();
         break;
@@ -158,12 +161,18 @@ qDebug() << "checkState 1"<<anchorBoundingRect;
     // set anchor bounding rectangle vertical position
     switch (m_anchor->verticalRel()) {
     case KoTextAnchor::VPage:
+        if (!pageInfo) {
+            return false;
+        }
         anchorBoundingRect.setY(pageInfo->page().offsetInDocument());
         anchorBoundingRect.setHeight(pageInfo->page().height());
         recalcFrom = qMax(recalcFrom, data->position());
         break;
 
     case KoTextAnchor::VPageContent:
+        if (!pageInfo) {
+            return false;
+        }
         // find main frame
         foreach (KWFrameSet *fs, frameSet->kwordDocument()->frameSets()) {
             KWTextFrameSet *tfs = dynamic_cast<KWTextFrameSet*>(fs);
