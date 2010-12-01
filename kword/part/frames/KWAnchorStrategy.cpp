@@ -25,6 +25,7 @@
 
 #include <KoShapeContainer.h>
 #include <KoTextShapeData.h>
+#include <KoTextBlockData.h>
 
 #include <QTextBlock>
 #include <QTextLine>
@@ -200,12 +201,17 @@ qDebug() << "checkState 1"<<anchorBoundingRect;
         break;
 
     case KoTextAnchor::VParagraph:
+    case KoTextAnchor::VParagraphContent:
         if (layout->lineCount() != 0) {
             qreal top = layout->lineAt(0).y();
             QTextLine tl = layout->lineAt(layout->lineCount() - 1);
             anchorBoundingRect.setY(top + containerBoundingRect.y()  - data->documentOffset());
             anchorBoundingRect.setHeight(tl.y() + tl.height() - top);
             recalcFrom = qMax(recalcFrom, block.position());
+            KoTextBlockData *blockData = dynamic_cast<KoTextBlockData*>(block.userData());
+            if(blockData && m_anchor->verticalRel() == KoTextAnchor::VParagraph) {
+                anchorBoundingRect.setY(blockData->effectiveTop() + containerBoundingRect.y()  - data->documentOffset());
+            }
         } else {
             m_finished = false;
             return false; // lets go for a second round.
