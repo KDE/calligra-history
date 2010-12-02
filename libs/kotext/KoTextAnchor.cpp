@@ -378,7 +378,7 @@ void KoTextAnchor::saveOdf(KoShapeSavingContext &context)
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-content");
     } else if (d->horizontalRel == HFrameEndMargin) {
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-end-margin");
-    } else if (d->horizontalRel == hFrameStartMargin) {
+    } else if (d->horizontalRel == HFrameStartMargin) {
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-start-margin");
     } else if (d->horizontalRel == HParagraph) {
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph");
@@ -386,7 +386,7 @@ void KoTextAnchor::saveOdf(KoShapeSavingContext &context)
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-content");
     } else if (d->horizontalRel == HParagraphEndMargin) {
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-end-margin");
-    } else if (d->horizontalRel == hParagraphStartMargin) {
+    } else if (d->horizontalRel == HParagraphStartMargin) {
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-start-margin");
     }
 
@@ -482,13 +482,13 @@ bool KoTextAnchor::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &c
         d->horizontalPos = HFromLeft;
     } else if (horizontalPos == "inside") {//svg:x attribute is ignored
         d->horizontalPos = HInside;
-        d->distance.setX(-shape()->size().width());
+        d->distance.setX(0);
     } else if (horizontalPos == "left") {//svg:x attribute is ignored
         d->horizontalPos = HLeft;
         d->distance.setX(0);
     }else if (horizontalPos == "outside") {//svg:x attribute is ignored
         d->horizontalPos = HOutside;
-        d->distance.setX(0);
+        d->distance.setX(-shape()->size().width());
     }else if (horizontalPos == "right") {//svg:x attribute is ignored
         d->horizontalPos = HRight;
         d->distance.setX(-shape()->size().width());
@@ -512,7 +512,7 @@ bool KoTextAnchor::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &c
     else if (horizontalRel == "frame-end-margin")
         d->horizontalRel = HFrameEndMargin;
     else if (horizontalRel == "frame-start-margin")
-        d->horizontalRel = hFrameStartMargin;
+        d->horizontalRel = HFrameStartMargin;
     else if (horizontalRel == "paragraph")
         d->horizontalRel = HParagraph;
     else if (horizontalRel == "paragraph-content")
@@ -520,7 +520,7 @@ bool KoTextAnchor::loadOdf(const KoXmlElement &element, KoShapeLoadingContext &c
     else if (horizontalRel == "paragraph-end-margin")
         d->horizontalRel = HParagraphEndMargin;
     else if (horizontalRel == "paragraph-start-margin")
-        d->horizontalRel = hParagraphStartMargin;
+        d->horizontalRel = HParagraphStartMargin;
 
     // if svg:x or svg:y should be ignored set new position
     shape()->setPosition(d->distance);

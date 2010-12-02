@@ -52,6 +52,8 @@ KWAnchorStrategy::~KWAnchorStrategy()
 
 bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int startOfBlock, int startOfBlockText, KWTextFrameSet *frameSet)
 {
+    kDebug() << "start";
+    qDebug() << " ********************************************************************** shape pointer " << m_anchor->shape();
     m_nextShapeNeeded = false;
 
     KoTextShapeData *data = 0;
@@ -128,13 +130,14 @@ qDebug() << "checkState HERE"<<m_anchor->horizontalRel();
         recalcFrom = block.position();
         break;
 
+    case KoTextAnchor::HParagraph:
     case KoTextAnchor::HPageContent:
         anchorBoundingRect.setX(containerBoundingRect.x());
         anchorBoundingRect.setWidth(containerBoundingRect.width());
         recalcFrom = block.position();
         break;
 
-    case KoTextAnchor::HParagraph:
+    case KoTextAnchor::HParagraphContent:
         anchorBoundingRect.setX(state->x() + containerBoundingRect.x());
         anchorBoundingRect.setWidth(state->width());
         recalcFrom = block.position();
@@ -153,8 +156,91 @@ qDebug() << "are we HERE";
             anchorBoundingRect.setWidth(0.1); // just some small value
             recalcFrom = 0;
         }
+        recalcFrom = block.position();
         break;
 
+    case KoTextAnchor::HPageStartMargin:
+    {
+        if (!pageInfo) {
+            m_finished = false;
+            return false;
+        }
+
+        int horizontalPos = m_anchor->horizontalPos();
+        // if verticalRel is HFromInside or HInside or HOutside and the page number is even,
+        // than set anchorBoundingRect to HPageEndMargin area
+        if ((pageInfo->pageNumber()%2 == 0) && (horizontalPos == KoTextAnchor::HFromInside ||
+                horizontalPos == KoTextAnchor::HInside || horizontalPos == KoTextAnchor::HOutside)) {
+            anchorBoundingRect.setX(containerBoundingRect.x() + containerBoundingRect.width());
+            anchorBoundingRect.setWidth(pageInfo->page().width() - anchorBoundingRect.x());
+        } else {
+            anchorBoundingRect.setWidth(containerBoundingRect.x());
+        }
+        recalcFrom = block.position();
+        break;
+    }
+    case KoTextAnchor::HPageEndMargin:
+    {
+        if (!pageInfo) {
+            m_finished = false;
+            return false;
+        }
+
+        int horizontalPos = m_anchor->horizontalPos();
+        // if verticalRel is HFromInside or HInside or HOutside and the page number is even,
+        // than set anchorBoundingRect to HPageStartMargin area
+        if ((pageInfo->pageNumber()%2 == 0) && (horizontalPos == KoTextAnchor::HFromInside ||
+                horizontalPos == KoTextAnchor::HInside || horizontalPos == KoTextAnchor::HOutside)) {
+            anchorBoundingRect.setWidth(containerBoundingRect.x());
+        } else {
+            anchorBoundingRect.setX(containerBoundingRect.x() + containerBoundingRect.width());
+            anchorBoundingRect.setWidth(pageInfo->page().width() - anchorBoundingRect.x());
+        }
+        recalcFrom = block.position();
+        break;
+    }
+    case KoTextAnchor::HParagraphStartMargin:
+    {
+        if (!pageInfo) {
+            m_finished = false;
+            return false;
+        }
+
+        int horizontalPos = m_anchor->horizontalPos();
+        // if verticalRel is HFromInside or HInside or HOutside and the page number is even,
+        // than set anchorBoundingRect to HParagraphEndMargin area
+        if ((pageInfo->pageNumber()%2 == 0) && (horizontalPos == KoTextAnchor::HFromInside ||
+                horizontalPos == KoTextAnchor::HInside || horizontalPos == KoTextAnchor::HOutside)) {
+            anchorBoundingRect.setX(state->x() + containerBoundingRect.x() + state->width());
+            anchorBoundingRect.setWidth(containerBoundingRect.x() + containerBoundingRect.width() - anchorBoundingRect.x());
+        } else {
+            anchorBoundingRect.setX(containerBoundingRect.x());
+            anchorBoundingRect.setWidth(state->x());
+        }
+        recalcFrom = block.position();
+        break;
+    }
+    case KoTextAnchor::HParagraphEndMargin:
+    {
+        if (!pageInfo) {
+            m_finished = false;
+            return false;
+        }
+
+        int horizontalPos = m_anchor->horizontalPos();
+        // if verticalRel is HFromInside or HInside or HOutside and the page number is even,
+        // than set anchorBoundingRect to HParagraphStartMargin area
+        if ((pageInfo->pageNumber()%2 == 0) && (horizontalPos == KoTextAnchor::HFromInside ||
+                horizontalPos == KoTextAnchor::HInside || horizontalPos == KoTextAnchor::HOutside)) {
+            anchorBoundingRect.setX(containerBoundingRect.x());
+            anchorBoundingRect.setWidth(state->x());
+        } else {
+            anchorBoundingRect.setX(state->x() + containerBoundingRect.x() + state->width());
+            anchorBoundingRect.setWidth(containerBoundingRect.x() + containerBoundingRect.width() - anchorBoundingRect.x());
+        }
+        recalcFrom = block.position();
+        break;
+    }
     default :
         kDebug(32002) << "horizontal-rel not handled";
     }
@@ -244,14 +330,42 @@ qDebug() << "checkState 2"<<anchorBoundingRect;
         newPosition.setX(anchorBoundingRect.x() + anchorBoundingRect.width()/2 - containerBoundingRect.x());
         break;
 
-    case KoTextAnchor::HFromInside: // TODO
-    case KoTextAnchor::HFromLeft: // TODO
-    case KoTextAnchor::HInside: // TODO
+    case KoTextAnchor::HFromInside:
+    case KoTextAnchor::HInside:
+    {
+        if (!pageInfo) {
+            m_finished = false;
+            return false;
+        }
+
+        if (pageInfo->pageNumber()%2 == 1) {
+            newPosition.setX(anchorBoundingRect.x() - containerBoundingRect.x());
+        } else {
+            newPosition.setX(anchorBoundingRect.right() - containerBoundingRect.x() -
+                    m_anchor->shape()->size().width() - 2*m_anchor->offset().x() );
+        }
+        break;
+    }
+    case KoTextAnchor::HFromLeft:
     case KoTextAnchor::HLeft:
         newPosition.setX(anchorBoundingRect.x() - containerBoundingRect.x());
         break;
 
-    case KoTextAnchor::HOutside: // TODO
+    case KoTextAnchor::HOutside:
+    {
+        if (!pageInfo) {
+            m_finished = false;
+            return false;
+        }
+
+        if (pageInfo->pageNumber()%2 == 1) {
+            newPosition.setX(anchorBoundingRect.right() - containerBoundingRect.x());
+        } else {
+            newPosition.setX(anchorBoundingRect.x() - containerBoundingRect.x() +
+                             m_anchor->shape()->size().width() - 2*(m_anchor->offset().x() + m_anchor->shape()->size().width()) );
+        }
+        break;
+    }
     case KoTextAnchor::HRight: {
         newPosition.setX(anchorBoundingRect.right() - containerBoundingRect.x());
         break;
@@ -282,6 +396,10 @@ qDebug() << "checkState 3"<<anchorBoundingRect;
     }
 qDebug() << "checkState 4"<<anchorBoundingRect;
 
+qDebug() << "horizontalRel" << m_anchor->horizontalRel();
+qDebug() << "horizontalPos" << m_anchor->horizontalPos();
+qDebug() << "newPosition "<<newPosition;
+qDebug() << "m_anchor->offset()"<<m_anchor->offset();
     newPosition = newPosition + m_anchor->offset();
 
     if (shapeContainingAnchor) {
@@ -321,6 +439,8 @@ qDebug() << "checkState 4"<<anchorBoundingRect;
         m_anchor->shape()->update();
     }
 
+    qDebug() << "m_anchor->shape()->position() "<<m_anchor->shape()->position();
+
     if (m_finished) // no second pass needed
         return false;
 
@@ -332,6 +452,7 @@ qDebug() << "checkState 4"<<anchorBoundingRect;
         if (state->cursorPosition() <= recalcFrom)
             break;
     } while (state->previousParag());
+
     m_finished = true;
     return true;
 }
@@ -366,6 +487,10 @@ void KWAnchorStrategy::calculateKnowledgePoint()
    }
    case KoTextAnchor::HParagraph:
    case KoTextAnchor::HChar:
+   case KoTextAnchor::HPageEndMargin:
+   case KoTextAnchor::HPageStartMargin:
+   case KoTextAnchor::HParagraphEndMargin:
+   case KoTextAnchor::HParagraphStartMargin:
        m_knowledgePoint = m_anchor->positionInDocument();
        break;
    default :

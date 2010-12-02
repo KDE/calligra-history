@@ -77,11 +77,11 @@ public:
         HFrame,
         HFrameContent,
         HFrameEndMargin,
-        hFrameStartMargin,
+        HFrameStartMargin,
         HParagraph,
         HParagraphContent,
         HParagraphEndMargin,
-        hParagraphStartMargin
+        HParagraphStartMargin
     };
 
     enum VerticalPos {
