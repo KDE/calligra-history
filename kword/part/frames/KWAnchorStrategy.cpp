@@ -71,7 +71,6 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
     if (!shapeContainingAnchor) // can happen if the shape isn't there yet but will be added later
         return false;
     Q_ASSERT(data);
-qDebug() << "checkState data valid";
 
     if (m_anchor->shape()->parent() == 0) { // it should be parented to our current shape
 //        KoShapeContainer *sc = dynamic_cast<KoShapeContainer*>(state->shape);
@@ -83,7 +82,7 @@ qDebug() << "checkState data valid";
         sc->addShape(m_anchor->shape());
         calculateKnowledgePoint();
     }
-qDebug() << "checkState knowledgepoint"<<m_knowledgePoint;
+
     if (m_knowledgePoint < 0)
         return false;
 
@@ -117,7 +116,6 @@ qDebug() << "checkState knowledgepoint"<<m_knowledgePoint;
     QRectF containerBoundingRect = m_anchor->shape()->parent()->boundingRect();
     QRectF anchorBoundingRect;
     QPointF newPosition;
-qDebug() << "checkState HERE"<<m_anchor->horizontalRel();
 
     // set anchor bounding rectangle horizontal position and size
     switch (m_anchor->horizontalRel()) {
@@ -144,7 +142,6 @@ qDebug() << "checkState HERE"<<m_anchor->horizontalRel();
         break;
 
     case KoTextAnchor::HChar:
-qDebug() << "are we HERE";
         if (m_anchor->positionInDocument() == block.position()) { // at first position of parag.
             anchorBoundingRect.setX(state->x() + containerBoundingRect.x());
             anchorBoundingRect.setWidth(0.1); // just some small value
@@ -244,7 +241,6 @@ qDebug() << "are we HERE";
     default :
         kDebug(32002) << "horizontal-rel not handled";
     }
-qDebug() << "checkState 1"<<anchorBoundingRect;
 
     // set anchor bounding rectangle vertical position
     switch (m_anchor->verticalRel()) {
@@ -322,7 +318,6 @@ qDebug() << "checkState 1"<<anchorBoundingRect;
     default :
         kDebug(32002) << "vertical-rel not handled";
     }
-qDebug() << "checkState 2"<<anchorBoundingRect;
 
     // Set shape horizontal alignment inside anchor bounding rectangle
     switch (m_anchor->horizontalPos()) {
@@ -373,7 +368,6 @@ qDebug() << "checkState 2"<<anchorBoundingRect;
     default :
         kDebug(32002) << "horizontal-pos not handled";
     }
-qDebug() << "checkState 3"<<anchorBoundingRect;
 
     // Set shape vertical alignment inside anchor bounding rectangle
     switch (m_anchor->verticalPos()) {
@@ -394,12 +388,6 @@ qDebug() << "checkState 3"<<anchorBoundingRect;
     default :
         kDebug(32002) << "vertical-pos not handled";
     }
-qDebug() << "checkState 4"<<anchorBoundingRect;
-
-qDebug() << "horizontalRel" << m_anchor->horizontalRel();
-qDebug() << "horizontalPos" << m_anchor->horizontalPos();
-qDebug() << "newPosition "<<newPosition;
-qDebug() << "m_anchor->offset()"<<m_anchor->offset();
     newPosition = newPosition + m_anchor->offset();
 
     if (shapeContainingAnchor) {
@@ -439,7 +427,6 @@ qDebug() << "m_anchor->offset()"<<m_anchor->offset();
         m_anchor->shape()->update();
     }
 
-    qDebug() << "m_anchor->shape()->position() "<<m_anchor->shape()->position();
 
     if (m_finished) // no second pass needed
         return false;
@@ -486,6 +473,7 @@ void KWAnchorStrategy::calculateKnowledgePoint()
        break;
    }
    case KoTextAnchor::HParagraph:
+   case KoTextAnchor::HParagraphContent:
    case KoTextAnchor::HChar:
    case KoTextAnchor::HPageEndMargin:
    case KoTextAnchor::HPageStartMargin:
@@ -507,6 +495,7 @@ void KWAnchorStrategy::calculateKnowledgePoint()
        m_knowledgePoint = qMax(m_knowledgePoint, data->position() + 1);
        break;
    }
+   case KoTextAnchor::VParagraphContent:
    case KoTextAnchor::VParagraph:
    case KoTextAnchor::VLine: {
        QTextBlock block = m_anchor->document()->findBlock(m_anchor->positionInDocument());
