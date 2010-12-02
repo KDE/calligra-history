@@ -145,13 +145,19 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
         if (m_anchor->positionInDocument() == block.position()) { // at first position of parag.
             anchorBoundingRect.setX(state->x() + containerBoundingRect.x());
             anchorBoundingRect.setWidth(0.1); // just some small value
-        } else {
-            Q_ASSERT(layout->lineCount());
+        } else if (layout->lineCount() != 0) {
             QTextLine tl = layout->lineForTextPosition(m_anchor->positionInDocument() - block.position());
-            Q_ASSERT(tl.isValid());
-            anchorBoundingRect.setX(tl.cursorToX(m_anchor->positionInDocument() - block.position()) + containerBoundingRect.x());
-            anchorBoundingRect.setWidth(0.1); // just some small value
-            recalcFrom = 0;
+            if (tl.isValid()) {
+                anchorBoundingRect.setX(tl.cursorToX(m_anchor->positionInDocument() - block.position()) + containerBoundingRect.x());
+                anchorBoundingRect.setWidth(0.1); // just some small value
+                recalcFrom = 0;
+            } else {
+                m_finished = false;
+                return false; // lets go for a second round.
+            }
+        } else {
+            m_finished = false;
+            return false; // lets go for a second round.
         }
         recalcFrom = block.position();
         break;
@@ -303,7 +309,6 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
     case KoTextAnchor::VChar:
     case KoTextAnchor::VLine:
         if (layout->lineCount()) {
-            Q_ASSERT(layout->lineCount());
             QTextLine tl = layout->lineForTextPosition(m_anchor->positionInDocument() - block.position());
             Q_ASSERT(tl.isValid());
             anchorBoundingRect.setY(tl.y() + containerBoundingRect.y() - data->documentOffset());
