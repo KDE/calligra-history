@@ -332,7 +332,7 @@ public:
         line.setLineWidth(maxLineWidth);
         const qreal maxLineHeight = line.height();
         const qreal maxNaturalTextWidth = line.naturalTextWidth();
-        if (maxLineWidth <= 0. || line.textLength() == 0) {
+        if (maxLineWidth <= 0.) {
             // margin so small that the text can't fit.
             if (m_state->layout->lineCount() > 1
                     || m_state->layout->text().length() > 0) // parag not empty
