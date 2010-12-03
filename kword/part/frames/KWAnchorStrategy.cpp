@@ -86,6 +86,12 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
     if (m_knowledgePoint < 0)
         return false;
 
+    if (m_anchor->behavesAsCharacter()) {
+        //as-char means the horiz are invalid, but we need good values so let's just set them
+        m_anchor->setHorizontalRel(KoTextAnchor::HChar);
+        m_anchor->setHorizontalPos(KoTextAnchor::HLeft);
+    }
+
     if (m_lastknownPosInDoc != m_anchor->positionInDocument()
             || m_lastOffset != m_anchor->offset()
             || m_lastVerticalPos != m_anchor->verticalPos()
@@ -309,13 +315,13 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
         }
         break;
 
-    case KoTextAnchor::VChar:
     case KoTextAnchor::VLine:
         if (layout->lineCount()) {
             QTextLine tl = layout->lineForTextPosition(m_anchor->positionInDocument() - block.position());
             Q_ASSERT(tl.isValid());
-            anchorBoundingRect.setY(tl.y() + containerBoundingRect.y() - data->documentOffset());
-            anchorBoundingRect.setHeight(tl.height());
+            anchorBoundingRect.setY(tl.y() - m_anchor->shape()->size().height()
+                            + containerBoundingRect.y() - data->documentOffset());
+            anchorBoundingRect.setHeight(2*m_anchor->shape()->size().height());
         } else {
             m_finished = false;
             return false; // lets go for a second round.
@@ -323,6 +329,39 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
         recalcFrom = qMax(recalcFrom, block.position());
         break;
 
+    case KoTextAnchor::VText:
+    case KoTextAnchor::VChar:
+        if (layout->lineCount()) {
+            QTextLine tl = layout->lineForTextPosition(m_anchor->positionInDocument() - block.position());
+            Q_ASSERT(tl.isValid());
+            if (m_anchor->behavesAsCharacter() && m_anchor->verticalRel() == KoTextAnchor::VChar) {
+                //char relative is behaving in a special way when as-char
+                anchorBoundingRect.setY(tl.y() + containerBoundingRect.y() - data->documentOffset());
+                anchorBoundingRect.setHeight(tl.height());
+            } else {
+                anchorBoundingRect.setY(tl.y() + containerBoundingRect.y() - data->documentOffset());
+                anchorBoundingRect.setHeight(tl.height());
+            }
+        } else {
+            m_finished = false;
+            return false; // lets go for a second round.
+        }
+        recalcFrom = qMax(recalcFrom, block.position());
+        break;
+
+    case KoTextAnchor::VBaseline:
+        if (layout->lineCount()) {
+            QTextLine tl = layout->lineForTextPosition(m_anchor->positionInDocument() - block.position());
+            Q_ASSERT(tl.isValid());
+            anchorBoundingRect.setY(tl.y() + tl.ascent() - m_anchor->shape()->size().height()
+               + containerBoundingRect.y() - data->documentOffset());
+            anchorBoundingRect.setHeight(2*m_anchor->shape()->size().height());
+        } else {
+            m_finished = false;
+            return false; // lets go for a second round.
+        }
+        recalcFrom = qMax(recalcFrom, block.position());
+        break;
     default :
         kDebug(32002) << "vertical-rel not handled";
     }
@@ -379,8 +418,11 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
 
     // Set shape vertical alignment inside anchor bounding rectangle
     switch (m_anchor->verticalPos()) {
-    case KoTextAnchor::VBelow:
     case KoTextAnchor::VBottom:
+        newPosition.setY(anchorBoundingRect.bottom() - containerBoundingRect.y()
+        );//- m_anchor->shape()->size().height());
+        break;
+    case KoTextAnchor::VBelow:
         newPosition.setY(anchorBoundingRect.bottom() - containerBoundingRect.y());
         break;
 
@@ -397,7 +439,7 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
         kDebug(32002) << "vertical-pos not handled";
     }
     newPosition = newPosition + m_anchor->offset();
-
+qDebug()<<"BOUNDING RECT"<<anchorBoundingRect;
     if (!checkPageBorder(newPosition, containerBoundingRect, pageInfo))
     {
         m_finished = false;
