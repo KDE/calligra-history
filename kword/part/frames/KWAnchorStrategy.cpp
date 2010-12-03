@@ -124,6 +124,7 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
             m_finished = false;
             return false;
         }
+        anchorBoundingRect.setX(0);
         anchorBoundingRect.setWidth(pageInfo->page().width());
         recalcFrom = block.position();
         break;
@@ -177,6 +178,7 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
             anchorBoundingRect.setX(containerBoundingRect.x() + containerBoundingRect.width());
             anchorBoundingRect.setWidth(pageInfo->page().width() - anchorBoundingRect.x());
         } else {
+            anchorBoundingRect.setX(0);
             anchorBoundingRect.setWidth(containerBoundingRect.x());
         }
         recalcFrom = block.position();
@@ -194,6 +196,7 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
         // than set anchorBoundingRect to HPageStartMargin area
         if ((pageInfo->pageNumber()%2 == 0) && (horizontalPos == KoTextAnchor::HFromInside ||
                 horizontalPos == KoTextAnchor::HInside || horizontalPos == KoTextAnchor::HOutside)) {
+            anchorBoundingRect.setX(0);
             anchorBoundingRect.setWidth(containerBoundingRect.x());
         } else {
             anchorBoundingRect.setX(containerBoundingRect.x() + containerBoundingRect.width());
