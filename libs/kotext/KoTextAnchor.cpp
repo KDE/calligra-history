@@ -221,8 +221,51 @@ void KoTextAnchor::resize(const QTextDocument *document, QTextInlineObject objec
     if (d->behaveAsCharacter == true) {
         d->distance.setX(0);
         object.setWidth(d->shape->size().width());
-        object.setAscent(qMax((qreal) 0, -d->distance.y()));
-        object.setDescent(qMax((qreal) 0, d->shape->size().height() + d->distance.y()));
+        if (d->verticalRel == VBaseline) {
+            // baseline implies special meaning of the position attribute:
+            switch (d->verticalPos) {
+            case VFromTop:
+                object.setAscent(qMax((qreal) 0, -d->distance.y()));
+                object.setDescent(qMax((qreal) 0, d->shape->size().height() + d->distance.y()));
+                break;
+            case VTop:
+                object.setAscent(d->shape->size().height());
+                object.setDescent(0);
+                break;
+            case VMiddle:
+                object.setAscent(d->shape->size().height()/2);
+                object.setDescent(d->shape->size().height()/2);
+                break;
+            case VBottom:
+                object.setAscent(0);
+                object.setDescent(d->shape->size().height());
+                break;
+            default:
+                break;
+            }
+        } else {
+            qreal boundTop = fm.ascent();
+            qreal boundBottom = 0;
+            if (d->verticalRel == VChar) {
+                boundBottom = fm.descent();
+            }
+            switch (d->verticalPos) {
+            case VTop:
+                object.setAscent(boundTop);
+                object.setDescent(qMax((qreal) 0, d->shape->size().height() - boundTop));
+                break;
+            case VMiddle:
+                object.setAscent(d->shape->size().height()/2);
+                object.setDescent(d->shape->size().height()/2);
+                break;
+            case VBottom:
+                object.setAscent(0);
+                object.setDescent(d->shape->size().height());
+                break;
+            default:
+                break;
+            }
+        }
     } else {
         object.setWidth(0);
         object.setAscent(fm.ascent());
@@ -309,85 +352,132 @@ void KoTextAnchor::saveOdf(KoShapeSavingContext &context)
     shape()->setAdditionalAttribute("text:anchor-type", d->anchorType);
 
     // vertical-pos
-    if (d->verticalPos == VBelow) {
+    switch (d->verticalPos) {
+    case VBelow:
         shape()->setAdditionalStyleAttribute("style:vertical-pos", "below");
-    } else if (d->verticalPos == VBottom) {
+        break;
+    case VBottom:
         shape()->setAdditionalStyleAttribute("style:vertical-pos", "bottom");
-    } else if (d->verticalPos == VFromTop) {
+        break;
+    case VFromTop:
         shape()->setAdditionalStyleAttribute("style:vertical-pos", "from-top");
-    } else if (d->verticalPos == VMiddle) {
+        break;
+    case VMiddle:
         shape()->setAdditionalStyleAttribute("style:vertical-pos", "middle");
-    } else if (d->verticalPos == VTop) {
+        break;
+    case VTop:
         shape()->setAdditionalStyleAttribute("style:vertical-pos", "top");
+        break;
+    default:
+        break;
     }
 
     // vertical-rel
-    if (d->verticalRel == VBaseline) {
+    switch (d->verticalRel) {
+    case VBaseline:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "baseline");
-    } else if (d->verticalRel == VChar) {
+        break;
+    case VChar:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "char");
-    } else if (d->verticalRel == VFrame) {
+        break;
+    case VFrame:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "frame");
-    } else if (d->verticalRel == VFrameContent) {
+        break;
+    case VFrameContent:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "frame-content");
-    } else if (d->verticalRel == VLine) {
+        break;
+    case VLine:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "line");
-    } else if (d->verticalRel == VPage) {
+        break;
+    case VPage:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "page");
-    } else if (d->verticalRel == VPageContent) {
+        break;
+    case VPageContent:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "page-content");
-    } else if (d->verticalRel == VParagraph) {
+        break;
+    case VParagraph:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "paragraph");
-    } else if (d->verticalRel == VParagraphContent) {
+        break;
+    case VParagraphContent:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "paragraph-content");
-    } else if (d->verticalRel == VText) {
+        break;
+    case VText:
         shape()->setAdditionalStyleAttribute("style:vertical-rel", "text");
+        break;
+    default:
+        break;
     }
 
     // horizontal-pos
-    if (d->horizontalPos == HCenter) {
+    switch (d->horizontalPos) {
+    case HCenter:
         shape()->setAdditionalStyleAttribute("style:horizontal-pos", "center");
-    } else if (d->horizontalPos == HFromInside) {
+        break;
+    case HFromInside:
         shape()->setAdditionalStyleAttribute("style:horizontal-pos", "from-inside");
-    } else if (d->horizontalPos == HFromLeft) {
+        break;
+    case HFromLeft:
         shape()->setAdditionalStyleAttribute("style:horizontal-pos", "from-left");
-    } else if (d->horizontalPos == HInside) {
+        break;
+    case HInside:
         shape()->setAdditionalStyleAttribute("style:horizontal-posl", "inside");
-    } else if (d->horizontalPos == HLeft) {
+        break;
+    case HLeft:
         shape()->setAdditionalStyleAttribute("style:horizontal-pos", "left");
-    } else if (d->horizontalPos == HOutside) {
+        break;
+    case HOutside:
         shape()->setAdditionalStyleAttribute("style:horizontal-pos", "outside");
-    } else if (d->horizontalPos == HRight) {
+        break;
+    case HRight:
         shape()->setAdditionalStyleAttribute("style:horizontal-pos", "right");
+        break;
+    default:
+        break;
     }
 
     // horizontal-rel
-    if (d->horizontalRel == HChar) {
+    switch (d->horizontalRel) {
+    case HChar:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "char");
-    } else if (d->horizontalRel == HPage) {
+        break;
+    case HPage:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "page");
-    } else if (d->horizontalRel == HPageContent) {
+        break;
+    case HPageContent:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "page-content");
-    } else if (d->horizontalRel == HPageStartMargin) {
+        break;
+    case HPageStartMargin:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "page-start-margin");
-    } else if (d->horizontalRel == HPageEndMargin) {
+        break;
+    case HPageEndMargin:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "page-end-margin");
-    } else if (d->horizontalRel == HFrame) {
+        break;
+    case HFrame:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame");
-    } else if (d->horizontalRel == HFrameContent) {
+        break;
+    case HFrameContent:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-content");
-    } else if (d->horizontalRel == HFrameEndMargin) {
+        break;
+    case HFrameEndMargin:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-end-margin");
-    } else if (d->horizontalRel == HFrameStartMargin) {
+        break;
+    case HFrameStartMargin:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "frame-start-margin");
-    } else if (d->horizontalRel == HParagraph) {
+        break;
+    case HParagraph:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph");
-    } else if (d->horizontalRel == HParagraphContent) {
+        break;
+    case HParagraphContent:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-content");
-    } else if (d->horizontalRel == HParagraphEndMargin) {
+        break;
+    case HParagraphEndMargin:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-end-margin");
-    } else if (d->horizontalRel == HParagraphStartMargin) {
+        break;
+    case HParagraphStartMargin:
         shape()->setAdditionalStyleAttribute("style:horizontal-rel", "paragraph-start-margin");
+        break;
+    default:
+        break;
     }
 
     if (shape()->parent()) {// an anchor may not yet have been layout-ed
