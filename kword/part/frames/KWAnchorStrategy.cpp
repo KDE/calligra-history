@@ -398,20 +398,10 @@ bool KWAnchorStrategy::checkState(KoTextDocumentLayout::LayoutState *state, int 
     }
     newPosition = newPosition + m_anchor->offset();
 
-    if (shapeContainingAnchor) {
-        KWPageTextInfo *tmpPageInfo = dynamic_cast<KWPageTextInfo *>(data->page());
-        if (tmpPageInfo != 0) {
-            //Check if the new position will place the anchored shape (even partly) beyond page
-            if (shapeContainingAnchor->position().y() + newPosition.y() + m_anchor->shape()->size().height() > tmpPageInfo->page().offsetInDocument() + tmpPageInfo->page().height()) {
-                newPosition.setY(tmpPageInfo->page().offsetInDocument() + tmpPageInfo->page().height() - m_anchor->shape()->size().height() - shapeContainingAnchor->position().y());
-                // The movement would have been past page border, so we will request another
-                // layout round (by setting m_finished=false). In the mean time the caller will
-                // have a chance to move the anchor to the next page. Note: On the following
-                // passes m_finished==false doesn't prevent stopping
-                //m_nextShapeNeeded = true;
-                m_finished = false;
-            }
-        }
+    if (!checkPageBorder(newPosition, containerBoundingRect, pageInfo))
+    {
+        m_finished = false;
+        return false; // lets go for a second round.
     }
 
     QPointF diff = newPosition - m_anchor->shape()->position();
@@ -513,4 +503,32 @@ void KWAnchorStrategy::calculateKnowledgePoint()
    default :
        kDebug(32002) << "vertical-rel not handled";
    }
+}
+
+bool KWAnchorStrategy::checkPageBorder(QPointF &newPosition, QRectF containerBoundingRect, KWPageTextInfo *pageInfo)
+{
+    if (!pageInfo) {
+        return false;
+    }
+
+    //check left border and move the shape back to have the whole shape visible
+    if (newPosition.x() < -containerBoundingRect.x()) {
+        newPosition.setX(-containerBoundingRect.x());
+    }
+
+    //check right border and move the shape back to have the whole shape visible
+    if ((newPosition.x() + m_anchor->shape()->size().width()) > (pageInfo->page().width() -containerBoundingRect.x())) {
+        newPosition.setX(pageInfo->page().width() - m_anchor->shape()->size().width() - containerBoundingRect.x());
+    }
+
+    //check top border and move the shape back to have the whole shape visible
+    if (newPosition.y() < (pageInfo->page().offsetInDocument() - containerBoundingRect.y())) {
+        newPosition.setY(pageInfo->page().offsetInDocument() - containerBoundingRect.y());
+    }
+
+    //check bottom border and move the shape back to have the whole shape visible
+    if ((newPosition.y() + m_anchor->shape()->size().height()) > (pageInfo->page().offsetInDocument() + pageInfo->page().height() - containerBoundingRect.y())) {
+        newPosition.setY(pageInfo->page().offsetInDocument() + pageInfo->page().height() - m_anchor->shape()->size().height() - containerBoundingRect.y());
+    }
+
 }

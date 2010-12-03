@@ -26,6 +26,7 @@
 class KWAnchorStrategy;
 class KWFrame;
 class KWTextFrameSet;
+class KWPageTextInfo;
 
 /**
  * Class for text layout of anchored frames.
@@ -85,6 +86,8 @@ public:
 
 private:
     void calculateKnowledgePoint();
+
+    bool checkPageBorder(QPointF &newPosition, QRectF containerBoundingRect, KWPageTextInfo *pageInfo);
 
     KoTextAnchor *const m_anchor;
     int m_knowledgePoint; // the cursor position at which the layout process has gathered enough info to do our work
