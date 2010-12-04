@@ -46,3 +46,4 @@ bool CommentToolFactory::canCreateTool(KoCanvasBase* canvas) const
 }
 
 #include <CommentShapeFactory.moc>
+
