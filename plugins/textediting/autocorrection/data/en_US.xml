@@ -1674,7 +1674,7 @@
     <item find="beleagured" replace="beleaguered" />
     <item find="beneficary" replace="beneficiary" />
     <item find="bibliogaphy" replace="bibliography" />
-    <item find="briliant" replace="brilliant" />
+    <item find="brilliant" replace="brilliant" />
     <item find="caligraphy" replace="calligraphy" />
     <item find="captial" replace="capital" />
     <item find="certian" replace="certain" />
